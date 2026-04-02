@@ -114,6 +114,40 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### Perl - URL Utilities
+
+Location: `Perl/url_utils/mod.pl`
+
+Functions:
+- **URL 编码**: `url_encode(str)` - 对字符串进行 URL 编码（空格编码为 %20）
+- **URL 解码**: `url_decode(str)` - 对 URL 编码的字符串进行解码
+- **组件编码**: `url_encode_component(str)` - 对 URL 组件进行编码（对保留字符也编码）
+- **组件解码**: `url_decode_component(str)` - 对 URL 组件编码的字符串进行解码
+- **解析查询字符串**: `parse_query_string(qs)` - 解析 URL 查询字符串为哈希引用，支持数组参数
+- **构建查询字符串**: `build_query_string(params, options?)` - 从哈希引用构建 URL 查询字符串，支持排序和跳过空值
+- **解析 URL**: `parse_url(url)` - 解析 URL 为组件哈希引用（scheme, host, port, path, query, fragment, userinfo）
+- **构建 URL**: `build_url(components)` - 从组件哈希引用构建完整 URL
+- **验证 URL**: `is_valid_url(url)` - 验证字符串是否为有效的 URL
+- **提取域名**: `get_domain(url)` - 从 URL 中提取域名
+- **提取路径**: `get_path(url)` - 从 URL 中提取路径
+- **添加参数**: `add_query_params(url, params)` - 向 URL 添加查询参数
+- **移除参数**: `remove_query_params(url, keys)` - 从 URL 中移除指定的查询参数
+- **规范化 URL**: `normalize_url(url)` - 规范化 URL（统一格式、移除默认端口、处理路径中的 . 和 ..）
+
+Features:
+- 零依赖，仅使用 Perl 标准库（Exporter、strict、warnings）
+- 完整的 POD 文档注释，支持 `perldoc` 查看
+- 完整的 RFC 3986 URL 规范支持
+- 支持数组参数（同名参数多次出现自动转为数组）
+- URL 安全处理，防止注入攻击
+- 自动处理默认端口移除（http:80, https:443）
+- 路径规范化（处理 . 和 ..）
+- 完整的 Unicode/UTF-8 支持
+- 提供完整示例代码 `url_utils_example.pl`
+- 内置单元测试 `url_utils_test.pl`（20+ 测试用例）
+
+---
+
 ### JavaScript - Base64 Utilities
 
 Location: `JavaScript/base64_utils/mod.js`
