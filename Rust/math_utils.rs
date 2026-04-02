@@ -322,4 +322,259 @@ pub fn is_prime(n: u64) -> bool {
 /// * `a` - First number
 /// * `b` - Second number
 ///
-/// #
+/// #/// Returns
+/// The greatest common divisor of a and b.
+///
+/// # Examples
+/// ```
+/// assert_eq!(gcd(48, 18), 6);
+/// assert_eq!(gcd(56, 98), 14);
+/// ```
+pub fn gcd(a: u64, b: u64) -> u64 {
+    if a == 0 {
+        return b;
+    }
+    if b == 0 {
+        return a;
+    }
+    let mut x = a;
+    let mut y = b;
+    while y != 0 {
+        let temp = y;
+        y = x % y;
+        x = temp;
+    }
+    x
+}
+
+/// Calculates least common multiple.
+///
+/// # Parameters
+/// * `a` - First number
+/// * `b` - Second number
+///
+/// # Returns
+/// The least common multiple of a and b.
+///
+/// # Examples
+/// ```
+/// assert_eq!(lcm(4, 6), 12);
+/// assert_eq!(lcm(5, 7), 35);
+/// ```
+pub fn lcm(a: u64, b: u64) -> u64 {
+    if a == 0 || b == 0 {
+        return 0;
+    }
+    (a * b) / gcd(a, b)
+}
+
+/// Converts degrees to radians.
+///
+/// # Parameters
+/// * `degrees` - Angle in degrees
+///
+/// # Returns
+/// Angle in radians.
+pub fn to_radians(degrees: f64) -> f64 {
+    degrees * std::f64::consts::PI / 180.0
+}
+
+/// Converts radians to degrees.
+///
+/// # Parameters
+/// * `radians` - Angle in radians
+///
+/// # Returns
+/// Angle in degrees.
+pub fn to_degrees(radians: f64) -> f64 {
+    radians * 180.0 / std::f64::consts::PI
+}
+
+/// Normalizes angle to [0, 360) range.
+///
+/// # Parameters
+/// * `angle` - Angle in degrees
+///
+/// # Returns
+/// Normalized angle in [0, 360) range.
+pub fn normalize_angle_360(angle: f64) -> f64 {
+    let mut result = angle % 360.0;
+    if result < 0.0 {
+        result += 360.0;
+    }
+    result
+}
+
+/// Normalizes angle to [-180, 180) range.
+///
+/// # Parameters
+/// * `angle` - Angle in degrees
+///
+/// # Returns
+/// Normalized angle in [-180, 180) range.
+pub fn normalize_angle_180(angle: f64) -> f64 {
+    let mut result = normalize_angle_360(angle);
+    if result >= 180.0 {
+        result -= 360.0;
+    }
+    result
+}
+
+/// Calculates distance between two points in 2D space.
+///
+/// # Parameters
+/// * `x1`, `y1` - First point coordinates
+/// * `x2`, `y2` - Second point coordinates
+///
+/// # Returns
+/// Euclidean distance between the points.
+pub fn distance_2d(x1: f64, y1: f64, x2: f64, y2: f64) -> f64 {
+    ((x2 - x1).powi(2) + (y2 - y1).powi(2)).sqrt()
+}
+
+/// Calculates distance between two points in 3D space.
+///
+/// # Parameters
+/// * `x1`, `y1`, `z1` - First point coordinates
+/// * `x2`, `y2`, `z2` - Second point coordinates
+///
+/// # Returns
+/// Euclidean distance between the points.
+pub fn distance_3d(x1: f64, y1: f64, z1: f64, x2: f64, y2: f64, z2: f64) -> f64 {
+    ((x2 - x1).powi(2) + (y2 - y1).powi(2) + (z2 - z1).powi(2)).sqrt()
+}
+
+/// Formats a number with thousand separators.
+///
+/// # Parameters
+/// * `n` - The number to format
+///
+/// # Returns
+/// String with commas as thousand separators.
+///
+/// # Examples
+/// ```
+/// assert_eq!(format_with_commas(1234567), "1,234,567");
+/// assert_eq!(format_with_commas(-1000), "-1,000");
+/// ```
+pub fn format_with_commas(n: i64) -> String {
+    let s = n.to_string();
+    let mut result = String::new();
+    let chars: Vec<char> = s.chars().collect();
+    let len = chars.len();
+    for (i, c) in chars.iter().enumerate() {
+        if i > 0 && (len - i) % 3 == 0 && *c != '-' {
+            result.push(',');
+        }
+        result.push(*c);
+    }
+    result
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_clamp() {
+        assert_eq!(clamp(150.0, 0.0, 100.0), 100.0);
+        assert_eq!(clamp(-10.0, 0.0, 100.0), 0.0);
+        assert_eq!(clamp(50.0, 0.0, 100.0), 50.0);
+        assert_eq!(clamp(5i32, 0, 10), 5);
+    }
+
+    #[test]
+    fn test_lerp() {
+        assert_eq!(lerp(0.0, 100.0, 0.5), 50.0);
+        assert_eq!(lerp(0.0, 100.0, 0.0), 0.0);
+        assert_eq!(lerp(10.0, 20.0, 0.5), 15.0);
+    }
+
+    #[test]
+    fn test_map_range() {
+        assert_eq!(map_range(5.0, 0.0, 10.0, 0.0, 100.0), 50.0);
+        assert_eq!(map_range(32.0, 32.0, 212.0, 0.0, 100.0), 0.0);
+    }
+
+    #[test]
+    fn test_approx_eq() {
+        assert!(approx_eq(1.0, 1.0001, 0.001));
+        assert!(!approx_eq(1.0, 2.0, 0.001));
+    }
+
+    #[test]
+    fn test_round_to() {
+        assert_eq!(round_to(3.14159, 2), 3.14);
+        assert_eq!(round_to(2.5, 0), 3.0);
+    }
+
+    #[test]
+    fn test_mean() {
+        assert_eq!(mean(&[1.0, 2.0, 3.0, 4.0, 5.0]), Some(3.0));
+        assert_eq!(mean(&[]), None);
+    }
+
+    #[test]
+    fn test_median() {
+        assert_eq!(median(&[1.0, 2.0, 3.0, 4.0, 5.0]), Some(3.0));
+        assert_eq!(median(&[1.0, 2.0, 3.0, 4.0]), Some(2.5));
+    }
+
+    #[test]
+    fn test_min_max() {
+        assert_eq!(min_max(&[3.0, 1.0, 4.0, 5.0]), Some((1.0, 5.0)));
+    }
+
+    #[test]
+    fn test_std_dev() {
+        let data = [2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0];
+        let sd = std_dev(&data).unwrap();
+        assert!(sd > 1.9 && sd < 2.1);
+    }
+
+    #[test]
+    fn test_factorial() {
+        assert_eq!(factorial(5), 120);
+        assert_eq!(factorial(0), 1);
+    }
+
+    #[test]
+    fn test_is_prime() {
+        assert!(is_prime(17));
+        assert!(!is_prime(18));
+        assert!(is_prime(2));
+    }
+
+    #[test]
+    fn test_gcd() {
+        assert_eq!(gcd(48, 18), 6);
+        assert_eq!(gcd(56, 98), 14);
+    }
+
+    #[test]
+    fn test_lcm() {
+        assert_eq!(lcm(4, 6), 12);
+        assert_eq!(lcm(5, 7), 35);
+    }
+
+    #[test]
+    fn test_distance_2d() {
+        assert_eq!(distance_2d(0.0, 0.0, 3.0, 4.0), 5.0);
+    }
+
+    #[test]
+    fn test_distance_3d() {
+        assert_eq!(distance_3d(0.0, 0.0, 0.0, 1.0, 1.0, 1.0), (3.0 as f64).sqrt());
+    }
+
+    #[test]
+    fn test_format_with_commas() {
+        assert_eq!(format_with_commas(1234567), "1,234,567");
+        assert_eq!(format_with_commas(-1000), "-1,000");
+        assert_eq!(format_with_commas(0), "0");
+    }
+}
