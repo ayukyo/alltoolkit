@@ -27,6 +27,44 @@ A comprehensive, multi-language collection of utility functions for everyday dev
 
 ## Structure
 
+### Directory Layout
+
+```
+AllToolkit/
+├── {Language}/
+│   ├── {module_name}/          # 功能模块目录
+│   │   ├── mod.{ext}           # 模块主文件
+│   │   ├── {module}_test.{ext} # 测试文件（如有）
+│   │   └── README.md           # 模块文档（可选）
+│   ├── examples/               # 示例代码目录
+│   │   └── {module}_example.{ext}
+│   └── README.md               # 语言目录说明
+```
+
+### 示例
+
+**Go:**
+```
+Go/
+├── string_utils/
+│   ├── string_utils.go
+│   └── string_utils_test.go
+├── path_utils/
+│   ├── path_utils.go
+│   └── path_utils_test.go
+└── examples/
+    ├── string_utils_example.go
+    └── path_utils_example.go
+```
+
+**Python:**
+```
+Python/
+├── file_utils.py
+└── examples/
+    └── file_utils_example.py
+```
+
 Each language directory contains standalone, dependency-free utility modules with:
 - ✅ Complete documentation
 - ✅ Parameter descriptions
@@ -45,7 +83,7 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ### Swift - Date Utilities
 
-Location: `Swift/DateUtils.swift`
+Location: `Swift/date_utils/mod.swift`
 
 Functions:
 - **格式化**: `string(format:)` / `iso8601String()` / `dateString()` / `timeString()` / `chineseDateString()`
@@ -70,7 +108,7 @@ Features:
 
 ### C - String Utilities
 
-Location: `C/string_utils.c` (实现) + `C/string_utils.h` (头文件)
+Location: `C/string_utils/` (实现 + 头文件)
 
 Functions:
 - `str_trim(str)` - 去除首尾空白字符
@@ -96,7 +134,7 @@ Features:
 
 ### Rust - Collection Utilities
 
-Location: `Rust/collection_utils.rs`
+Location: `Rust/collection_utils/mod.rs`
 
 Functions:
 - `deduplicate(vec)` - 去重（保持原顺序）
@@ -125,7 +163,7 @@ Features:
 
 ### Swift - String Utilities
 
-Location: `Swift/StringUtils.swift`
+Location: `Swift/string_utils/mod.swift`
 
 Functions:
 - **空值检查**: `isBlank` / `isNotBlank`
@@ -149,7 +187,7 @@ Features:
 
 ### Rust - String Utilities
 
-Location: `Rust/string_utils.rs`
+Location: `Rust/string_utils/mod.rs`
 
 Functions:
 - `truncate(s, max_len)` - 按字符数截断（支持 Unicode）
@@ -171,7 +209,7 @@ Features:
 
 ### PHP - String Utilities
 
-Location: `PHP/StringUtils.php`
+Location: `PHP/string_utils/mod.php`
 
 Functions:
 - `isBlank(str)` / `isNotBlank(str)` - 检查字符串是否为空或仅包含空白字符
@@ -205,7 +243,7 @@ Features:
 
 ### Kotlin - DateTime Utilities
 
-Location: `Kotlin/DateTimeUtils.kt`
+Location: `Kotlin/date_time_utils/mod.kt`
 
 Functions:
 - `currentTimeMillis()` / `currentTimeSeconds()` - 获取当前时间戳
@@ -234,7 +272,7 @@ Features:
 
 ### Python - File Utilities
 
-Location: `Python/file_utils.py`
+Location: `Python/file_utils.py` (示例：`Python/examples/file_utils_example.py`)
 
 Functions:
 - `safe_read_text(filepath, encoding='utf-8', default=None)` - 安全读取文本文件，自动处理异常
@@ -258,7 +296,7 @@ Features:
 
 ### Go - Path Utilities
 
-Location: `Go/path_utils.go`
+Location: `Go/path_utils/path_utils.go`
 
 Functions:
 - `SafeJoin(elems ...string) string` - Safely joins path elements, prevents traversal attacks
@@ -275,7 +313,7 @@ Features:
 
 ### Go - String Utilities
 
-Location: `Go/string_utils.go`
+Location: `Go/string_utils/string_utils.go`
 
 Functions:
 - `Truncate(s string, maxLen int) string` - Truncates string by rune count with ellipsis
