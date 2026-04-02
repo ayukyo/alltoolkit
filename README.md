@@ -81,6 +81,39 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### C++ - JSON Utilities
+
+Location: `C++/json_utils/mod.hpp`
+
+Functions:
+- **构造器**: `Json()` / `Json(nullptr)` / `Json(bool/int/double/string)` - 创建各种类型的 JSON 值
+- **数组构造**: `Json::Array({...})` - 从初始化列表创建 JSON 数组
+- **对象构造**: `Json::Object({{key, value}, ...})` - 从键值对创建 JSON 对象
+- **类型检查**: `isNull()` / `isBoolean()` / `isNumber()` / `isString()` / `isArray()` / `isObject()` - 检查值类型
+- **类型转换**: `asBool()` / `asInt()` / `asDouble()` / `asString()` / `asArray()` / `asObject()` - 安全获取值
+- **数组访问**: `operator[](size_t index)` - 按索引访问数组元素
+- **对象访问**: `operator[](const string& key)` / `has(key)` - 按键访问对象属性
+- **安全取值**: `getString(key, default)` / `getInt(key, default)` / `getDouble(key, default)` / `getBool(key, default)` - 带默认值的类型安全访问
+- **序列化**: `toString()` - 生成紧凑 JSON 字符串
+- **美化输出**: `toPrettyString(indent)` - 生成格式化 JSON 字符串
+- **解析**: `Json::parse(json)` / `Json::parse(json, error)` - 解析 JSON 字符串
+- **验证**: `Json::isValid(json)` - 验证 JSON 字符串有效性
+
+Features:
+- 零依赖，仅使用 C++ 标准库 (C++11+)
+- Header-only 设计，单文件即可使用
+- 完整支持 JSON 标准 (RFC 8259)
+- 类型安全的访问器，带异常处理
+- 支持嵌套对象和数组
+- 字符串转义处理（支持 \\n, \\t, \" 等）
+- Unicode 转义序列支持 (\\uXXXX)
+- 美观打印输出
+- 带默认值的 getter 方法
+- 提供完整示例代码 `json_utils_example.cpp`
+- 内置单元测试 `json_utils_test.cpp`
+
+---
+
 ### Java - HTTP Utilities
 
 Location: `Java/http_utils/mod.java`
