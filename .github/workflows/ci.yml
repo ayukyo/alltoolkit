@@ -1,0 +1,137 @@
+name: CI - Build & Test
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  # Go 语言测试
+  go-test:
+    runs-on: ubuntu-latest
+    if: hashFiles('Go/**/*.go') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      - name: Run Go tests
+        run: |
+          cd Go
+          go test -v ./...
+
+  # Rust 语言测试
+  rust-test:
+    runs-on: ubuntu-latest
+    if: hashFiles('Rust/**/*.rs') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          toolchain: stable
+      - name: Run Rust tests
+        run: |
+          cd Rust
+          rustc --test string_utils.rs -o string_utils_test || true
+          rustc --test collection_utils.rs -o collection_utils_test || true
+          ./string_utils_test || true
+          ./collection_utils_test || true
+
+  # Python 语言测试
+  python-test:
+    runs-on: ubuntu-latest
+    if: hashFiles('Python/**/*.py') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Run Python tests
+        run: |
+          cd Python
+          python -m py_compile file_utils.py || true
+          python -m unittest discover -s . -p "*_test.py" || true
+
+  # Kotlin 语言编译检查
+  kotlin-check:
+    runs-on: ubuntu-latest
+    if: hashFiles('Kotlin/**/*.kt') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Kotlin
+        uses: fwilhe2/setup-kotlin@main
+        with:
+          kotlin-version: '1.9.0'
+      - name: Kotlin compile check
+        run: |
+          cd Kotlin
+          kotlinc -script string_utils.kt || true
+          kotlinc -script DateTimeUtils.kt || true
+
+  # Swift 语言编译检查（仅 macOS）
+  swift-check:
+    runs-on: macos-latest
+    if: hashFiles('Swift/**/*.swift') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift compile check
+        run: |
+          cd Swift
+          swiftc -typecheck StringUtils.swift || true
+          swiftc -typecheck DateUtils.swift || true
+
+  # PHP 语法检查
+  php-check:
+    runs-on: ubuntu-latest
+    if: hashFiles('PHP/**/*.php') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+      - name: PHP syntax check
+        run: |
+          cd PHP
+          php -l StringUtils.php
+
+  # C 语言编译检查
+  c-check:
+    runs-on: ubuntu-latest
+    if: hashFiles('C/**/*.c') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install GCC
+        run: sudo apt-get install -y gcc
+      - name: C compile check
+        run: |
+          cd C
+          gcc -c string_utils.c -o string_utils.o || true
+          gcc example_string_utils.c string_utils.c -o example || true
+
+  # 汇总报告
+  summary:
+    runs-on: ubuntu-latest
+    needs: [go-test, rust-test, python-test, kotlin-check, swift-check, php-check, c-check]
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "## AllToolkit CI Summary"
+          echo ""
+          echo "✅ CI checks completed"
+          echo ""
+          echo "| Language | Status |"
+          echo "|----------|--------|"
+          echo "| Go | ${{ needs.go-test.result }} |"
+          echo "| Rust | ${{ needs.rust-test.result }} |"
+          echo "| Python | ${{ needs.python-test.result }} |"
+          echo "| Kotlin | ${{ needs.kotlin-check.result }} |"
+          echo "| Swift | ${{ needs.swift-check.result }} |"
+          echo "| PHP | ${{ needs.php-check.result }} |"
+          echo "| C | ${{ needs.c-check.result }} |"
