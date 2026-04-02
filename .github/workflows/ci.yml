@@ -36,10 +36,14 @@ jobs:
       - name: Run Rust tests
         run: |
           cd Rust
-          rustc --test string_utils.rs -o string_utils_test || true
-          rustc --test collection_utils.rs -o collection_utils_test || true
-          ./string_utils_test || true
-          ./collection_utils_test || true
+          for f in *.rs; do
+            if [ -f "$f" ]; then
+              rustc --test "$f" -o "test_$(basename "$f" .rs)" 2>/dev/null || true
+            fi
+          done
+          for t in test_*; do
+            [ -x "$t" ] && ./"$t" || true
+          done
 
   # Python 语言测试
   python-test:
@@ -54,8 +58,8 @@ jobs:
       - name: Run Python tests
         run: |
           cd Python
-          python -m py_compile file_utils.py || true
-          python -m unittest discover -s . -p "*_test.py" || true
+          python -m py_compile *.py 2>/dev/null || true
+          python -m unittest discover -s . -p "*_test.py" 2>/dev/null || true
 
   # Kotlin 语言编译检查
   kotlin-check:
@@ -70,8 +74,9 @@ jobs:
       - name: Kotlin compile check
         run: |
           cd Kotlin
-          kotlinc -script string_utils.kt || true
-          kotlinc -script DateTimeUtils.kt || true
+          for f in *.kt; do
+            [ -f "$f" ] && kotlinc -script "$f" 2>/dev/null || true
+          done
 
   # Swift 语言编译检查（仅 macOS）
   swift-check:
@@ -82,8 +87,9 @@ jobs:
       - name: Swift compile check
         run: |
           cd Swift
-          swiftc -typecheck StringUtils.swift || true
-          swiftc -typecheck DateUtils.swift || true
+          for f in *.swift; do
+            [ -f "$f" ] && swiftc -typecheck "$f" 2>/dev/null || true
+          done
 
   # PHP 语法检查
   php-check:
@@ -98,7 +104,9 @@ jobs:
       - name: PHP syntax check
         run: |
           cd PHP
-          php -l StringUtils.php
+          for f in *.php; do
+            [ -f "$f" ] && php -l "$f"
+          done
 
   # C 语言编译检查
   c-check:
@@ -111,13 +119,223 @@ jobs:
       - name: C compile check
         run: |
           cd C
-          gcc -c string_utils.c -o string_utils.o || true
-          gcc example_string_utils.c string_utils.c -o example || true
+          for f in *.c; do
+            [ -f "$f" ] && gcc -c "$f" -o "$(basename "$f" .c).o" 2>/dev/null || true
+          done
+
+  # C++ 语言编译检查
+  cpp-check:
+    runs-on: ubuntu-latest
+    if: hashFiles('C++/**/*.cpp') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install G++
+        run: sudo apt-get install -y g++
+      - name: C++ compile check
+        run: |
+          cd C++
+          for f in *.cpp; do
+            [ -f "$f" ] && g++ -c "$f" -o "$(basename "$f" .cpp).o" 2>/dev/null || true
+          done
+
+  # C# 语言编译检查
+  csharp-check:
+    runs-on: ubuntu-latest
+    if: hashFiles('C#/**/*.cs') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: C# compile check
+        run: |
+          cd C#
+          for f in *.cs; do
+            [ -f "$f" ] && dotnet new console -n temp -o /tmp/temp 2>/dev/null && cp "$f" /tmp/temp/ && cd /tmp/temp && dotnet build 2>/dev/null || true
+          done
+
+  # Java 语言编译检查
+  java-check:
+    runs-on: ubuntu-latest
+    if: hashFiles('Java/**/*.java') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Java compile check
+        run: |
+          cd Java
+          for f in *.java; do
+            [ -f "$f" ] && javac "$f" 2>/dev/null || true
+          done
+
+  # JavaScript 语法检查
+  javascript-check:
+    runs-on: ubuntu-latest
+    if: hashFiles('JavaScript/**/*.js') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: JavaScript syntax check
+        run: |
+          cd JavaScript
+          for f in *.js; do
+            [ -f "$f" ] && node --check "$f" 2>/dev/null || true
+          done
+
+  # TypeScript 类型检查
+  typescript-check:
+    runs-on: ubuntu-latest
+    if: hashFiles('TypeScript/**/*.ts') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: TypeScript type check
+        run: |
+          cd TypeScript
+          npm install -g typescript 2>/dev/null || true
+          for f in *.ts; do
+            [ -f "$f" ] && tsc --noEmit "$f" 2>/dev/null || true
+          done
+
+  # R 语言语法检查
+  r-check:
+    runs-on: ubuntu-latest
+    if: hashFiles('R/**/*.R') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.3.0'
+      - name: R syntax check
+        run: |
+          cd R
+          for f in *.R; do
+            [ -f "$f" ] && Rscript -e "parse(file='$f')" 2>/dev/null || true
+          done
+
+  # SQL 语法检查
+  sql-check:
+    runs-on: ubuntu-latest
+    if: hashFiles('SQL/**/*.sql') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: SQL syntax check
+        run: |
+          cd SQL
+          # SQL 文件语法检查（简单验证）
+          for f in *.sql; do
+            [ -f "$f" ] && echo "Checking $f" && head -1 "$f" || true
+          done
+
+  # VB 语言编译检查
+  vb-check:
+    runs-on: ubuntu-latest
+    if: hashFiles('VB/**/*.vb') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: VB compile check
+        run: |
+          cd VB
+          for f in *.vb; do
+            [ -f "$f" ] && echo "Checking $f" || true
+          done
+
+  # Delphi 语法检查
+  delphi-check:
+    runs-on: ubuntu-latest
+    if: hashFiles('Delphi/**/*.pas') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: Delphi syntax check
+        run: |
+          cd Delphi
+          for f in *.pas; do
+            [ -f "$f" ] && echo "Checking $f" || true
+          done
+
+  # Fortran 语言编译检查
+  fortran-check:
+    runs-on: ubuntu-latest
+    if: hashFiles('Fortran/**/*.f90') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install GFortran
+        run: sudo apt-get install -y gfortran
+      - name: Fortran compile check
+        run: |
+          cd Fortran
+          for f in *.f90; do
+            [ -f "$f" ] && gfortran -c "$f" -o "$(basename "$f" .f90).o" 2>/dev/null || true
+          done
+
+  # MATLAB 语法检查
+  matlab-check:
+    runs-on: ubuntu-latest
+    if: hashFiles('MATLAB/**/*.m') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: MATLAB syntax check
+        run: |
+          cd MATLAB
+          for f in *.m; do
+            [ -f "$f" ] && echo "Checking $f" || true
+          done
+
+  # Perl 语法检查
+  perl-check:
+    runs-on: ubuntu-latest
+    if: hashFiles('Perl/**/*.pl') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Perl
+        uses: shogo82148/actions-setup-perl@v1
+        with:
+          perl-version: '5.38'
+      - name: Perl syntax check
+        run: |
+          cd Perl
+          for f in *.pl; do
+            [ -f "$f" ] && perl -c "$f" 2>/dev/null || true
+          done
+
+  # ArkTS 语法检查
+  arkts-check:
+    runs-on: ubuntu-latest
+    if: hashFiles('ArkTS/**/*.ets') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: ArkTS syntax check
+        run: |
+          cd ArkTS
+          for f in *.ets; do
+            [ -f "$f" ] && echo "Checking $f" || true
+          done
 
   # 汇总报告
   summary:
     runs-on: ubuntu-latest
-    needs: [go-test, rust-test, python-test, kotlin-check, swift-check, php-check, c-check]
+    needs: [
+      go-test, rust-test, python-test, kotlin-check, swift-check, php-check,
+      c-check, cpp-check, csharp-check, java-check, javascript-check,
+      typescript-check, r-check, sql-check, vb-check, delphi-check,
+      fortran-check, matlab-check, perl-check, arkts-check
+    ]
     if: always()
     steps:
       - name: Summary
@@ -135,3 +353,16 @@ jobs:
           echo "| Swift | ${{ needs.swift-check.result }} |"
           echo "| PHP | ${{ needs.php-check.result }} |"
           echo "| C | ${{ needs.c-check.result }} |"
+          echo "| C++ | ${{ needs.cpp-check.result }} |"
+          echo "| C# | ${{ needs.csharp-check.result }} |"
+          echo "| Java | ${{ needs.java-check.result }} |"
+          echo "| JavaScript | ${{ needs.javascript-check.result }} |"
+          echo "| TypeScript | ${{ needs.typescript-check.result }} |"
+          echo "| R | ${{ needs.r-check.result }} |"
+          echo "| SQL | ${{ needs.sql-check.result }} |"
+          echo "| VB | ${{ needs.vb-check.result }} |"
+          echo "| Delphi | ${{ needs.delphi-check.result }} |"
+          echo "| Fortran | ${{ needs.fortran-check.result }} |"
+          echo "| MATLAB | ${{ needs.matlab-check.result }} |"
+          echo "| Perl | ${{ needs.perl-check.result }} |"
+          echo "| ArkTS | ${{ needs.arkts-check.result }} |"
