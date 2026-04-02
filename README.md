@@ -114,6 +114,37 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### TypeScript - HTTP Utilities
+
+Location: `TypeScript/http_utils/mod.ts`
+
+Functions:
+- **GET 请求**: `get<T>(url, options?)` - 发送 GET 请求，支持泛型类型推断
+- **POST 请求**: `post<T>(url, body, options?)` - 发送 JSON POST 请求
+- **POST 表单**: `postForm<T>(url, formData, options?)` - 发送表单 POST 请求
+- **PUT 请求**: `put<T>(url, body, options?)` - 发送 PUT 请求
+- **DELETE 请求**: `del<T>(url, options?)` - 发送 DELETE 请求
+- **PATCH 请求**: `patch<T>(url, body, options?)` - 发送 PATCH 请求
+- **HEAD 请求**: `head<T>(url, options?)` - 发送 HEAD 请求，获取响应头
+- **URL 构建**: `buildUrl(baseUrl, params?)` - 构建带查询参数的完整 URL
+- **查询字符串**: `buildQueryString(params)` - 构建 URL 编码的查询字符串
+- **URL 编码**: `urlEncode(value)` - URL 编码字符串
+- **URL 解码**: `urlDecode(value)` - URL 解码字符串
+- **创建客户端**: `createClient(defaultOptions?)` - 创建可复用配置的 HTTP 客户端实例
+
+Features:
+- 零依赖，仅使用 TypeScript 原生 fetch API
+- 完整的 TypeScript 类型支持（泛型、接口、类型推断）
+- 支持请求超时控制（使用 AbortController）
+- 自定义请求头、凭证模式、CORS 模式
+- 自动 JSON 解析和响应处理
+- 自定义错误类：HttpError（包含状态码、响应数据、URL）和 TimeoutError
+- 响应包含状态码、状态文本、响应数据、响应头、成功标志、URL
+- 提供完整示例代码 `http_utils_example.ts`
+- 内置单元测试 `http_utils_test.ts`
+
+---
+
 ### C# - HTTP Utilities
 
 Location: `C#/http_utils/mod.cs`
