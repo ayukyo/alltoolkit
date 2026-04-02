@@ -114,6 +114,91 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### MATLAB - Image Processing Utilities
+
+Location: `MATLAB/image_utils/mod.m`
+
+Functions:
+
+**Color Conversion:**
+- **RGB to Grayscale**: `rgb2gray(rgb)` - Convert RGB to grayscale using ITU-R BT.601 standard
+- **Grayscale to RGB**: `gray2rgb(gray)` - Replicate grayscale channel to create RGB
+- **RGB to HSV**: `rgb2hsv(rgb)` - Convert RGB to HSV color space
+- **HSV to RGB**: `hsv2rgb(hsv)` - Convert HSV back to RGB color space
+
+**Image Transformation:**
+- **Resize**: `resize(img, [h, w], method)` - Resize image with bilinear/nearest interpolation
+- **Crop**: `crop(img, [x, y, w, h])` - Extract rectangular region
+- **Rotate**: `rotate(img, angle, method)` - Rotate image by degrees
+- **Flip**: `flip(img, direction)` - Horizontal or vertical flip
+
+**Image Filtering:**
+- **Box Blur**: `blur(img, kernelSize)` - Apply box blur filter
+- **Gaussian Filter**: `gaussianFilter(img, sigma)` - Apply Gaussian blur
+- **Sharpen**: `sharpen(img, amount)` - Unsharp mask sharpening
+- **Edge Detection**: `edgeDetect(img, method)` - Sobel or Prewitt edge detection
+
+**Image Enhancement:**
+- **Brightness**: `brightness(img, delta)` - Adjust brightness (-1 to 1)
+- **Contrast**: `contrast(img, factor)` - Adjust contrast
+- **Gamma**: `gamma(img, gamma)` - Apply gamma correction
+- **Histogram Equalization**: `equalizeHist(img)` - Improve contrast via histogram equalization
+
+**Image Analysis:**
+- **Get Size**: `getSize(img)` - Return [height, width, channels]
+- **Get Channels**: `getChannels(img)` - Return number of channels
+- **Is Grayscale**: `isGrayscale(img)` - Check if image is grayscale
+- **Get Histogram**: `getHistogram(img, bins)` - Calculate image histogram
+
+**Utility Functions:**
+- **Pad Image**: `padImage(img, padSize, mode)` - Add padding around image
+- **Normalize**: `normalize(img, min, max)` - Normalize to range [0,1] or custom
+- **Invert**: `invert(img)` - Invert colors (negative)
+- **Threshold**: `threshold(img, thresh)` - Create binary image
+- **Blend**: `blend(img1, img2, alpha)` - Alpha blend two images
+
+Features:
+- Zero dependencies, uses only MATLAB standard library
+- Supports uint8, uint16, single, and double data types
+- Full RGB and grayscale image support
+- Bilinear and nearest neighbor interpolation
+- Complete test suite with 25+ test cases
+- 20 comprehensive usage examples
+- Production-ready for image processing pipelines
+
+Usage example:
+```matlab
+% Initialize module
+utils = mod();
+
+% Load or create an image
+img = imread('photo.jpg');  % or create test image
+
+% Color conversion
+gray = utils.rgb2gray(img);
+
+% Resize
+small = utils.resize(img, [256, 256]);
+
+% Apply filters
+blurred = utils.gaussianFilter(img, 2.0);
+edges = utils.edgeDetect(img, 'sobel');
+
+% Enhance
+bright = utils.brightness(img, 0.3);
+highContrast = utils.contrast(img, 1.5);
+
+% Transform
+cropped = utils.crop(img, [100, 100, 200, 200]);
+rotated = utils.rotate(img, 45);
+
+% Analysis
+sz = utils.getSize(img);
+hist = utils.getHistogram(img, 256);
+```
+
+---
+
 ### Go - Crypto Utilities
 
 Location: `Go/crypto_utils/mod.go`
