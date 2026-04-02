@@ -81,6 +81,31 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### Java - HTTP Utilities
+
+Location: `Java/http_utils/mod.java`
+
+Functions:
+- **GET 请求**: `get(url)` / `get(url, headers)` / `get(url, headers, connectTimeout, readTimeout)` - 发送 GET 请求
+- **POST 请求**: `post(url, body, headers)` / `postJson(url, jsonBody)` / `postForm(url, formData)` - 发送 POST 请求
+- **PUT 请求**: `put(url, body, headers)` / `putJson(url, jsonBody)` - 发送 PUT 请求
+- **DELETE 请求**: `delete(url)` / `delete(url, headers)` - 发送 DELETE 请求
+- **URL 编码**: `urlEncode(value)` / `urlDecode(value)` - URL 编码解码
+- **查询字符串**: `buildQueryString(params)` - 构建 URL 查询参数
+- **完整 URL**: `buildUrl(baseUrl, params)` - 构建带查询参数的完整 URL
+
+Features:
+- 零第三方依赖，仅使用 Java 标准库 (java.net.HttpURLConnection)
+- 完整 Javadoc 文档注释
+- 支持自定义连接/读取超时
+- 自动处理请求头
+- 支持 JSON 和表单数据提交
+- 响应包含状态码、响应体和响应头
+- 提供完整示例代码 `http_utils_example.java`
+- 内置单元测试 `http_utils_test.java`
+
+---
+
 ### Swift - Date Utilities
 
 Location: `Swift/date_utils/mod.swift`
