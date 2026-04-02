@@ -114,6 +114,65 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### VB - Crypto Utilities
+
+Location: `VB/crypto_utils/mod.vb`
+
+Functions:
+- **MD5 哈希**: `Md5Hash(input)` - 计算字符串的 MD5 哈希值（32位小写十六进制）
+- **SHA1 哈希**: `Sha1Hash(input)` - 计算字符串的 SHA1 哈希值（40位小写十六进制）
+- **SHA256 哈希**: `Sha256Hash(input)` - 计算字符串的 SHA256 哈希值（64位小写十六进制）
+- **SHA512 哈希**: `Sha512Hash(input)` - 计算字符串的 SHA512 哈希值（128位小写十六进制）
+- **文件哈希**: `Sha256File(filePath)` - 计算文件的 SHA256 哈希值
+- **HMAC-SHA256**: `HmacSha256(message, secret)` - 使用密钥计算消息认证码
+- **Base64 编码**: `Base64Encode(input)` - 将字符串编码为 Base64
+- **Base64 解码**: `Base64Decode(base64)` - 将 Base64 字符串解码为普通字符串
+- **URL 安全 Base64 编码**: `Base64UrlEncode(input)` - 编码为 URL 安全的 Base64（替换 +/ 为 -_，移除填充）
+- **URL 安全 Base64 解码**: `Base64UrlDecode(base64Url)` - 解码 URL 安全的 Base64
+- **随机字符串**: `RandomString(length, chars?)` - 生成指定长度的随机字符串
+- **随机密码**: `RandomPassword(length)` - 生成包含大小写字母、数字和特殊字符的密码
+- **UUID 生成**: `GenerateUuid()` - 生成标准 UUID v4（带连字符）
+- **简化 UUID**: `GenerateUuidSimple()` - 生成无连字符的 32 位 UUID
+- **XOR 加密**: `XorEncrypt(input, key)` - 使用 XOR 对称加密（返回 Base64）
+- **XOR 解密**: `XorDecrypt(encrypted, key)` - 使用 XOR 对称解密
+- **字符串混淆**: `Obfuscate(input)` - 简单的字符串混淆（位移+反转+Base64）
+- **字符串反混淆**: `Deobfuscate(obfuscated)` - 反混淆字符串
+- **MD5 格式验证**: `IsValidMd5(hash)` - 验证字符串是否为有效的 MD5 格式
+- **SHA256 格式验证**: `IsValidSha256(hash)` - 验证字符串是否为有效的 SHA256 格式
+- **Base64 格式验证**: `IsValidBase64(base64)` - 验证字符串是否为有效的 Base64
+
+Features:
+- 零依赖，仅使用 .NET 标准库（System.Security.Cryptography 等）
+- 支持 .NET Framework 4.5+ / .NET Core / .NET 5+
+- 完整的 XML 文档注释，支持 IntelliSense
+- 安全的空值处理，所有函数接受 null/空字符串参数
+- 使用加密安全的随机数生成器（RNGCryptoServiceProvider）
+- 完整的 UTF-8 支持（包括中文、Emoji 等多字节字符）
+- URL 安全的 Base64 变体（Base64URL）支持
+- 提供完整示例代码 `crypto_utils_example.vb`（13个实用场景）
+- 内置单元测试 `crypto_utils_test.vb`（30+ 测试用例）
+
+运行示例:
+```vb
+Imports AllToolkit
+
+' 计算哈希
+Dim hash = CryptoUtils.Sha256Hash("Hello, World!")
+
+' Base64 编解码
+Dim encoded = CryptoUtils.Base64Encode("你好世界")
+Dim decoded = CryptoUtils.Base64Decode(encoded)
+
+' 生成随机密码
+Dim password = CryptoUtils.RandomPassword(16)
+
+' XOR 加密
+Dim encrypted = CryptoUtils.XorEncrypt("Secret", "my_key")
+Dim decrypted = CryptoUtils.XorDecrypt(encrypted, "my_key")
+```
+
+---
+
 ### Python - File Utilities (新增测试)
 
 Location: `Python/file_utils_test.py`
