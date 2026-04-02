@@ -114,6 +114,94 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### ArkTS - HTTP Utilities
+
+Location: `ArkTS/http_utils/mod.ets`
+
+Functions:
+
+**HTTP Methods:**
+- **GET**: `httpGet<T>(url, options?)` - Send HTTP GET request
+- **POST**: `httpPost<T>(url, body?, options?)` - Send HTTP POST request
+- **POST JSON**: `httpPostJson<T>(url, data, options?)` - Send JSON POST request
+- **POST Form**: `httpPostForm<T>(url, data, options?)` - Send form POST request
+- **PUT**: `httpPut<T>(url, body?, options?)` - Send HTTP PUT request
+- **PUT JSON**: `httpPutJson<T>(url, data, options?)` - Send JSON PUT request
+- **DELETE**: `httpDelete<T>(url, options?)` - Send HTTP DELETE request
+- **PATCH**: `httpPatch<T>(url, body?, options?)` - Send HTTP PATCH request
+- **HEAD**: `httpHead<T>(url, options?)` - Send HTTP HEAD request
+
+**URL Utilities:**
+- **Build URL**: `buildUrl(baseUrl, params?)` - Build URL with query parameters
+- **Build Query String**: `buildQueryString(params)` - Build URL-encoded query string
+- **URL Encode**: `urlEncode(value)` - URL encode a string
+- **URL Decode**: `urlDecode(value)` - URL decode a string
+- **Parse URL**: `parseUrl(url)` - Parse URL into components
+- **Get Domain**: `getDomain(url)` - Extract domain from URL
+- **Get Path**: `getPath(url)` - Extract path from URL
+- **Validate URL**: `isValidUrl(url)` - Check if string is valid URL
+- **Parse Query**: `parseQueryString(queryString)` - Parse query string to object
+- **Add Params**: `addQueryParams(url, params)` - Add query parameters to URL
+- **Remove Params**: `removeQueryParams(url, keys)` - Remove query parameters from URL
+
+Features:
+- Zero dependencies, uses only HarmonyOS standard library (@ohos.net.http)
+- Full TypeScript/ArkTS type support with generics
+- Promise-based API for async/await
+- Automatic JSON parsing support
+- Form data encoding support
+- Custom headers and timeout configuration
+- Response time tracking
+- Complete URL manipulation utilities
+- Comprehensive test suite with 50+ test cases
+- Production-ready for HarmonyOS applications
+
+Interfaces:
+```typescript
+interface HttpResponse<T> {
+  statusCode: number;
+  statusMessage: string;
+  headers: Record<string, string>;
+  body: T;
+  url: string;
+  success: boolean;
+  responseTime: number;
+}
+
+interface HttpRequestOptions {
+  headers?: Record<string, string>;
+  timeout?: number;
+  parseJson?: boolean;
+  contentType?: string;
+}
+```
+
+Usage example:
+```typescript
+import { httpGet, httpPostJson, buildUrl } from './http_utils/mod';
+
+// GET request
+const response = await httpGet('https://api.example.com/users');
+if (response.success) {
+  console.info(response.body);
+}
+
+// POST JSON
+const result = await httpPostJson('https://api.example.com/users', {
+  name: 'John',
+  age: 30
+});
+
+// URL with params
+const url = buildUrl('https://api.example.com/search', {
+  q: 'hello world',
+  page: 1
+});
+// Result: 'https://api.example.com/search?q=hello%20world&page=1'
+```
+
+---
+
 ### Fortran - Math Utilities
 
 Location: `Fortran/math_utils/mod.f90`
