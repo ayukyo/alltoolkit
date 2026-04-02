@@ -43,6 +43,132 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### Swift - Date Utilities
+
+Location: `Swift/DateUtils.swift`
+
+Functions:
+- **格式化**: `string(format:)` / `iso8601String()` / `dateString()` / `timeString()` / `chineseDateString()`
+- **相对时间**: `relativeTimeString()` - "刚刚"、"5 分钟前"、"昨天"等
+- **日期计算**: `adding(days:)` / `adding(hours:)` / `adding(minutes:)` / `adding(seconds:)`
+- **日期比较**: `isToday()` / `isYesterday()` / `isTomorrow()` / `isThisWeek()` / `isThisMonth()`
+- **日期边界**: `startOfDay()` / `endOfDay()` / `startOfWeek()` / `endOfWeek()` / `startOfMonth()` / `endOfMonth()`
+- **日期差值**: `days(since:)` / `hours(since:)` / `minutes(since:)` / `seconds(since:)`
+- **时间戳**: `timestamp()` (秒级) / `timestampMilliseconds()` (毫秒级)
+- **解析**: `from(string:format:)` / `fromISO8601(_:)`
+- **特殊判断**: `isWeekend()` / `isWeekday()` / `isLeapYear()` / `daysInMonth()`
+- **年龄计算**: `age()` - 精确计算年龄
+
+Features:
+- 零依赖，仅使用 Swift 标准库 Foundation
+- 完整文档注释
+- 支持 iOS 13.0+ / macOS 10.15+ / watchOS 6.0+ / tvOS 13.0+
+- 时区安全
+- 提供完整示例代码 `ExampleDateUtils.swift`
+
+---
+
+### C - String Utilities
+
+Location: `C/string_utils.c` (实现) + `C/string_utils.h` (头文件)
+
+Functions:
+- `str_trim(str)` - 去除首尾空白字符
+- `str_trim_left(str)` - 去除左侧空白字符
+- `str_trim_right(str)` - 去除右侧空白字符
+- `str_to_lower(str)` - 转换为小写
+- `str_to_upper(str)` - 转换为大写
+- `str_reverse(str)` - 反转字符串
+- `str_starts_with(str, prefix)` - 检查前缀
+- `str_ends_with(str, suffix)` - 检查后缀
+- `str_count(str, substr)` - 统计子串出现次数
+- `str_copy_safe(dest, src, dest_size)` - 安全字符串复制
+- `is_whitespace(c)` - 判断空白字符
+
+Features:
+- 零依赖，仅使用标准 C 库 (`string.h`, `ctype.h`)
+- 完整 Doxygen 风格注释
+- 支持 C/C++ 混合编译
+- 安全边界检查
+- 提供可运行示例 `example_string_utils.c`
+
+---
+
+### Rust - Collection Utilities
+
+Location: `Rust/collection_utils.rs`
+
+Functions:
+- `deduplicate(vec)` - 去重（保持原顺序）
+- `group_by(vec, key_fn)` - 按条件分组
+- `find_index(vec, predicate)` / `find_last_index()` / `find_all_indices()` - 索引查找
+- `intersect(vec1, vec2)` / `union()` / `difference()` - 集合运算（交/并/差）
+- `chunk(vec, size)` / `split_into(vec, n)` - 分块操作
+- `count_occurrences(vec)` - 频率统计
+- `most_frequent(vec)` / `top_frequent(vec, n)` - 最频繁元素
+- `partition(vec, predicate)` - 条件分区
+- `flatten(vec_of_vecs)` - 扁平化嵌套向量
+- `has_duplicates(vec)` - 重复检查
+- `sort_by_key(vec, key_fn)` / `sort_by_key_desc()` - 键排序
+- `to_map(vec, key_fn, value_fn)` - 转换为 HashMap
+- `unique_with_index(vec)` - 带索引的去重
+
+Features:
+- 零依赖，仅使用 Rust 标准库
+- 支持 Rust 1.70+
+- 完整 Rust 文档注释（支持 `cargo doc`）
+- 内置 10+ 个单元测试
+- 泛型设计，支持任意类型
+- 附带可运行示例 `example_collection_utils.rs`
+
+---
+
+### Swift - String Utilities
+
+Location: `Swift/StringUtils.swift`
+
+Functions:
+- **空值检查**: `isBlank` / `isNotBlank`
+- **子串操作**: `substring(start:end:)` / `substring(from:)` / `substring(to:)` / `truncate(maxLength:suffix:)`
+- **空白处理**: `trimmed()` / `removeAllWhitespaces()` / `normalizeWhitespaces()`
+- **验证方法**: `isValidEmail()` / `isValidPhone()` / `isValidURL()` / `isValidIDCard()` / `isValidIPv4()`
+- **正则匹配**: `isMatch(pattern:)` / `matches(pattern:)` / `firstMatch(pattern:)` / `replacingMatches(pattern:with:)`
+- **编码解码**: `urlEncoded()` / `urlDecoded()` / `base64Encoded()` / `base64Decoded()`
+- **命名转换**: `camelCased()` / `pascalCased()` / `snakeCased()` / `kebabCased()`
+- **其他工具**: `repeating(count:)` / `padded(length:with:alignment:)` / `reversed()` / `containsIgnoreCase(_:)`
+- **类型转换**: `toInt()` / `toDouble()` / `toBool()`
+
+Features:
+- 零依赖，仅使用 Swift 标准库
+- 完整文档注释
+- 支持 iOS 13.0+ / macOS 10.15+ / watchOS 6.0+ / tvOS 13.0+
+- Unicode 安全
+- 提供完整示例代码 `ExampleStringUtils.swift`
+
+---
+
+### Rust - String Utilities
+
+Location: `Rust/string_utils.rs`
+
+Functions:
+- `truncate(s, max_len)` - 按字符数截断（支持 Unicode）
+- `truncate_bytes(s, max_bytes)` - 按字节数截断
+- `is_blank(s)` / `is_not_blank(s)` - 空值检查
+- `count_words(s)` - 统计单词数
+- `is_valid_email(s)` - 邮箱格式验证
+- `reverse_graphemes(s)` - 安全反转字符串（支持 Unicode）
+- `pad(s, width, pad_char, alignment)` - 左右填充
+
+Features:
+- 零依赖，仅使用 Rust 标准库
+- 完整文档注释
+- Unicode 安全（正确处理 emoji 和多字节字符）
+- 内置单元测试
+- 附带可运行示例
+
+---
+
 ### PHP - String Utilities
 
 Location: `PHP/StringUtils.php`
