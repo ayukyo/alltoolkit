@@ -114,6 +114,72 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### R - HTTP Utilities
+
+Location: `R/http_utils/mod.R`
+
+Functions:
+- **URL 构建**: `build_url(base_url, params)` - 构建带查询参数的完整 URL
+- **URL 编码**: `url_encode(str)` - 对字符串进行 URL 编码（空格编码为 %20）
+- **URL 解码**: `url_decode(str)` - 对 URL 编码的字符串进行解码
+- **URL 解析**: `parse_url(url)` - 解析 URL 为组件列表（scheme, host, port, path, query, fragment, userinfo）
+- **查询字符串解析**: `parse_query_string(query_string)` - 解析查询字符串为命名列表
+- **查询字符串构建**: `build_query_string(params)` - 从命名列表构建 URL 查询字符串
+- **GET 请求**: `http_get(url, headers, timeout)` - 发送 HTTP GET 请求
+- **POST 请求**: `http_post(url, body, headers, timeout)` - 发送 HTTP POST 请求
+- **POST JSON**: `http_post_json(url, data, headers, timeout)` - 发送 JSON POST 请求
+- **POST 表单**: `http_post_form(url, data, headers, timeout)` - 发送表单 POST 请求
+- **PUT 请求**: `http_put(url, body, headers, timeout)` - 发送 HTTP PUT 请求
+- **PUT JSON**: `http_put_json(url, data, headers, timeout)` - 发送 JSON PUT 请求
+- **DELETE 请求**: `http_delete(url, headers, timeout)` - 发送 HTTP DELETE 请求
+- **PATCH 请求**: `http_patch(url, body, headers, timeout)` - 发送 HTTP PATCH 请求
+- **HEAD 请求**: `http_head(url, headers, timeout)` - 发送 HTTP HEAD 请求
+- **JSON 编码**: `json_encode(x)` - 将 R 对象编码为 JSON 字符串
+- **JSON 解码**: `json_decode(json)` - 将 JSON 字符串解码为 R 对象
+- **URL 验证**: `is_valid_url(url)` - 验证字符串是否为有效的 URL
+- **域名提取**: `get_domain(url)` - 从 URL 中提取域名
+- **路径提取**: `get_path(url)` - 从 URL 中提取路径
+- **超时设置**: `set_http_timeout(seconds)` / `get_http_timeout()` - 配置请求超时
+
+Features:
+- 零依赖，仅使用 R 标准库
+- 支持多种 HTTP 方法：GET, POST, PUT, DELETE, PATCH, HEAD
+- 自动检测并使用 curl（首选）或 wget 作为后端
+- 内置 JSON 编解码器（无需外部包如 jsonlite）
+- 完整的 URL 解析和构建功能
+- URL 编码/解码支持多字节字符（UTF-8）
+- 支持自定义请求头和超时配置
+- 响应包含状态码、状态消息、响应头、响应体
+- 提供完整示例代码 `http_utils_example.R`（11 个实用场景）
+- 内置单元测试 `http_utils_test.R`（60+ 测试用例）
+
+运行示例:
+```r
+source("R/http_utils/mod.R")
+
+# GET 请求
+response <- http_get("https://api.example.com/users")
+if (response$success) {
+  cat(response$body)
+}
+
+# POST JSON
+response <- http_post_json("https://api.example.com/users",
+                           list(name = "John", age = 30))
+
+# URL 操作
+url <- build_url("https://api.example.com/search",
+                 list(q = "hello world", page = 1))
+# 结果: "https://api.example.com/search?q=hello%20world&page=1"
+
+# JSON 操作
+data <- list(name = "test", values = c(1, 2, 3))
+json <- json_encode(data)
+# 结果: '{"name":"test","values":[1,2,3]}'
+```
+
+---
+
 ### VB - Crypto Utilities
 
 Location: `VB/crypto_utils/mod.vb`
