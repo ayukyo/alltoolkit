@@ -114,6 +114,33 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### JavaScript - Base64 Utilities
+
+Location: `JavaScript/base64_utils/mod.js`
+
+Functions:
+- **编码**: `encode(str, options?)` - 将字符串编码为 Base64，支持 URL 安全变体和填充选项
+- **解码**: `decode(base64, options?)` - 将 Base64 字符串解码为普通字符串
+- **URL 安全转换**: `toUrlSafe(base64, pad?)` - 将标准 Base64 转换为 URL 安全格式
+- **URL 安全还原**: `fromUrlSafe(base64url)` - 将 URL 安全 Base64 转换为标准格式
+- **验证**: `isValid(str, options?)` - 验证字符串是否为有效的 Base64
+- **转二进制**: `toUint8Array(base64)` - 将 Base64 字符串转换为 Uint8Array
+- **二进制编码**: `fromUint8Array(bytes, options?)` - 将 Uint8Array 编码为 Base64
+- **计算长度**: `encodedLength(str, options?)` - 计算编码后的字符串长度
+
+Features:
+- 零依赖，纯 JavaScript 实现，适用于浏览器和 Node.js
+- 完整的 UTF-8 支持（包括中文、Emoji 等多字节字符）
+- URL 安全 Base64 变体（Base64URL）支持
+- 可选的填充字符控制
+- 完整的 Uint8Array 二进制数据处理
+- 严格的输入验证和错误处理
+- 支持 CommonJS 和 ES Module 导出
+- 提供完整示例代码 `base64_utils_example.js`
+- 内置单元测试 `base64_utils_test.js`
+
+---
+
 ### TypeScript - HTTP Utilities
 
 Location: `TypeScript/http_utils/mod.ts`
