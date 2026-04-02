@@ -114,6 +114,38 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### C# - HTTP Utilities
+
+Location: `C#/http_utils/mod.cs`
+
+Functions:
+- **GET 请求**: `Get(url, options)` / `GetAsync(url, options)` - 发送 GET 请求
+- **POST 请求**: `Post(url, body, contentType, options)` / `PostAsync(url, body, contentType, options)` - 发送 POST 请求
+- **POST JSON**: `PostJson(url, jsonData, options)` / `PostJsonAsync(url, jsonData, options)` - 发送 JSON POST 请求
+- **POST 表单**: `PostForm(url, formData, options)` / `PostFormAsync(url, formData, options)` - 发送表单 POST 请求
+- **PUT 请求**: `Put(url, body, contentType, options)` / `PutAsync(url, body, contentType, options)` - 发送 PUT 请求
+- **PUT JSON**: `PutJson(url, jsonData, options)` / `PutJsonAsync(url, jsonData, options)` - 发送 JSON PUT 请求
+- **DELETE 请求**: `Delete(url, options)` / `DeleteAsync(url, options)` - 发送 DELETE 请求
+- **PATCH 请求**: `Patch(url, body, contentType, options)` / `PatchAsync(url, body, contentType, options)` - 发送 PATCH 请求
+- **URL 编码**: `UrlEncode(value)` - URL 编码字符串
+- **URL 解码**: `UrlDecode(value)` - URL 解码字符串
+- **查询字符串**: `BuildQueryString(parameters)` - 构建 URL 查询参数
+- **完整 URL**: `BuildUrl(baseUrl, parameters)` - 构建带查询参数的完整 URL
+
+Features:
+- 零依赖，仅使用 .NET 标准库 (System.Net.Http)
+- 支持 .NET 6.0+ / .NET Framework 4.5+ / .NET Standard 2.0+
+- 完整的 XML 文档注释
+- 同步和异步 API 双支持
+- 内置超时控制和错误处理
+- 支持自定义请求头
+- 自动请求耗时统计
+- 响应包含状态码、响应体、响应头和错误信息
+- 提供完整示例代码 `http_utils_example.cs`
+- 内置单元测试 `http_utils_test.cs`
+
+---
+
 ### C++ - JSON Utilities
 
 Location: `C++/json_utils/mod.hpp`
