@@ -43,6 +43,35 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### Kotlin - DateTime Utilities
+
+Location: `Kotlin/DateTimeUtils.kt`
+
+Functions:
+- `currentTimeMillis()` / `currentTimeSeconds()` - 获取当前时间戳
+- `format(timestamp, pattern)` - 格式化时间戳为字符串
+- `parseToMillis(dateString, pattern)` - 解析日期字符串为时间戳
+- `getRelativeTimeDesc(timestamp)` - 获取相对时间描述（几分钟前、昨天等）
+- `daysBetween(start, end)` / `hoursBetween(start, end)` - 计算时间间隔
+- `isToday(timestamp)` / `isYesterday(timestamp)` / `isThisWeek(timestamp)` - 日期判断
+- `isWeekday(timestamp)` / `isWeekend(timestamp)` - 工作日/周末判断
+- `getStartOfDay(timestamp)` / `getEndOfDay(timestamp)` - 获取当天起止时间
+- `addDays(timestamp, days)` / `addHours(timestamp, hours)` / `addMinutes(timestamp, minutes)` - 时间加减
+- `isLeapYear(year)` / `getDaysInMonth(year, month)` - 闰年和月份天数
+- `getAge(birthTimestamp)` - 计算年龄
+- `formatDuration(durationMillis)` / `formatDurationShort(durationMillis)` - 时长格式化
+- `getFriendlyDate(timestamp)` - 获取友好日期显示
+- `generateTimeRanges(start, end, intervalMinutes)` - 生成时间范围列表
+
+Features:
+- 零依赖，仅使用 Kotlin 标准库 (java.time)
+- 完整的 KDoc 文档
+- 支持多种日期格式
+- 时区安全（使用系统默认时区）
+- 提供完整示例代码
+
+---
+
 ### Python - File Utilities
 
 Location: `Python/file_utils.py`
