@@ -114,6 +114,106 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### Go - Crypto Utilities
+
+Location: `Go/crypto_utils/mod.go`
+
+Functions:
+
+**Hash Functions:**
+- **MD5 Hash**: `Md5Hash(input)` - Calculate MD5 hash (32-char hex string)
+- **SHA1 Hash**: `Sha1Hash(input)` - Calculate SHA1 hash (40-char hex string)
+- **SHA256 Hash**: `Sha256Hash(input)` - Calculate SHA256 hash (64-char hex string)
+- **SHA512 Hash**: `Sha512Hash(input)` - Calculate SHA512 hash (128-char hex string)
+- **SHA256 Bytes**: `Sha256HashBytes(data)` - Calculate SHA256 hash of byte slice
+
+**HMAC Functions:**
+- **HMAC-SHA256**: `HmacSha256(message, secret)` - Calculate HMAC-SHA256 with secret key
+
+**Base64 Functions:**
+- **Encode**: `Base64Encode(input)` - Encode string to Base64
+- **Decode**: `Base64Decode(input)` - Decode Base64 string
+- **URL Encode**: `Base64UrlEncode(input)` - URL-safe Base64 encoding (RFC 4648)
+- **URL Decode**: `Base64UrlDecode(input)` - Decode URL-safe Base64
+- **Validate**: `IsValidBase64(input)` - Check if string is valid Base64
+
+**Random Functions:**
+- **Random String**: `RandomString(length, chars)` - Generate secure random string
+- **Random Password**: `RandomPassword(length)` - Generate secure password with mixed character types
+
+**UUID Functions:**
+- **Generate UUID**: `GenerateUUID()` - Generate version 4 UUID (36 chars with hyphens)
+- **Simple UUID**: `GenerateUUIDSimple()` - Generate UUID without hyphens (32 chars)
+- **Validate**: `IsValidUUID(uuid)` - Check if string is valid UUID format
+
+**XOR Encryption:**
+- **Encrypt**: `XorEncrypt(input, key)` - Simple XOR encryption (returns Base64)
+- **Decrypt**: `XorDecrypt(encrypted, key)` - Decrypt XOR encrypted data
+
+**Validation Functions:**
+- **Is Valid Hash**: `IsValidHash(hash, algorithm)` - Validate hash format
+- **Is Valid MD5**: `IsValidMd5(hash)` - Validate MD5 format
+- **Is Valid SHA1**: `IsValidSha1(hash)` - Validate SHA1 format
+- **Is Valid SHA256**: `IsValidSha256(hash)` - Validate SHA256 format
+- **Is Valid SHA512**: `IsValidSha512(hash)` - Validate SHA512 format
+
+**Constants:**
+- `LowerCaseLetters` - "abcdefghijklmnopqrstuvwxyz"
+- `UpperCaseLetters` - "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+- `Digits` - "0123456789"
+- `SpecialChars` - "!@#$%^&*()-_=+[]{}|;:,.<>?"
+- `Alphanumeric` - Letters + digits (62 chars)
+- `AllChars` - All character sets combined
+
+Features:
+- Zero dependencies, uses only Go standard library (crypto/*, encoding/*, math/big)
+- Cryptographically secure random generation using crypto/rand
+- Production-ready for security-sensitive applications
+- Complete test suite with 30+ test cases
+- Full UTF-8 support including Unicode characters
+- URL-safe Base64 variant (RFC 4648) support
+- UUID v4 generation with RFC 4122 compliance
+- Secure password generation with character type enforcement
+- Hash format validation for MD5, SHA1, SHA256, SHA512
+- XOR encryption for simple obfuscation (not for sensitive data)
+
+Usage example:
+```go
+package main
+
+import "github.com/ayukyo/alltoolkit/Go/crypto_utils"
+
+func main() {
+    // Hash functions
+    hash := crypto_utils.Sha256Hash("hello world")
+    // Returns: "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+
+    // Base64 encoding
+    encoded := crypto_utils.Base64Encode("hello")
+    decoded := crypto_utils.Base64Decode(encoded)
+
+    // URL-safe Base64
+    urlEncoded := crypto_utils.Base64UrlEncode("hello+world/test")
+
+    // Random generation
+    randomStr := crypto_utils.RandomString(16, "")
+    password := crypto_utils.RandomPassword(16)
+
+    // UUID generation
+    uuid := crypto_utils.GenerateUUID()
+    // Returns: "550e8400-e29b-41d4-a716-446655440000"
+
+    // HMAC
+    hmac := crypto_utils.HmacSha256("message", "secret_key")
+
+    // XOR encryption
+    encrypted := crypto_utils.XorEncrypt("secret", "key")
+    decrypted := crypto_utils.XorDecrypt(encrypted, "key")
+}
+```
+
+---
+
 ### ArkTS - HTTP Utilities
 
 Location: `ArkTS/http_utils/mod.ets`
