@@ -1,6 +1,21 @@
 # AllToolkit - Universal Toolkit Library
 
-A comprehensive, multi-language collection of utility functions for everyday development tasks.
+[![CI](https://github.com/ayukyo/alltoolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/ayukyo/alltoolkit/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Languages](https://img.shields.io/badge/languages-20+-blue)](https://github.com/ayukyo/alltoolkit)
+[![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
+**一个工具库，20+ 种语言通用** - 为零依赖、生产级、文档完善的日常开发任务提供统一解决方案。
+
+🚀 **快速开始：** 选择你的语言 → 复制代码 → 直接使用（无需安装依赖）
+
+## ✨ 特性
+
+- **零依赖** - 仅使用各语言标准库
+- **生产就绪** - 经过测试、性能优化、异常安全
+- **文档完善** - 完整注释、参数说明、使用示例
+- **20+ 语言** - 覆盖主流编程语言
+- **持续更新** - 每小时新增工具函数
 
 ## Supported Languages
 
@@ -25,7 +40,25 @@ A comprehensive, multi-language collection of utility functions for everyday dev
 - MATLAB
 - Perl
 
-## Structure
+## 📦 安装（即将推出）
+
+```bash
+# Python
+pip install alltoolkit
+
+# JavaScript
+npm install alltoolkit
+
+# Rust
+cargo add alltoolkit
+
+# Go
+go get github.com/ayukyo/alltoolkit/Go/string_utils
+```
+
+> 💡 目前可以直接复制代码使用，包管理器发布计划中...
+
+## 📁 目录结构
 
 ### Directory Layout
 
@@ -387,6 +420,22 @@ Features:
 
 See individual language directories for specific usage instructions.
 
-## License
+## 🤝 Contributing
 
-MIT - Free for personal and commercial use.
+欢迎贡献！查看 [CONTRIBUTING.md](CONTRIBUTING.md) 了解如何添加新工具。
+
+### 贡献者
+
+<!-- 贡献者列表将自动更新 -->
+- [@ayukyo](https://github.com/ayukyo) - 项目发起者
+
+## 📄 License
+
+MIT License - 免费用于个人和商业项目
+
+## 🔗 Links
+
+- [GitHub Repository](https://github.com/ayukyo/alltoolkit)
+- [Issues](https://github.com/ayukyo/alltoolkit/issues)
+- [Contributing Guide](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
