@@ -43,6 +43,40 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### PHP - String Utilities
+
+Location: `PHP/StringUtils.php`
+
+Functions:
+- `isBlank(str)` / `isNotBlank(str)` - 检查字符串是否为空或仅包含空白字符
+- `substring(str, start, length, encoding)` - 安全地截取字符串（支持多字节字符）
+- `truncate(str, maxLength, suffix, encoding)` - 截取字符串并添加省略号
+- `camelToSnake(str)` - 驼峰命名转下划线命名（snake_case）
+- `snakeToCamel(str, capitalizeFirst)` - 下划线命名转驼峰命名（camelCase/PascalCase）
+- `random(length, chars)` - 生成随机字符串
+- `startsWith(str, prefix, ignoreCase)` - 检查字符串是否以指定前缀开头
+- `endsWith(str, suffix, ignoreCase)` - 检查字符串是否以指定后缀结尾
+- `removePrefix(str, prefix)` - 移除字符串前缀（如果存在）
+- `removeSuffix(str, suffix)` - 移除字符串后缀（如果存在）
+- `lines(str, trimEmpty)` - 将字符串按行分割为数组
+- `repeat(str, count)` - 重复字符串指定次数
+- `pad(str, length, padStr, padType)` - 填充字符串到指定长度
+- `reverse(str, encoding)` - 反转字符串（支持多字节字符）
+- `displayWidth(str, encoding)` - 计算字符串在终端显示宽度（处理中英文混排）
+- `capitalize(str, encoding)` / `uncapitalize(str, encoding)` - 首字母大小写转换
+- `count(str, sub, ignoreCase)` - 计算子字符串出现次数
+- `equals(str1, str2, ignoreCase)` - 安全地比较两个字符串
+- `slug(str, separator)` - 将字符串转换为URL友好的slug
+
+Features:
+- 零依赖，仅使用 PHP 标准库
+- 完整的 PHPDoc 文档
+- 支持多字节字符（UTF-8）
+- 空值安全（所有方法接受 null 参数）
+- 提供完整示例代码 `ExampleStringUtils.php`
+
+---
+
 ### Kotlin - DateTime Utilities
 
 Location: `Kotlin/DateTimeUtils.kt`
