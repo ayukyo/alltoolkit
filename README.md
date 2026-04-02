@@ -114,6 +114,104 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### Fortran - Math Utilities
+
+Location: `Fortran/math_utils/mod.f90`
+
+Functions:
+
+**Vector Operations:**
+- **Dot Product**: `dot_product_real(a, b)` - Calculate dot product of two vectors
+- **Vector Magnitude**: `vector_magnitude(vec)` - Calculate L2 norm of a vector
+- **Normalize Vector**: `normalize_vector(vec)` - Create unit vector
+- **Cross Product**: `cross_product(a, b)` - Calculate cross product of two 3D vectors
+- **Vector Angle**: `vector_angle(a, b)` - Calculate angle between vectors (radians)
+- **Euclidean Distance**: `euclidean_distance(a, b)` - Calculate distance between points
+
+**Statistical Functions:**
+- **Mean**: `mean(arr)` / `mean_real(arr)` / `mean_int(arr)` - Calculate arithmetic mean
+- **Variance**: `variance(arr, sample)` - Calculate variance (population or sample)
+- **Standard Deviation**: `std_dev(arr, sample)` - Calculate standard deviation
+- **Median**: `median_real(arr)` - Calculate median value
+- **Min/Max**: `min_value(arr)` / `max_value(arr)` - Find extrema
+- **Sum/Product**: `sum_values(arr)` / `product_values(arr)` - Aggregate functions
+
+**Numerical Utilities:**
+- **Clamp**: `clamp(value, min, max)` - Constrain value to range
+- **Linear Interpolation**: `lerp(a, b, t)` - Interpolate between values
+- **Smooth Step**: `smoothstep(edge0, edge1, x)` - Hermite interpolation
+- **Approximate Equal**: `approx_equal(a, b, tolerance)` - Compare with tolerance
+- **Power of Two**: `is_power_of_two(n)` / `next_power_of_two(n)` - Power of two utilities
+- **Linspace**: `linspace(start, end, n)` - Generate linearly spaced array
+- **Map Range**: `map_range(value, in_min, in_max, out_min, out_max)` - Map between ranges
+
+**Trigonometric Helpers:**
+- **Degrees/Radians**: `to_radians(degrees)` / `to_degrees(radians)` - Convert angles
+- **Wrap Angle**: `wrap_angle(angle)` / `wrap_angle_signed(angle)` - Normalize angles
+
+**Matrix Operations:**
+- **Matrix Multiply**: `matrix_multiply(a, b)` - Multiply two matrices
+- **Transpose**: `matrix_transpose(mat)` - Transpose matrix
+- **Determinant**: `matrix_determinant(mat)` - Calculate determinant (2x2 or 3x3)
+- **Identity**: `identity_matrix(n)` - Create identity matrix
+
+**Interpolation:**
+- **Linear Interpolation**: `interp_linear(x, y, xi)` - 1D linear interpolation
+
+Features:
+- Zero dependencies, uses only Fortran standard library
+- Supports Fortran 90/95/2003+
+- Generic interfaces for type flexibility (real/integer)
+- Comprehensive documentation with FORD-style comments
+- Complete test suite with 40+ test cases
+- Production-ready for scientific computing
+- Constants: PI, E, EPSILON, DEG_TO_RAD, RAD_TO_DEG
+
+Compile and run tests:
+```bash
+cd Fortran/math_utils
+gfortran -o math_test mod.f90 math_utils_test.f90 && ./math_test
+```
+
+Compile and run example:
+```bash
+cd Fortran/examples
+gfortran -o math_example ../math_utils/mod.f90 math_utils_example.f90 && ./math_example
+```
+
+Usage example:
+```fortran
+use math_utils
+
+! Vector operations
+real(8) :: v1(3) = [1.0d0, 2.0d0, 3.0d0]
+real(8) :: v2(3) = [4.0d0, 5.0d0, 6.0d0]
+real(8) :: dot, mag, angle
+dot = dot_product_real(v1, v2)
+mag = vector_magnitude(v1)
+angle = vector_angle(v1, v2)
+
+! Statistics
+real(8) :: data(5) = [1.0d0, 2.0d0, 3.0d0, 4.0d0, 5.0d0]
+real(8) :: avg, med, std
+avg = mean(data)
+med = median_real(data)
+std = std_dev(data, .true.)  ! Sample std dev
+
+! Numerical utilities
+real(8) :: clamped, interpolated
+clamped = clamp(15.0d0, 0.0d0, 10.0d0)  ! Returns 10.0
+interpolated = lerp(0.0d0, 100.0d0, 0.5d0)  ! Returns 50.0
+
+! Matrix operations
+real(8) :: a(2,2) = reshape([1.0d0, 2.0d0, 3.0d0, 4.0d0], [2, 2])
+real(8) :: b(2,2) = reshape([5.0d0, 6.0d0, 7.0d0, 8.0d0], [2, 2])
+real(8), allocatable :: c(:,:)
+c = matrix_multiply(a, b)
+```
+
+---
+
 ### R - HTTP Utilities
 
 Location: `R/http_utils/mod.R`
