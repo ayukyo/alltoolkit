@@ -114,6 +114,89 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### Python - File Utilities (新增测试)
+
+Location: `Python/file_utils_test.py`
+
+新增测试覆盖:
+- **安全读取测试**: 正常读取、不存在文件、Unicode内容
+- **安全写入测试**: 新文件、自动创建目录、原子写入、覆盖
+- **文件哈希测试**: MD5/SHA256计算、不存在文件、无效算法
+- **文件大小测试**: 字节大小、人类可读格式
+- **目录操作测试**: 创建新目录、嵌套目录
+- **文件列表测试**: 所有文件、通配符模式、不存在目录
+- **复制移动测试**: 成功复制、覆盖控制、移动文件
+- **删除文件测试**: 成功删除、missing_ok参数
+- **唯一文件名测试**: 新文件、已存在文件
+
+运行测试: `cd Python && python -m pytest file_utils_test.py -v`
+
+---
+
+### Kotlin - DateTime Utilities (新增测试)
+
+Location: `Kotlin/date_time_utils/DateTimeUtilsTest.kt`
+
+新增测试覆盖:
+- **时间戳测试**: 当前毫秒/秒、转换
+- **格式化测试**: 多种格式、时区处理
+- **解析测试**: 正常解析、无效格式、空值
+- **相对时间测试**: 刚刚、分钟前、小时前、昨天、未来
+- **时间差测试**: 天数差、小时差、绝对值
+- **日期判断测试**: 今天、昨天、本周
+- **闰年测试**: 闰年判断、月份天数
+- **时间计算测试**: 添加天数/小时/分钟
+- **年龄测试**: 年龄计算
+- **时长格式化**: 完整格式、简短格式
+- **工作日测试**: 工作日/周末判断
+- **时间范围**: 生成时间范围列表
+
+运行测试: `cd Kotlin/date_time_utils && kotlinc -include-runtime -d test.jar *.kt && java -jar test.jar`
+
+---
+
+### PHP - String Utilities (新增测试)
+
+Location: `PHP/string_utils/StringUtilsTest.php`
+
+新增测试覆盖:
+- **空值检查**: isBlank/isNotBlank, null/空/空白处理
+- **字符串截取**: substring多字节支持、truncate截断
+- **命名转换**: camelToSnake/snakeToCamel, PascalCase支持
+- **随机字符串**: random长度验证、边界值
+- **前缀后缀**: startsWith/endsWith, 大小写敏感/不敏感
+- **移除操作**: removePrefix/removeSuffix
+- **行分割**: lines去除空行
+- **重复填充**: repeat/pad, 边界值
+- **反转**: reverse多字节支持
+- **显示宽度**: displayWidth中英文混排
+- **大小写**: capitalize/uncapitalize
+- **计数**: count子串出现次数
+- **相等**: equals安全比较
+- **slug**: URL友好转换
+
+运行测试: `cd PHP/string_utils && php StringUtilsTest.php`
+
+---
+
+### Swift - String Utilities (新增测试)
+
+Location: `Swift/string_utils/StringUtilsTest.swift`
+
+新增测试覆盖:
+- **空值检查**: isBlank/isNotBlank
+- **子串操作**: substring安全索引、truncate截断
+- **空白处理**: trimmed/normalizeWhitespaces
+- **验证方法**: isValidEmail/isValidChinesePhone/isValidURL/isNumeric
+- **正则匹配**: isMatch/matches/firstMatch
+- **编码解码**: urlEncoded/urlDecoded/base64Encoded/base64Decoded
+- **命名转换**: toCamelCase/toPascalCase/toSnakeCase/toKebabCase
+- **其他工具**: repeated/leftPadded/rightPadded/md5/sha256
+
+运行测试: 使用 Xcode 或 `swift test`
+
+---
+
 ### Perl - URL Utilities
 
 Location: `Perl/url_utils/mod.pl`
