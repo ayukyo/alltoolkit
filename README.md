@@ -114,6 +114,93 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### SQL - Date/Time Utilities
+
+Location: `SQL/date_utils/mod.sql`
+
+Functions:
+
+**Date Formatting:**
+- **ISO Format**: `DATE_FORMAT(date, '%Y-%m-%d')` (MySQL) / `TO_CHAR(date, 'YYYY-MM-DD')` (PostgreSQL) / `CONVERT(VARCHAR(10), date, 23)` (SQL Server) / `strftime('%Y-%m-%d', date)` (SQLite) - Format date to ISO 8601 standard
+- **UK Format**: DD/MM/YYYY format for UK locale
+- **US Format**: MM/DD/YYYY format for US locale
+- **Chinese Format**: YYYY年MM月DD日 format for Chinese locale
+- **Custom Format**: Support for various date format patterns per database
+
+**Date Parsing:**
+- **Parse Date**: Convert string to date with format specification
+- **ISO Parse**: Parse ISO 8601 formatted dates
+- **UK/US Parse**: Parse locale-specific date formats
+
+**Date Arithmetic:**
+- **Add Days**: Add/subtract days from a date
+- **Add Months**: Add/subtract months from a date
+- **Add Years**: Add/subtract years from a date
+- **First Day of Month**: Get the first day of any month
+- **Last Day of Month**: Get the last day of any month
+- **First Day of Year**: Get January 1st of any year
+- **Last Day of Year**: Get December 31st of any year
+
+**Date Differences:**
+- **Days Between**: Calculate days between two dates
+- **Months Between**: Calculate months between two dates
+- **Years Between**: Calculate years between two dates
+- **Age Calculation**: Calculate age from birth date
+
+**Date Extraction:**
+- **Extract Year**: Get year component from date
+- **Extract Month**: Get month component from date
+- **Extract Day**: Get day component from date
+- **Extract Day of Week**: Get day of week (1=Sunday to 7=Saturday)
+- **Extract Day of Year**: Get day number in year (1-366)
+- **Extract Week Number**: Get ISO week number
+- **Extract Quarter**: Get quarter (1-4)
+- **Extract Hour/Minute/Second**: Get time components
+
+**Date Validation:**
+- **Is Valid Date**: Check if a date string is valid
+- **Is Leap Year**: Check if a year is a leap year
+- **Is Weekend**: Check if date falls on weekend
+- **Is Weekday**: Check if date falls on weekday
+
+**Current Date/Time:**
+- **Current Date**: Get today's date
+- **Current Datetime**: Get current date and time
+- **Current Time**: Get current time
+- **Unix Timestamp**: Get current Unix timestamp
+
+Features:
+- Multi-database support: MySQL, PostgreSQL, SQL Server, SQLite
+- Zero dependencies - uses only standard SQL functions
+- Portable syntax with database-specific implementations
+- 15 practical examples covering common use cases
+- Complete format reference for all supported databases
+- Test suite with 10+ test cases
+- Production-ready for database date operations
+
+Usage example:
+```sql
+-- MySQL: Format date
+SELECT DATE_FORMAT(order_date, '%d/%m/%Y') AS formatted_date FROM orders;
+
+-- PostgreSQL: Calculate age
+SELECT EXTRACT(YEAR FROM AGE(CURRENT_DATE, birth_date)) AS age FROM users;
+
+-- SQL Server: Add days
+SELECT DATEADD(DAY, 7, order_date) AS due_date FROM orders;
+
+-- SQLite: Get week number
+SELECT strftime('%W', order_date) AS week_num FROM orders;
+
+-- Cross-database: First day of month
+-- MySQL: DATE_FORMAT(date_col, '%Y-%m-01')
+-- PostgreSQL: DATE_TRUNC('month', date_col)::DATE
+-- SQL Server: DATEFROMPARTS(YEAR(date_col), MONTH(date_col), 1)
+-- SQLite: date(date_col, 'start of month')
+```
+
+---
+
 ### Rust - Compression Utilities
 
 Location: `Rust/compression_utils/mod.rs`
