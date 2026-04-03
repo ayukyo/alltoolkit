@@ -115,6 +115,184 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### Go - CSV Utilities
+
+Location: `Go/csv_utils/mod.go`
+
+Functions:
+
+**Reading:**
+- **ReadFile**: `ReadFile(filename)` - Read CSV from file with default options
+- **ReadFileWithOptions**: `ReadFileWithOptions(filename, opts)` - Read with custom options
+- **ReadString**: `ReadString(data)` - Parse CSV from string
+- **ReadStringWithOptions**: `ReadStringWithOptions(data, opts)` - Parse with custom options
+- **ReadWithOptions**: `ReadWithOptions(reader, opts)` - Read from any io.Reader
+
+**Writing:**
+- **WriteToFile**: `data.WriteToFile(filename)` - Write data to file
+- **WriteToFileWithOptions**: `data.WriteToFileWithOptions(filename, opts)` - Write with custom options
+- **WriteToString**: `data.WriteToString()` - Convert to CSV string
+- **WriteToStringWithOptions**: `data.WriteToStringWithOptions(opts)` - Convert with options
+- **WriteWithOptions**: `data.WriteWithOptions(writer, opts)` - Write to io.Writer
+
+**Row Access (CsvRow):**
+- **Get**: `row.Get(column)` - Get string value by column name
+- **GetInt**: `row.GetInt(column, defaultValue)` - Get integer with default
+- **GetFloat**: `row.GetFloat(column, defaultValue)` - Get float64 with default
+- **GetBool**: `row.GetBool(column, defaultValue)` - Get boolean with default (supports true/false, yes/no, 1/0)
+- **IsEmpty**: `row.IsEmpty()` - Check if row has no data
+
+**Data Filtering:**
+- **FilterRows**: `data.FilterRows(predicate)` - Filter rows by predicate function
+- **FilterColumns**: `data.FilterColumns(columns)` - Keep only specified columns
+- **Find**: `data.Find(predicate)` - Find first matching row
+- **FindAll**: `data.FindAll(predicate)` - Find all matching rows
+- **Count**: `data.Count(predicate)` - Count matching rows
+
+**Sorting:**
+- **SortBy**: `data.SortBy(column)` - Sort by column (ascending, string)
+- **SortByWithOptions**: `data.SortByWithOptions(column, ascending, numeric)` - Sort with options
+
+**Column Operations:**
+- **GetColumn**: `data.GetColumn(column)` - Get all values as strings
+- **GetColumnInt**: `data.GetColumnInt(column)` - Get all values as integers
+- **GetColumnFloat**: `data.GetColumnFloat(column)` - Get all values as floats
+- **AddColumn**: `data.AddColumn(name, values)` - Add new column
+- **RemoveColumn**: `data.RemoveColumn(name)` - Remove column
+- **Distinct**: `data.Distinct(column)` - Get unique values
+
+**Row Operations:**
+- **GetRow**: `data.GetRow(index)` - Get row by index
+- **AddRow**: `data.AddRow(row)` - Add new row
+- **RemoveRow**: `data.RemoveRow(index)` - Remove row by index
+- **RowCount**: `data.RowCount()` - Get number of rows
+- **ColumnCount**: `data.ColumnCount()` - Get number of columns
+
+**Data Transformation:**
+- **Transform**: `data.Transform(transformer)` - Apply function to each row
+- **TransformColumn**: `data.TransformColumn(column, transformer)` - Transform specific column
+- **GroupBy**: `data.GroupBy(column)` - Group rows by column value
+
+**Statistics:**
+- **SumColumn**: `data.SumColumn(column)` - Calculate sum of numeric column
+- **AvgColumn**: `data.AvgColumn(column)` - Calculate average
+- **MinColumn**: `data.MinColumn(column)` - Find minimum value
+- **MaxColumn**: `data.MaxColumn(column)` - Find maximum value
+
+**Data Combination:**
+- **Join**: `Join(left, right)` - Merge two datasets horizontally (add columns)
+- **Merge**: `Merge(first, second)` - Merge two datasets vertically (add rows)
+
+**Validation:**
+- **Validate**: `data.Validate()` - Check for missing values, returns invalid row indices
+- **IsValid**: `data.IsValid()` - Check if data structure is valid
+- **IsValidCsv**: `IsValidCsv(data)` - Check if string is valid CSV
+
+**Conversion:**
+- **ToSlice**: `data.ToSlice(hasHeader)` - Convert to 2D string slice
+- **ToMapSlice**: `data.ToMapSlice()` - Convert to slice of maps
+
+**Utility:**
+- **DetectDelimiter**: `DetectDelimiter(data)` - Auto-detect delimiter (',', ';', '\t', '|')
+- **DefaultOptions**: `DefaultOptions()` - Get default CSV options
+
+**CsvWriter:**
+- **NewWriter**: `NewWriter()` - Create new CSV writer
+- **SetHeaders**: `writer.SetHeaders(headers)` - Set column headers
+- **AddRow**: `writer.AddRow(values)` - Add row as string slice
+- **AddRowMap**: `writer.AddRowMap(row)` - Add row from map
+- **ToCsvData**: `writer.ToCsvData()` - Convert to CsvData
+- **SaveToFile**: `writer.SaveToFile(filename)` - Save to file
+- **ToString**: `writer.ToString()` - Convert to CSV string
+
+**CsvOptions:**
+- **Delimiter**: Field delimiter (default: ',')
+- **QuoteChar**: Quote character (default: '"')
+- **HasHeader**: First row is header (default: true)
+- **TrimSpaces**: Trim leading/trailing spaces (default: true)
+- **SkipEmptyRows**: Skip empty rows (default: true)
+- **LazyQuotes**: Allow quotes in unquoted fields (default: false)
+
+**Features:**
+- Zero dependencies, uses only Go standard library (encoding/csv, io, os)
+- Full read/write support with custom delimiters (CSV, TSV, etc.)
+- Automatic type conversion (string, int, float, bool)
+- Powerful filtering, sorting, and transformation functions
+- Data joining (horizontal merge) and merging (vertical merge)
+- Column statistics (sum, average, min, max)
+- Group by and aggregation support
+- Row/column manipulation (add, remove, filter)
+- Delimiter auto-detection
+- Complete validation functions
+- 18 comprehensive usage examples
+- 50+ test cases covering all functionality
+- Production-ready for data processing tasks
+
+Run tests:
+```bash
+cd Go/csv_utils
+go test -v
+```
+
+Run example:
+```bash
+cd Go/examples
+go run csv_utils_example.go
+```
+
+Usage example:
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/ayukyo/alltoolkit/Go/csv_utils"
+)
+
+func main() {
+    // Read CSV file
+    data, err := csv_utils.ReadFile("data.csv")
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Access data with type conversion
+    for _, row := range data.Rows {
+        name := row.Get("name")
+        age := row.GetInt("age", 0)
+        salary := row.GetFloat("salary", 0.0)
+        active := row.GetBool("active", false)
+        fmt.Printf("%s: %d years old, $%.2f, active=%v\n", name, age, salary, active)
+    }
+
+    // Filter rows
+    adults := data.FilterRows(func(row csv_utils.CsvRow) bool {
+        return row.GetInt("age", 0) >= 18
+    })
+
+    // Sort by column
+    sorted := data.SortByWithOptions("salary", true, true)
+
+    // Get statistics
+    avgSalary := data.AvgColumn("salary")
+    totalSalary := data.SumColumn("salary")
+
+    // Write CSV
+    writer := csv_utils.NewWriter()
+    writer.SetHeaders([]string{"name", "age"})
+    writer.AddRow([]string{"Alice", "30"})
+    writer.AddRow([]string{"Bob", "25"})
+    err = writer.SaveToFile("output.csv")
+
+    // Custom delimiter (TSV)
+    opts := csv_utils.DefaultOptions()
+    opts.Delimiter = '\t'
+    tsvData, _ := csv_utils.ReadFileWithOptions("data.tsv", opts)
+}
+```
+
+---
+
 ### Kotlin - JSON Utilities
 
 Location: `Kotlin/json_utils/mod.kt`
