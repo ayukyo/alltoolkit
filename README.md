@@ -114,6 +114,130 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### PHP - HTTP Utilities
+
+Location: `PHP/http_utils/mod.php`
+
+Functions:
+
+**HTTP Methods:**
+- **GET**: `HttpUtils::get(url, options)` - Send HTTP GET request
+- **POST**: `HttpUtils::post(url, body, options)` - Send HTTP POST request
+- **POST JSON**: `HttpUtils::postJson(url, data, options)` - Send JSON POST request
+- **POST Form**: `HttpUtils::postForm(url, data, options)` - Send form POST request
+- **PUT**: `HttpUtils::put(url, body, options)` - Send HTTP PUT request
+- **PUT JSON**: `HttpUtils::putJson(url, data, options)` - Send JSON PUT request
+- **DELETE**: `HttpUtils::delete(url, options)` - Send HTTP DELETE request
+- **PATCH**: `HttpUtils::patch(url, body, options)` - Send HTTP PATCH request
+- **HEAD**: `HttpUtils::head(url, options)` - Send HTTP HEAD request
+
+**URL Utilities:**
+- **Build URL**: `HttpUtils::buildUrl(baseUrl, params)` - Build URL with query parameters
+- **Build Query String**: `HttpUtils::buildQueryString(params)` - Build URL-encoded query string
+- **URL Encode**: `HttpUtils::urlEncode(value)` - URL encode a string
+- **URL Decode**: `HttpUtils::urlDecode(value)` - URL decode a string
+- **Parse URL**: `HttpUtils::parseUrl(url)` - Parse URL into components (scheme, host, port, path, query, fragment, user, pass)
+- **Parse Query String**: `HttpUtils::parseQueryString(queryString)` - Parse query string to array
+- **Validate URL**: `HttpUtils::isValidUrl(url)` - Check if string is valid URL
+- **Get Domain**: `HttpUtils::getDomain(url)` - Extract domain from URL
+- **Get Path**: `HttpUtils::getPath(url)` - Extract path from URL
+- **Add Query Params**: `HttpUtils::addQueryParams(url, params)` - Add query parameters to URL
+- **Remove Query Params**: `HttpUtils::removeQueryParams(url, keys)` - Remove query parameters from URL
+
+**HTTP Response (HttpResponse class):**
+- **Status Code**: `$response->statusCode` - HTTP status code
+- **Status Text**: `$response->statusText` - HTTP status text
+- **Headers**: `$response->headers` - Response headers array
+- **Body**: `$response->body` - Response body string
+- **Success**: `$response->success` - True if status 200-299
+- **Response Time**: `$response->responseTime` - Request duration in seconds
+- **JSON Parse**: `$response->json()` - Parse body as JSON
+- **Is JSON**: `$response->isJson()` - Check if body is valid JSON
+
+**HTTP Options (HttpOptions class):**
+- **Headers**: Custom request headers
+- **Timeout**: Request timeout in seconds (default: 30)
+- **Follow Redirects**: Auto-follow redirects (default: true)
+- **Max Redirects**: Maximum redirect hops (default: 10)
+- **Verify SSL**: SSL certificate verification (default: true)
+- **Proxy**: HTTP proxy address
+- **Authentication**: Username/password for basic auth
+
+Features:
+- Zero dependencies, uses only PHP standard library (ext-curl)
+- Full HTTP method support: GET, POST, PUT, DELETE, PATCH, HEAD
+- Automatic JSON encoding/decoding
+- Form data encoding support
+- Complete URL manipulation utilities
+- Custom headers and timeout configuration
+- Response time tracking
+- SSL/TLS certificate verification control
+- HTTP proxy support
+- Basic authentication support
+- Response success status checking
+- Built-in JSON validation
+- Complete test suite with 20+ test cases
+- 12 comprehensive usage examples
+- Production-ready for REST API clients
+
+Run tests:
+```bash
+cd PHP/http_utils
+php http_utils_test.php
+```
+
+Run example:
+```bash
+cd PHP/examples
+php http_utils_example.php
+```
+
+Usage example:
+```php
+require_once 'PHP/http_utils/mod.php';
+use AllToolkit\HttpUtils;
+
+// GET request
+$response = HttpUtils::get('https://api.example.com/users');
+if ($response->success) {
+    $data = $response->json();
+    print_r($data);
+}
+
+// POST JSON
+$response = HttpUtils::postJson('https://api.example.com/users', [
+    'name' => 'John',
+    'email' => 'john@example.com'
+]);
+
+// POST Form
+$response = HttpUtils::postForm('https://api.example.com/login', [
+    'username' => 'admin',
+    'password' => 'secret'
+]);
+
+// URL building
+$url = HttpUtils::buildUrl('https://api.example.com/search', [
+    'q' => 'hello world',
+    'page' => 1
+]);
+// Result: 'https://api.example.com/search?q=hello+world&page=1'
+
+// URL parsing
+$parts = HttpUtils::parseUrl('https://user:pass@api.example.com:8080/v1/users');
+// $parts['scheme'] = 'https'
+// $parts['host'] = 'api.example.com'
+// $parts['port'] = 8080
+
+// Custom options
+$options = new \AllToolkit\HttpOptions();
+$options->headers = ['Authorization' => 'Bearer token123'];
+$options->timeout = 60;
+$response = HttpUtils::get('https://api.example.com/protected', $options);
+```
+
+---
+
 ### SQL - Date/Time Utilities
 
 Location: `SQL/date_utils/mod.sql`
