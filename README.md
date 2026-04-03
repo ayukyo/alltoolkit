@@ -115,6 +115,147 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### Kotlin - JSON Utilities
+
+Location: `Kotlin/json_utils/mod.kt`
+
+Functions:
+
+**Parsing:**
+- **parse**: `JsonUtils.parse(json)` - Parse JSON string into JsonValue
+- **parseOrNull**: `JsonUtils.parseOrNull(json)` - Parse safely, return null on error
+- **isValid**: `JsonUtils.isValid(json)` - Check if string is valid JSON
+
+**JSON Value Types:**
+- **JsonNull**: Represents JSON null value
+- **JsonBoolean**: Represents JSON boolean (true/false)
+- **JsonNumber**: Represents JSON number (Int, Long, Float, Double)
+- **JsonString**: Represents JSON string
+- **JsonArray**: Represents JSON array with indexed access
+- **JsonObject**: Represents JSON object with key-value access
+
+**Type Checking:**
+- **isNull**: Check if value is null
+- **isBoolean**: Check if value is boolean
+- **isNumber**: Check if value is number
+- **isString**: Check if value is string
+- **isArray**: Check if value is array
+- **isObject**: Check if value is object
+
+**Type Conversion:**
+- **asBoolean**: Get value as boolean with default
+- **asInt**: Get value as int with default
+- **asLong**: Get value as long with default
+- **asDouble**: Get value as double with default
+- **asString**: Get value as string with default
+- **asArray**: Get value as JsonArray
+- **asObject**: Get value as JsonObject
+
+**Object Access:**
+- **get(key)**: Get property by key, returns JsonNull if not found
+- **has(key)**: Check if object has key
+- **getString**: Get string property with default
+- **getInt**: Get int property with default
+- **getDouble**: Get double property with default
+- **getBoolean**: Get boolean property with default
+- **getObject**: Get nested object
+- **getArray**: Get nested array
+- **keys**: Get all keys
+- **values**: Get all values
+- **entries**: Get all key-value entries
+
+**Array Access:**
+- **get(index)**: Get element at index, returns JsonNull if out of bounds
+- **getString**: Get string element with default
+- **getInt**: Get int element with default
+- **getDouble**: Get double element with default
+- **getBoolean**: Get boolean element with default
+- **getObject**: Get nested object element
+- **getArray**: Get nested array element
+
+**Generation:**
+- **obj**: `JsonUtils.obj("key" to value, ...)` - Create JsonObject from pairs
+- **arr**: `JsonUtils.arr(value1, value2, ...)` - Create JsonArray from values
+- **toJsonValue**: Convert any Kotlin value to JsonValue
+- **toJson**: Convert Kotlin Map/List to JSON string
+
+**Formatting:**
+- **toJsonString**: Convert JsonValue to compact JSON string
+- **toPrettyString**: Convert JsonValue to pretty-printed JSON
+- **prettyPrint**: Pretty print existing JSON string
+- **minify**: Minify existing JSON string
+
+**Utilities:**
+- **merge**: Merge two JsonObjects
+- **plus operator**: Combine two JsonObjects
+- **size**: Get size of array or object
+
+**Features:**
+- Zero dependencies, uses only Kotlin standard library
+- Complete JSON support: null, boolean, number, string, array, object
+- Type-safe access with default values
+- Full Unicode and escape sequence support
+- Pretty printing with customizable indentation
+- Round-trip parsing (parse → generate → parse)
+- Safe parsing with null return on error
+- Kotlin idiomatic API with operator overloading
+- Complete test suite with 30 test cases
+- 15 comprehensive usage examples
+- Production-ready for JSON processing tasks
+
+Compile and run tests:
+```bash
+cd Kotlin/json_utils
+kotlinc -include-runtime -d test.jar *.kt && java -jar test.jar
+```
+
+Compile and run example:
+```bash
+cd Kotlin/examples
+kotlinc -cp ../json_utils json_utils_example.kt && kotlin -cp ../json_utils:. JsonUtilsExampleKt
+```
+
+Usage example:
+```kotlin
+import json_utils.*
+
+// Parse JSON
+val json = """{"name": "John", "age": 30, "active": true}"""
+val obj = JsonUtils.parse(json).asObject()
+
+// Access values
+val name = obj.getString("name")        // "John"
+val age = obj.getInt("age")             // 30
+val active = obj.getBoolean("active")   // true
+
+// Access with defaults
+val missing = obj.getString("missing", "default")  // "default"
+
+// Parse arrays
+val arr = JsonUtils.parse("[1, 2, 3]").asArray()
+val first = arr.getInt(0)               // 1
+
+// Create JSON programmatically
+val newObj = JsonUtils.obj(
+    "product" to "Laptop",
+    "price" to 999.99,
+    "tags" to JsonUtils.arr("electronics", "computers")
+)
+println(newObj.toJsonString())
+// {"product":"Laptop","price":999.99,"tags":["electronics","computers"]}
+
+// Pretty print
+val pretty = JsonUtils.prettyPrint("""{"a":1,"b":2}""")
+
+// Validate JSON
+val isValid = JsonUtils.isValid("{}"))  // true
+
+// Safe parsing
+val result = JsonUtils.parseOrNull("invalid")  // null
+```
+
+---
+
 ### Python - Base64 Utilities
 
 Location: `Python/base64_utils/mod.py`
