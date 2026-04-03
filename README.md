@@ -39,6 +39,7 @@
 - Fortran
 - MATLAB
 - Perl
+- **Ruby** ✨
 
 ## 📦 安装（即将推出）
 
@@ -113,6 +114,141 @@ Each language directory contains standalone, dependency-free utility modules wit
 - **Unicode-safe**: Proper handling of international text
 
 ## Latest Addition
+
+### Ruby - Regex Utilities
+
+Location: `Ruby/regex_utils/mod.rb`
+
+Functions:
+
+**Pattern Matching:**
+- **match?**: `match?(str, pattern)` - Check if string matches pattern (preset symbol or Regexp)
+- **no_match?**: `no_match?(str, pattern)` - Check if string does not match pattern
+- **find**: `find(str, pattern)` - Find first match, returns MatchResult object
+- **find_all**: `find_all(str, pattern)` - Find all matches, returns array of strings
+- **find_all_with_groups**: `find_all_with_groups(str, pattern)` - Find all matches with capture groups
+
+**String Manipulation:**
+- **replace_first**: `replace_first(str, pattern, replacement)` - Replace first occurrence (supports Proc)
+- **replace_all**: `replace_all(str, pattern, replacement)` - Replace all occurrences (supports Proc)
+- **remove**: `remove(str, pattern)` - Remove all matches
+- **remove_first**: `remove_first(str, pattern)` - Remove first match
+- **split**: `split(str, pattern)` - Split string by pattern
+
+**Extraction:**
+- **extract**: `extract(str, pattern, group)` - Extract specific capture group by index or name
+- **contains?**: `contains?(str, pattern)` - Check if string contains pattern
+- **count**: `count(str, pattern)` - Count number of matches
+
+**Utility:**
+- **escape**: `escape(str)` - Escape special regex characters
+- **build**: `build(pattern, options)` - Build regex from string with options
+- **valid?**: `valid?(str, preset)` - Validate using preset pattern
+- **presets**: `presets` - Get list of available preset names
+- **get_preset**: `get_preset(name)` - Get pattern by preset name
+- **preset_exists?**: `preset_exists?(name)` - Check if preset exists
+
+**Preset Patterns:**
+- `:email` - Email validation (RFC 5322 compliant)
+- `:url` - HTTP/HTTPS URL validation
+- `:ipv4` - IPv4 address validation
+- `:ipv6` - IPv6 address validation
+- `:phone` - Phone number validation
+- `:credit_card` - Credit card format validation
+- `:hex_color` - Hex color (#RGB or #RRGGBB)
+- `:date_iso` - ISO date format (YYYY-MM-DD)
+- `:date_us` - US date format (MM/DD/YYYY)
+- `:date_uk` - UK date format (DD/MM/YYYY)
+- `:time` - Time format (HH:MM:SS)
+- `:uuid` - UUID v4 validation
+- `:uuid_compact` - Compact UUID validation
+- `:alphanumeric` - Alphanumeric only
+- `:alpha` - Alphabetic only
+- `:numeric` - Numeric only
+- `:decimal` - Decimal number
+- `:whitespace` - Whitespace only
+- `:html_tag` - HTML tag pattern
+- `:markdown_link` - Markdown link pattern
+- `:file_extension` - File extension pattern
+- `:twitter_handle` - Twitter handle validation
+- `:hashtag` - Hashtag pattern
+- `:mac_address` - MAC address validation
+- `:zip_code` - US ZIP code validation
+- `:ssn` - US SSN validation
+
+**MatchResult Class:**
+- `success?` - Check if match was successful
+- `matches` - Array of all captures
+- `named_groups` - Hash of named capture groups
+- `first` / `last` - Access first/last match
+- `[]` - Array-style access to captures
+- `to_a` / `to_s` - Convert to array or string
+
+Features:
+- Zero dependencies, uses only Ruby standard library
+- 25+ built-in validation patterns
+- Support for custom Regexp patterns
+- Named capture groups support
+- Proc-based replacements
+- Nil-safe operations
+- Complete test suite with 60+ test cases
+- 20 comprehensive usage examples
+- Production-ready for Ruby 2.5+
+
+Run tests:
+```bash
+cd Ruby/regex_utils
+ruby regex_utils_test.rb
+```
+
+Run example:
+```bash
+cd Ruby/examples
+ruby regex_utils_example.rb
+```
+
+Usage example:
+```ruby
+require_relative 'regex_utils/mod'
+
+# Validation with presets
+RegexUtils.match?("test@example.com", :email)  # => true
+RegexUtils.match?("192.168.1.1", :ipv4)        # => true
+RegexUtils.valid?("#ffffff", :hex_color)       # => true
+
+# Find matches
+result = RegexUtils.find("hello world", /\w+/)
+result.success?   # => true
+result.first      # => "hello"
+
+# Find all matches
+RegexUtils.find_all("a1b2c3", /\d/)  # => ["1", "2", "3"]
+
+# Replace with string
+RegexUtils.replace_all("a1b2c3", /\d/, "X")  # => "aXbXcX"
+
+# Replace with Proc (block)
+RegexUtils.replace_all("abc", /\w/) { |m| m.upcase }  # => "ABC"
+
+# Extract capture groups
+result = RegexUtils.find("hello world", /(?<first>\w+) (?<second>\w+)/)
+result.named_groups["first"]   # => "hello"
+result.named_groups["second"]  # => "world"
+
+# Extract specific group
+RegexUtils.extract("File: doc.pdf", /File:\s*(\S+)/, 1)  # => "doc.pdf"
+
+# Count matches
+RegexUtils.count("hello world", /l/)  # => 3
+
+# Check if contains
+RegexUtils.contains?("user@example.com", :email)  # => true
+
+# Get all presets
+RegexUtils.presets  # => [:email, :url, :ipv4, ...]
+```
+
+---
 
 ### Delphi - String Utilities
 
