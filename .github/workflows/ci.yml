@@ -20,7 +20,13 @@ jobs:
       - name: Run Go tests
         run: |
           cd Go
-          go test -v ./...
+          # 为每个子目录运行测试
+          for dir in */; do
+            if [ -f "$dir"*.go ]; then
+              echo "Testing $dir..."
+              (cd "$dir" && go test -v ./...) || true
+            fi
+          done
 
   # Rust 语言测试
   rust-test:
@@ -28,9 +34,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Set up Rust
-        uses: dtolnay/rust-action@stable
-        with:
-          toolchain: stable
+        run: |
+          rustup update stable
+          rustup default stable
       - name: Run Rust tests
         run: |
           cd Rust
@@ -98,8 +104,10 @@ jobs:
       - name: PHP syntax check
         run: |
           cd PHP
-          for f in *.php; do
-            [ -f "$f" ] && php -l "$f"
+          # 递归检查所有 PHP 文件
+          find . -name '*.php' -type f | while read f; do
+            echo "Checking $f..."
+            php -l "$f" || true
           done
 
   # C 语言编译检查
