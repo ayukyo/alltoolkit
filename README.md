@@ -2267,3 +2267,4 @@ MIT License - 免费用于个人和商业项目
 - [Issues](https://github.com/ayukyo/alltoolkit/issues)
 - [Contributing Guide](CONTRIBUTING.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
+# CI Test
