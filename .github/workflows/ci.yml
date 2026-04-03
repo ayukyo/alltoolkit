@@ -11,7 +11,6 @@ jobs:
   # Go 语言测试
   go-test:
     runs-on: ubuntu-latest
-    if: hashFiles('Go/**/*.go') != ''
     steps:
       - uses: actions/checkout@v4
       - name: Set up Go
@@ -26,7 +25,6 @@ jobs:
   # Rust 语言测试
   rust-test:
     runs-on: ubuntu-latest
-    if: hashFiles('Rust/**/*.rs') != ''
     steps:
       - uses: actions/checkout@v4
       - name: Set up Rust
@@ -48,7 +46,6 @@ jobs:
   # Python 语言测试
   python-test:
     runs-on: ubuntu-latest
-    if: hashFiles('Python/**/*.py') != ''
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -64,7 +61,6 @@ jobs:
   # Kotlin 语言编译检查
   kotlin-check:
     runs-on: ubuntu-latest
-    if: hashFiles('Kotlin/**/*.kt') != ''
     steps:
       - uses: actions/checkout@v4
       - name: Set up Kotlin
@@ -81,7 +77,6 @@ jobs:
   # Swift 语言编译检查（仅 macOS）
   swift-check:
     runs-on: macos-latest
-    if: hashFiles('Swift/**/*.swift') != ''
     steps:
       - uses: actions/checkout@v4
       - name: Swift compile check
@@ -94,7 +89,6 @@ jobs:
   # PHP 语法检查
   php-check:
     runs-on: ubuntu-latest
-    if: hashFiles('PHP/**/*.php') != ''
     steps:
       - uses: actions/checkout@v4
       - name: Set up PHP
@@ -111,7 +105,6 @@ jobs:
   # C 语言编译检查
   c-check:
     runs-on: ubuntu-latest
-    if: hashFiles('C/**/*.c') != ''
     steps:
       - uses: actions/checkout@v4
       - name: Install GCC
@@ -126,7 +119,6 @@ jobs:
   # C++ 语言编译检查
   cpp-check:
     runs-on: ubuntu-latest
-    if: hashFiles('C++/**/*.cpp') != ''
     steps:
       - uses: actions/checkout@v4
       - name: Install G++
@@ -141,7 +133,6 @@ jobs:
   # C# 语言编译检查
   csharp-check:
     runs-on: ubuntu-latest
-    if: hashFiles('C#/**/*.cs') != ''
     steps:
       - uses: actions/checkout@v4
       - name: Set up .NET
@@ -158,7 +149,6 @@ jobs:
   # Java 语言编译检查
   java-check:
     runs-on: ubuntu-latest
-    if: hashFiles('Java/**/*.java') != ''
     steps:
       - uses: actions/checkout@v4
       - name: Set up Java
@@ -176,7 +166,6 @@ jobs:
   # JavaScript 语法检查
   javascript-check:
     runs-on: ubuntu-latest
-    if: hashFiles('JavaScript/**/*.js') != ''
     steps:
       - uses: actions/checkout@v4
       - name: Set up Node.js
@@ -193,7 +182,6 @@ jobs:
   # TypeScript 类型检查
   typescript-check:
     runs-on: ubuntu-latest
-    if: hashFiles('TypeScript/**/*.ts') != ''
     steps:
       - uses: actions/checkout@v4
       - name: Set up Node.js
@@ -211,7 +199,6 @@ jobs:
   # R 语言语法检查
   r-check:
     runs-on: ubuntu-latest
-    if: hashFiles('R/**/*.R') != ''
     steps:
       - uses: actions/checkout@v4
       - name: Set up R
@@ -228,7 +215,6 @@ jobs:
   # SQL 语法检查
   sql-check:
     runs-on: ubuntu-latest
-    if: hashFiles('SQL/**/*.sql') != ''
     steps:
       - uses: actions/checkout@v4
       - name: SQL syntax check
@@ -242,7 +228,6 @@ jobs:
   # VB 语言编译检查
   vb-check:
     runs-on: ubuntu-latest
-    if: hashFiles('VB/**/*.vb') != ''
     steps:
       - uses: actions/checkout@v4
       - name: Set up .NET
@@ -259,7 +244,6 @@ jobs:
   # Delphi 语法检查
   delphi-check:
     runs-on: ubuntu-latest
-    if: hashFiles('Delphi/**/*.pas') != ''
     steps:
       - uses: actions/checkout@v4
       - name: Delphi syntax check
@@ -272,7 +256,6 @@ jobs:
   # Fortran 语言编译检查
   fortran-check:
     runs-on: ubuntu-latest
-    if: hashFiles('Fortran/**/*.f90') != ''
     steps:
       - uses: actions/checkout@v4
       - name: Install GFortran
@@ -287,7 +270,6 @@ jobs:
   # MATLAB 语法检查
   matlab-check:
     runs-on: ubuntu-latest
-    if: hashFiles('MATLAB/**/*.m') != ''
     steps:
       - uses: actions/checkout@v4
       - name: MATLAB syntax check
@@ -300,7 +282,6 @@ jobs:
   # Perl 语法检查
   perl-check:
     runs-on: ubuntu-latest
-    if: hashFiles('Perl/**/*.pl') != ''
     steps:
       - uses: actions/checkout@v4
       - name: Set up Perl
@@ -317,7 +298,6 @@ jobs:
   # ArkTS 语法检查
   arkts-check:
     runs-on: ubuntu-latest
-    if: hashFiles('ArkTS/**/*.ets') != ''
     steps:
       - uses: actions/checkout@v4
       - name: ArkTS syntax check
@@ -330,7 +310,6 @@ jobs:
   # Ruby 语法检查
   ruby-check:
     runs-on: ubuntu-latest
-    if: hashFiles('Ruby/**/*.rb') != ''
     steps:
       - uses: actions/checkout@v4
       - name: Set up Ruby
