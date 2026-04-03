@@ -115,6 +115,95 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### Python - Base64 Utilities
+
+Location: `Python/base64_utils/mod.py`
+
+Functions:
+
+**Encoding:**
+- **encode**: `encode(input_data, encoding='utf-8')` - Encode string or bytes to Base64
+- **encode_urlsafe**: `encode_urlsafe(input_data, encoding='utf-8', padding=True)` - Encode to URL-safe Base64 (RFC 4648)
+
+**Decoding:**
+- **decode**: `decode(base64_string, encoding='utf-8')` - Decode Base64 to string
+- **decode_to_bytes**: `decode_to_bytes(base64_string)` - Decode Base64 to bytes
+- **decode_urlsafe**: `decode_urlsafe(base64_url_string, encoding='utf-8')` - Decode URL-safe Base64 to string
+- **decode_urlsafe_to_bytes**: `decode_urlsafe_to_bytes(base64_url_string)` - Decode URL-safe Base64 to bytes
+
+**URL-safe Conversion:**
+- **to_urlsafe**: `to_urlsafe(standard_base64, padding=True)` - Convert standard Base64 to URL-safe format
+- **from_urlsafe**: `from_urlsafe(base64_url_string)` - Convert URL-safe Base64 to standard format
+
+**Validation:**
+- **is_valid**: `is_valid(base64_string, urlsafe=False)` - Check if string is valid Base64
+
+**Length Calculations:**
+- **encoded_length**: `encoded_length(input_length, padding=True)` - Calculate encoded length
+- **decoded_max_length**: `decoded_max_length(base64_length)` - Calculate max decoded length
+
+**Features:**
+- Zero dependencies, uses only Python standard library (base64, re)
+- Supports standard Base64 and URL-safe Base64 (RFC 4648)
+- Optional padding control for URL-safe encoding
+- Binary data support via bytes type
+- Full UTF-8 support including Unicode characters
+- Type hints for better IDE support
+- Complete input validation with descriptive error messages
+- Thread-safe (all methods are static)
+- Convenience functions for direct import
+- Complete test suite with 22 test cases
+- 9 comprehensive usage examples
+- Production-ready for data encoding/decoding tasks
+
+Run tests:
+```bash
+cd Python/base64_utils
+python base64_utils_test.py
+```
+
+Run example:
+```bash
+cd Python/examples
+python base64_utils_example.py
+```
+
+Usage example:
+```python
+from base64_utils.mod import Base64Utils
+
+# Basic encoding
+encoded = Base64Utils.encode("Hello, World!")
+# Returns: "SGVsbG8sIFdvcmxkIQ=="
+
+# Basic decoding
+decoded = Base64Utils.decode("SGVsbG8sIFdvcmxkIQ==")
+# Returns: "Hello, World!"
+
+# URL-safe encoding (for URLs/filenames)
+url_safe = Base64Utils.encode_urlsafe("user+name/file", padding=False)
+# Returns: "dXNlcituYW1lL2ZpbGU"
+
+# Binary data encoding
+binary_data = bytes([0x00, 0x01, 0x02, 0xFF])
+encoded = Base64Utils.encode(binary_data)
+# Returns: "AAEC/w=="
+
+# Validation
+is_valid = Base64Utils.is_valid("SGVsbG8=")  # True
+is_invalid = Base64Utils.is_valid("Invalid!")  # False
+
+# Length calculation
+length = Base64Utils.encoded_length(100)  # 136
+
+# Convenience functions
+from base64_utils.mod import encode, decode
+encoded = encode("Hello")
+decoded = decode(encoded)
+```
+
+---
+
 ### C++ - Base64 Utilities
 
 Location: `C++/base64_utils/mod.hpp`
