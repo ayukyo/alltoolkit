@@ -53,6 +53,7 @@
 ///
 /// Time: O(n) where n is the number of characters to scan.
 /// Memory: Allocates new string only when truncation occurs.
+/// Optimized: Uses single-pass character counting with early termination.
 pub fn truncate(s: &str, max_len: usize) -> String {
     // Handle edge cases
     if s.is_empty() {
@@ -60,25 +61,23 @@ pub fn truncate(s: &str, max_len: usize) -> String {
     }
 
     // If max_len is too small, return just ellipsis
-    if max_len < 3 {
+    const ELLIPSIS_LEN: usize = 3;
+    if max_len < ELLIPSIS_LEN {
         return "...".to_string();
     }
 
-    // Count characters (not bytes) in the string
-    let char_count = s.chars().count();
-    
-    // If string fits within limit, return as-is
-    if char_count <= max_len {
-        return s.to_string();
+    // Single-pass: count chars and check if we need truncation
+    let mut char_count = 0;
+    for (idx, _) in s.char_indices() {
+        char_count += 1;
+        if char_count > max_len {
+            // Need truncation - take characters up to this position
+            return s[..idx].to_string() + "...";
+        }
     }
-
-    // Calculate target length (reserve space for ellipsis)
-    let target_len = max_len.saturating_sub(3);
     
-    // Build result by taking characters up to target_len
-    let result: String = s.chars().take(target_len).collect();
-    
-    result + "..."
+    // String fits within limit, return as-is
+    s.to_string()
 }
 
 /// Converts a string to a URL-friendly slug.
@@ -183,6 +182,7 @@ pub fn slugify(s: &str) -> String {
 ///
 /// Time: O(n) where n is the string length.
 /// Memory: O(1) additional space.
+/// Optimized: Uses bytes iterator for ASCII fast path.
 pub fn count_words(s: &str) -> usize {
     if s.is_empty() {
         return 0;
@@ -191,14 +191,32 @@ pub fn count_words(s: &str) -> usize {
     let mut count = 0;
     let mut in_word = false;
 
-    for c in s.chars() {
-        if c.is_alphanumeric() {
-            if !in_word {
-                count += 1;
-                in_word = true;
+    // Fast path for ASCII strings using byte iteration
+    if s.is_ascii() {
+        for &b in s.as_bytes() {
+            let is_alnum = (b >= b'0' && b <= b'9') || 
+                           (b >= b'A' && b <= b'Z') || 
+                           (b >= b'a' && b <= b'z');
+            if is_alnum {
+                if !in_word {
+                    count += 1;
+                    in_word = true;
+                }
+            } else {
+                in_word = false;
             }
-        } else {
-            in_word = false;
+        }
+    } else {
+        // Unicode path
+        for c in s.chars() {
+            if c.is_alphanumeric() {
+                if !in_word {
+                    count += 1;
+                    in_word = true;
+                }
+            } else {
+                in_word = false;
+            }
         }
     }
 
@@ -243,33 +261,45 @@ pub fn count_words(s: &str) -> usize {
 ///
 /// Time: O(n) where n is the email length.
 /// Memory: O(1) additional space.
+/// Optimized: Single-pass validation without allocations.
 pub fn is_valid_email(email: &str) -> bool {
-    if email.is_empty() || email.contains(' ') {
+    if email.is_empty() {
         return false;
     }
 
-    // Split by @
-    let parts: Vec<&str> = email.split('@').collect();
-    
+    let bytes = email.as_bytes();
+    let len = bytes.len();
+    let mut at_count = 0;
+    let mut at_pos = 0;
+
+    // Check for spaces and count @ symbols in single pass
+    for (i, &b) in bytes.iter().enumerate() {
+        if b == b' ' {
+            return false;
+        }
+        if b == b'@' {
+            at_count += 1;
+            at_pos = i;
+        }
+    }
+
     // Must have exactly one @
-    if parts.len() != 2 {
+    if at_count != 1 {
         return false;
     }
 
-    let local = parts[0];
-    let domain = parts[1];
-
-    // Both parts must be non-empty
-    if local.is_empty() || domain.is_empty() {
+    // Local part must be non-empty and not start/end with special chars
+    if at_pos == 0 || at_pos == len - 1 {
         return false;
     }
 
     // Domain must contain at least one dot
+    let domain = &email[at_pos + 1..];
     if !domain.contains('.') {
         return false;
     }
 
-    // Domain parts must not start or end with dot
+    // Domain must not start or end with dot
     if domain.starts_with('.') || domain.ends_with('.') {
         return false;
     }

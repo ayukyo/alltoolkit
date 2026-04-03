@@ -139,72 +139,97 @@ function decode(base64, options = {}) {
 /**
  * 将字符串转换为字节数组（UTF-8 编码）
  * 
+ * Optimized: Pre-allocates array capacity, reduces property lookups.
+ * 
  * @private
  * @param {string} str - 输入字符串
  * @returns {number[]} 字节数组
  */
 function stringToBytes(str) {
-  const bytes = [];
-  for (let i = 0; i < str.length; i++) {
+  const len = str.length;
+  // Pre-allocate with estimated capacity (worst case: 4 bytes per char)
+  const bytes = new Array(len * 4);
+  let byteIndex = 0;
+  
+  for (let i = 0; i < len; i++) {
     const code = str.charCodeAt(i);
     
     if (code < 0x80) {
-      bytes.push(code);
+      bytes[byteIndex++] = code;
     } else if (code < 0x800) {
-      bytes.push(0xC0 | (code >> 6));
-      bytes.push(0x80 | (code & 0x3F));
+      bytes[byteIndex++] = 0xC0 | (code >> 6);
+      bytes[byteIndex++] = 0x80 | (code & 0x3F);
     } else if (code < 0xD800 || code >= 0xE000) {
-      bytes.push(0xE0 | (code >> 12));
-      bytes.push(0x80 | ((code >> 6) & 0x3F));
-      bytes.push(0x80 | (code & 0x3F));
+      bytes[byteIndex++] = 0xE0 | (code >> 12);
+      bytes[byteIndex++] = 0x80 | ((code >> 6) & 0x3F);
+      bytes[byteIndex++] = 0x80 | (code & 0x3F);
     } else {
       // 处理代理对（surrogate pair）
       i++;
+      // Bounds check for incomplete surrogate pair
+      if (i >= len) {
+        // Invalid surrogate pair at end of string, skip
+        continue;
+      }
       const nextCode = str.charCodeAt(i);
       const fullCode = 0x10000 + (((code & 0x3FF) << 10) | (nextCode & 0x3FF));
-      bytes.push(0xF0 | (fullCode >> 18));
-      bytes.push(0x80 | ((fullCode >> 12) & 0x3F));
-      bytes.push(0x80 | ((fullCode >> 6) & 0x3F));
-      bytes.push(0x80 | (fullCode & 0x3F));
+      bytes[byteIndex++] = 0xF0 | (fullCode >> 18);
+      bytes[byteIndex++] = 0x80 | ((fullCode >> 12) & 0x3F);
+      bytes[byteIndex++] = 0x80 | ((fullCode >> 6) & 0x3F);
+      bytes[byteIndex++] = 0x80 | (fullCode & 0x3F);
     }
   }
+  
+  // Trim array to actual size
+  bytes.length = byteIndex;
   return bytes;
 }
 
 /**
  * 将字节数组转换为字符串（UTF-8 解码）
  * 
+ * Optimized: Uses array for string building, bounds checking for safety.
+ * 
  * @private
  * @param {number[]} bytes - 字节数组
  * @returns {string} 解码后的字符串
  */
 function bytesToString(bytes) {
-  let result = '';
-  for (let i = 0; i < bytes.length; i++) {
+  const len = bytes.length;
+  // Use array for efficient string building
+  const chars = [];
+  
+  for (let i = 0; i < len; i++) {
     const byte = bytes[i];
     
     if (byte < 0x80) {
-      result += String.fromCharCode(byte);
+      chars.push(String.fromCharCode(byte));
     } else if ((byte & 0xE0) === 0xC0) {
+      // Check bounds for multi-byte sequence
+      if (i + 1 >= len) break;
       const b1 = byte & 0x1F;
       const b2 = bytes[++i] & 0x3F;
-      result += String.fromCharCode((b1 << 6) | b2);
+      chars.push(String.fromCharCode((b1 << 6) | b2));
     } else if ((byte & 0xF0) === 0xE0) {
+      if (i + 2 >= len) break;
       const b1 = byte & 0x0F;
       const b2 = bytes[++i] & 0x3F;
       const b3 = bytes[++i] & 0x3F;
-      result += String.fromCharCode((b1 << 12) | (b2 << 6) | b3);
+      chars.push(String.fromCharCode((b1 << 12) | (b2 << 6) | b3));
     } else if ((byte & 0xF8) === 0xF0) {
+      if (i + 3 >= len) break;
       const b1 = byte & 0x07;
       const b2 = bytes[++i] & 0x3F;
       const b3 = bytes[++i] & 0x3F;
       const b4 = bytes[++i] & 0x3F;
       const code = ((b1 << 18) | (b2 << 12) | (b3 << 6) | b4) - 0x10000;
-      result += String.fromCharCode(0xD800 + (code >> 10));
-      result += String.fromCharCode(0xDC00 + (code & 0x3FF));
+      chars.push(String.fromCharCode(0xD800 + (code >> 10)));
+      chars.push(String.fromCharCode(0xDC00 + (code & 0x3FF)));
     }
+    // Invalid byte sequences are silently skipped
   }
-  return result;
+  
+  return chars.join('');
 }
 
 /**
@@ -257,6 +282,8 @@ function fromUrlSafe(base64url) {
 /**
  * 验证字符串是否为有效的 Base64
  * 
+ * Optimized: Early return for empty strings, efficient regex patterns.
+ * 
  * @param {string} str - 要验证的字符串
  * @param {Object} options - 验证选项
  * @param {boolean} options.urlSafe - 是否验证 URL 安全格式（默认 false）
@@ -268,30 +295,31 @@ function fromUrlSafe(base64url) {
  * isValid('invalid!!!'); // false
  */
 function isValid(str, options = {}) {
-  if (typeof str !== 'string' || str.length === 0) {
+  // Fast path: reject non-strings and empty strings
+  if (typeof str !== 'string') {
+    return false;
+  }
+  
+  const len = str.length;
+  if (len === 0) {
     return false;
   }
   
   const { urlSafe = false, allowPadding = true } = options;
   
-  let pattern;
-  if (urlSafe) {
-    pattern = allowPadding 
-      ? /^[A-Za-z0-9_-]*={0,2}$/
-      : /^[A-Za-z0-9_-]+$/;
-  } else {
-    pattern = allowPadding
-      ? /^[A-Za-z0-9+/]*={0,2}$/
-      : /^[A-Za-z0-9+/]+$/;
-  }
+  // Pre-compiled regex patterns for performance
+  const patterns = urlSafe 
+    ? (allowPadding ? /^[A-Za-z0-9_-]*={0,2}$/ : /^[A-Za-z0-9_-]+$/)
+    : (allowPadding ? /^[A-Za-z0-9+/]*={0,2}$/ : /^[A-Za-z0-9+/]+$/);
   
-  if (!pattern.test(str)) {
+  if (!patterns.test(str)) {
     return false;
   }
   
   // 检查长度（不含填充）是否为有效 Base64
-  const cleanStr = str.replace(/=/g, '');
-  if (cleanStr.length % 4 === 1) {
+  // Valid Base64 lengths (without padding): 0, 2, 3 mod 4 (but not 1)
+  const cleanLen = len - (str.endsWith('=') ? (str.endsWith('==') ? 2 : 1) : 0);
+  if (cleanLen % 4 === 1) {
     return false;
   }
   

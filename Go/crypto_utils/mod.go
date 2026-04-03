@@ -150,6 +150,7 @@ const (
 
 // RandomString generates a cryptographically secure random string of the specified length.
 // Uses the given character set or defaults to alphanumeric.
+// Optimized: Pre-allocates result buffer, handles empty charset edge case.
 func RandomString(length int, chars string) string {
 	if length <= 0 {
 		return ""
@@ -158,14 +159,20 @@ func RandomString(length int, chars string) string {
 		chars = Alphanumeric
 	}
 
+	charSetLen := len(chars)
+	if charSetLen == 0 {
+		return ""
+	}
+
+	// Pre-allocate result with exact capacity to avoid reallocations
 	result := make([]byte, length)
-	charLen := big.NewInt(int64(len(chars)))
+	charLen := big.NewInt(int64(charSetLen))
 
 	for i := 0; i < length; i++ {
 		randomIndex, err := rand.Int(rand.Reader, charLen)
 		if err != nil {
 			// Fallback to time-based seed if crypto/rand fails
-			result[i] = chars[time.Now().UnixNano()%int64(len(chars))]
+			result[i] = chars[time.Now().UnixNano()%int64(charSetLen)]
 			continue
 		}
 		result[i] = chars[randomIndex.Int64()]
@@ -176,27 +183,36 @@ func RandomString(length int, chars string) string {
 
 // RandomPassword generates a secure random password with mixed character types.
 // Ensures at least one lowercase, one uppercase, one digit, and one special character.
+// Optimized: Uses single call to RandomString for remaining chars, pre-allocates slice.
 func RandomPassword(length int) string {
-	if length < 4 {
-		length = 4
+	const minLength = 4
+	if length < minLength {
+		length = minLength
 	}
+
+	// Pre-allocate with exact capacity
+	password := make([]byte, 0, length)
 
 	// Ensure we have at least one of each character type
-	password := []byte{
-		RandomString(1, LowerCaseLetters)[0],
-		RandomString(1, UpperCaseLetters)[0],
-		RandomString(1, Digits)[0],
-		RandomString(1, SpecialChars)[0],
-	}
+	password = append(password, RandomString(1, LowerCaseLetters)[0])
+	password = append(password, RandomString(1, UpperCaseLetters)[0])
+	password = append(password, RandomString(1, Digits)[0])
+	password = append(password, RandomString(1, SpecialChars)[0])
 
 	// Fill the rest with random characters from all sets
-	if length > 4 {
-		password = append(password, RandomString(length-4, AllChars)...)
+	if length > minLength {
+		password = append(password, RandomString(length-minLength, AllChars)...)
 	}
 
-	// Shuffle the password
+	// Shuffle the password using Fisher-Yates algorithm
 	for i := len(password) - 1; i > 0; i-- {
-		randomIndex, _ := rand.Int(rand.Reader, big.NewInt(int64(i+1)))
+		randomIndex, err := rand.Int(rand.Reader, big.NewInt(int64(i+1)))
+		if err != nil {
+			// Fallback: swap with random index based on time
+			j := time.Now().UnixNano() % int64(i+1)
+			password[i], password[j] = password[j], password[i]
+			continue
+		}
 		j := randomIndex.Int64()
 		password[i], password[j] = password[j], password[i]
 	}
@@ -248,23 +264,55 @@ func generateTimeBasedUUID() string {
 }
 
 // IsValidUUID checks if a string is a valid UUID format.
+// Optimized: Uses early return and avoids repeated bounds checks.
 func IsValidUUID(uuid string) bool {
 	if len(uuid) != 36 {
 		return false
 	}
-	// Check format: 8-4-4-4-12
-	for i, c := range uuid {
-		if i == 8 || i == 13 || i == 18 || i == 23 {
-			if c != '-' {
-				return false
-			}
-		} else {
-			if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
-				return false
-			}
+	
+	// Check hyphen positions first (fast path)
+	if uuid[8] != '-' || uuid[13] != '-' || uuid[18] != '-' || uuid[23] != '-' {
+		return false
+	}
+	
+	// Validate hex characters in each section
+	// Section 1: positions 0-7 (8 chars)
+	for i := 0; i < 8; i++ {
+		if !isHex(uuid[i]) {
+			return false
 		}
 	}
+	// Section 2: positions 9-12 (4 chars)
+	for i := 9; i < 13; i++ {
+		if !isHex(uuid[i]) {
+			return false
+		}
+	}
+	// Section 3: positions 14-17 (4 chars)
+	for i := 14; i < 18; i++ {
+		if !isHex(uuid[i]) {
+			return false
+		}
+	}
+	// Section 4: positions 19-22 (4 chars)
+	for i := 19; i < 23; i++ {
+		if !isHex(uuid[i]) {
+			return false
+		}
+	}
+	// Section 5: positions 24-35 (12 chars)
+	for i := 24; i < 36; i++ {
+		if !isHex(uuid[i]) {
+			return false
+		}
+	}
+	
 	return true
+}
+
+// isHex checks if a byte is a valid hexadecimal character.
+func isHex(c byte) bool {
+	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
 }
 
 // ============================================================================

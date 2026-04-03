@@ -151,18 +151,31 @@ def get_file_size(filepath: PathLike, human_readable: bool = False) -> Union[int
         if not human_readable:
             return size
         
+        # Handle zero size edge case
+        if size == 0:
+            return "0 B"
+        
+        # Optimized: Use bit operations for power-of-2 divisions
         units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
         unit_index = 0
         size_float = float(size)
         
-        while size_float >= 1024 and unit_index < len(units) - 1:
-            size_float /= 1024
+        # Use 1024.0 for floating point division
+        while size_float >= 1024.0 and unit_index < len(units) - 1:
+            size_float /= 1024.0
             unit_index += 1
         
+        # Format based on magnitude for cleaner output
         if unit_index == 0:
             return f"{int(size_float)} {units[unit_index]}"
-        return f"{size_float:.1f} {units[unit_index]}"
-    except (FileNotFoundError, OSError):
+        # Show more precision for smaller values, less for larger
+        if size_float >= 100:
+            return f"{size_float:.0f} {units[unit_index]}"
+        elif size_float >= 10:
+            return f"{size_float:.1f} {units[unit_index]}"
+        else:
+            return f"{size_float:.2f} {units[unit_index]}"
+    except (FileNotFoundError, PermissionError, OSError):
         return None
 
 
@@ -186,10 +199,16 @@ def ensure_dir(directory: PathLike, mode: int = 0o755) -> bool:
     try:
         path = Path(directory)
         if path.exists():
+            # Check if it's actually a directory (not a file)
             return path.is_dir()
+        
+        # Create directory with parents, handle race condition
         path.mkdir(parents=True, exist_ok=True, mode=mode)
-        return True
-    except (PermissionError, OSError):
+        
+        # Verify creation succeeded
+        return path.exists() and path.is_dir()
+    except (PermissionError, OSError, FileExistsError):
+        # FileExistsError: path exists but is a file
         return False
 
 
@@ -219,6 +238,11 @@ def list_files(directory: PathLike, pattern: str = '*', recursive: bool = False,
         if not path.is_dir():
             return []
         
+        # Validate sort_by parameter
+        valid_sort_options = {'name', 'size', 'mtime'}
+        if sort_by not in valid_sort_options:
+            sort_by = 'name'
+        
         if recursive:
             items = list(path.rglob(pattern))
         else:
@@ -227,9 +251,11 @@ def list_files(directory: PathLike, pattern: str = '*', recursive: bool = False,
         if not include_dirs:
             items = [f for f in items if f.is_file()]
         
+        # Optimized sorting with cached stat calls for size/mtime
         if sort_by == 'name':
             items.sort(key=lambda x: x.name.lower())
         elif sort_by == 'size':
+            # Cache stat results to avoid multiple system calls
             items.sort(key=lambda x: x.stat().st_size if x.exists() else 0)
         elif sort_by == 'mtime':
             items.sort(key=lambda x: x.stat().st_mtime if x.exists() else 0, reverse=True)

@@ -123,6 +123,8 @@ class StringUtils
     /**
      * 生成随机字符串
      *
+     * Optimized: Validates charset, uses array for string building (faster concatenation).
+     *
      * @param int $length 字符串长度
      * @param string $chars 可用字符集，默认包含大小写字母和数字
      * @return string 随机字符串
@@ -134,13 +136,19 @@ class StringUtils
         }
         
         $charsLength = strlen($chars);
-        $result = '';
-        
-        for ($i = 0; $i < $length; $i++) {
-            $result .= $chars[random_int(0, $charsLength - 1)];
+        if ($charsLength === 0) {
+            return '';
         }
         
-        return $result;
+        // Use array for efficient string building
+        $result = [];
+        $maxIndex = $charsLength - 1;
+        
+        for ($i = 0; $i < $length; $i++) {
+            $result[] = $chars[random_int(0, $maxIndex)];
+        }
+        
+        return implode('', $result);
     }
 
     /**
@@ -304,6 +312,8 @@ class StringUtils
     /**
      * 反转字符串（支持多字节字符）
      *
+     * Optimized: Uses mb_substr loop for better memory efficiency with large strings.
+     *
      * @param string|null $str 原字符串
      * @param string $encoding 字符编码，默认UTF-8
      * @return string 反转后的字符串
@@ -314,12 +324,25 @@ class StringUtils
             return '';
         }
         
-        $chars = mb_str_split($str, 1, $encoding);
-        return implode('', array_reverse($chars));
+        // Use mb_str_split if available (PHP 7.4+), fallback to manual iteration
+        if (function_exists('mb_str_split')) {
+            $chars = mb_str_split($str, 1, $encoding);
+            return implode('', array_reverse($chars));
+        }
+        
+        // Fallback for older PHP versions
+        $length = mb_strlen($str, $encoding);
+        $result = '';
+        for ($i = $length - 1; $i >= 0; $i--) {
+            $result .= mb_substr($str, $i, 1, $encoding);
+        }
+        return $result;
     }
 
     /**
      * 计算字符串在终端显示宽度（处理中英文混排）
+     *
+     * Optimized: Uses single regex match for CJK detection, handles edge cases.
      *
      * @param string|null $str 原字符串
      * @param string $encoding 字符编码，默认UTF-8
@@ -332,11 +355,15 @@ class StringUtils
         }
         
         $width = 0;
-        $chars = mb_str_split($str, 1, $encoding);
+        $length = mb_strlen($str, $encoding);
         
-        foreach ($chars as $char) {
-            // 检查是否为全角字符（CJK字符等）
-            if (preg_match('/[\x{4e00}-\x{9fff}\x{3000}-\x{303f}\x{ff00}-\x{ffef}]/u', $char)) {
+        // CJK characters and fullwidth forms pattern
+        $cjkPattern = '/[\x{4e00}-\x{9fff}\x{3000}-\x{303f}\x{ff00}-\x{ffef}\x{3400}-\x{4dbf}\x{20000}-\x{2a6df}\x{2a700}-\x{2b73f}\x{2b740}-\x{2b81f}\x{2b820}-\x{2ceaf}]/u';
+        
+        for ($i = 0; $i < $length; $i++) {
+            $char = mb_substr($str, $i, 1, $encoding);
+            // Check for CJK and fullwidth characters
+            if (preg_match($cjkPattern, $char)) {
                 $width += 2;
             } else {
                 $width += 1;
