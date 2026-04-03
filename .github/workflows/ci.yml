@@ -327,6 +327,23 @@ jobs:
             [ -f "$f" ] && echo "Checking $f" || true
           done
 
+  # Ruby 语法检查
+  ruby-check:
+    runs-on: ubuntu-latest
+    if: hashFiles('Ruby/**/*.rb') != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+      - name: Ruby syntax check
+        run: |
+          cd Ruby
+          for f in *.rb; do
+            [ -f "$f" ] && ruby -c "$f" 2>/dev/null || true
+          done
+
   # 汇总报告
   summary:
     runs-on: ubuntu-latest
@@ -334,7 +351,7 @@ jobs:
       go-test, rust-test, python-test, kotlin-check, swift-check, php-check,
       c-check, cpp-check, csharp-check, java-check, javascript-check,
       typescript-check, r-check, sql-check, vb-check, delphi-check,
-      fortran-check, matlab-check, perl-check, arkts-check
+      fortran-check, matlab-check, perl-check, arkts-check, ruby-check
     ]
     if: always()
     steps:
@@ -366,3 +383,4 @@ jobs:
           echo "| MATLAB | ${{ needs.matlab-check.result }} |"
           echo "| Perl | ${{ needs.perl-check.result }} |"
           echo "| ArkTS | ${{ needs.arkts-check.result }} |"
+          echo "| Ruby | ${{ needs.ruby-check.result }} |"
