@@ -1753,6 +1753,23 @@ Features:
 - 时区安全
 - 提供完整示例代码 `ExampleDateUtils.swift`
 
+**Test Suite (NEW):**
+Location: `Swift/date_utils/DateUtilsTest.swift`
+
+新增测试覆盖:
+- **格式化测试**: 多种格式、ISO8601、中文格式
+- **相对时间**: 刚刚、分钟前、小时前、昨天、多天前
+- **日期计算**: 添加年/月/日/时/分、跨年跨月边界
+- **日期比较**: 同一天、今天、昨天、明天、范围判断
+- **日期组件**: 年/月/日/时/分/秒、星期几获取
+- **时间戳**: 秒级和毫秒级转换
+- **日期边界**: 当天开始/结束、当月开始/结束、闰年2月
+- **日期差值**: 天数/小时/分钟差值计算
+- **特殊判断**: 周末/工作日、闰年、每月天数
+- **年龄计算**: 周岁计算
+
+运行测试: 使用 Xcode 或 `swift test`
+
 ---
 
 ### C - String Utilities
@@ -1778,6 +1795,24 @@ Features:
 - 支持 C/C++ 混合编译
 - 安全边界检查
 - 提供可运行示例 `example_string_utils.c`
+
+**Test Suite (NEW):**
+Location: `C/string_utils/string_utils_test.c`
+
+新增测试覆盖:
+- **空白字符检测**: 空格、制表符、换行符、回车符等
+- **修剪测试**: 左右修剪、双边修剪、各种空白字符、空字符串、NULL处理
+- **大小写转换**: 基本转换、混合内容、空字符串、NULL处理
+- **字符串反转**: 奇偶长度、单字符、空字符串、NULL处理
+- **前缀后缀检查**: 正常检查、精确匹配、空字符串、NULL处理
+- **子串计数**: 基本计数、重叠匹配、未找到、空字符串、NULL处理
+- **安全复制**: 基本复制、精确大小、截断处理、空字符串、NULL处理
+
+运行测试:
+```bash
+cd C/string_utils
+gcc -o string_utils_test string_utils.c string_utils_test.c && ./string_utils_test
+```
 
 ---
 
@@ -1807,6 +1842,22 @@ Features:
 - 内置 10+ 个单元测试
 - 泛型设计，支持任意类型
 - 附带可运行示例 `example_collection_utils.rs`
+
+**Test Suite (NEW):**
+Location: `Rust/collection_utils/collection_utils_test.rs`
+
+新增测试覆盖:
+- **去重测试**: 基本去重、空向量、无重复、全部相同、字符串去重
+- **分组测试**: 奇偶分组、空向量、相同键分组
+- **索引查找**: 正向/反向查找、所有索引、未找到、空向量
+- **集合运算**: 交集、并集、差集的各种边界情况
+- **分块操作**: 基本分块、精确分块、空向量、零大小处理
+- **频率统计**: 计数、最频繁元素、Top N、平局处理
+- **分区扁平化**: 条件分区、空向量处理、嵌套扁平化
+- **重复检查**: 有重复、无重复、单元素、空向量
+- **排序测试**: 升序/降序排序、空向量、稳定排序验证
+
+运行测试: `cd Rust/collection_utils && rustc --test collection_utils_test.rs -o test && ./test`
 
 ---
 
