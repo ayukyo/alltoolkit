@@ -114,6 +114,133 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### C - HTTP Client Utilities
+
+Location: `C/http_utils/mod.h`, `C/http_utils/mod.c`
+
+Functions:
+
+**HTTP Methods:**
+- **GET**: `http_get(url, options)` - Send HTTP GET request
+- **POST**: `http_post(url, body, content_type, options)` - Send HTTP POST request
+- **POST JSON**: `http_post_json(url, json_data, options)` - Send JSON POST request
+- **POST Form**: `http_post_form(url, form_data, options)` - Send form POST request
+- **PUT**: `http_put(url, body, content_type, options)` - Send HTTP PUT request
+- **PUT JSON**: `http_put_json(url, json_data, options)` - Send JSON PUT request
+- **DELETE**: `http_delete(url, options)` - Send HTTP DELETE request
+- **PATCH**: `http_patch(url, body, content_type, options)` - Send HTTP PATCH request
+- **HEAD**: `http_head(url, options)` - Send HTTP HEAD request
+
+**URL Utilities:**
+- **Parse URL**: `url_parse(url)` - Parse URL into components (scheme, host, port, path, query, fragment, userinfo)
+- **Build URL**: `url_build(components)` - Build URL from components
+- **URL Encode**: `url_encode(str)` - URL encode a string (spaces → +, special chars → %XX)
+- **URL Decode**: `url_decode(str)` - URL decode a string
+- **Build Query**: `url_build_query_string(keys, values, count)` - Build query string from key-value pairs
+- **Add Params**: `url_add_params(base_url, keys, values, count)` - Add query parameters to URL
+- **Validate URL**: `url_is_valid(url)` - Check if string is valid URL
+- **Get Domain**: `url_get_domain(url)` - Extract domain from URL
+- **Get Path**: `url_get_path(url)` - Extract path from URL
+
+**HTTP Headers:**
+- **Create Headers**: `http_headers_new()` - Create new headers collection
+- **Add Header**: `http_headers_add(headers, key, value)` - Add header to collection
+- **Get Header**: `http_headers_get(headers, key)` - Get header value (case-insensitive)
+- **Free Headers**: `http_headers_free(headers)` - Free headers collection
+
+**Request Options:**
+- **Create Options**: `http_options_new()` - Create default request options
+- **Free Options**: `http_options_free(options)` - Free request options
+- Options include: custom headers, timeout, redirect handling, SSL verification, proxy, authentication
+
+**HTTP Response:**
+- **Free Response**: `http_response_free(response)` - Free HTTP response
+- **Get Header**: `http_response_get_header(response, key)` - Get response header
+- **Is JSON**: `http_response_is_json(response)` - Check if response body is JSON
+- Response fields: status_code, status_text, headers, body, body_length, response_time, url, success
+
+**Utility Functions:**
+- **Version**: `http_utils_version()` - Get library version
+- **Status Text**: `http_status_text(status_code)` - Get HTTP status text
+
+Features:
+- Zero dependencies for URL utilities (standard C library only)
+- HTTP requests require libcurl (standard on most systems)
+- Full HTTP method support: GET, POST, PUT, DELETE, PATCH, HEAD
+- Automatic JSON and form data encoding
+- Custom headers and timeout configuration
+- Response time tracking
+- SSL/TLS certificate verification control
+- HTTP proxy support
+- Basic authentication support
+- URL parsing and building
+- Query string manipulation
+- Complete test suite with 30+ test cases
+- 11 comprehensive usage examples
+- Production-ready for REST API clients
+
+Compile and run tests:
+```bash
+cd C/http_utils
+gcc -o http_test mod.c http_utils_test.c -lcurl && ./http_test
+```
+
+Compile and run example:
+```bash
+cd C/examples
+gcc -o http_example ../http_utils/mod.c http_utils_example.c -lcurl && ./http_example
+```
+
+Usage example:
+```c
+#include "http_utils/mod.h"
+#include <stdio.h>
+
+int main(void) {
+    // Simple GET request
+    HttpResponse *response = http_get("https://api.example.com/users", NULL);
+    if (response->success) {
+        printf("Response: %s\n", response->body);
+    }
+    http_response_free(response);
+    
+    // POST JSON data
+    const char *json = "{\"name\":\"John\",\"age\":30}";
+    response = http_post_json("https://api.example.com/users", json, NULL);
+    printf("Status: %d %s\n", response->status_code, response->status_text);
+    http_response_free(response);
+    
+    // Custom headers
+    HttpRequestOptions *options = http_options_new();
+    options->headers = http_headers_new();
+    http_headers_add(options->headers, "Authorization", "Bearer token123");
+    response = http_get("https://api.example.com/protected", options);
+    http_response_free(response);
+    http_options_free(options);
+    
+    // URL manipulation
+    UrlComponents *comp = url_parse("https://api.example.com:8080/v1/users?page=1");
+    printf("Host: %s, Port: %d\n", comp->host, comp->port);
+    url_components_free(comp);
+    
+    // URL encoding
+    char *encoded = url_encode("hello world!");
+    printf("Encoded: %s\n", encoded);  // "hello+world%21"
+    free(encoded);
+    
+    // Build query string
+    const char *keys[] = {"q", "page"};
+    const char *values[] = {"hello world", "1"};
+    char *query = url_build_query_string(keys, values, 2);
+    printf("Query: %s\n", query);  // "q=hello+world&page=1"
+    free(query);
+    
+    return 0;
+}
+```
+
+---
+
 ### JavaScript - String Utilities
 
 Location: `JavaScript/string_utils/mod.js`
