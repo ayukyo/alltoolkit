@@ -114,6 +114,164 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### Delphi - String Utilities
+
+Location: `Delphi/string_utils/mod.pas`
+
+Functions:
+
+**Empty/Blank Checks:**
+- **IsBlank**: `IsBlank(S)` - Check if string is empty, nil, or whitespace only
+- **IsNotBlank**: `IsNotBlank(S)` - Check if string has content
+- **IsEmpty**: `IsEmpty(S)` - Check if string is empty
+
+**Whitespace Handling:**
+- **TrimString**: `TrimString(S)` - Remove leading and trailing whitespace
+- **TrimLeft**: `TrimLeft(S)` - Remove leading whitespace
+- **TrimRight**: `TrimRight(S)` - Remove trailing whitespace
+- **RemoveWhitespace**: `RemoveWhitespace(S)` - Remove all whitespace
+- **NormalizeWhitespace**: `NormalizeWhitespace(S)` - Collapse multiple spaces to single
+
+**Case Conversion:**
+- **ToLower**: `ToLower(S)` - Convert to lowercase
+- **ToUpper**: `ToUpper(S)` - Convert to uppercase
+- **Capitalize**: `Capitalize(S)` - Capitalize first character
+- **Uncapitalize**: `Uncapitalize(S)` - Uncapitalize first character
+- **ToTitleCase**: `ToTitleCase(S)` - Convert to Title Case
+- **SwapCase**: `SwapCase(S)` - Swap uppercase/lowercase
+
+**Substring Operations:**
+- **Substring**: `Substring(S, Start, Len)` - Extract substring
+- **SubstringFrom**: `SubstringFrom(S, Start)` - Extract from position to end
+- **SubstringTo**: `SubstringTo(S, EndPos)` - Extract from start to position
+- **SubstringBetween**: `SubstringBetween(S, Open, Close)` - Extract between markers
+- **SubstringAfter**: `SubstringAfter(S, Separator)` - Extract after separator
+- **SubstringBefore**: `SubstringBefore(S, Separator)` - Extract before separator
+- **SubstringAfterLast**: `SubstringAfterLast(S, Separator)` - Extract after last separator
+- **SubstringBeforeLast**: `SubstringBeforeLast(S, Separator)` - Extract before last separator
+- **Truncate**: `Truncate(S, MaxLength, Suffix)` - Truncate with ellipsis
+
+**Prefix/Suffix Operations:**
+- **StartsWith**: `StartsWith(S, Prefix, IgnoreCase)` - Check prefix
+- **EndsWith**: `EndsWith(S, Suffix, IgnoreCase)` - Check suffix
+- **RemovePrefix**: `RemovePrefix(S, Prefix)` - Remove prefix if present
+- **RemoveSuffix**: `RemoveSuffix(S, Suffix)` - Remove suffix if present
+
+**Find and Count:**
+- **CountMatches**: `CountMatches(S, Sub, IgnoreCase)` - Count substring occurrences
+- **Contains**: `Contains(S, Sub, IgnoreCase)` - Check if contains substring
+- **IndexOf**: `IndexOf(S, Sub, StartPos)` - Find first index
+- **LastIndexOf**: `LastIndexOf(S, Sub)` - Find last index
+
+**Replacement:**
+- **ReplaceAll**: `ReplaceAll(S, OldSub, NewSub, IgnoreCase)` - Replace all occurrences
+- **ReplaceFirst**: `ReplaceFirst(S, OldSub, NewSub)` - Replace first occurrence
+- **ReplaceLast**: `ReplaceLast(S, OldSub, NewSub)` - Replace last occurrence
+
+**Padding:**
+- **PadLeft**: `PadLeft(S, TotalWidth, PadChar)` - Pad on left
+- **PadRight**: `PadRight(S, TotalWidth, PadChar)` - Pad on right
+- **Center**: `Center(S, TotalWidth, PadChar)` - Center with padding
+
+**Reverse and Repeat:**
+- **Reverse**: `Reverse(S)` - Reverse string
+- **RepeatString**: `RepeatString(S, Count)` - Repeat string
+
+**Split and Join:**
+- **Split**: `Split(S, Delimiter, Limit)` - Split to TStringList
+- **SplitLines**: `SplitLines(S)` - Split by newlines
+- **Join**: `Join(Strings, Delimiter)` - Join TStringList
+
+**Naming Conventions:**
+- **ToCamelCase**: `ToCamelCase(S)` - Convert to camelCase
+- **ToPascalCase**: `ToPascalCase(S)` - Convert to PascalCase
+- **ToSnakeCase**: `ToSnakeCase(S)` - Convert to snake_case
+- **ToKebabCase**: `ToKebabCase(S)` - Convert to kebab-case
+
+**Validation:**
+- **IsValidEmail**: `IsValidEmail(S)` - Validate email format
+- **IsValidUrl**: `IsValidUrl(S)` - Validate URL format
+- **IsNumeric**: `IsNumeric(S)` - Check if numeric
+- **IsInteger**: `IsInteger(S)` - Check if integer
+- **IsAlpha**: `IsAlpha(S)` - Check if alphabetic
+- **IsAlphanumeric**: `IsAlphanumeric(S)` - Check if alphanumeric
+
+**Random Generation:**
+- **RandomString**: `RandomString(Length, Chars)` - Generate random string
+- **RandomAlphanumeric**: `RandomAlphanumeric(Length)` - Generate alphanumeric
+- **RandomNumeric**: `RandomNumeric(Length)` - Generate numeric
+- **RandomPassword**: `RandomPassword(Length)` - Generate secure password
+
+**Encoding/Decoding:**
+- **Base64Encode**: `Base64Encode(S)` - Base64 encode
+- **Base64Decode**: `Base64Decode(S)` - Base64 decode
+- **UrlEncode**: `UrlEncode(S)` - URL encode
+- **UrlDecode**: `UrlDecode(S)` - URL decode
+- **HtmlEscape**: `HtmlEscape(S)` - Escape HTML entities
+- **HtmlUnescape**: `HtmlUnescape(S)` - Unescape HTML entities
+
+**Utilities:**
+- **DefaultIfBlank**: `DefaultIfBlank(S, DefaultValue)` - Return default if blank
+- **DefaultIfEmpty**: `DefaultIfEmpty(S, DefaultValue)` - Return default if empty
+- **Slugify**: `Slugify(S, Separator)` - Create URL-friendly slug
+- **StripHtml**: `StripHtml(S)` - Remove HTML tags
+
+Features:
+- Zero dependencies, uses only Delphi standard library (SysUtils, Classes)
+- Compatible with Delphi 7+ and Free Pascal
+- Complete test suite with 60+ test cases
+- 12 comprehensive usage examples
+- Full Unicode support
+- Production-ready for Delphi applications
+
+Compile and run tests:
+```bash
+cd Delphi/string_utils
+fpc string_utils_test.pas && ./string_utils_test
+```
+
+Compile and run example:
+```bash
+cd Delphi/examples
+fpc string_utils_example.pas && ./string_utils_example
+```
+
+Usage example:
+```pascal
+uses mod;
+
+// Check blank
+if IsBlank(UserInput) then
+  ShowMessage('Input is required');
+
+// Case conversion
+Title := ToTitleCase('hello world');  // 'Hello World'
+
+// Substring operations
+Filename := SubstringAfterLast('/path/to/file.txt', '/');  // 'file.txt'
+
+// Validation
+if IsValidEmail(Email) then
+  // Process email
+
+// Naming conventions
+CamelCase := ToCamelCase('hello-world');  // 'helloWorld'
+SnakeCase := ToSnakeCase('HelloWorld');   // 'hello_world'
+
+// Random generation
+Password := RandomPassword(16);
+Token := RandomAlphanumeric(32);
+
+// Padding
+Padded := PadLeft('5', 3, '0');  // '005'
+
+// Encoding
+Encoded := Base64Encode('Hello, World!');
+UrlSafe := UrlEncode('hello world!');
+```
+
+---
+
 ### C - HTTP Client Utilities
 
 Location: `C/http_utils/mod.h`, `C/http_utils/mod.c`
