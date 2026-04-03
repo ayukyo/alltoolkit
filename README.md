@@ -115,6 +115,89 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### C++ - Base64 Utilities
+
+Location: `C++/base64_utils/mod.hpp`
+
+Functions:
+
+**Encoding:**
+- **encode**: `encode(input, urlSafe?, padding?)` - Encode string to Base64
+- **encode (binary)**: `encode(data, length, urlSafe?, padding?)` - Encode raw bytes to Base64
+- **encode (vector)**: `encode(vector<uint8_t>, urlSafe?, padding?)` - Encode byte vector to Base64
+
+**Decoding:**
+- **decode**: `decode(input, urlSafe?)` - Decode Base64 to string
+- **decodeToBytes**: `decodeToBytes(input, urlSafe?)` - Decode Base64 to binary data
+
+**URL-safe Conversion:**
+- **toUrlSafe**: `toUrlSafe(base64, padding?)` - Convert standard Base64 to URL-safe format
+- **fromUrlSafe**: `fromUrlSafe(base64Url)` - Convert URL-safe Base64 to standard format
+
+**Validation:**
+- **isValid**: `isValid(input, urlSafe?)` - Check if string is valid Base64
+
+**Length Calculations:**
+- **encodedLength**: `encodedLength(inputLength, padding?)` - Calculate encoded length
+- **decodedMaxLength**: `decodedMaxLength(base64Length)` - Calculate max decoded length
+
+**Features:**
+- Zero dependencies, header-only library (C++11+)
+- Supports standard Base64 and URL-safe Base64 (RFC 4648)
+- Optional padding control
+- Binary data support via std::vector<uint8_t>
+- Raw pointer interface for C-style arrays
+- Complete input validation with descriptive error messages
+- Thread-safe (all methods are static and stateless)
+- Header-only design - just include and use
+- Complete test suite with 29 test cases
+- 10 comprehensive usage examples
+- Production-ready for data encoding/decoding tasks
+
+Compile and run tests:
+```bash
+cd C++/base64_utils
+g++ -std=c++11 -o base64_utils_test base64_utils_test.cpp && ./base64_utils_test
+```
+
+Compile and run example:
+```bash
+cd C++/examples
+g++ -std=c++11 -o base64_utils_example base64_utils_example.cpp && ./base64_utils_example
+```
+
+Usage example:
+```cpp
+#include "base64_utils/mod.hpp"
+using namespace alltoolkit;
+
+// Basic encoding
+std::string encoded = Base64Utils::encode("Hello, World!");
+// Returns: "SGVsbG8sIFdvcmxkIQ=="
+
+// Basic decoding
+std::string decoded = Base64Utils::decode("SGVsbG8sIFdvcmxkIQ==");
+// Returns: "Hello, World!"
+
+// URL-safe encoding (for URLs/filenames)
+std::string urlSafe = Base64Utils::encode("user+name/file", true, false);
+// Returns: "dXNlcituYW1lL2ZpbGU"
+
+// Binary data encoding
+std::vector<uint8_t> data = {0x00, 0x01, 0x02, 0xFF};
+std::string binaryEncoded = Base64Utils::encode(data);
+// Returns: "AAEC/w=="
+
+// Validation
+bool valid = Base64Utils::isValid("SGVsbG8=");  // true
+bool invalid = Base64Utils::isValid("Invalid!"); // false
+
+// Length calculation
+size_t len = Base64Utils::encodedLength(100, true);  // 136
+```
+
+---
+
 ### Ruby - Regex Utilities
 
 Location: `Ruby/regex_utils/mod.rb`
