@@ -114,6 +114,109 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### Java - UUID Utilities
+
+Location: `Java/uuid_utils/mod.java`
+
+Functions:
+
+**UUID v4 Generation (Random):**
+- **Generate v4**: `generateV4()` - Generate standard UUID v4 (36 chars with dashes)
+- **Generate v4 Compact**: `generateV4Compact()` - Generate UUID without dashes (32 chars)
+- **Generate v4 Upper**: `generateV4Upper()` - Generate uppercase UUID v4
+
+**UUID v3/v5 Generation (Name-based):**
+- **Generate v3**: `generateV3(namespace, name)` - Generate UUID v3 using MD5 (deterministic)
+- **Generate v5**: `generateV5(namespace, name)` - Generate UUID v5 using SHA1 (deterministic)
+- **Predefined Namespaces**: `NAMESPACE_DNS`, `NAMESPACE_URL`, `NAMESPACE_OID`, `NAMESPACE_X500`
+
+**Random String Generation:**
+- **Random String**: `randomString(length, chars)` - Generate secure random string with custom charset
+- **Random Alphanumeric**: `randomAlphanumeric(length)` - Generate alphanumeric string
+- **Random Numeric**: `randomNumeric(length)` - Generate numeric-only string
+- **Random Hex**: `randomHex(length)` - Generate hexadecimal string
+- **Random Password**: `randomPassword(length)` - Generate secure password with mixed character types
+
+**UUID Validation:**
+- **Is Valid UUID**: `isValidUUID(uuid)` - Check if string is valid UUID format
+- **Is Valid v4**: `isValidV4(uuid)` - Check if string is valid UUID v4
+- **Get Version**: `getVersion(uuid)` - Get UUID version (3, 4, 5, or -1)
+- **Get Variant**: `getVariant(uuid)` - Get UUID variant (RFC 4122 = 1)
+
+**Format Conversion:**
+- **To Compact**: `toCompact(uuid)` - Remove dashes from UUID
+- **To Standard**: `toStandard(uuid)` - Add dashes to compact UUID
+- **To Upper Case**: `toUpperCase(uuid)` - Convert UUID to uppercase
+- **Parse**: `parse(uuid)` - Parse string to java.util.UUID object
+
+**Alternative ID Formats:**
+- **Short ID**: `shortId(length)` - Generate Base32 encoded short ID
+- **Nano ID**: `nanoId()` / `nanoId(length)` - Generate URL-safe Nano ID (21 chars default)
+- **ULID**: `ulid()` - Generate Universally Unique Lexicographically Sortable Identifier (26 chars)
+
+Features:
+- Zero dependencies, uses only Java standard library (java.util, java.security)
+- Cryptographically secure random generation using SecureRandom
+- Supports UUID v3, v4, v5 generation per RFC 4122
+- Full UUID validation and format conversion
+- Alternative ID formats: Short ID, Nano ID, ULID
+- Complete test suite with 69 test cases
+- 7 comprehensive usage examples
+- Production-ready for distributed systems and database primary keys
+
+Compile and run tests:
+```bash
+cd Java/uuid_utils
+javac *.java
+java uuid_utils.uuid_utils_test
+```
+
+Compile and run example:
+```bash
+cd Java
+javac -cp . examples/uuid_utils_example.java
+java -cp . examples.uuid_utils_example
+```
+
+Usage example:
+```java
+import uuid_utils.mod;
+
+// Generate UUID v4
+String uuid = mod.generateV4();
+// Returns: "550e8400-e29b-41d4-a716-446655440000"
+
+// Generate compact UUID
+String compact = mod.generateV4Compact();
+// Returns: "550e8400e29b41d4a716446655440000"
+
+// Generate name-based UUID v5
+String v5 = mod.generateV5(mod.NAMESPACE_DNS, "example.com");
+// Deterministic: same input always produces same output
+
+// Generate secure password
+String password = mod.randomPassword(16);
+// Returns: "aB3$kL9@mP2#nQ7!"
+
+// Validate UUID
+boolean isValid = mod.isValidUUID("550e8400-e29b-41d4-a716-446655440000");
+// Returns: true
+
+// Convert formats
+String standard = mod.toStandard("550e8400e29b41d4a716446655440000");
+// Returns: "550e8400-e29b-41d4-a716-446655440000"
+
+// Generate Nano ID
+String nanoId = mod.nanoId();
+// Returns: "V1StGXR8_Z5jdHi6B-myT"
+
+// Generate ULID
+String ulid = mod.ulid();
+// Returns: "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+```
+
+---
+
 ### MATLAB - Image Processing Utilities
 
 Location: `MATLAB/image_utils/mod.m`
