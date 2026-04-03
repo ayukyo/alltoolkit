@@ -114,6 +114,165 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### JavaScript - String Utilities
+
+Location: `JavaScript/string_utils/mod.js`
+
+Functions:
+
+**Empty/Blank Checks:**
+- **isBlank**: `isBlank(str)` - Check if string is null, undefined, empty, or whitespace only
+- **isNotBlank**: `isNotBlank(str)` - Check if string has content
+- **isEmpty**: `isEmpty(str)` - Check if string is empty (length === 0)
+
+**Trimming and Whitespace:**
+- **trim**: `trim(str)` - Remove leading and trailing whitespace
+- **trimLeft**: `trimLeft(str)` - Remove leading whitespace
+- **trimRight**: `trimRight(str)` - Remove trailing whitespace
+- **removeWhitespace**: `removeWhitespace(str)` - Remove all whitespace from string
+- **normalizeWhitespace**: `normalizeWhitespace(str)` - Replace multiple spaces with single space
+
+**Case Conversion:**
+- **toLowerCase**: `toLowerCase(str)` - Convert to lowercase
+- **toUpperCase**: `toUpperCase(str)` - Convert to uppercase
+- **capitalize**: `capitalize(str)` - Capitalize first character
+- **uncapitalize**: `uncapitalize(str)` - Uncapitalize first character
+- **toTitleCase**: `toTitleCase(str)` - Convert to Title Case
+- **swapCase**: `swapCase(str)` - Swap uppercase/lowercase
+
+**Substring Operations:**
+- **truncate**: `truncate(str, maxLength, suffix?)` - Truncate string with ellipsis
+- **substringBetween**: `substringBetween(str, open, close)` - Extract substring between markers
+- **substringAfter**: `substringAfter(str, separator)` - Extract substring after separator
+- **substringBefore**: `substringBefore(str, separator)` - Extract substring before separator
+- **substringAfterLast**: `substringAfterLast(str, separator)` - Extract substring after last separator
+- **substringBeforeLast**: `substringBeforeLast(str, separator)` - Extract substring before last separator
+
+**Prefix/Suffix Operations:**
+- **startsWith**: `startsWith(str, prefix, ignoreCase?)` - Check if string starts with prefix
+- **endsWith**: `endsWith(str, suffix, ignoreCase?)` - Check if string ends with suffix
+- **removePrefix**: `removePrefix(str, prefix)` - Remove prefix if present
+- **removeSuffix**: `removeSuffix(str, suffix)` - Remove suffix if present
+
+**Counting and Searching:**
+- **countMatches**: `countMatches(str, sub)` - Count occurrences of substring
+- **contains**: `contains(str, search, ignoreCase?)` - Check if string contains substring
+- **indexOf**: `indexOf(str, search, fromIndex?)` - Find index of substring
+- **lastIndexOf**: `lastIndexOf(str, search, fromIndex?)` - Find last index of substring
+
+**Replacement:**
+- **replaceAll**: `replaceAll(str, search, replacement)` - Replace all occurrences
+- **replaceFirst**: `replaceFirst(str, search, replacement)` - Replace first occurrence
+- **replaceLast**: `replaceLast(str, search, replacement)` - Replace last occurrence
+
+**Padding:**
+- **padLeft**: `padLeft(str, length, padChar?)` - Pad string on left
+- **padRight**: `padRight(str, length, padChar?)` - Pad string on right
+- **center**: `center(str, length, padChar?)` - Center string with padding
+
+**Reversal and Repetition:**
+- **reverse**: `reverse(str)` - Reverse string
+- **repeat**: `repeat(str, count)` - Repeat string count times
+
+**Splitting and Joining:**
+- **split**: `split(str, separator?, limit?)` - Split string into array
+- **lines**: `lines(str, trimEmpty?)` - Split string by newlines
+- **join**: `join(array, separator?)` - Join array elements
+
+**Validation:**
+- **isValidEmail**: `isValidEmail(str)` - Validate email format
+- **isValidUrl**: `isValidUrl(str)` - Validate URL format
+- **isValidIPv4**: `isValidIPv4(str)` - Validate IPv4 address
+- **isNumeric**: `isNumeric(str)` - Check if string is numeric
+- **isInteger**: `isInteger(str)` - Check if string is integer
+- **isAlpha**: `isAlpha(str)` - Check if string is alphabetic
+- **isAlphanumeric**: `isAlphanumeric(str)` - Check if string is alphanumeric
+
+**Naming Conventions:**
+- **toCamelCase**: `toCamelCase(str)` - Convert to camelCase
+- **toPascalCase**: `toPascalCase(str)` - Convert to PascalCase
+- **toSnakeCase**: `toSnakeCase(str)` - Convert to snake_case
+- **toKebabCase**: `toKebabCase(str)` - Convert to kebab-case
+
+**Random Generation:**
+- **random**: `random(length?, chars?)` - Generate random string
+- **randomAlphanumeric**: `randomAlphanumeric(length?)` - Generate alphanumeric string
+- **randomNumeric**: `randomNumeric(length?)` - Generate numeric string
+- **randomAlphabetic**: `randomAlphabetic(length?)` - Generate alphabetic string
+- **randomPassword**: `randomPassword(length?)` - Generate secure password
+
+**URL Encoding:**
+- **urlEncode**: `urlEncode(str)` - URL encode string
+- **urlDecode**: `urlDecode(str)` - URL decode string
+
+**HTML Operations:**
+- **slugify**: `slugify(str, separator?)` - Create URL-friendly slug
+- **stripHtml**: `stripHtml(str)` - Remove HTML tags
+- **escapeHtml**: `escapeHtml(str)` - Escape HTML entities
+- **unescapeHtml**: `unescapeHtml(str)` - Unescape HTML entities
+
+**Comparison:**
+- **equals**: `equals(str1, str2, ignoreCase?)` - Compare strings
+- **compare**: `compare(str1, str2, ignoreCase?)` - Compare strings (returns -1, 0, 1)
+
+**Default Values:**
+- **defaultString**: `defaultString(str, defaultStr?)` - Return default if blank
+- **defaultIfEmpty**: `defaultIfEmpty(str, defaultStr?)` - Return default if empty
+
+Features:
+- Zero dependencies, uses only JavaScript standard library
+- Works in both Node.js and browser environments
+- Null/undefined safe - all functions handle null/undefined gracefully
+- Complete test suite with 82 test cases
+- 20 comprehensive usage examples
+- Production-ready for web applications
+
+Run tests:
+```bash
+cd JavaScript/string_utils
+node string_utils_test.js
+```
+
+Run example:
+```bash
+cd JavaScript/examples
+node string_utils_example.js
+```
+
+Usage example:
+```javascript
+const StringUtils = require('./string_utils/mod.js');
+
+// Empty check
+if (StringUtils.isBlank(userInput)) {
+    console.log('Input is required');
+}
+
+// Case conversion
+const title = StringUtils.toTitleCase('hello world'); // 'Hello World'
+
+// Substring operations
+const filename = StringUtils.substringAfterLast('/path/to/file.txt', '/'); // 'file.txt'
+
+// Validation
+if (StringUtils.isValidEmail(email)) {
+    // Process email
+}
+
+// Naming conventions
+const camelCase = StringUtils.toCamelCase('hello-world'); // 'helloWorld'
+const snake_case = StringUtils.toSnakeCase('helloWorld'); // 'hello_world'
+
+// Random generation
+const password = StringUtils.randomPassword(16);
+const token = StringUtils.randomAlphanumeric(32);
+
+// Padding
+const padded = StringUtils.padLeft('5', 3, '0'); // '005'
+```
+
+---
+
 ### PHP - HTTP Utilities
 
 Location: `PHP/http_utils/mod.php`
