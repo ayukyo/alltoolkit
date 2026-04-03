@@ -114,6 +114,103 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### Rust - Compression Utilities
+
+Location: `Rust/compression_utils/mod.rs`
+
+Functions:
+
+**Run-Length Encoding (RLE):**
+- **RLE Encode**: `rle_encode(data)` - Compress data using RLE algorithm
+- **RLE Decode**: `rle_decode(data)` - Decompress RLE encoded data
+- **RLE Result**: Returns `RleResult` with compressed data, original length, and compression ratio
+
+**Delta Encoding:**
+- **Delta Encode**: `delta_encode(data)` - Encode data as differences between consecutive values
+- **Delta Decode**: `delta_decode(data)` - Restore original values from delta encoding
+- Efficient for time-series data with small incremental changes
+
+**Base64 Encoding:**
+- **Base64 Encode**: `base64_encode(data)` - Encode binary to Base64 ASCII string
+- **Base64 Decode**: `base64_decode(data)` - Decode Base64 back to binary
+- **Validate Base64**: `is_valid_base64(data)` - Check if string is valid Base64
+
+**Hex Encoding:**
+- **Hex Encode**: `hex_encode(data)` - Encode binary to hexadecimal string
+- **Hex Decode**: `hex_decode(data)` - Decode hex string back to binary
+- **Validate Hex**: `is_valid_hex(data)` - Check if string is valid hex
+
+**URL Encoding:**
+- **URL Encode**: `url_encode(data)` - Percent-encode string for URLs
+- **URL Decode**: `url_decode(data)` - Decode percent-encoded URL string
+- Preserves unreserved characters (-_.~)
+
+**Burrows-Wheeler Transform:**
+- **BWT Transform**: `bwt_transform(data)` - Perform BWT transformation
+- **BWT Reverse**: `bwt_reverse(data, index)` - Reverse BWT to restore original data
+- Groups similar characters together for better compression
+
+**LZW Compression:**
+- **LZW Compress**: `lzw_compress(data)` - Dictionary-based compression
+- **LZW Decompress**: `lzw_decompress(data)` - Decompress LZW encoded data
+- Classic Lempel-Ziv-Welch algorithm
+
+**Compression Statistics:**
+- **Calc Stats**: `calc_stats(original, compressed)` - Calculate compression statistics
+- Returns `CompressionStats` with size, ratio, and space saved
+
+Features:
+- Zero dependencies, uses only Rust standard library
+- Multiple compression algorithms for different data types
+- RLE for repetitive data (e.g., log files, simple graphics)
+- Delta encoding for time-series data (e.g., sensor readings)
+- Base64/Hex for binary-to-text encoding
+- BWT for preprocessing before compression
+- LZW for general-purpose compression
+- Complete test suite with 25+ test cases
+- 11 comprehensive usage examples
+- Production-ready for data compression pipelines
+
+Compile and run tests:
+```bash
+cd Rust/compression_utils
+rustc --test mod.rs -o compression_test && ./compression_test
+```
+
+Compile and run example:
+```bash
+cd Rust/examples
+rustc --edition 2021 -L ../compression_utils compression_utils_example.rs -o compression_example && ./compression_example
+```
+
+Usage example:
+```rust
+// Run-Length Encoding
+let compressed = rle_encode(b"AAABBBCCCC");
+assert_eq!(compressed.data, vec![3, b'A', 3, b'B', 4, b'C']);
+let decompressed = rle_decode(&compressed.data);
+
+// Delta Encoding for time series
+let data = vec![10, 12, 15, 15, 20];
+let encoded = delta_encode(&data); // [10, 2, 3, 0, 5]
+let decoded = delta_decode(&encoded);
+
+// Base64 encoding
+let encoded = base64_encode(b"Hello, World!");
+// Returns: "SGVsbG8sIFdvcmxkIQ=="
+let decoded = base64_decode(&encoded);
+
+// URL encoding
+let encoded = url_encode("hello world!");
+// Returns: "hello%20world%21"
+
+// Compression statistics
+let stats = calc_stats(100, 60);
+// stats.space_saved = 40.0%
+```
+
+---
+
 ### Java - UUID Utilities
 
 Location: `Java/uuid_utils/mod.java`
