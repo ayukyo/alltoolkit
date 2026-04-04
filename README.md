@@ -115,6 +115,129 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### C# - Email Utilities
+
+Location: `C#/email_utils/mod.cs`
+
+Functions:
+
+**Validation:**
+- **IsValid**: `EmailUtils.IsValid(email)` - Validate email format (RFC 5322 compliant)
+- **IsValidStrict**: `EmailUtils.IsValidStrict(email)` - Stricter validation (no consecutive dots, valid TLD)
+- **IsValidMailAddress**: `EmailUtils.IsValidMailAddress(email)` - Validate using .NET MailAddress
+- **IsDisposable**: `EmailUtils.IsDisposable(email)` - Check if disposable/temporary email domain
+- **IsFreeProvider**: `EmailUtils.IsFreeProvider(email)` - Check if known free email provider (Gmail, Yahoo, etc.)
+- **IsBusinessEmail**: `EmailUtils.IsBusinessEmail(email)` - Check if likely business/corporate email
+
+**Parsing:**
+- **GetLocalPart**: `EmailUtils.GetLocalPart(email)` - Extract username part before @
+- **GetDomain**: `EmailUtils.GetDomain(email)` - Extract domain part after @
+- **GetTld**: `EmailUtils.GetTld(email)` - Extract top-level domain (.com, .org, etc.)
+- **Parse**: `EmailUtils.Parse(email)` - Parse into EmailParts object with all components
+
+**Formatting:**
+- **Normalize**: `EmailUtils.Normalize(email)` - Normalize (lowercase domain, trim whitespace)
+- **ToLower**: `EmailUtils.ToLower(email)` - Convert entire email to lowercase
+- **Mask**: `EmailUtils.Mask(email, visibleChars, maskChar)` - Mask for privacy (e.g., t***@example.com)
+- **ToDisplayName**: `EmailUtils.ToDisplayName(email)` - Generate display name from email (john.doe -> John Doe)
+
+**Manipulation:**
+- **ChangeDomain**: `EmailUtils.ChangeDomain(email, newDomain)` - Change email domain
+- **AddPlusTag**: `EmailUtils.AddPlusTag(email, tag)` - Add plus addressing tag (user+tag@example.com)
+- **RemovePlusTag**: `EmailUtils.RemovePlusTag(email)` - Remove plus tag from email
+- **GenerateRandom**: `EmailUtils.GenerateRandom(domain, length)` - Generate random email address
+- **GenerateTestEmail**: `EmailUtils.GenerateTestEmail(prefix, domain)` - Generate test email with timestamp
+
+**Bulk Operations:**
+- **FilterValid**: `EmailUtils.FilterValid(emails)` - Filter list to valid emails only
+- **Deduplicate**: `EmailUtils.Deduplicate(emails)` - Remove duplicates (case-insensitive)
+- **ExtractDomains**: `EmailUtils.ExtractDomains(emails)` - Extract unique domains from list
+- **GroupByDomain**: `EmailUtils.GroupByDomain(emails)` - Group emails by domain
+- **SortByDomain**: `EmailUtils.SortByDomain(emails)` - Sort emails by domain then local part
+
+**Utility:**
+- **Equals**: `EmailUtils.Equals(email1, email2)` - Compare emails (case-insensitive)
+- **GetProviderType**: `EmailUtils.GetProviderType(email)` - Get EmailProviderType enum (Free, Business, Disposable, Unknown)
+- **AddDisposableDomain**: `EmailUtils.AddDisposableDomain(domain)` - Add custom disposable domain
+- **AddFreeProviderDomain**: `EmailUtils.AddFreeProviderDomain(domain)` - Add custom free provider domain
+
+**EmailParts Class:**
+- Properties: `LocalPart`, `Domain`, `Tld`, `Original`
+- Method: `ToString()` - Returns full email address
+
+**EmailProviderType Enum:**
+- `Unknown` - Invalid or unrecognized
+- `Free` - Free email provider (Gmail, Yahoo, etc.)
+- `Business` - Corporate/business email
+- `Disposable` - Temporary/disposable email
+
+**Features:**
+- Zero dependencies, uses only .NET standard library
+- RFC 5322 compliant email validation
+- Built-in lists of disposable and free email providers
+- Support for plus addressing (Gmail style)
+- Privacy masking for display purposes
+- Bulk operations for email list processing
+- Display name generation from email format
+- 45+ comprehensive unit tests
+- 7 practical usage examples
+- Production-ready for user registration and email processing
+
+Compile and run tests:
+```bash
+cd C#/email_utils
+dotnet build
+dotnet run --project email_utils_test.cs
+```
+
+Run example:
+```bash
+cd C#/examples
+dotnet run email_utils_example.cs
+```
+
+Usage example:
+```csharp
+using AllToolkit;
+
+// Basic validation
+bool isValid = EmailUtils.IsValid("user@example.com");  // true
+bool isStrict = EmailUtils.IsValidStrict("user..name@example.com");  // false
+
+// Check email type
+bool isGmail = EmailUtils.IsFreeProvider("user@gmail.com");  // true
+bool isBusiness = EmailUtils.IsBusinessEmail("user@company.com");  // true
+bool isDisposable = EmailUtils.IsDisposable("user@tempmail.com");  // true
+
+// Parse email
+var parts = EmailUtils.Parse("john.doe@example.com");
+Console.WriteLine(parts.LocalPart);  // "john.doe"
+Console.WriteLine(parts.Domain);     // "example.com"
+Console.WriteLine(parts.Tld);        // "com"
+
+// Formatting
+string masked = EmailUtils.Mask("john.doe@example.com");  // "j***@example.com"
+string display = EmailUtils.ToDisplayName("john.doe@example.com");  // "John Doe"
+string normalized = EmailUtils.Normalize("User@EXAMPLE.COM");  // "User@example.com"
+
+// Plus addressing (Gmail style)
+string tagged = EmailUtils.AddPlusTag("user@gmail.com", "newsletter");
+// "user+newsletter@gmail.com"
+string clean = EmailUtils.RemovePlusTag("user+tag@gmail.com");
+// "user@gmail.com"
+
+// Bulk operations
+var emails = new List<string> { "a@gmail.com", "b@gmail.com", "c@company.com" };
+var domains = EmailUtils.ExtractDomains(emails);  // [ "gmail.com", "company.com" ]
+var grouped = EmailUtils.GroupByDomain(emails);   // Dictionary by domain
+
+// Generate test emails
+string random = EmailUtils.GenerateRandom();  // "abc123@example.com"
+string test = EmailUtils.GenerateTestEmail();  // "test.1234567890@example.com"
+```
+
+---
+
 ### Python - INI Config Utilities
 
 Location: `Python/ini_config_utils/mod.py`
