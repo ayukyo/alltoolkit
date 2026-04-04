@@ -115,6 +115,133 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### Rust - Random Utilities
+
+Location: `Rust/random_utils/mod.rs`
+
+Functions:
+
+**Random Number Generation:**
+- **random_i32**: `random_i32()` - Generate a random 32-bit signed integer
+- **random_i64**: `random_i64()` - Generate a random 64-bit signed integer
+- **random_u32**: `random_u32()` - Generate a random 32-bit unsigned integer
+- **random_u64**: `random_u64()` - Generate a random 64-bit unsigned integer
+- **random_int**: `random_int(min, max)` - Generate a random integer in range [min, max] (inclusive)
+- **random_i64_range**: `random_i64_range(min, max)` - Generate a random i64 in range [min, max]
+- **random_float**: `random_float()` - Generate a random float in range [0.0, 1.0)
+- **random_float_range**: `random_float_range(min, max)` - Generate a random float in range [min, max)
+- **random_bool**: `random_bool()` - Generate a random boolean (50% probability)
+- **random_bool_with_probability**: `random_bool_with_probability(probability)` - Generate boolean with custom probability
+
+**Random String Generation:**
+- **random_string**: `random_string(length)` - Generate random alphabetic string
+- **random_alphanumeric**: `random_alphanumeric(length)` - Generate random alphanumeric string
+- **random_numeric**: `random_numeric(length)` - Generate random numeric string
+- **random_hex**: `random_hex(length)` - Generate random lowercase hex string
+- **random_hex_upper**: `random_hex_upper(length)` - Generate random uppercase hex string
+- **random_urlsafe**: `random_urlsafe(length)` - Generate URL-safe random string
+- **random_string_from_charset**: `random_string_from_charset(length, charset)` - Generate string from custom charset
+
+**Password Generation:**
+- **random_password**: `random_password(length)` - Generate secure password with guaranteed character types (min length: 4)
+
+**UUID Generation (RFC 4122 v4):**
+- **uuid_v4**: `uuid_v4()` - Generate standard UUID v4 (36 chars with hyphens)
+- **uuid_v4_compact**: `uuid_v4_compact()` - Generate compact UUID v4 (32 chars, no hyphens)
+- **uuid_v4_upper**: `uuid_v4_upper()` - Generate uppercase UUID v4
+- **is_valid_uuid**: `is_valid_uuid(uuid)` - Validate UUID string format
+
+**Random Selection:**
+- **pick**: `pick(items)` - Pick a random element from a slice
+- **pick_multiple**: `pick_multiple(items, count)` - Pick multiple random elements (with replacement)
+- **pick_unique**: `pick_unique(items, count)` - Pick multiple unique random elements (without replacement)
+- **shuffle**: `shuffle(items)` - Shuffle a slice in-place
+- **shuffled**: `shuffled(items)` - Return a shuffled copy of a slice
+
+**Random Color Generation:**
+- **random_rgb**: `random_rgb()` - Generate random RGB color as (r, g, b) tuple
+- **random_hex_color**: `random_hex_color()` - Generate random hex color string (e.g., "#ff5733")
+- **random_rgba**: `random_rgba()` - Generate random RGBA color as (r, g, b, a) tuple
+
+**Random Date/Time:**
+- **random_timestamp**: `random_timestamp(min, max)` - Generate random Unix timestamp
+- **random_duration_ms**: `random_duration_ms(min, max)` - Generate random duration in milliseconds
+
+**Statistical Distributions:**
+- **random_normal**: `random_normal(mean, std_dev)` - Generate from normal (Gaussian) distribution
+- **random_exponential**: `random_exponential(lambda)` - Generate from exponential distribution
+
+**Character Set Constants:**
+- `LOWERCASE` - "abcdefghijklmnopqrstuvwxyz"
+- `UPPERCASE` - "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+- `DIGITS` - "0123456789"
+- `SPECIAL_CHARS` - "!@#$%^&*()-_=+[]{}|;:,.<>?"
+- `HEX_CHARS` - "0123456789abcdef"
+- `HEX_CHARS_UPPER` - "0123456789ABCDEF"
+- `URL_SAFE_CHARS` - "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+
+**Features:**
+- Zero dependencies, uses only Rust standard library (rand crate for enhanced functionality, or pure std)
+- Cryptographically secure random generation using thread_rng
+- Comprehensive password generation with guaranteed character diversity
+- RFC 4122 compliant UUID v4 generation with proper version and variant bits
+- Full support for custom character sets
+- Statistical distributions (Normal, Exponential) for simulation
+- Random selection utilities for collections
+- Color generation for graphics and UI applications
+- Complete test suite with 20+ test cases
+- 7 comprehensive usage examples covering all functionality
+- Production-ready for security-sensitive applications
+
+Run tests:
+```bash
+cd Rust/random_utils
+rustc --test mod.rs -o random_test && ./random_test
+```
+
+Run example:
+```bash
+cd Rust/examples
+rustc --edition 2021 -L ../random_utils random_utils_example.rs -o random_example && ./random_example
+```
+
+Usage example:
+```rust
+use random_utils::RandomUtils;
+
+// Random numbers
+let dice = RandomUtils::random_int(1, 6);
+let probability = RandomUtils::random_float();
+let biased = RandomUtils::random_bool_with_probability(0.7);
+
+// Random strings
+let token = RandomUtils::random_alphanumeric(32);
+let hex = RandomUtils::random_hex(16);
+let urlsafe = RandomUtils::random_urlsafe(64);
+
+// Secure password
+let password = RandomUtils::random_password(16);
+
+// UUID generation
+let uuid = RandomUtils::uuid_v4();
+let compact = RandomUtils::uuid_v4_compact();
+
+// Random selection
+let fruits = vec!["Apple", "Banana", "Cherry"];
+let pick = RandomUtils::pick(&fruits);
+let shuffled = RandomUtils::shuffled(&fruits);
+
+// Colors
+let color = RandomUtils::random_hex_color();  // e.g., "#ff5733"
+let (r, g, b) = RandomUtils::random_rgb();
+
+// Distributions
+let normal = RandomUtils::random_normal(0.0, 1.0);
+let exp = RandomUtils::random_exponential(1.0);
+```
+
+---
+
 ### Go - CSV Utilities
 
 Location: `Go/csv_utils/mod.go`
