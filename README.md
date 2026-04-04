@@ -4093,4 +4093,76 @@ MIT License - 免费用于个人和商业项目
 - [Issues](https://github.com/ayukyo/alltoolkit/issues)
 - [Contributing Guide](CONTRIBUTING.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
+
+---
+
+## 🧪 最新测试更新 (2025-04-05)
+
+### Go - INI Utilities 测试套件
+
+Location: `Go/ini_utils/ini_utils_test.go`
+
+新增测试覆盖:
+- **New() 测试**: 创建空 IniFile 对象
+- **Parse() 测试**: 解析空字符串、简单键值、带节、带注释、带空行
+- **Get() 测试**: 全局键、节键、默认值、不存在键
+- **GetInt() 测试**: 有效整数、无效整数返回默认值
+- **GetInt64() 测试**: 大整数支持
+- **GetFloat64() 测试**: 浮点数解析
+- **GetBool() 测试**: true/false 多种格式支持
+- **Set() 测试**: 设置全局键、节键、更新现有键
+- **SetInt/SetFloat64/SetBool() 测试**: 类型安全设置
+- **HasSection() 测试**: 节存在性检查
+- **HasKey() 测试**: 键存在性检查
+- **DeleteKey() 测试**: 删除键
+- **DeleteSection() 测试**: 删除节
+- **LoadFile/SaveToFile() 测试**: 文件读写
+- **ToString/ToPrettyString() 测试**: 字符串输出
+- **GetSections/GetKeys() 测试**: 获取节和键列表
+
+运行测试: `cd Go/ini_utils && go test -v`
+
+---
+
+### Rust - String Utilities 测试套件
+
+Location: `Rust/string_utils/string_utils_test.rs`
+
+新增测试覆盖:
+- **truncate() 测试**: 基本截断、Unicode 字符、边界值
+- **slugify() 测试**: 基本转换、特殊字符、空字符串
+- **count_words() 测试**: 单词计数、多空格、标点符号
+- **is_valid_email() 测试**: 有效/无效邮箱格式
+- **reverse_graphemes() 测试**: ASCII、Unicode 反转
+- **pad() 测试**: 左填充、右填充、边界值
+
+运行测试: `cd Rust/string_utils && rustc --test string_utils_test.rs -o test && ./test`
+
+---
+
+### Rust - Math Utilities 测试套件
+
+Location: `Rust/math_utils/math_utils_test.rs`
+
+新增测试覆盖:
+- **clamp() 测试**: f64/i32 边界限制
+- **lerp() 测试**: 线性插值
+- **map_range() 测试**: 范围映射、边界情况
+- **approx_eq() 测试**: 近似相等比较
+- **round_to() 测试**: 指定小数位四舍五入
+- **mean() 测试**: 平均值计算
+- **median() 测试**: 中位数计算（奇数/偶数）
+- **min_max() 测试**: 最小最大值
+- **std_dev() 测试**: 标准差计算
+- **factorial() 测试**: 阶乘计算
+- **is_prime() 测试**: 质数判断
+- **gcd() 测试**: 最大公约数
+- **lcm() 测试**: 最小公倍数
+- **to_radians/to_degrees() 测试**: 角度转换
+- **normalize_angle_360/180() 测试**: 角度归一化
+- **distance_2d/3d() 测试**: 距离计算
+- **format_with_commas() 测试**: 千位分隔符格式化
+
+运行测试: `cd Rust/math_utils && rustc --test math_utils_test.rs -o test && ./test`
+
 # CI Test
