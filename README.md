@@ -31,7 +31,7 @@
 - Delphi
 - TypeScript
 - **Go** ✨
-- Rust
+- **Rust** ✨
 - PHP
 - Swift
 - Kotlin
@@ -114,6 +114,134 @@ Each language directory contains standalone, dependency-free utility modules wit
 - **Unicode-safe**: Proper handling of international text
 
 ## Latest Addition
+
+### Rust - JSON Utilities
+
+Location: `Rust/json_utils/mod.rs`
+
+Functions:
+
+**Parsing:**
+- **parse_json**: `parse_json(input)` - Parse JSON string into JsonValue
+- **parse_json_or_null**: `parse_json_or_null(input)` - Parse JSON, return null on error
+- **is_valid_json**: `is_valid_json(input)` - Check if string is valid JSON
+
+**JSON Value Types:**
+- **JsonValue::Null** - Represents JSON null value
+- **JsonValue::Bool** - Represents JSON boolean (true/false)
+- **JsonValue::Number** - Represents JSON number (f64)
+- **JsonValue::String** - Represents JSON string
+- **JsonValue::Array** - Represents JSON array with indexed access
+- **JsonValue::Object** - Represents JSON object with key-value access
+
+**Type Checking:**
+- **is_null**: Check if value is null
+- **is_bool**: Check if value is boolean
+- **is_number**: Check if value is number
+- **is_string**: Check if value is string
+- **is_array**: Check if value is array
+- **is_object**: Check if value is object
+
+**Type Conversion:**
+- **as_bool**: Get value as bool (default: false)
+- **as_bool_or**: Get value as bool with custom default
+- **as_i64**: Get value as i64 (default: 0)
+- **as_i64_or**: Get value as i64 with custom default
+- **as_f64**: Get value as f64 (default: 0.0)
+- **as_f64_or**: Get value as f64 with custom default
+- **as_string**: Get value as String (default: empty)
+- **as_string_or**: Get value as String with custom default
+
+**Object Access:**
+- **get(key)**: Get property by key, returns JsonValue::Null if not found
+- **has(key)**: Check if object has key
+- **keys()**: Get all keys as Vec<String>
+- **len()**: Get number of entries in array or object
+- **is_empty()**: Check if array or object is empty
+
+**Array Access:**
+- **get_index(index)**: Get element at index, returns JsonValue::Null if out of bounds
+
+**Generation:**
+- **JsonValue::null()**: Create null value
+- **JsonValue::bool(value)**: Create boolean value
+- **JsonValue::number(value)**: Create number value
+- **JsonValue::string(value)**: Create string value
+- **JsonValue::array(values)**: Create array value
+- **JsonValue::object(map)**: Create object value
+
+**Serialization:**
+- **to_json**: Convert JsonValue to compact JSON string
+- **to_pretty_json**: Convert JsonValue to pretty-printed JSON (2-space indent)
+- **to_pretty_string_with_indent**: Convert with custom indentation
+
+**Utility:**
+- **merge**: Merge another JSON object into this one (objects only)
+- **From conversions**: Convert from (), bool, i8-i64, u8-u64, f32, f64, String, &str, Vec<T>, HashMap<String, T>, Option<T>
+
+**Error Handling:**
+- **JsonError**: Comprehensive error type with position information
+- **JsonResult<T>**: Result type alias for JSON operations
+
+**Features:**
+- Zero dependencies, uses only Rust standard library
+- Complete JSON support: null, boolean, number, string, array, object
+- Type-safe access with default values
+- Full Unicode and escape sequence support (\\n, \\t, \", \\, \\uXXXX)
+- Pretty printing with customizable indentation
+- Round-trip parsing (parse → generate → parse)
+- Safe parsing with Result return type
+- Scientific notation support (1e10, -1.5e-3)
+- 50+ comprehensive unit tests
+- 15 practical usage examples
+- Production-ready for JSON processing tasks
+
+Compile and run tests:
+```bash
+cd Rust/json_utils
+rustc --test mod.rs -o json_test && ./json_test
+```
+
+Run example:
+```bash
+cd Rust/examples
+rustc json_utils_example.rs -o json_example && ./json_example
+```
+
+Usage example:
+```rust
+use json_utils::{JsonValue, parse_json};
+
+// Parse JSON
+let json = r#"{"name": "John", "age": 30}"#;
+let value = parse_json(json).unwrap();
+
+// Access values
+let name = value.get("name").as_string();  // "John"
+let age = value.get("age").as_i64();       // 30
+
+// Type-safe access with defaults
+let missing = value.get("missing").as_string_or("default");
+
+// Create JSON programmatically
+let mut map = std::collections::HashMap::new();
+map.insert("id".to_string(), JsonValue::number(1.0));
+map.insert("name".to_string(), JsonValue::string("Alice"));
+let obj = JsonValue::object(map);
+
+// Serialize
+println!("{}", obj.to_json());        // Compact
+println!("{}", obj.to_pretty_json()); // Pretty printed
+
+// Parse arrays
+let arr = parse_json("[1, 2, 3]").unwrap();
+let first = arr.get_index(0).as_i64();  // 1
+
+// Validate JSON
+let is_valid = is_valid_json("{}");  // true
+```
+
+---
 
 ### C# - Email Utilities
 
