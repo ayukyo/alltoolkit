@@ -115,6 +115,105 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### C++ - Cache Utilities
+
+Location: `C++/cache_utils/mod.hpp`
+
+Functions:
+
+**Cache Class:**
+- **Constructor**: `Cache<K, V>(max_size, policy, max_bytes)` - Create cache with size limit, eviction policy, and optional memory limit
+- **set**: `cache.set(key, value, ttl)` - Store value with optional TTL (Time To Live)
+- **get**: `cache.get(key)` - Retrieve value, returns `std::optional<V>`
+- **get_or_default**: `cache.get_or_default(key, default_value)` - Get value or return default
+- **get_or_compute**: `cache.get_or_compute(key, factory, ttl)` - Get cached value or compute and store
+- **has**: `cache.has(key)` - Check if key exists and not expired
+- **remove**: `cache.remove(key)` - Remove entry by key
+- **clear**: `cache.clear()` - Remove all entries
+- **size**: `cache.size()` - Get number of entries
+- **empty**: `cache.empty()` - Check if cache is empty
+- **keys**: `cache.keys()` - Get all non-expired keys
+- **purge_expired**: `cache.purge_expired()` - Remove all expired entries, returns count
+- **stats**: `cache.stats()` - Get cache statistics
+- **reset_stats**: `cache.reset_stats()` - Reset statistics counters
+- **memory_usage**: `cache.memory_usage()` - Get current memory usage in bytes
+
+**Eviction Policies:**
+- `EvictionPolicy::LRU` - Least Recently Used
+- `EvictionPolicy::LFU` - Least Frequently Used
+- `EvictionPolicy::FIFO` - First In First Out
+- `EvictionPolicy::RANDOM` - Random eviction
+
+**CacheStats Structure:**
+- **hits**: Number of cache hits
+- **misses**: Number of cache misses
+- **evictions**: Number of evicted entries
+- **expirations**: Number of expired entries
+- **current_size**: Current number of entries
+- **max_size**: Maximum allowed entries
+- **hit_rate()**: Calculate hit rate (0.0 to 1.0)
+
+**CacheEntry Features:**
+- Automatic TTL expiration tracking
+- Access count tracking (for LFU)
+- Last access timestamp (for LRU)
+- Creation timestamp (for FIFO)
+
+**Features:**
+- Zero dependencies, header-only library (C++11+)
+- Thread-safe using std::mutex
+- Multiple eviction policies (LRU, LFU, FIFO, RANDOM)
+- TTL (Time To Live) support for automatic expiration
+- Size-based and memory-based eviction
+- Statistics tracking (hits, misses, hit rate)
+- Generic template support for any key/value types
+- Optional custom size calculator for memory tracking
+- 15 comprehensive unit tests
+- 10 usage examples covering all functionality
+- Production-ready for high-performance caching
+
+Compile and run tests:
+```bash
+cd C++/cache_utils
+g++ -std=c++11 -o cache_utils_test cache_utils_test.cpp && ./cache_utils_test
+```
+
+Run example:
+```bash
+cd C++/examples
+g++ -std=c++11 -o cache_utils_example cache_utils_example.cpp && ./cache_utils_example
+```
+
+Usage example:
+```cpp
+#include "cache_utils/mod.hpp"
+using namespace alltoolkit;
+
+// Create cache with max 100 entries, LRU eviction
+Cache<std::string, std::string> cache(100, EvictionPolicy::LRU);
+
+// Store values
+cache.set("name", "Alice");
+cache.set("session", "token123", std::chrono::seconds(3600)); // 1 hour TTL
+
+// Retrieve values
+auto name = cache.get("name");
+if (name.has_value()) {
+    std::cout << *name << std::endl;  // "Alice"
+}
+
+// Get or compute (lazy loading)
+int result = cache.get_or_compute("expensive_key", [&]() {
+    return expensive_computation();
+}, std::chrono::seconds(60));
+
+// Check statistics
+auto stats = cache.stats();
+std::cout << "Hit rate: " << (stats.hit_rate() * 100) << "%" << std::endl;
+```
+
+---
+
 ### ArkTS - Color Utilities
 
 Location: `ArkTS/color_utils/mod.ets`
