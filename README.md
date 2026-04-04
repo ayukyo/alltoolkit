@@ -4098,6 +4098,157 @@ MIT License - 免费用于个人和商业项目
 
 ## 📦 Latest Addition
 
+### Ruby - Number Utilities
+
+Location: `Ruby/number_utils/mod.rb`
+
+A comprehensive number utility module for Ruby providing formatting, conversion, mathematical operations, and statistical functions.
+
+**Formatting Functions:**
+- **format**: `format(number, separator: ',', decimal: '.', precision: nil)` - Format with thousands separator
+- **currency**: `currency(number, symbol: '$', precision: 2)` - Format as currency
+- **percentage**: `percentage(number, precision: 0, symbol: true)` - Format as percentage
+- **compact**: `compact(number, precision: 1)` - Compact notation (K, M, B, T)
+- **ordinal**: `ordinal(number)` - Convert to ordinal (1st, 2nd, 3rd)
+- **to_words**: `to_words(number)` - Convert number to English words
+
+**Conversion Functions:**
+- **to_roman**: `to_roman(number)` - Integer to Roman numeral (1-3999)
+- **from_roman**: `from_roman(roman)` - Roman numeral to integer
+- **to_binary**: `to_binary(number, prefix: false, min_width: nil)` - Convert to binary
+- **to_hex**: `to_hex(number, prefix: false, uppercase: false, min_width: nil)` - Convert to hexadecimal
+- **to_octal**: `to_octal(number, prefix: false)` - Convert to octal
+
+**Mathematical Functions:**
+- **clamp**: `clamp(number, min, max)` - Clamp value between min and max
+- **lerp**: `lerp(start, finish, t)` - Linear interpolation
+- **map_range**: `map_range(value, in_min, in_max, out_min, out_max)` - Map between ranges
+- **approx_equal**: `approx_equal?(a, b, epsilon: 1e-9)` - Approximate equality check
+- **round_to_multiple**: `round_to_multiple(number, multiple)` - Round to nearest multiple
+- **round_to_places**: `round_to_places(number, places)` - Round to decimal places
+
+**Statistical Functions:**
+- **mean**: `mean(numbers)` - Calculate arithmetic mean
+- **median**: `median(numbers)` - Calculate median value
+- **mode**: `mode(numbers)` - Calculate mode (most frequent)
+- **std_dev**: `std_dev(numbers, sample: false)` - Calculate standard deviation
+- **sum_of_squares**: `sum_of_squares(numbers)` - Sum of squares
+- **range**: `range(numbers)` - Range (max - min)
+
+**Validation Functions:**
+- **number?**: `number?(value)` - Check if numeric
+- **integer?**: `integer?(value)` - Check if integer
+- **float?**: `float?(value)` - Check if float
+- **even?**: `even?(number)` - Check if even
+- **odd?**: `odd?(number)` - Check if odd
+- **positive?**: `positive?(number)` - Check if positive
+- **negative?**: `negative?(number)` - Check if negative
+- **zero?**: `zero?(number)` - Check if zero
+- **between?**: `between?(number, min, max)` - Check if in range
+- **prime?**: `prime?(number)` - Check if prime
+- **perfect_square?**: `perfect_square?(number)` - Check if perfect square
+
+**Parsing Functions:**
+- **parse**: `parse(str, default: nil)` - Parse string to number
+- **parse_int**: `parse_int(str, default: nil, base: 10)` - Parse to integer
+- **parse_float**: `parse_float(str, default: nil)` - Parse to float
+
+**Utility Functions:**
+- **gcd**: `gcd(a, b)` - Greatest common divisor
+- **lcm**: `lcm(a, b)` - Least common multiple
+- **factorial**: `factorial(n)` - Calculate factorial
+- **fibonacci**: `fibonacci(n)` - Calculate Fibonacci number
+- **sqrt**: `sqrt(number)` - Square root
+- **nth_root**: `nth_root(number, n)` - Nth root
+- **to_radians**: `to_radians(degrees)` - Degrees to radians
+- **to_degrees**: `to_degrees(radians)` - Radians to degrees
+- **normalize_angle**: `normalize_angle(degrees)` - Normalize to 0-360
+- **sum_of_digits**: `sum_of_digits(number)` - Sum of digits
+- **reverse_digits**: `reverse_digits(number)` - Reverse digits
+- **palindrome?**: `palindrome?(number)` - Check if palindrome
+
+**Random Generation:**
+- **random**: `random(min: 0, max: 1)` - Random float in range
+- **random_int**: `random_int(min:, max:)` - Random integer in range
+- **random_normal**: `random_normal(mean: 0, std_dev: 1)` - Normal distribution
+
+**Convenience Methods:**
+- **fmt**: Alias for format
+- **cur**: Alias for currency
+- **pct**: Alias for percentage
+
+**Features:**
+- Zero dependencies, uses only Ruby standard library
+- Complete number formatting with internationalization support
+- Roman numeral conversion (1-3999)
+- Binary, hexadecimal, and octal conversions
+- Statistical functions for data analysis
+- Prime number and perfect square detection
+- Number parsing with default values
+- Random number generation with normal distribution
+- Comprehensive test suite with 50+ test cases
+- 15 practical usage examples
+- Production-ready for financial and scientific applications
+
+Run tests:
+```bash
+cd Ruby/number_utils
+ruby number_utils_test.rb
+```
+
+Run example:
+```bash
+cd Ruby/examples
+ruby number_utils_example.rb
+```
+
+Usage example:
+```ruby
+require_relative 'Ruby/number_utils/mod'
+
+# Formatting
+NumberUtils.format(1234567.89)              # => "1,234,567.89"
+NumberUtils.currency(1234.5)                # => "$1,234.50"
+NumberUtils.percentage(0.1567, precision: 2)  # => "15.67%"
+NumberUtils.compact(1500000)                # => "1.5M"
+NumberUtils.ordinal(21)                     # => "21st"
+NumberUtils.to_words(123)                   # => "one hundred twenty-three"
+
+# Conversion
+NumberUtils.to_roman(2024)                  # => "MMXXIV"
+NumberUtils.from_roman("MMXXIV")            # => 2024
+NumberUtils.to_binary(255)                  # => "11111111"
+NumberUtils.to_hex(255, uppercase: true)    # => "FF"
+
+# Mathematical
+NumberUtils.clamp(10, 0, 5)                 # => 5
+NumberUtils.lerp(0, 100, 0.5)               # => 50.0
+NumberUtils.map_range(5, 0, 10, 0, 100)     # => 50.0
+
+# Statistical
+NumberUtils.mean([1, 2, 3, 4, 5])           # => 3.0
+NumberUtils.median([1, 2, 3, 4, 5])         # => 3
+NumberUtils.std_dev([1, 2, 3, 4, 5])        # => ~1.414
+
+# Validation
+NumberUtils.prime?(7)                       # => true
+NumberUtils.perfect_square?(16)             # => true
+NumberUtils.between?(3, 1, 5)               # => true
+
+# Parsing
+NumberUtils.parse("1,234.56")               # => 1234.56
+NumberUtils.parse_int("42")                 # => 42
+NumberUtils.parse_float("3.14")             # => 3.14
+
+# Utility
+NumberUtils.gcd(24, 36)                     # => 12
+NumberUtils.factorial(5)                    # => 120
+NumberUtils.fibonacci(10)                   # => 55
+NumberUtils.palindrome?(121)                # => true
+```
+
+---
+
 ### Perl - File Utilities
 
 Location: `Perl/file_utils/mod.pl`
