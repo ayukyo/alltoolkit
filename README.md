@@ -115,6 +115,136 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### ArkTS - Color Utilities
+
+Location: `ArkTS/color_utils/mod.ets`
+
+Functions:
+
+**Color Class:**
+- **Constructor**: `new Color(r, g, b, a)` - Create color with RGBA values (0-255 for RGB, 0-1 for alpha)
+- **toHex**: `color.toHex()` - Convert to HEX string (#RRGGBB or #RRGGBBAA)
+- **toRgb**: `color.toRgb()` - Convert to RGB/RGBA string
+- **toHsl**: `color.toHsl()` - Convert to HSL object {h, s, l, a}
+- **toHslString**: `color.toHslString()` - Convert to HSL/HSLA string
+- **toHsv**: `color.toHsv()` - Convert to HSV object {h, s, v, a}
+- **toCmyk**: `color.toCmyk()` - Convert to CMYK object {c, m, y, k, a}
+- **lighten**: `color.lighten(amount)` - Lighten by percentage (0-100)
+- **darken**: `color.darken(amount)` - Darken by percentage (0-100)
+- **saturate**: `color.saturate(amount)` - Increase saturation (0-100)
+- **desaturate**: `color.desaturate(amount)` - Decrease saturation (0-100)
+- **fade**: `color.fade(amount)` - Reduce alpha by percentage
+- **grayscale**: `color.grayscale()` - Get grayscale value (0-255)
+- **brightness**: `color.brightness()` - Get brightness value (0-255)
+- **isLight**: `color.isLight()` - Check if color is light
+- **isDark**: `color.isDark()` - Check if color is dark
+- **complement**: `color.complement()` - Get complementary color
+- **contrast**: `color.contrast()` - Get black or white contrast color
+- **mix**: `color.mix(other, ratio)` - Mix with another color
+- **clone**: `color.clone()` - Create a copy
+- **equals**: `color.equals(other)` - Compare colors
+
+**ColorUtils Static Methods:**
+- **parseHex**: `ColorUtils.parseHex(hex)` - Parse HEX color (#RGB, #RGBA, #RRGGBB, #RRGGBBAA)
+- **parseRgb**: `ColorUtils.parseRgb(rgb)` - Parse RGB/RGBA string
+- **parseHsl**: `ColorUtils.parseHsl(hsl)` - Parse HSL/HSLA string
+- **parse**: `ColorUtils.parse(color)` - Parse any color format + named colors
+- **isValid**: `ColorUtils.isValid(color)` - Validate color string
+- **hslToRgb**: `ColorUtils.hslToRgb(h, s, l, a)` - Convert HSL to Color
+- **hsvToRgb**: `ColorUtils.hsvToRgb(h, s, v, a)` - Convert HSV to Color
+- **cmykToRgb**: `ColorUtils.cmykToRgb(c, m, y, k, a)` - Convert CMYK to Color
+- **random**: `ColorUtils.random(alpha?)` - Generate random color
+- **randomBright**: `ColorUtils.randomBright()` - Generate random bright color
+- **randomPastel**: `ColorUtils.randomPastel()` - Generate random pastel color
+- **randomDark**: `ColorUtils.randomDark()` - Generate random dark color
+- **gradient**: `ColorUtils.gradient(start, end, steps)` - Generate color gradient
+- **analogous**: `ColorUtils.analogous(color, count?)` - Generate analogous colors
+- **triadic**: `ColorUtils.triadic(color)` - Generate triadic colors
+- **tetradic**: `ColorUtils.tetradic(color)` - Generate tetradic colors
+- **splitComplementary**: `ColorUtils.splitComplementary(color)` - Generate split complementary
+- **monochromatic**: `ColorUtils.monochromatic(color, count?)` - Generate monochromatic colors
+- **blend**: `ColorUtils.blend(c1, c2, mode)` - Blend colors using BlendMode
+- **luminance**: `ColorUtils.luminance(color)` - Calculate luminance (0-1)
+- **contrastRatio**: `ColorUtils.contrastRatio(c1, c2)` - Calculate WCAG contrast ratio
+- **meetsWCAGAA**: `ColorUtils.meetsWCAGAA(c1, c2, largeText?)` - Check WCAG AA compliance
+- **meetsWCAGAAA**: `ColorUtils.meetsWCAGAAA(c1, c2, largeText?)` - Check WCAG AAA compliance
+- **bestContrast**: `ColorUtils.bestContrast(color)` - Get best contrast (black/white)
+
+**BlendMode Enum:**
+- `NORMAL`, `MULTIPLY`, `SCREEN`, `OVERLAY`, `DARKEN`, `LIGHTEN`
+- `COLOR_DODGE`, `COLOR_BURN`, `DIFFERENCE`, `EXCLUSION`, `HARD_LIGHT`, `SOFT_LIGHT`
+
+**Color Constants:**
+- `ColorUtils.BLACK`, `ColorUtils.WHITE`, `ColorUtils.RED`, `ColorUtils.GREEN`, `ColorUtils.BLUE`
+- `ColorUtils.YELLOW`, `ColorUtils.CYAN`, `ColorUtils.MAGENTA`, `ColorUtils.TRANSPARENT`
+
+**Features:**
+- Zero dependencies, uses only ArkTS standard library
+- Full color format support: HEX, RGB, RGBA, HSL, HSLA, HSV, CMYK
+- Named color support (black, white, red, etc.)
+- Color manipulation: lighten, darken, saturate, desaturate, fade
+- Color scheme generation: analogous, triadic, tetradic, monochromatic
+- 12 blend modes for advanced color mixing
+- WCAG accessibility compliance checking
+- Contrast ratio calculation
+- Gradient generation
+- Complete test suite with 30+ test cases
+- 10 comprehensive usage examples
+- Production-ready for HarmonyOS UI development
+
+Run tests:
+```bash
+cd ArkTS/color_utils
+# Requires HarmonyOS development environment
+```
+
+Run example:
+```bash
+cd ArkTS/examples
+# Requires HarmonyOS development environment
+```
+
+Usage example:
+```typescript
+import { Color, ColorUtils, BlendMode } from './color_utils/mod';
+
+// Create colors
+const red = new Color(255, 0, 0);
+const blue = new Color(0, 0, 255);
+
+// Parse colors
+const parsed = ColorUtils.parseHex('#ff5733');
+const fromRgb = ColorUtils.parseRgb('rgb(100, 150, 200)');
+
+// Convert formats
+console.log(red.toHex());        // '#ff0000'
+console.log(red.toHslString());  // 'hsl(0, 100%, 50%)'
+
+// Manipulate colors
+const lighter = red.lighten(20);
+const darker = blue.darken(30);
+const complement = red.complement();
+
+// Mix colors
+const purple = red.mix(blue, 0.5);
+
+// Generate gradients
+const gradient = ColorUtils.gradient(red, blue, 5);
+
+// Color schemes
+const triadic = ColorUtils.triadic(red);
+const analogous = ColorUtils.analogous(blue, 3);
+
+// Accessibility
+const contrast = ColorUtils.contrastRatio(red, new Color(255, 255, 255));
+const passesAA = ColorUtils.meetsWCAGAA(red, new Color(255, 255, 255));
+
+// Blend modes
+const blended = ColorUtils.blend(red, blue, BlendMode.MULTIPLY);
+```
+
+---
+
 ### Ruby - HTTP Utilities
 
 Location: `Ruby/http_utils/mod.rb`
