@@ -115,6 +115,125 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### Ruby - HTTP Utilities
+
+Location: `Ruby/http_utils/mod.rb`
+
+Functions:
+
+**HTTP Methods:**
+- **GET**: `HttpUtils.get(url, options)` - Send HTTP GET request
+- **POST**: `HttpUtils.post(url, body, content_type, options)` - Send HTTP POST request
+- **POST JSON**: `HttpUtils.post_json(url, data, options)` - Send JSON POST request
+- **POST Form**: `HttpUtils.post_form(url, data, options)` - Send form POST request
+- **PUT**: `HttpUtils.put(url, body, content_type, options)` - Send HTTP PUT request
+- **PUT JSON**: `HttpUtils.put_json(url, data, options)` - Send JSON PUT request
+- **DELETE**: `HttpUtils.delete(url, options)` - Send HTTP DELETE request
+- **PATCH**: `HttpUtils.patch(url, body, content_type, options)` - Send HTTP PATCH request
+- **HEAD**: `HttpUtils.head(url, options)` - Send HTTP HEAD request
+
+**URL Utilities:**
+- **URL Encode**: `HttpUtils.url_encode(str)` - URL encode a string (spaces → +)
+- **URL Decode**: `HttpUtils.url_decode(str)` - URL decode a string
+- **Build Query String**: `HttpUtils.build_query_string(params)` - Build query string from hash
+- **Build URL**: `HttpUtils.build_url(base_url, params)` - Build URL with query parameters
+- **Parse URL**: `HttpUtils.parse_url(url)` - Parse URL into components (scheme, host, port, path, query, fragment, userinfo)
+- **Parse Query String**: `HttpUtils.parse_query_string(query_string)` - Parse query string to hash
+- **Validate URL**: `HttpUtils.valid_url?(url)` - Check if string is valid URL
+- **Get Domain**: `HttpUtils.get_domain(url)` - Extract domain from URL
+- **Get Path**: `HttpUtils.get_path(url)` - Extract path from URL
+- **Add Query Params**: `HttpUtils.add_query_params(url, params)` - Add query parameters to URL
+
+**HTTP Response (Response class):**
+- **Status Code**: `response.status_code` - HTTP status code
+- **Status Message**: `response.status_message` - HTTP status text
+- **Headers**: `response.headers` - Response headers hash
+- **Body**: `response.body` - Response body string
+- **Success**: `response.success?` - True if status 200-299
+- **JSON Parse**: `response.json` - Parse body as JSON
+- **Is JSON**: `response.json?` - Check if body is valid JSON
+- **Get Header**: `response.header(name)` - Get header value (case-insensitive)
+
+**HTTP Options (Options class):**
+- **Headers**: Custom request headers hash
+- **Timeout**: Request timeout in seconds (default: 30)
+- **Follow Redirects**: Auto-follow redirects (default: true)
+- **Max Redirects**: Maximum redirect hops (default: 10)
+- **Verify SSL**: SSL certificate verification (default: true)
+
+**Features:**
+- Zero dependencies, uses only Ruby standard library (net/http, net/https, uri, json, cgi)
+- Full HTTP method support: GET, POST, PUT, DELETE, PATCH, HEAD
+- Automatic JSON and form data encoding
+- Complete URL manipulation utilities
+- Custom headers and timeout configuration
+- Response time tracking
+- SSL/TLS certificate verification control
+- Response success status checking
+- Built-in JSON validation
+- Complete test suite with 30+ test cases
+- 11 comprehensive usage examples
+- Production-ready for REST API clients
+
+Run tests:
+```bash
+cd Ruby/http_utils
+ruby http_utils_test.rb
+```
+
+Run example:
+```bash
+cd Ruby/examples
+ruby http_utils_example.rb
+```
+
+Usage example:
+```ruby
+require_relative 'Ruby/http_utils/mod'
+
+# GET request
+response = HttpUtils.get('https://api.example.com/users')
+if response.success?
+  data = response.json
+  puts data.inspect
+end
+
+# POST JSON
+response = HttpUtils.post_json('https://api.example.com/users', {
+  name: 'John',
+  email: 'john@example.com'
+})
+
+# POST Form
+response = HttpUtils.post_form('https://api.example.com/login', {
+  username: 'admin',
+  password: 'secret'
+})
+
+# URL building
+url = HttpUtils.build_url('https://api.example.com/search', {
+  q: 'hello world',
+  page: 1
+})
+# Result: 'https://api.example.com/search?q=hello+world&page=1'
+
+# URL parsing
+parsed = HttpUtils.parse_url('https://api.example.com:8080/v1/users')
+# parsed[:host] = 'api.example.com'
+# parsed[:port] = 8080
+
+# URL validation
+is_valid = HttpUtils.valid_url?('https://example.com')  # true
+
+# Custom options
+options = HttpUtils::Options.new
+options.timeout = 60
+options.headers = { 'Authorization' => 'Bearer token123' }
+response = HttpUtils.get('https://api.example.com/protected', options)
+```
+
+---
+
 ### Kotlin - Crypto Utilities
 
 Location: `Kotlin/crypto_utils/mod.kt`
