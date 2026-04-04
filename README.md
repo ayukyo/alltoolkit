@@ -4098,6 +4098,131 @@ MIT License - 免费用于个人和商业项目
 
 ## 📦 Latest Addition
 
+### Perl - File Utilities
+
+Location: `Perl/file_utils/mod.pl`
+
+A comprehensive file utility module for Perl providing common file operations with zero external dependencies.
+
+**File Operations:**
+- **read_file**: `read_file(filepath, encoding)` - Read entire file as string
+- **read_file_lines**: `read_file_lines(filepath, encoding)` - Read file as array of lines
+- **read_file_binary**: `read_file_binary(filepath)` - Read file as binary data
+- **write_file**: `write_file(filepath, content, encoding)` - Write string to file
+- **write_file_binary**: `write_file_binary(filepath, data)` - Write binary data to file
+- **append_file**: `append_file(filepath, content, encoding)` - Append content to file
+
+**File Checks:**
+- **file_exists**: `file_exists(filepath)` - Check if file exists
+- **dir_exists**: `dir_exists(dirpath)` - Check if directory exists
+- **file_size**: `file_size(filepath)` - Get file size in bytes
+- **file_mtime**: `file_mtime(filepath)` - Get modification time (Unix timestamp)
+- **file_atime**: `file_atime(filepath)` - Get access time
+- **file_ctime**: `file_ctime(filepath)` - Get creation/change time
+- **file_mode**: `file_mode(filepath)` - Get file permissions
+- **is_readable**: `is_readable(filepath)` - Check if readable
+- **is_writable**: `is_writable(filepath)` - Check if writable
+- **is_executable**: `is_executable(filepath)` - Check if executable
+- **is_file**: `is_file(filepath)` - Check if regular file
+- **is_dir**: `is_dir(filepath)` - Check if directory
+- **is_symlink**: `is_symlink(filepath)` - Check if symbolic link
+
+**Directory Operations:**
+- **list_files**: `list_files(dirpath, pattern)` - List files in directory
+- **list_dirs**: `list_dirs(dirpath)` - List subdirectories
+- **list_all**: `list_all(dirpath)` - List all entries
+- **ensure_dir**: `ensure_dir(dirpath, mode)` - Create directory recursively
+- **remove_file**: `remove_file(filepath)` - Delete file
+- **remove_dir**: `remove_dir(dirpath)` - Remove empty directory
+- **remove_dir_recursive**: `remove_dir_recursive(dirpath)` - Remove directory and contents
+
+**File Manipulation:**
+- **copy_file**: `copy_file(src, dst)` - Copy file
+- **move_file**: `move_file(src, dst)` - Move/rename file
+- **touch**: `touch(filepath)` - Create file or update timestamp
+- **truncate_file**: `truncate_file(filepath, size)` - Truncate file to size
+
+**Path Utilities:**
+- **get_extension**: `get_extension(filepath)` - Get file extension
+- **get_basename**: `get_basename(filepath)` - Get filename without extension
+- **get_dirname**: `get_dirname(filepath)` - Get directory path
+- **join_path**: `join_path(parts...)` - Join path components
+- **normalize_path**: `normalize_path(filepath)` - Normalize path separators
+
+**Utility Functions:**
+- **get_temp_dir**: `get_temp_dir()` - Get system temp directory
+- **get_temp_file**: `get_temp_file(prefix, suffix)` - Generate temp file path
+- **format_size**: `format_size(bytes)` - Format bytes to human readable
+- **find_files**: `find_files(dirpath, pattern)` - Find files recursively
+
+**Features:**
+- Zero dependencies, uses only Perl standard library
+- Full UTF-8 support with configurable encoding
+- Binary file support
+- Recursive directory operations
+- Path manipulation utilities
+- Human-readable file size formatting
+- 30+ comprehensive test cases
+- 10 practical usage examples
+- Production-ready for file management tasks
+
+Run tests:
+```bash
+cd Perl/file_utils
+perl file_utils_test.pl
+```
+
+Run example:
+```bash
+cd Perl/examples
+perl file_utils_example.pl
+```
+
+Usage example:
+```perl
+use lib 'Perl/file_utils';
+use mod;
+
+# Read and write files
+my $content = mod::read_file('/path/to/file.txt');
+mod::write_file('/path/to/output.txt', 'Hello, World!');
+
+# Check file properties
+if (mod::file_exists('/path/to/file.txt')) {
+    my $size = mod::file_size('/path/to/file.txt');
+    print "File size: " . mod::format_size($size) . "\n";
+}
+
+# Directory operations
+mod::ensure_dir('/path/to/new/directory');
+my $files = mod::list_files('/path/to/directory');
+for my $file (@$files) {
+    print "Found: $file\n";
+}
+
+# Path manipulation
+my $path = mod::join_path('home', 'user', 'documents');
+my $ext = mod::get_extension('file.txt');  # 'txt'
+my $base = mod::get_basename('/path/to/file.txt');  # 'file'
+my $dir = mod::get_dirname('/path/to/file.txt');  # '/path/to'
+
+# Copy and move files
+mod::copy_file('/source/file.txt', '/dest/file.txt');
+mod::move_file('/old/name.txt', '/new/name.txt');
+
+# Find files recursively
+my $found = mod::find_files('/search/path', '\.pl$');
+for my $file (@$found) {
+    print "Found Perl file: $file\n";
+}
+
+# Temporary files
+my $temp = mod::get_temp_file('prefix', '.tmp');
+mod::write_file($temp, 'temporary data');
+```
+
+---
+
 ### MATLAB - JSON Utilities
 
 Location: `MATLAB/json_utils/mod.m`
