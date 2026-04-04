@@ -115,6 +115,161 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### Java - Validation Utilities
+
+Location: `Java/validation_utils/mod.java`
+
+Functions:
+
+**Basic Validation:**
+- **isEmpty**: `isEmpty(str)` - Check if string is null or empty
+- **isBlank**: `isBlank(str)` - Check if string is null, empty, or whitespace only
+- **isNotEmpty**: `isNotEmpty(str)` - Check if string is not null and not empty
+- **isNotBlank**: `isNotBlank(str)` - Check if string has content (not null, not blank)
+
+**Email Validation:**
+- **isEmail**: `isEmail(email)` - Validate email format (RFC 5322 compliant)
+
+**Phone Validation:**
+- **isChinaMobile**: `isChinaMobile(phone)` - Validate China mainland mobile phone number (11 digits, starts with 1)
+
+**IP Address Validation:**
+- **isIpv4**: `isIpv4(ip)` - Validate IPv4 address (0.0.0.0 - 255.255.255.255)
+- **isIpv6**: `isIpv6(ip)` - Validate IPv6 address (simplified format)
+
+**URL Validation:**
+- **isUrl**: `isUrl(url)` - Validate URL format (http/https/ftp)
+
+**ID Card Validation:**
+- **isChinaIdCard**: `isChinaIdCard(idCard)` - Validate China mainland ID card number (18 digits with check code verification)
+
+**Credit Card Validation:**
+- **isCreditCard**: `isCreditCard(cardNumber)` - Validate credit card number using Luhn algorithm
+
+**Format Validation:**
+- **isUuid**: `isUuid(uuid)` - Validate UUID format (8-4-4-4-12 pattern)
+- **isHexColor**: `isHexColor(color)` - Validate hex color code (#RGB or #RRGGBB)
+- **isNumeric**: `isNumeric(str)` - Check if string contains only digits (optional negative sign)
+- **isAlpha**: `isAlpha(str)` - Check if string contains only letters
+- **isAlphanumeric**: `isAlphanumeric(str)` - Check if string contains only letters and digits
+- **isUsername**: `isUsername(username)` - Validate username (letter开头, 3-20 chars, alphanumeric + underscore)
+- **isStrongPassword**: `isStrongPassword(password)` - Validate strong password (8+ chars, uppercase, lowercase, digit, special char)
+- **isMacAddress**: `isMacAddress(mac)` - Validate MAC address format (00:1A:2B:3C:4D:5E or 00-1A-2B-3C-4D-5E)
+- **isChinese**: `isChinese(str)` - Check if string contains only Chinese characters
+- **isDate**: `isDate(date)` - Validate date format (YYYY-MM-DD)
+- **isTime**: `isTime(time)` - Validate time format (HH:MM:SS)
+- **isChinaZipCode**: `isChinaZipCode(zipCode)` - Validate China postal code (6 digits)
+
+**Range Validation:**
+- **lengthBetween**: `lengthBetween(str, min, max)` - Check if string length is within range
+- **between**: `between(value, min, max)` - Check if numeric value is within range (int, long, double)
+
+**Regex Validation:**
+- **matches**: `matches(str, pattern)` - Check if string matches regex pattern
+- **findFirst**: `findFirst(str, pattern)` - Find first regex match in string
+- **findAll**: `findAll(str, pattern)` - Find all regex matches in string
+
+**Utility Methods:**
+- **isLeapYear**: `isLeapYear(year)` - Check if year is a leap year
+- **equals**: `equals(str1, str2)` - Null-safe string equality check
+- **equalsIgnoreCase**: `equalsIgnoreCase(str1, str2)` - Null-safe case-insensitive equality check
+- **contains**: `contains(str, substr)` - Null-safe substring check
+- **startsWith**: `startsWith(str, prefix)` - Null-safe prefix check
+- **endsWith**: `endsWith(str, suffix)` - Null-safe suffix check
+
+**ValidationResult Class:**
+- **isValid**: Check if validation passed
+- **getField**: Get validated field name
+- **getMessage**: Get validation message
+
+**Features:**
+- Zero dependencies, uses only Java standard library (java.util.regex)
+- Null-safe all methods (handle null inputs gracefully)
+- RFC 5322 compliant email validation
+- Luhn algorithm for credit card validation
+- Complete ID card check code verification for China
+- IPv4/IPv6 address validation
+- Strong password policy enforcement
+- 40+ comprehensive unit tests
+- 9 practical usage examples
+- Production-ready for form validation and data sanitization
+
+Compile and run tests:
+```bash
+cd Java/validation_utils
+javac *.java && java validation_utils.ValidationUtilsTest
+```
+
+Run example:
+```bash
+cd Java
+javac -cp . examples/validation_utils_example.java validation_utils/*.java
+java -cp . examples.validation_utils_example
+```
+
+Usage example:
+```java
+import validation_utils.ValidationUtils;
+
+// Basic validation
+if (ValidationUtils.isBlank(userInput)) {
+    System.out.println("Input is required");
+}
+
+// Email validation
+if (ValidationUtils.isEmail("user@example.com")) {
+    // Process valid email
+}
+
+// Phone validation (China)
+if (ValidationUtils.isChinaMobile("13800138000")) {
+    // Valid China mobile number
+}
+
+// IP validation
+if (ValidationUtils.isIpv4("192.168.1.1")) {
+    // Valid IPv4 address
+}
+
+// ID card validation (China)
+if (ValidationUtils.isChinaIdCard("110101199001011234")) {
+    // Valid ID card number
+}
+
+// Credit card validation
+if (ValidationUtils.isCreditCard("4532015112830366")) {
+    // Valid credit card number (Luhn check passed)
+}
+
+// Range validation
+if (ValidationUtils.lengthBetween(password, 8, 20)) {
+    // Password length is valid
+}
+
+if (ValidationUtils.between(age, 18, 120)) {
+    // Age is within valid range
+}
+
+// Regex validation
+if (ValidationUtils.matches(input, "^[A-Z]{3}\\d{4}$")) {
+    // Matches pattern (e.g., ABC1234)
+}
+
+// Find all matches
+List<String> numbers = ValidationUtils.findAll(text, "\\d+");
+
+// Null-safe utilities
+if (ValidationUtils.equals(str1, str2)) {
+    // Strings are equal (null-safe)
+}
+
+if (ValidationUtils.contains(text, "keyword")) {
+    // Text contains keyword (null-safe)
+}
+```
+
+---
+
 ### Rust - JSON Utilities
 
 Location: `Rust/json_utils/mod.rs`
