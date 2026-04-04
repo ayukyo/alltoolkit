@@ -115,6 +115,136 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### Python - INI Config Utilities
+
+Location: `Python/ini_config_utils/mod.py`
+
+Functions:
+
+**IniConfig Class:**
+- **read_file**: `config.read_file(filepath, encoding)` - 从文件读取INI配置
+- **read_string**: `config.read_string(content)` - 从字符串解析INI配置
+- **write_file**: `config.write_file(filepath, encoding)` - 写入配置文件
+- **write_string**: `config.write_string()` - 生成INI格式字符串
+- **section**: `config.section(name, create)` - 获取或创建节
+- **add_section**: `config.add_section(name, comment)` - 添加新节
+- **remove_section**: `config.remove_section(name)` - 删除节
+- **has_section**: `config.has_section(name)` - 检查节是否存在
+- **sections**: `config.sections()` - 获取所有节名称列表
+- **get**: `config.get(section, key, default, type_func)` - 获取配置值(支持类型转换)
+- **get_int**: `config.get_int(section, key, default)` - 获取整数值
+- **get_float**: `config.get_float(section, key, default)` - 获取浮点数值
+- **get_bool**: `config.get_bool(section, key, default)` - 获取布尔值
+- **get_list**: `config.get_list(section, key, default, separator)` - 获取列表值
+- **set**: `config.set(section, key, value, comment)` - 设置配置值
+- **has**: `config.has(section, key)` - 检查配置是否存在
+- **remove**: `config.remove(section, key)` - 删除配置
+- **to_dict**: `config.to_dict()` - 转换为字典
+- **from_dict**: `config.from_dict(data)` - 从字典加载
+- **copy**: `config.copy()` - 创建深拷贝
+- **clear**: `config.clear()` - 清空所有配置
+- **merge**: `config.merge(other, overwrite)` - 合并另一个配置
+- **validate**: `config.validate(schema)` - 验证配置结构
+
+**IniSection Class:**
+- **get**: `section.get(key, default, type_func)` - 获取键值
+- **get_int**: `section.get_int(key, default)` - 获取整数值
+- **get_float**: `section.get_float(key, default)` - 获取浮点数值
+- **get_bool**: `section.get_bool(key, default)` - 获取布尔值
+- **get_list**: `section.get_list(key, default, separator)` - 获取列表值
+- **set**: `section.set(key, value, comment)` - 设置键值
+- **has**: `section.has(key)` - 检查键是否存在
+- **remove**: `section.remove(key)` - 删除键
+- **keys**: `section.keys()` - 获取所有键名
+- **items**: `section.items()` - 获取所有键值对
+- **clear**: `section.clear()` - 清空节内数据
+- **copy**: `section.copy()` - 创建节的深拷贝
+
+**Convenience Functions:**
+- **read_ini**: `read_ini(filepath, encoding)` - 读取INI文件
+- **write_ini**: `write_ini(config, filepath, encoding)` - 写入INI文件
+- **parse_ini**: `parse_ini(content)` - 解析INI字符串
+- **create_ini**: `create_ini(data)` - 从字典创建配置
+
+**Type Conversion:**
+- 自动类型转换: int, float, bool, list
+- 布尔值支持: true/false, yes/no, 1/0, on/off, enabled/disabled
+- 列表值支持: 自定义分隔符，默认逗号
+
+**Comment Support:**
+- 全局注释(文件开头)
+- 节注释
+- 键注释
+- 注释保留和写入
+
+**Validation:**
+- 结构验证: 检查必需的节和键
+- 返回详细的错误信息列表
+
+**Features:**
+- Zero dependencies, uses only Python standard library
+- Full INI format support with sections and key-value pairs
+- Type-safe access with automatic conversion
+- Default value support for all getter methods
+- Comment preservation during read/write operations
+- Unicode/UTF-8 full support (Chinese, Emoji, etc.)
+- Dictionary conversion for easy data exchange
+- Configuration merging with overwrite control
+- Schema validation for configuration integrity
+- 44 comprehensive unit tests covering all functionality
+- 8 practical usage examples
+- Production-ready for application configuration management
+
+Run tests:
+```bash
+cd Python/ini_config_utils
+python ini_config_utils_test.py
+```
+
+Run example:
+```bash
+cd Python/examples
+python ini_config_utils_example.py
+```
+
+Usage example:
+```python
+from ini_config_utils.mod import IniConfig, read_ini, parse_ini
+
+# Create and configure
+config = IniConfig()
+config.set('database', 'host', 'localhost')
+config.set('database', 'port', 3306)
+config.set('app', 'debug', True)
+
+# Type-safe access
+port = config.get_int('database', 'port')  # 3306
+debug = config.get_bool('app', 'debug')    # True
+
+# Parse from string
+ini_content = """
+[database]
+host = localhost
+port = 5432
+"""
+config = parse_ini(ini_content)
+
+# Read from file
+config = read_ini('config.ini')
+
+# Write to file
+config.write_file('output.ini')
+
+# Configuration validation
+schema = {
+    'database': ['host', 'port', 'username', 'password'],
+    'app': ['name', 'debug']
+}
+errors = config.validate(schema)
+```
+
+---
+
 ### C++ - Cache Utilities
 
 Location: `C++/cache_utils/mod.hpp`
