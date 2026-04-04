@@ -4098,6 +4098,110 @@ MIT License - 免费用于个人和商业项目
 
 ## 📦 Latest Addition
 
+### MATLAB - JSON Utilities
+
+Location: `MATLAB/json_utils/mod.m`
+
+A zero-dependency JSON parser and generator for MATLAB. Supports parsing JSON strings to MATLAB structures/cell arrays, and generating JSON strings from MATLAB data types.
+
+**Parsing Functions:**
+- **parse**: `utils.parse(jsonString)` - Parse JSON string into MATLAB data structure
+- **parseOrNull**: `utils.parseOrNull(jsonString)` - Parse safely, return empty on error
+- **parseFile**: `utils.parseFile(filename)` - Parse JSON from file
+
+**Encoding Functions:**
+- **encode**: `utils.encode(data)` - Encode MATLAB data to compact JSON string
+- **encodePretty**: `utils.encodePretty(data, indent)` - Encode to pretty-printed JSON
+
+**Validation Functions:**
+- **isValid**: `utils.isValid(jsonString)` - Check if string is valid JSON
+- **isValidFile**: `utils.isValidFile(filename)` - Check if file contains valid JSON
+
+**Utility Functions:**
+- **save**: `utils.save(filename, data, pretty)` - Save data to JSON file
+- **get**: `utils.get(data, key, defaultValue)` - Safely get value with default
+- **getPath**: `utils.getPath(data, path, defaultValue)` - Get nested value using dot notation
+- **minify**: `utils.minify(jsonString)` - Remove unnecessary whitespace
+
+**Static Methods:**
+- **quickParse**: `json_utils.mod.quickParse(jsonString)` - Static parse without instance
+- **quickEncode**: `json_utils.mod.quickEncode(data, pretty)` - Static encode without instance
+
+**Features:**
+- Zero dependencies, uses only MATLAB standard library
+- Complete JSON support: null, boolean, number, string, array, object
+- Nested object and array support
+- Unicode escape sequence support (\uXXXX)
+- Type-safe access with default values
+- Pretty printing with customizable indentation
+- File I/O operations
+- Safe parsing with graceful error handling
+- 25 comprehensive unit tests
+- 13 practical usage examples
+- Production-ready for configuration files and data exchange
+
+Run tests:
+```matlab
+cd MATLAB/json_utils
+json_utils_test()
+```
+
+Run example:
+```matlab
+cd MATLAB/examples
+run('json_utils_example.m')
+```
+
+Usage example:
+```matlab
+% Create instance
+utils = json_utils.mod();
+
+% Parse JSON
+jsonStr = '{"name": "John", "age": 30, "city": "New York"}';
+data = utils.parse(jsonStr);
+fprintf('Name: %s, Age: %d\n', data.name, data.age);
+
+% Parse nested JSON
+nested = utils.parse('{\n  "user": {\n    "profile": {\n      "name": "Alice"\n    }\n  }\n}');
+fprintf('User name: %s\n', nested.user.profile.name);
+
+% Encode to JSON
+person = struct('name', 'Bob', 'age', 25);
+json = utils.encode(person);
+% Returns: '{"name":"Bob","age":25}'
+
+% Pretty print
+pretty = utils.encodePretty(person);
+% Returns formatted JSON with indentation
+
+% Safe access with defaults
+config = utils.parse('{"host": "localhost"}');
+host = utils.get(config, 'host', '127.0.0.1');     % "localhost"
+port = utils.get(config, 'port', 8080);            % 8080 (default)
+
+% Nested path access
+data = utils.parse('{"db": {"conn": {"host": "db.example.com"}}}');
+host = utils.getPath(data, 'db.conn.host', 'localhost');
+
+% Validation
+isValid = utils.isValid('{"valid": true}');        % true
+isValid = utils.isValid('not json');               % false
+
+% Safe parsing
+data = utils.parseOrNull('invalid');               % Returns []
+data = utils.parseOrNull('{"valid": true}');       % Returns struct
+
+% Minify JSON
+compact = utils.minify('{ "a": 1, \n  "b": 2 }');  % '{"a":1,"b":2}'
+
+% Static methods (no instance needed)
+data = json_utils.mod.quickParse('{"x": 1}');
+json = json_utils.mod.quickEncode(struct('y', 2), true);
+```
+
+---
+
 ### Ruby - Template Engine Utilities
 
 Location: `Ruby/template_utils/mod.rb`
