@@ -4096,6 +4096,126 @@ MIT License - 免费用于个人和商业项目
 
 ---
 
+## 📦 Latest Addition
+
+### Ruby - Template Engine Utilities
+
+Location: `Ruby/template_utils/mod.rb`
+
+A lightweight, zero-dependency template engine with variable interpolation, conditionals, loops, and filters.
+
+**Core Classes:**
+- **Context**: Template rendering context with data storage and partial template support
+  - `get(key)` - Get value from context
+  - `has?(key)` - Check if key exists
+  - `nest(local_data)` - Create nested context for loops
+  - `partial(name)` - Get partial template
+
+- **Template**: Main template parser and renderer
+  - `render(context)` - Render template with given context
+  - Supports variable interpolation, conditionals, loops, includes
+
+- **Filters**: Built-in text and data filters
+  - String: `upcase`, `downcase`, `capitalize`, `titleize`, `strip`, `reverse`
+  - HTML: `escape_html`, `strip_html`
+  - Array: `join`, `split`, `first`, `last`, `size`, `reverse`
+  - Number: `round`, `number_with_delimiter`
+  - Utility: `truncate`, `default`, `replace`, `url_encode`
+
+**Template Syntax:**
+- Variable interpolation: `{{ variable }}`
+- Filters: `{{ variable | upcase }}`, `{{ var | default: "N/A" }}`
+- Conditionals: `{% if condition %} ... {% else %} ... {% endif %}`
+- Loops: `{% for item in items %} ... {% endfor %}`
+- Includes: `{% include "partial_name" %}`
+- Comments: `{# This is a comment #}`
+
+**Condition Operators:**
+- Equality: `==`, `!=`
+- Comparison: `>`, `<`, `>=`, `<=`
+- Negation: `not condition`
+- Truthy: `{% if variable %}` (checks for non-nil, non-empty)
+
+**Module Functions:**
+- **render**: `TemplateUtils.render(template, context, partials)` - Render template string
+- **template**: `TemplateUtils.template(source)` - Create Template object
+- **register_filter**: `TemplateUtils.register_filter(name) { |value, *args| ... }` - Add custom filter
+- **valid?**: `TemplateUtils.valid?(template)` - Check if template is valid
+
+**Convenience Method:**
+- `render_template(template, context, partials)` - Top-level shortcut
+
+**Features:**
+- Zero dependencies, uses only Ruby standard library
+- Full Unicode support
+- Nested object access: `{{ user.name }}`
+- Custom filter registration
+- Partial template support for reusable components
+- Comprehensive error handling with custom exception classes
+- 25+ built-in filters for common transformations
+- 8 comprehensive test categories with 40+ test cases
+- 10 practical usage examples including email templates
+- Production-ready for dynamic content generation
+
+Run tests:
+```bash
+cd Ruby/template_utils
+ruby template_utils_test.rb
+```
+
+Run example:
+```bash
+cd Ruby/examples
+ruby template_utils_example.rb
+```
+
+Usage example:
+```ruby
+require_relative 'Ruby/template_utils/mod'
+
+# Basic variable interpolation
+template = "Hello, {{ name | upcase }}!"
+result = AllToolkit::TemplateUtils.render(template, { name: "world" })
+# => "Hello, WORLD!"
+
+# Conditionals
+template = <<~TMPL
+  {% if user %}
+    Hello, {{ user }}!
+  {% else %}
+    Welcome, guest!
+  {% endif %}
+TMPL
+result = AllToolkit::TemplateUtils.render(template, { user: "Alice" })
+
+# Loops
+template = "{% for item in items %}{{ item }}{% endfor %}"
+result = AllToolkit::TemplateUtils.render(template, { items: ["a", "b", "c"] })
+# => "abc"
+
+# Filters
+template = "{{ price | round: 2 }} - {{ items | join: ', ' }}"
+result = AllToolkit::TemplateUtils.render(template, { 
+  price: 19.999, 
+  items: ["red", "green", "blue"] 
+})
+# => "20.0 - red, green, blue"
+
+# Partials
+partials = { "header" => "<h1>{{ title }}</h1>" }
+template = "{% include 'header' %}<p>Content</p>"
+result = AllToolkit::TemplateUtils.render(template, { title: "Page" }, partials)
+# => "<h1>Page</h1><p>Content</p>"
+
+# Custom filters
+AllToolkit::TemplateUtils.register_filter(:double) { |v| v.to_f * 2 }
+template = "{{ num | double }}"
+result = AllToolkit::TemplateUtils.render(template, { num: 21 })
+# => "42.0"
+```
+
+---
+
 ## 🧪 最新测试更新 (2025-04-05)
 
 ### Go - INI Utilities 测试套件
