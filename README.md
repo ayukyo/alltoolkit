@@ -115,6 +115,141 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### Go - XML Utilities
+
+Location: `Go/xml_utils/mod.go`
+
+Functions:
+
+**Parsing:**
+- **ParseString**: `ParseString(xmlString)` - Parse XML from string
+- **ParseFile**: `ParseFile(filename)` - Parse XML from file
+- **ParseReader**: `ParseReader(reader)` - Parse XML from io.Reader
+
+**Document Creation:**
+- **NewDocument**: `NewDocument(rootName)` - Create new XML document
+- **SetVersion**: `SetVersion(version)` - Set XML version declaration
+- **SetEncoding**: `SetEncoding(encoding)` - Set XML encoding declaration
+
+**Navigation:**
+- **Find**: `Find(path)` - Find first element by path (e.g., "root/item/subitem")
+- **FindAll**: `FindAll(tagName)` - Find all elements with given tag name
+- **FindByAttr**: `FindByAttr(tagName, attrName, attrValue)` - Find element by attribute value
+- **Root**: `Root()` - Get root element
+
+**Node Operations:**
+- **GetTagName**: `GetTagName()` - Get element tag name
+- **SetTagName**: `SetTagName(name)` - Set element tag name
+- **Text**: `Text()` - Get text content
+- **SetText**: `SetText(text)` - Set text content
+- **GetAttr**: `GetAttr(name)` - Get attribute value
+- **SetAttr**: `SetAttr(name, value)` - Set attribute value
+- **HasAttr**: `HasAttr(name)` - Check if attribute exists
+- **RemoveAttr**: `RemoveAttr(name)` - Remove attribute
+- **Attrs**: `Attrs()` - Get all attributes as map
+- **CreateElement**: `CreateElement(tagName)` - Create child element
+- **AddChild**: `AddChild(child)` - Add child node
+- **RemoveChild**: `RemoveChild(child)` - Remove child node
+- **GetChildren**: `GetChildren()` - Get all child nodes
+- **ChildCount**: `ChildCount()` - Get number of children
+- **GetParent**: `GetParent()` - Get parent node
+
+**Typed Attribute Access:**
+- **GetIntAttr**: `GetIntAttr(name, defaultValue)` - Get attribute as int
+- **GetFloatAttr**: `GetFloatAttr(name, defaultValue)` - Get attribute as float64
+- **GetBoolAttr**: `GetBoolAttr(name, defaultValue)` - Get attribute as bool
+
+**Serialization:**
+- **ToXML**: `ToXML()` - Convert to compact XML string
+- **ToPrettyXML**: `ToPrettyXML(indent...)` - Convert to pretty-printed XML
+- **SaveToFile**: `SaveToFile(filename, pretty)` - Save to file
+
+**Utility:**
+- **IsValidXML**: `IsValidXML(xmlString)` - Check if string is valid XML
+- **StripXML**: `StripXML(xmlString)` - Remove XML tags, return plain text
+- **ToMap**: `ToMap()` - Convert to nested map structure
+- **GetTextByTag**: `GetTextByTag(tagName)` - Get text of first element by tag
+- **GetAttrByTag**: `GetAttrByTag(tagName, attrName)` - Get attribute of first element by tag
+
+**Features:**
+- Zero dependencies, uses only Go standard library (encoding/xml)
+- Full XML parsing with encoding/xml support
+- XPath-like navigation with slash-separated paths
+- Create and modify XML documents programmatically
+- Pretty print and compact output formats
+- Type-safe attribute access with defaults
+- XML validation and text extraction
+- Conversion to/from map structures
+- Complete test suite with 10+ test cases
+- 10 practical usage examples
+- Production-ready for configuration files and data exchange
+
+Compile and run tests:
+```bash
+cd Go/xml_utils
+go test -v
+```
+
+Run example:
+```bash
+cd Go/examples
+go run xml_utils_example.go
+```
+
+Usage example:
+```go
+import "github.com/ayukyo/alltoolkit/Go/xml_utils"
+
+// Parse XML
+doc, err := xml_utils.ParseString(`
+<configuration>
+    <database>
+        <host>localhost</host>
+        <port>5432</port>
+    </database>
+</configuration>
+`)
+
+// Navigate
+host := doc.Find("configuration/database/host")
+fmt.Println(host.Text()) // "localhost"
+
+// Find all
+items := doc.FindAll("item")
+for _, item := range items {
+    fmt.Println(item.Text())
+}
+
+// Find by attribute
+node := doc.FindByAttr("item", "id", "2")
+
+// Create XML
+doc = xml_utils.NewDocument("root")
+child := doc.Root().CreateElement("child")
+child.SetAttr("id", "1")
+child.SetText("Hello World")
+
+// Output
+fmt.Println(doc.ToPrettyXML())
+// <?xml version="1.0" encoding="UTF-8"?>
+// <root>
+//   <child id="1">Hello World</child>
+// </root>
+
+// Typed attributes
+count := node.GetIntAttr("count", 0)
+price := node.GetFloatAttr("price", 0.0)
+enabled := node.GetBoolAttr("enabled", false)
+
+// Validation
+isValid := xml_utils.IsValidXML(xmlString)
+
+// Strip tags
+plainText := xml_utils.StripXML(xmlString)
+```
+
+---
+
 ### Java - Validation Utilities
 
 Location: `Java/validation_utils/mod.java`
