@@ -443,16 +443,47 @@
     };
 
     StringUtils.randomPassword = function(length) {
-        length = length || 16;
-        let result = '';
-        result += LOWERCASE.charAt(Math.floor(Math.random() * LOWERCASE.length));
-        result += UPPERCASE.charAt(Math.floor(Math.random() * UPPERCASE.length));
-        result += DIGITS.charAt(Math.floor(Math.random() * DIGITS.length));
-        result += SPECIAL_CHARS.charAt(Math.floor(Math.random() * SPECIAL_CHARS.length));
-        for (let i = 4; i < length; i++) {
-            result += ALL_CHARS.charAt(Math.floor(Math.random() * ALL_CHARS.length));
+        // Constants for password generation
+        const MIN_LENGTH = 4;
+        const DEFAULT_LENGTH = 16;
+        
+        // Validate and normalize length with bounds checking
+        if (typeof length !== 'number' || isNaN(length)) {
+            length = DEFAULT_LENGTH;
+        } else {
+            length = Math.floor(length);
         }
-        return result.split('').sort(function() { return 0.5 - Math.random(); }).join('');
+        
+        // Ensure minimum length to accommodate required character types
+        if (length < MIN_LENGTH) {
+            length = MIN_LENGTH;
+        }
+        
+        // Build password with guaranteed character diversity
+        const required = [
+            LOWERCASE.charAt(Math.floor(Math.random() * LOWERCASE.length)),
+            UPPERCASE.charAt(Math.floor(Math.random() * UPPERCASE.length)),
+            DIGITS.charAt(Math.floor(Math.random() * DIGITS.length)),
+            SPECIAL_CHARS.charAt(Math.floor(Math.random() * SPECIAL_CHARS.length))
+        ];
+        
+        // Fill remaining length with random characters from all sets
+        const remaining = length - MIN_LENGTH;
+        const allCharsLen = ALL_CHARS.length;
+        for (let i = 0; i < remaining; i++) {
+            required.push(ALL_CHARS.charAt(Math.floor(Math.random() * allCharsLen)));
+        }
+        
+        // Fisher-Yates shuffle for unbiased randomization
+        // More reliable than sort-based shuffle for cryptographic purposes
+        for (let i = required.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            const temp = required[i];
+            required[i] = required[j];
+            required[j] = temp;
+        }
+        
+        return required.join('');
     };
 
     // URL Encoding

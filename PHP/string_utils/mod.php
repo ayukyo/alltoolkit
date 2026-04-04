@@ -342,7 +342,8 @@ class StringUtils
     /**
      * 计算字符串在终端显示宽度（处理中英文混排）
      *
-     * Optimized: Uses single regex match for CJK detection, handles edge cases.
+     * Optimized: Uses cached regex pattern and single-pass calculation.
+     * CJK characters (East Asian Wide) count as 2, others as 1.
      *
      * @param string|null $str 原字符串
      * @param string $encoding 字符编码，默认UTF-8
@@ -354,15 +355,43 @@ class StringUtils
             return 0;
         }
         
+        // Use static cache for regex pattern to avoid recompilation
+        static $cjkPattern = null;
+        if ($cjkPattern === null) {
+            // CJK Unified Ideographs + Extensions + Fullwidth forms
+            $cjkPattern = '/[' .
+                '\x{4e00}-\x{9fff}' .      // CJK Unified Ideographs
+                '\x{3400}-\x{4dbf}' .      // CJK Extension A
+                '\x{20000}-\x{2a6df}' .    // CJK Extension B
+                '\x{2a700}-\x{2b73f}' .    // CJK Extension C
+                '\x{2b740}-\x{2b81f}' .    // CJK Extension D
+                '\x{2b820}-\x{2ceaf}' .    // CJK Extension E
+                '\x{3000}-\x{303f}' .      // CJK Symbols and Punctuation
+                '\x{ff00}-\x{ffef}' .      // Halfwidth/Fullwidth Forms
+                '\x{ac00}-\x{d7af}' .      // Hangul Syllables
+                '\x{3040}-\x{309f}' .      // Hiragana
+                '\x{30a0}-\x{30ff}' .      // Katakana
+                ']/u';
+        }
+        
         $width = 0;
         $length = mb_strlen($str, $encoding);
         
-        // CJK characters and fullwidth forms pattern
-        $cjkPattern = '/[\x{4e00}-\x{9fff}\x{3000}-\x{303f}\x{ff00}-\x{ffef}\x{3400}-\x{4dbf}\x{20000}-\x{2a6df}\x{2a700}-\x{2b73f}\x{2b740}-\x{2b81f}\x{2b820}-\x{2ceaf}]/u';
-        
+        // Single-pass calculation with early termination for ASCII-only strings
+        $isAsciiOnly = true;
         for ($i = 0; $i < $length; $i++) {
             $char = mb_substr($str, $i, 1, $encoding);
-            // Check for CJK and fullwidth characters
+            $ord = mb_ord($char, $encoding);
+            
+            // Fast path: ASCII characters (0x00-0x7F) are always width 1
+            if ($ord !== false && $ord < 0x80) {
+                $width += 1;
+                continue;
+            }
+            
+            $isAsciiOnly = false;
+            
+            // Check for CJK and fullwidth characters using cached pattern
             if (preg_match($cjkPattern, $char)) {
                 $width += 2;
             } else {

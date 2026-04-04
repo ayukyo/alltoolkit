@@ -26,45 +26,55 @@ import "unicode/utf8"
 //     Truncate("", 10)               // Returns ""
 //
 // Performance: O(n) where n is the number of runes to scan.
-// Memory: Allocates new string only when truncation occurs.
+// Memory: Pre-allocates buffer for optimal performance.
 func Truncate(s string, maxLen int) string {
-	// Handle edge cases
+	// Handle edge cases with early returns
 	if s == "" {
 		return ""
 	}
 
-	// If maxLen is too small, return just ellipsis
-	if maxLen < 3 {
+	// Validate maxLen with bounds checking
+	const ellipsisLen = 3
+	if maxLen < ellipsisLen {
 		return "..."
 	}
 
-	// If string fits within limit, return as-is
-	if utf8.RuneCountInString(s) <= maxLen {
-		return s
+	// Fast path: check byte length first (ASCII optimization)
+	if len(s) <= maxLen {
+		// Additional check for rune count to handle multi-byte chars
+		if utf8.RuneCountInString(s) <= maxLen {
+			return s
+		}
 	}
 
 	// Calculate target length (reserve space for ellipsis)
-	targetLen := maxLen - 3
-	if targetLen < 0 {
-		targetLen = 0
+	targetLen := maxLen - ellipsisLen
+	if targetLen <= 0 {
+		return "..."
 	}
 
-	// Build result, respecting UTF-8 boundaries
-	var result []byte
+	// Pre-allocate result buffer for better memory efficiency
+	// Worst case: targetLen bytes + 3 for ellipsis
+	result := make([]byte, 0, targetLen+ellipsisLen)
 	count := 0
+	
+	// Iterate with index to respect UTF-8 boundaries
 	for i := 0; i < len(s); {
 		r, size := utf8.DecodeRuneInString(s[i:])
+		
+		// Handle invalid UTF-8 gracefully
 		if r == utf8.RuneError && size == 1 {
-			// Invalid UTF-8, skip byte
 			i++
 			continue
 		}
-
+		
+		// Check if we've reached the target length
 		if count >= targetLen {
 			break
 		}
-
-		result = append(result, s[i:i+size])
+		
+		// Append valid rune bytes to result
+		result = append(result, s[i:i+size]...)
 		count++
 		i += size
 	}
@@ -86,20 +96,27 @@ func Truncate(s string, maxLen int) string {
 //
 //     TruncateSafe("Hello World", 8)  // Returns "Hel..." (fits in 8 bytes)
 func TruncateSafe(s string, maxLen int) string {
+	// Handle edge cases with early returns
 	if s == "" {
 		return ""
 	}
 
-	if maxLen < 3 {
+	// Validate maxLen with bounds checking
+	const ellipsisLen = 3
+	if maxLen < ellipsisLen {
 		return "..."
 	}
 
+	// Fast path: if string already fits, return as-is
 	if len(s) <= maxLen {
 		return s
 	}
 
 	// Reserve space for ellipsis
-	targetLen := maxLen - 3
+	targetLen := maxLen - ellipsisLen
+	if targetLen <= 0 {
+		return "..."
+	}
 
 	// Walk backwards to find valid UTF-8 boundary
 	for i := targetLen; i > 0; i-- {

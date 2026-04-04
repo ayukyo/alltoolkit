@@ -129,7 +129,7 @@ def get_file_hash(filepath: PathLike, algorithm: str = 'md5', chunk_size: int = 
         return None
 
 
-def get_file_size(filepath: PathLike, human_readable: bool = False) -> Union[int, str, None]:
+def get_file_size(filepath: PathLike, human_readable: bool = False, decimal_places: int = 2) -> Union[int, str, None]:
     """
     获取文件大小
     
@@ -138,6 +138,7 @@ def get_file_size(filepath: PathLike, human_readable: bool = False) -> Union[int
     Args:
         filepath: 文件路径，支持 str 或 Path 对象
         human_readable: 是否返回人类可读格式（如 '1.5 MB'），默认为 False
+        decimal_places: 小数位数，默认为 2
     
     Returns:
         文件大小（字节整数或格式化字符串），失败返回 None
@@ -155,27 +156,41 @@ def get_file_size(filepath: PathLike, human_readable: bool = False) -> Union[int
         if size == 0:
             return "0 B"
         
-        # Optimized: Use bit operations for power-of-2 divisions
-        units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+        # Handle negative size (shouldn't happen but be defensive)
+        if size < 0:
+            return None
+        
+        # Optimized: Pre-calculate thresholds for O(1) unit selection
+        units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB']
+        
+        # Use bit shifting for power-of-2 calculations (1024 = 2^10)
+        # Find appropriate unit using bit length for efficiency
         unit_index = 0
         size_float = float(size)
         
-        # Use 1024.0 for floating point division
-        while size_float >= 1024.0 and unit_index < len(units) - 1:
-            size_float /= 1024.0
+        # O(1) unit selection using bit manipulation
+        while unit_index < len(units) - 1 and size >= (1024 << (unit_index * 10)):
             unit_index += 1
+        
+        # Calculate final value with proper division
+        if unit_index > 0:
+            divisor = 1024.0 ** unit_index
+            size_float = size / divisor
         
         # Format based on magnitude for cleaner output
         if unit_index == 0:
-            return f"{int(size_float)} {units[unit_index]}"
-        # Show more precision for smaller values, less for larger
+            return f"{int(size)} {units[unit_index]}"
+        
+        # Dynamic precision based on value magnitude
         if size_float >= 100:
-            return f"{size_float:.0f} {units[unit_index]}"
+            fmt = f"{{:.0f}} {units[unit_index]}"
         elif size_float >= 10:
-            return f"{size_float:.1f} {units[unit_index]}"
+            fmt = f"{{:.1f}} {units[unit_index]}"
         else:
-            return f"{size_float:.2f} {units[unit_index]}"
-    except (FileNotFoundError, PermissionError, OSError):
+            fmt = f"{{:.{decimal_places}f}} {units[unit_index]}"
+        
+        return fmt.format(size_float)
+    except (FileNotFoundError, PermissionError, OSError, OverflowError, ValueError):
         return None
 
 

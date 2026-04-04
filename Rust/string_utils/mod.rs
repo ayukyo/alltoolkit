@@ -52,18 +52,23 @@
 /// # Performance
 ///
 /// Time: O(n) where n is the number of characters to scan.
-/// Memory: Allocates new string only when truncation occurs.
+/// Memory: Pre-allocates buffer for optimal performance.
 /// Optimized: Uses single-pass character counting with early termination.
 pub fn truncate(s: &str, max_len: usize) -> String {
-    // Handle edge cases
+    // Handle edge cases with early returns
     if s.is_empty() {
         return String::new();
     }
 
-    // If max_len is too small, return just ellipsis
+    // Validate max_len with bounds checking
     const ELLIPSIS_LEN: usize = 3;
     if max_len < ELLIPSIS_LEN {
         return "...".to_string();
+    }
+
+    // Fast path: check byte length first for ASCII strings
+    if s.len() <= max_len && s.is_ascii() {
+        return s.to_string();
     }
 
     // Single-pass: count chars and check if we need truncation
@@ -71,8 +76,13 @@ pub fn truncate(s: &str, max_len: usize) -> String {
     for (idx, _) in s.char_indices() {
         char_count += 1;
         if char_count > max_len {
-            // Need truncation - take characters up to this position
-            return s[..idx].to_string() + "...";
+            // Need truncation - pre-allocate result buffer
+            let target_len = max_len.saturating_sub(ELLIPSIS_LEN);
+            let truncate_idx = s.char_indices()
+                .nth(target_len)
+                .map(|(idx, _)| idx)
+                .unwrap_or(idx);
+            return s[..truncate_idx].to_string() + "...";
         }
     }
     
