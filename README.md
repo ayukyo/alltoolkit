@@ -6627,6 +6627,151 @@ func main() {
 
 ## 📦 Latest Addition
 
+### SQL - Math Utilities
+
+Location: `SQL/math_utils/mod.sql`
+
+A comprehensive mathematical utility module for SQL providing common mathematical functions, statistical calculations, and numeric operations. Zero dependencies, uses only standard SQL.
+
+**Basic Mathematical Functions:**
+- **math_abs**: `math_abs(val)` - Calculate absolute value
+- **math_sign**: `math_sign(val)` - Calculate sign of a number (-1, 0, or 1)
+- **math_min**: `math_min(a, b)` - Calculate minimum of two values
+- **math_max**: `math_max(a, b)` - Calculate maximum of two values
+- **math_clamp**: `math_clamp(val, min_val, max_val)` - Clamp value between min and max
+
+**Rounding Functions:**
+- **math_round**: `math_round(val)` - Round to nearest integer
+- **math_round_to**: `math_round_to(val, places)` - Round to specific decimal places
+- **math_floor**: `math_floor(val)` - Floor (round down)
+- **math_ceil**: `math_ceil(val)` - Ceiling (round up)
+
+**Power and Root Functions:**
+- **math_pow**: `math_pow(base, exponent)` - Calculate power
+- **math_sqrt**: `math_sqrt(val)` - Calculate square root
+- **math_cbrt**: `math_cbrt(val)` - Calculate cube root
+- **math_nth_root**: `math_nth_root(val, n)` - Calculate nth root
+
+**Trigonometric Functions:**
+- **math_degrees_to_radians**: `math_degrees_to_radians(degrees)` - Convert degrees to radians
+- **math_radians_to_degrees**: `math_radians_to_degrees(radians)` - Convert radians to degrees
+- **math_sin_deg**: `math_sin_deg(degrees)` - Sine of angle in degrees
+- **math_cos_deg**: `math_cos_deg(degrees)` - Cosine of angle in degrees
+- **math_tan_deg**: `math_tan_deg(degrees)` - Tangent of angle in degrees
+
+**Logarithmic Functions:**
+- **math_ln**: `math_ln(val)` - Natural logarithm (base e)
+- **math_log10**: `math_log10(val)` - Logarithm base 10
+- **math_log**: `math_log(val, base)` - Logarithm with custom base
+
+**Percentage and Ratio Functions:**
+- **math_percentage**: `math_percentage(part, whole)` - Calculate percentage
+- **math_pct_change**: `math_pct_change(old_val, new_val)` - Calculate percentage change
+- **math_pct_of**: `math_pct_of(val, total)` - Calculate what percentage a value is of another
+
+**Number Theory Functions:**
+- **math_gcd**: `math_gcd(a, b)` - Calculate GCD using Euclidean algorithm
+- **math_lcm**: `math_lcm(a, b)` - Calculate LCM
+
+**Random Number Functions:**
+- **math_random_int**: `math_random_int(min_val, max_val)` - Generate random integer
+- **math_random**: `math_random()` - Generate random decimal between 0 and 1
+
+**Validation Functions:**
+- **math_is_even**: `math_is_even(n)` - Check if number is even
+- **math_is_odd**: `math_is_odd(n)` - Check if number is odd
+- **math_is_prime**: `math_is_prime(n)` - Check if number is prime
+- **math_is_perfect_square**: `math_is_perfect_square(n)` - Check if number is perfect square
+
+**Distance Functions:**
+- **math_distance_2d**: `math_distance_2d(x1, y1, x2, y2)` - Euclidean distance in 2D
+- **math_manhattan_distance**: `math_manhattan_distance(x1, y1, x2, y2)` - Manhattan distance
+
+**Statistical Functions:**
+- **math_mean**: `math_mean(a, b)` - Calculate mean of two values
+- **math_mean3**: `math_mean3(a, b, c)` - Calculate mean of three values
+- **math_std_dev**: `math_std_dev(a, b)` - Calculate standard deviation
+
+**Interpolation Functions:**
+- **math_lerp**: `math_lerp(a, b, t)` - Linear interpolation between two values
+- **math_map**: `math_map(val, in_min, in_max, out_min, out_max)` - Map value from one range to another
+
+**Constants:**
+- **math_pi**: `math_pi()` - Get PI value (3.14159...)
+- **math_e**: `math_e()` - Get E value (2.71828...)
+
+**Features:**
+- Zero dependencies, uses only standard SQL
+- 40+ mathematical functions
+- Compatible with MySQL/MariaDB
+- Deterministic functions for consistent results
+- Complete test suite with 50+ test cases
+- 14 practical usage examples
+- Production-ready for data analysis and calculations
+
+Run tests:
+```bash
+mysql -u username -p database < SQL/math_utils/math_utils_test.sql
+```
+
+Run example:
+```bash
+mysql -u username -p database < SQL/examples/math_utils_example.sql
+```
+
+Usage example:
+```sql
+-- Basic operations
+SELECT math_abs(-42);           -- Returns: 42
+SELECT math_min(5, 3);          -- Returns: 3
+SELECT math_clamp(15, 0, 10);   -- Returns: 10
+
+-- Rounding
+SELECT math_round(3.7);         -- Returns: 4
+SELECT math_round_to(3.14159, 2); -- Returns: 3.14
+
+-- Power and roots
+SELECT math_pow(2, 10);         -- Returns: 1024
+SELECT math_sqrt(144);          -- Returns: 12
+SELECT math_cbrt(27);           -- Returns: 3
+
+-- Trigonometry
+SELECT math_sin_deg(30);        -- Returns: 0.5
+SELECT math_cos_deg(60);        -- Returns: 0.5
+SELECT math_tan_deg(45);        -- Returns: 1
+
+-- Percentages
+SELECT math_percentage(25, 100); -- Returns: 25
+SELECT math_pct_change(100, 125); -- Returns: 25
+
+-- Number theory
+SELECT math_gcd(48, 18);        -- Returns: 6
+SELECT math_lcm(4, 6);          -- Returns: 12
+SELECT math_is_prime(7);        -- Returns: 1 (true)
+
+-- Distance
+SELECT math_distance_2d(0, 0, 3, 4); -- Returns: 5
+
+-- Interpolation
+SELECT math_lerp(0, 100, 0.5);  -- Returns: 50
+SELECT math_map(5, 0, 10, 0, 100); -- Returns: 50
+
+-- Constants
+SELECT math_pi();               -- Returns: 3.14159...
+SELECT math_e();                -- Returns: 2.71828...
+
+-- Use in queries
+SELECT 
+    product_name,
+    price,
+    math_round_to(price * 0.85, 2) AS discounted_price
+FROM products;
+```
+
+---
+
+## 📦 Latest Addition
+
 ### Python - QR Code Utilities
 
 Location: `Python/qr_code_utils/mod.py`
