@@ -4098,6 +4098,163 @@ MIT License - 免费用于个人和商业项目
 
 ## 📦 Latest Addition
 
+### Python - DateTime Utilities
+
+Location: `Python/datetime_utils/mod.py`
+
+A comprehensive date and time utility module for Python providing formatting, parsing, arithmetic, and various date/time operations with zero dependencies.
+
+**Core Functions:**
+
+**Current Time:**
+- **now**: `DateTimeUtils.now()` - Get current local datetime
+- **now_utc**: `DateTimeUtils.now_utc()` - Get current UTC datetime
+- **today**: `DateTimeUtils.today()` - Get today at 00:00:00
+- **timestamp**: `DateTimeUtils.timestamp()` - Get current timestamp (seconds)
+- **timestamp_ms**: `DateTimeUtils.timestamp_ms()` - Get current timestamp (milliseconds)
+
+**Timestamp Conversion:**
+- **timestamp_to_datetime**: `DateTimeUtils.timestamp_to_datetime(ts, unit='s')` - Convert timestamp to datetime
+- **datetime_to_timestamp**: `DateTimeUtils.datetime_to_timestamp(dt, unit='s')` - Convert datetime to timestamp
+
+**Formatting & Parsing:**
+- **format**: `DateTimeUtils.format(dt, fmt)` - Format datetime to string
+- **parse**: `DateTimeUtils.parse(date_string, fmt)` - Parse string to datetime
+- **parse_auto**: `DateTimeUtils.parse_auto(date_string)` - Auto-detect format and parse
+- **to_iso8601**: `DateTimeUtils.to_iso8601(dt)` - Convert to ISO 8601 format
+- **from_iso8601**: `DateTimeUtils.from_iso8601(iso_string)` - Parse ISO 8601 string
+
+**Time Arithmetic:**
+- **add_days**: `DateTimeUtils.add_days(dt, days)` - Add/subtract days
+- **add_hours**: `DateTimeUtils.add_hours(dt, hours)` - Add/subtract hours
+- **add_minutes**: `DateTimeUtils.add_minutes(dt, minutes)` - Add/subtract minutes
+- **add_seconds**: `DateTimeUtils.add_seconds(dt, seconds)` - Add/subtract seconds
+- **add_months**: `DateTimeUtils.add_months(dt, months)` - Add/subtract months
+- **add_years**: `DateTimeUtils.add_years(dt, years)` - Add/subtract years
+
+**Time Difference:**
+- **days_between**: `DateTimeUtils.days_between(start, end)` - Calculate days difference
+- **hours_between**: `DateTimeUtils.hours_between(start, end)` - Calculate hours difference
+- **minutes_between**: `DateTimeUtils.minutes_between(start, end)` - Calculate minutes difference
+- **seconds_between**: `DateTimeUtils.seconds_between(start, end)` - Calculate seconds difference
+
+**Date Checks:**
+- **is_today**: `DateTimeUtils.is_today(dt)` - Check if date is today
+- **is_yesterday**: `DateTimeUtils.is_yesterday(dt)` - Check if date is yesterday
+- **is_tomorrow**: `DateTimeUtils.is_tomorrow(dt)` - Check if date is tomorrow
+- **is_this_week**: `DateTimeUtils.is_this_week(dt)` - Check if date is this week
+- **is_this_month**: `DateTimeUtils.is_this_month(dt)` - Check if date is this month
+- **is_this_year**: `DateTimeUtils.is_this_year(dt)` - Check if date is this year
+- **is_weekend**: `DateTimeUtils.is_weekend(dt)` - Check if date is weekend
+- **is_weekday**: `DateTimeUtils.is_weekday(dt)` - Check if date is weekday
+- **is_leap_year**: `DateTimeUtils.is_leap_year(year)` - Check if year is leap year
+
+**Period Boundaries:**
+- **start_of_day**: `DateTimeUtils.start_of_day(dt)` - Get start of day (00:00:00)
+- **end_of_day**: `DateTimeUtils.end_of_day(dt)` - Get end of day (23:59:59)
+- **start_of_week**: `DateTimeUtils.start_of_week(dt)` - Get start of week (Monday)
+- **end_of_week**: `DateTimeUtils.end_of_week(dt)` - Get end of week (Sunday)
+- **start_of_month**: `DateTimeUtils.start_of_month(dt)` - Get start of month
+- **end_of_month**: `DateTimeUtils.end_of_month(dt)` - Get end of month
+- **start_of_year**: `DateTimeUtils.start_of_year(dt)` - Get start of year
+- **end_of_year**: `DateTimeUtils.end_of_year(dt)` - Get end of year
+
+**Utility Functions:**
+- **get_age**: `DateTimeUtils.get_age(birth_date, today)` - Calculate age
+- **get_weekday_name**: `DateTimeUtils.get_weekday_name(dt, locale='en')` - Get weekday name (en/cn/short)
+- **get_month_name**: `DateTimeUtils.get_month_name(month, locale='en')` - Get month name (en/cn/short)
+- **days_in_month**: `DateTimeUtils.days_in_month(year, month)` - Get days in month
+- **relative_time**: `DateTimeUtils.relative_time(dt, now)` - Get relative time description (e.g., "5 minutes ago")
+- **format_duration**: `DateTimeUtils.format_duration(seconds)` - Format duration to readable string
+- **countdown**: `DateTimeUtils.countdown(target, now)` - Calculate countdown to target time
+- **generate_date_range**: `DateTimeUtils.generate_date_range(start, end, step_days)` - Generate date range list
+
+**Convenience Functions:**
+- **now**: `now()` - Get current datetime
+- **format_datetime**: `format_datetime(dt, fmt)` - Format datetime
+- **parse_datetime**: `parse_datetime(date_string, fmt)` - Parse datetime
+- **days_between**: `days_between(start, end)` - Calculate days difference
+- **is_leap_year**: `is_leap_year(year)` - Check leap year
+- **get_age**: `get_age(birth_date)` - Calculate age
+- **relative_time**: `relative_time(dt)` - Get relative time
+
+**Features:**
+- Zero dependencies, uses only Python standard library (datetime, time, calendar)
+- Support for multiple date/time formats (ISO 8601, Chinese, US, compact, etc.)
+- Automatic format detection for parsing
+- Complete time arithmetic (days, hours, minutes, seconds, months, years)
+- Smart month/year boundary handling (e.g., Jan 31 + 1 month = Feb 28/29)
+- Relative time descriptions in Chinese (刚刚, 5分钟前, 昨天, etc.)
+- Period boundary calculations (day, week, month, year)
+- Age calculation with birthday handling
+- Countdown functionality
+- Date range generation
+- 50+ comprehensive unit tests
+- 16 practical usage examples
+- Production-ready for scheduling, logging, and data processing tasks
+
+Run tests:
+```bash
+cd Python/datetime_utils
+python datetime_utils_test.py
+```
+
+Run example:
+```bash
+cd Python/examples
+python datetime_utils_example.py
+```
+
+Usage example:
+```python
+from datetime_utils.mod import DateTimeUtils, now, format_datetime, relative_time
+
+# Get current time
+current = DateTimeUtils.now()
+print(DateTimeUtils.format(current))  # "2024-03-15 10:30:00"
+
+# Parse and format
+dt = DateTimeUtils.parse("2024-03-15 10:30:00")
+print(DateTimeUtils.format(dt, DateTimeUtils.FORMAT_CHINESE))  # "2024年03月15日 10时30分00秒"
+
+# Auto-parse multiple formats
+result = DateTimeUtils.parse_auto("2024-03-15")  # Works!
+result = DateTimeUtils.parse_auto("2024/03/15 10:30:00")  # Works!
+
+# Time arithmetic
+future = DateTimeUtils.add_days(dt, 5)
+future = DateTimeUtils.add_months(dt, 2)
+
+# Date checks
+if DateTimeUtils.is_today(dt):
+    print("It's today!")
+if DateTimeUtils.is_weekend(dt):
+    print("It's weekend!")
+
+# Relative time
+dt = now() - timedelta(hours=2)
+print(relative_time(dt))  # "2小时前"
+
+# Age calculation
+birth = datetime(2000, 1, 1)
+age = DateTimeUtils.get_age(birth)
+print(f"Age: {age}")
+
+# Countdown
+target = now() + timedelta(days=2, hours=5)
+countdown = DateTimeUtils.countdown(target)
+print(f"{countdown['days']} days remaining")
+
+# Date range
+start = DateTimeUtils.parse("2024-03-01")
+end = DateTimeUtils.parse("2024-03-07")
+dates = DateTimeUtils.generate_date_range(start, end)
+for d in dates:
+    print(DateTimeUtils.format(d, "%Y-%m-%d"))
+```
+
+---
+
 ### Kotlin - Base64 Utilities
 
 Location: `Kotlin/base64_utils/mod.kt`
