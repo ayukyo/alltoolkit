@@ -5550,6 +5550,133 @@ const slug = StringUtils.slugify('Hello World!');  // "hello-world"
 
 ## 📦 Latest Addition
 
+### R - JSON Utilities
+
+Location: `R/json_utils/mod.R`
+
+A comprehensive JSON parsing and generation utility module for R with zero dependencies, providing complete JSON support for data exchange and configuration management.
+
+**Core Functions:**
+- **Parse**: `json_parse(json_string)` - Parse JSON string to R object
+- **Parse Or Null**: `json_parse_or_null(json_string, default)` - Safe parse with default
+- **Is Valid**: `json_is_valid(json_string)` - Check if string is valid JSON
+- **Encode**: `json_encode(obj, pretty, indent)` - Convert R object to JSON string
+- **Pretty**: `json_pretty(json_string)` - Pretty print JSON
+- **Minify**: `json_minify(json_string)` - Remove unnecessary whitespace
+
+**Type Checking:**
+- **Is Null**: `json_is_null(value)` - Check if null
+- **Is Object**: `json_is_object(value)` - Check if list with names
+- **Is Array**: `json_is_array(value)` - Check if vector or unnamed list
+- **Is String**: `json_is_string(value)` - Check if single character value
+- **Is Number**: `json_is_number(value)` - Check if single numeric value
+- **Is Boolean**: `json_is_boolean(value)` - Check if single logical value
+
+**Safe Access Functions:**
+- **Get**: `json_get(obj, key, default)` - Get value with default
+- **Get String**: `json_get_string(obj, key, default)` - Get string with default
+- **Get Number**: `json_get_number(obj, key, default)` - Get numeric with default
+- **Get Int**: `json_get_int(obj, key, default)` - Get integer with default
+- **Get Bool**: `json_get_bool(obj, key, default)` - Get boolean with default
+- **Get Path**: `json_get_path(obj, path, default)` - Get nested value by dot notation
+- **Keys**: `json_keys(obj)` - Get all object keys
+- **Has Key**: `json_has_key(obj, key)` - Check if key exists
+
+**File I/O:**
+- **Read File**: `json_read_file(filepath)` - Parse JSON from file
+- **Write File**: `json_write_file(filepath, obj, pretty)` - Write JSON to file
+
+**Features:**
+- Zero dependencies, uses only R standard library
+- Complete JSON support: null, boolean, number, string, array, object
+- Nested object and array support
+- Unicode and escape sequence support (\\n, \\t, \", \\)
+- Type-safe access with default values
+- Pretty printing with customizable indentation
+- Round-trip parsing (parse → generate → parse)
+- Safe parsing with error handling
+- File I/O operations
+- 30+ comprehensive unit tests
+- 10 practical usage examples
+- Production-ready for data exchange and configuration files
+
+Run tests:
+```bash
+cd R/json_utils
+Rscript json_utils_test.R
+```
+
+Run example:
+```bash
+cd R/examples
+Rscript json_utils_example.R
+```
+
+Usage example:
+```r
+source("R/json_utils/mod.R")
+
+# Parse JSON
+json_str <- '{"name": "John", "age": 30, "active": true}'
+parsed <- json_parse(json_str)
+print(parsed$name)  # "John"
+print(parsed$age)   # 30
+
+# Parse arrays
+arr <- json_parse('[1, 2, 3, 4, 5]')
+print(sum(arr))  # 15
+
+# Encode R objects to JSON
+data <- list(
+  product = "Laptop",
+  price = 999.99,
+  tags = c("electronics", "computers"),
+  in_stock = TRUE
+)
+json <- json_encode(data)
+print(json)
+# {"product":"Laptop","price":999.99,"tags":["electronics","computers"],"in_stock":true}
+
+# Pretty print
+pretty <- json_pretty('{"a":1,"b":2}')
+print(pretty)
+# {
+#   "a": 1,
+#   "b": 2
+# }
+
+# Safe access with defaults
+config <- json_parse('{"host": "localhost"}')
+host <- json_get_string(config, "host")           # "localhost"
+port <- json_get_int(config, "port", 8080)        # 8080 (default)
+timeout <- json_get_int(config, "timeout", 30)    # 30 (default)
+
+# Nested path access
+obj <- json_parse('{"user": {"profile": {"name": "Alice"}}}')
+name <- json_get_path(obj, "user.profile.name")   # "Alice"
+missing <- json_get_path(obj, "user.missing", "N/A")  # "N/A"
+
+# Type checking
+value <- json_parse('123')
+print(json_is_number(value))  # TRUE
+value <- json_parse('[1,2,3]')
+print(json_is_array(value))   # TRUE
+
+# Validation
+print(json_is_valid('{"valid": true}'))  # TRUE
+print(json_is_valid('not json'))          # FALSE
+
+# File operations
+data <- list(users = c("John", "Jane"), count = 2)
+json_write_file("config.json", data, pretty = TRUE)
+loaded <- json_read_file("config.json")
+print(loaded$count)  # 2
+```
+
+---
+
+## 📦 Latest Addition
+
 ### TypeScript - Template Engine Utilities
 
 Location: `TypeScript/template_utils/mod.ts`
