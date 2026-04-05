@@ -4098,6 +4098,100 @@ MIT License - 免费用于个人和商业项目
 
 ## 📦 Latest Addition
 
+### C# - Base64 Utilities
+
+Location: `C#/base64_utils/mod.cs`
+
+A comprehensive Base64 encoding and decoding utility module for C# with support for standard Base64 and URL-safe Base64 (RFC 4648).
+
+**Encoding Functions:**
+- **Encode**: `Base64Utils.Encode(input)` - Encode string to Base64
+- **Encode (bytes)**: `Base64Utils.Encode(data)` - Encode byte array to Base64
+- **EncodeUrlSafe**: `Base64Utils.EncodeUrlSafe(input, encoding, padding)` - Encode to URL-safe Base64
+- **EncodeUrlSafe (bytes)**: `Base64Utils.EncodeUrlSafe(data, padding)` - Encode bytes to URL-safe Base64
+
+**Decoding Functions:**
+- **Decode**: `Base64Utils.Decode(base64, encoding)` - Decode Base64 to string
+- **DecodeToBytes**: `Base64Utils.DecodeToBytes(base64)` - Decode Base64 to byte array
+- **DecodeUrlSafe**: `Base64Utils.DecodeUrlSafe(base64Url, encoding)` - Decode URL-safe Base64 to string
+- **DecodeUrlSafeToBytes**: `Base64Utils.DecodeUrlSafeToBytes(base64Url)` - Decode URL-safe Base64 to bytes
+- **TryDecode**: `Base64Utils.TryDecode(base64, encoding)` - Safe decode, returns null on failure
+- **TryDecodeToBytes**: `Base64Utils.TryDecodeToBytes(base64)` - Safe decode to bytes, returns null on failure
+
+**Format Conversion:**
+- **ToUrlSafe**: `Base64Utils.ToUrlSafe(base64, padding)` - Convert standard Base64 to URL-safe format
+- **FromUrlSafe**: `Base64Utils.FromUrlSafe(base64Url)` - Convert URL-safe Base64 to standard format
+
+**Validation Functions:**
+- **IsValid**: `Base64Utils.IsValid(base64)` - Check if string is valid Base64
+- **IsValidUrlSafe**: `Base64Utils.IsValidUrlSafe(base64Url)` - Check if string is valid URL-safe Base64
+
+**Utility Functions:**
+- **GetEncodedLength**: `Base64Utils.GetEncodedLength(inputLength, padding)` - Calculate encoded string length
+- **GetDecodedMaxLength**: `Base64Utils.GetDecodedMaxLength(base64Length)` - Calculate maximum decoded length
+
+**Features:**
+- Zero dependencies, uses only .NET standard library (System, System.Text)
+- Supports .NET Framework 4.5+ / .NET Core / .NET 5+
+- Full UTF-8 support including Unicode characters and emoji
+- URL-safe Base64 variant (RFC 4648) with optional padding
+- Byte array encoding/decoding for binary data
+- Safe decoding methods that return null instead of throwing exceptions
+- Complete input validation with descriptive error messages
+- Thread-safe (all methods are static and stateless)
+- 25+ comprehensive unit tests covering all functionality
+- 6 practical usage examples
+- Production-ready for data encoding/decoding tasks
+
+Compile and run tests:
+```bash
+cd C#/base64_utils
+dotnet build
+dotnet run --project base64_utils_test.cs
+```
+
+Run example:
+```bash
+cd C#/examples
+dotnet run base64_utils_example.cs
+```
+
+Usage example:
+```csharp
+using AllToolkit;
+
+// Basic encoding
+string encoded = Base64Utils.Encode("Hello, World!");
+// Returns: "SGVsbG8sIFdvcmxkIQ=="
+
+// Basic decoding
+string decoded = Base64Utils.Decode("SGVsbG8sIFdvcmxkIQ==");
+// Returns: "Hello, World!"
+
+// URL-safe encoding (for URLs/filenames)
+string urlSafe = Base64Utils.EncodeUrlSafe("user+name/file", padding: false);
+// Returns: "dXNlcituYW1lL2ZpbGU"
+
+// Binary data encoding
+byte[] data = new byte[] { 0x00, 0x01, 0x02, 0xFF };
+string binaryEncoded = Base64Utils.Encode(data);
+// Returns: "AAEC/w=="
+
+// Validation
+bool valid = Base64Utils.IsValid("SGVsbG8=");  // true
+bool invalid = Base64Utils.IsValid("Invalid!"); // false
+
+// Safe decoding
+string result = Base64Utils.TryDecode("Invalid");  // Returns null
+string success = Base64Utils.TryDecode("SGVsbG8=");  // Returns "Hello"
+
+// Length calculation
+int encodedLen = Base64Utils.GetEncodedLength(100, true);  // 136
+int maxDecoded = Base64Utils.GetDecodedMaxLength(136);     // 102
+```
+
+---
+
 ### Ruby - Number Utilities
 
 Location: `Ruby/number_utils/mod.rb`
