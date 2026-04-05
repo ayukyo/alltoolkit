@@ -4098,6 +4098,113 @@ MIT License - 免费用于个人和商业项目
 
 ## 📦 Latest Addition
 
+### Rust - URL Utilities
+
+Location: `Rust/url_utils/mod.rs`
+
+A comprehensive URL manipulation utility module providing URL parsing, building, encoding/decoding, query string manipulation, and URL validation with zero dependencies.
+
+**URL Parsing:**
+- **parse_url**: `parse_url(url)` - Parse URL string into ParsedUrl struct with all components
+- **ParsedUrl struct**: Access scheme, host, port, path, query params, fragment, username, password
+- **origin**: `url.origin()` - Get origin (scheme + host + port)
+- **is_secure**: `url.is_secure()` - Check if URL uses HTTPS
+
+**URL Building:**
+- **UrlBuilder**: `UrlBuilder::new()` - Create URLs programmatically
+  - **scheme**: Set URL scheme (http/https/ftp)
+  - **host**: Set host name
+  - **port**: Set port number
+  - **username/password**: Set authentication
+  - **path**: Set URL path
+  - **query_param**: Add query parameters
+  - **fragment**: Set URL fragment
+  - **build**: Generate final URL string
+
+**URL Encoding/Decoding:**
+- **url_encode**: `url_encode(input)` - URL-encode a string (RFC 3986)
+- **url_decode**: `url_decode(input)` - URL-decode a string
+- Supports special characters, Unicode, spaces (+ or %20)
+
+**Query String Manipulation:**
+- **parse_query_string**: `parse_query_string(query)` - Parse query string into HashMap
+- **build_query_string**: `build_query_string(params)` - Build query string from HashMap
+- **get_param**: `url.get_param(key)` - Get query parameter value
+- **set_param**: `url.set_param(key, value)` - Set query parameter
+- **remove_param**: `url.remove_param(key)` - Remove query parameter
+
+**URL Validation & Utilities:**
+- **is_valid_url**: `is_valid_url(url)` - Check if string is valid URL
+- **normalize_url**: `normalize_url(url)` - Normalize URL (lowercase scheme/host, remove default ports)
+- **get_domain**: `get_domain(url)` - Extract domain from URL
+- **get_path**: `get_path(url)` - Extract path from URL
+- **join_url**: `join_url(base, path)` - Join base URL with relative path
+
+**Features:**
+- Zero dependencies, uses only Rust standard library
+- Full RFC 3986 compliance for URL parsing and encoding
+- Support for authentication (username/password)
+- IPv6 address support
+- Query string parameter manipulation
+- URL builder pattern for constructing URLs
+- Complete test suite with 25+ test cases
+- 10 comprehensive usage examples
+- Production-ready for web applications and API clients
+
+Compile and run tests:
+```bash
+cd Rust/url_utils
+rustc --test --edition 2021 mod.rs -o url_test && ./url_test
+```
+
+Run example:
+```bash
+cd Rust/examples
+rustc --edition 2021 url_utils_example.rs -o url_example && ./url_example
+```
+
+Usage example:
+```rust
+use url_utils::*;
+
+// Parse a URL
+let url = parse_url("https://api.example.com:8080/v1/users?page=1").unwrap();
+println!("Host: {}", url.host);  // "api.example.com"
+println!("Port: {:?}", url.port); // Some(8080)
+println!("Path: {}", url.path);   // "/v1/users"
+println!("Page: {:?}", url.get_param("page")); // Some("1")
+
+// Build a URL
+let url = UrlBuilder::new()
+    .scheme("https")
+    .host("api.example.com")
+    .path("/v2/search")
+    .query_param("q", "rust programming")
+    .query_param("limit", "10")
+    .build();
+// Result: "https://api.example.com/v2/search?q=rust%20programming&limit=10"
+
+// URL encoding/decoding
+let encoded = url_encode("hello world!");  // "hello%20world%21"
+let decoded = url_decode("hello%20world"); // "hello world"
+
+// Query string manipulation
+let mut url = parse_url("https://example.com?existing=value").unwrap();
+url.set_param("new", "param");
+url.remove_param("existing");
+
+// URL validation
+if is_valid_url("https://example.com") {
+    println!("Valid URL!");
+}
+
+// Join URLs
+let full_url = join_url("https://api.example.com/v1", "users").unwrap();
+// Result: "https://api.example.com/v1/users"
+```
+
+---
+
 ### Python - DateTime Utilities
 
 Location: `Python/datetime_utils/mod.py`
