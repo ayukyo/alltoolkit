@@ -6447,4 +6447,180 @@ if (is_numeric(input_str)) then
 end if
 ```
 
+---
+
+## 📦 Latest Addition
+
+### Go - Rate Limiter Utilities
+
+Location: `Go/rate_limiter/mod.go`
+
+A comprehensive rate limiting utility for Go applications with support for multiple rate limiting algorithms including token bucket, leaky bucket, fixed window, and sliding window. All implementations are thread-safe and use only the Go standard library.
+
+**Rate Limiting Algorithms:**
+
+**Token Bucket:**
+- **NewTokenBucket**: `NewTokenBucket(capacity, fillRate)` - Create token bucket rate limiter
+  - capacity: maximum tokens in bucket (burst size)
+  - fillRate: tokens added per second (sustained rate)
+- **Allow**: `limiter.Allow()` - Check if single request should be allowed
+- **AllowN**: `limiter.AllowN(n)` - Check if n requests should be allowed
+- **Wait**: `limiter.Wait(ctx)` - Block until request is allowed or context cancelled
+- **WaitN**: `limiter.WaitN(ctx, n)` - Block until n requests are allowed
+- **Reset**: `limiter.Reset()` - Reset rate limiter to initial state
+- **Stop**: `limiter.Stop()` - Stop background goroutines
+- **SetOnLimitExceeded**: `limiter.SetOnLimitExceeded(fn)` - Set callback for rate limit events
+
+**Fixed Window:**
+- **NewFixedWindow**: `NewFixedWindow(capacity, window)` - Create fixed window rate limiter
+  - capacity: maximum requests per window
+  - window: time window duration
+- **Allow/AllowN**: Check if request(s) should be allowed
+- **Wait/WaitN**: Block until request(s) are allowed
+- **Reset**: Reset rate limiter
+
+**Sliding Window:**
+- **NewSlidingWindow**: `NewSlidingWindow(capacity, window)` - Create sliding window rate limiter
+  - Tracks request timestamps and removes expired entries
+- **Allow/AllowN**: Check if request(s) should be allowed
+- **Wait/WaitN**: Block until request(s) are allowed
+- **Reset**: Reset rate limiter
+
+**Leaky Bucket:**
+- **NewLeakyBucket**: `NewLeakyBucket(leakRate, capacity)` - Create leaky bucket rate limiter
+  - leakRate: requests processed per second (sustained rate)
+  - capacity: maximum requests in bucket (burst size)
+- **Allow/AllowN**: Check if request(s) should be allowed
+- **Wait/WaitN**: Block until request(s) are allowed
+- **Reset**: Reset rate limiter
+- **Stop**: Stop background goroutines
+
+**Multi Limiter:**
+- **NewMultiLimiter**: `NewMultiLimiter(limiters...)` - Combine multiple limiters with AND logic
+- **Allow/AllowN**: Request allowed only if all limiters allow
+- **Wait/WaitN**: Block until all limiters allow
+
+**Per-Client Limiter:**
+- **NewPerClientLimiter**: `NewPerClientLimiter(factory)` - Manage rate limiters per client
+- **Allow**: `limiter.Allow(clientID)` - Check if request from client should be allowed
+- **AllowN**: `limiter.AllowN(clientID, n)` - Check if n requests from client should be allowed
+- **GetLimiter**: `limiter.GetLimiter(clientID)` - Get limiter for specific client
+- **RemoveClient**: `limiter.RemoveClient(clientID)` - Remove client's limiter
+- **ClientCount**: `limiter.ClientCount()` - Get number of tracked clients
+- **Stats**: `limiter.Stats()` - Get statistics for all clients
+
+**Statistics:**
+- **Stats**: `limiter.Stats()` - Get rate limiter statistics
+  - Allowed: total allowed requests
+  - Rejected: total rejected requests
+  - Remaining: current remaining capacity
+  - Capacity: maximum capacity
+
+**Features:**
+- Zero dependencies, uses only Go standard library (sync, context, time)
+- Thread-safe implementations with sync.RWMutex
+- Multiple rate limiting algorithms (token bucket, leaky bucket, fixed/sliding window)
+- Context support for cancellation and timeouts
+- Statistics tracking (allowed/rejected counts)
+- Configurable callbacks for rate limit events
+- Burst handling support
+- Per-client rate limiting for multi-tenant applications
+- Multi-limiter support for combined rate limits
+- Complete test suite with 20+ test cases
+- 8 practical usage examples
+- Production-ready for API rate limiting and throttling
+
+Compile and run tests:
+```bash
+cd Go/rate_limiter
+go test -v
+```
+
+Run example:
+```bash
+cd Go/examples
+go run rate_limiter_example.go
+```
+
+Usage example:
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "time"
+    "github.com/ayukyo/alltoolkit/Go/rate_limiter"
+)
+
+func main() {
+    // Token bucket: 100 capacity, 10 tokens/sec refill
+    limiter := rate_limiter.NewTokenBucket(100, 10)
+    defer limiter.Stop()
+
+    // Check if request allowed
+    if limiter.Allow() {
+        fmt.Println("Request allowed")
+    } else {
+        fmt.Println("Rate limited")
+    }
+
+    // Wait for token with timeout
+    ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+    defer cancel()
+    
+    if err := limiter.Wait(ctx); err == nil {
+        fmt.Println("Token acquired")
+    } else {
+        fmt.Println("Timeout waiting for token")
+    }
+
+    // Fixed window: 100 requests per minute
+    fixed := rate_limiter.NewFixedWindow(100, time.Minute)
+    if fixed.Allow() {
+        // Process request
+    }
+
+    // Sliding window: 50 requests per minute
+    sliding := rate_limiter.NewSlidingWindow(50, time.Minute)
+    if sliding.Allow() {
+        // Process request
+    }
+
+    // Leaky bucket: 10 req/sec, burst 20
+    leaky := rate_limiter.NewLeakyBucket(10, 20)
+    defer leaky.Stop()
+    if leaky.Allow() {
+        // Process request
+    }
+
+    // Multi-limiter: combine rate limits
+    perSec := rate_limiter.NewTokenBucket(10, 10)
+    perMin := rate_limiter.NewFixedWindow(100, time.Minute)
+    defer perSec.Stop()
+    
+    multi := rate_limiter.NewMultiLimiter(perSec, perMin)
+    if multi.Allow() {
+        // Request passes both limits
+    }
+
+    // Per-client rate limiting
+    clients := rate_limiter.NewPerClientLimiter(func() rate_limiter.Limiter {
+        return rate_limiter.NewFixedWindow(10, time.Minute)
+    })
+    defer clients.Stop()
+    
+    if clients.Allow("user123") {
+        // Request from user123 allowed
+    }
+
+    // Get statistics
+    stats := limiter.Stats()
+    fmt.Printf("Allowed: %d, Rejected: %d, Remaining: %d\n",
+        stats.Allowed, stats.Rejected, stats.Remaining)
+}
+```
+
+---
+
 # CI Test
