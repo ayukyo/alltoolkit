@@ -5272,4 +5272,113 @@ Location: `Rust/math_utils/math_utils_test.rs`
 
 运行测试: `cd Rust/math_utils && rustc --test math_utils_test.rs -o test && ./test`
 
+---
+
+## 📦 Latest Addition
+
+### Ruby - Archive Utilities
+
+Location: `Ruby/archive_utils/mod.rb`
+
+A comprehensive file archiving and compression utility module for Ruby providing ZIP and TAR archive creation, extraction, and management with zero external dependencies.
+
+**ZIP Archive Operations:**
+- **create_zip**: `ArchiveUtils.create_zip(zipfile_path, sources, options)` - Create ZIP archive from files/directories
+  - Supports compression level control (0-9)
+  - Exclude patterns support
+  - Preserve or flatten directory structure
+  - Base directory for relative paths
+- **extract_zip**: `ArchiveUtils.extract_zip(zipfile_path, destination, options)` - Extract ZIP archive
+  - Password support for encrypted entries
+  - Selective extraction with patterns
+  - Overwrite control
+- **list_zip**: `ArchiveUtils.list_zip(zipfile_path)` - List ZIP contents
+- **zip_stats**: `ArchiveUtils.zip_stats(zipfile_path)` - Get archive statistics
+- **valid_zip?**: `ArchiveUtils.valid_zip?(zipfile_path)` - Validate ZIP integrity
+- **add_to_zip_archive**: `ArchiveUtils.add_to_zip_archive(zipfile_path, sources, options)` - Add to existing ZIP
+
+**TAR Archive Operations:**
+- **create_tar**: `ArchiveUtils.create_tar(tarfile_path, sources, options)` - Create TAR archive
+  - Automatic gzip compression for .tar.gz/.tgz files
+  - Exclude patterns support
+- **extract_tar**: `ArchiveUtils.extract_tar(tarfile_path, destination, options)` - Extract TAR archive
+  - Supports both plain .tar and compressed .tar.gz
+- **list_tar**: `ArchiveUtils.list_tar(tarfile_path)` - List TAR contents
+- **tar_stats**: `ArchiveUtils.tar_stats(tarfile_path)` - Get TAR statistics
+
+**Utility Functions:**
+- **extract**: `ArchiveUtils.extract(archive_path, destination, options)` - Auto-detect format and extract
+- **list**: `ArchiveUtils.list(archive_path)` - Auto-detect format and list
+- **stats**: `ArchiveUtils.stats(archive_path)` - Auto-detect format and get statistics
+- **gzip_file**: `ArchiveUtils.gzip_file(source_path, dest_path)` - Compress single file with gzip
+- **gunzip_file**: `ArchiveUtils.gunzip_file(source_path, dest_path)` - Decompress gzip file
+
+**ArchiveEntry Class:**
+- Properties: `name`, `size`, `compressed_size`, `mtime`, `is_directory`
+- Method: `compression_ratio` - Calculate compression percentage
+
+**ArchiveStats Class:**
+- Properties: `entry_count`, `total_size`, `total_compressed_size`, `compression_ratio`
+
+**Features:**
+- Zero dependencies, uses only Ruby standard library (zip, rubygems/package, zlib)
+- Full ZIP format support with compression control
+- TAR and compressed TAR (.tar.gz, .tgz) support
+- Archive integrity validation
+- Statistics and compression ratio calculation
+- Pattern-based file exclusion
+- Directory structure preservation options
+- 15+ comprehensive unit tests
+- 16 practical usage examples
+- Production-ready for backup and deployment tasks
+
+Run tests:
+```bash
+cd Ruby/archive_utils
+ruby archive_utils_test.rb
+```
+
+Run example:
+```bash
+cd Ruby/examples
+ruby archive_utils_example.rb
+```
+
+Usage example:
+```ruby
+require_relative 'Ruby/archive_utils/mod'
+
+# Create a ZIP archive
+ArchiveUtils.create_zip('backup.zip', ['documents/', 'photos/'])
+
+# Create with compression options
+ArchiveUtils.create_zip('archive.zip', ['files/'], 
+  compression: Zlib::BEST_COMPRESSION,
+  exclude: ['*.tmp', '*.log']
+)
+
+# Extract ZIP
+extracted = ArchiveUtils.extract_zip('backup.zip', 'output/')
+puts "Extracted #{extracted.length} files"
+
+# List contents
+entries = ArchiveUtils.list_zip('backup.zip')
+entries.each { |e| puts "#{e.name} (#{e.size} bytes)" }
+
+# Get statistics
+stats = ArchiveUtils.zip_stats('backup.zip')
+puts "Compression ratio: #{stats.compression_ratio.round(2)}%"
+
+# Create compressed TAR
+ArchiveUtils.create_tar('backup.tar.gz', ['documents/'], gzip: true)
+
+# Auto-extract (detects format)
+ArchiveUtils.extract('backup.tar.gz', 'output/')
+ArchiveUtils.extract('backup.zip', 'output/')
+
+# Gzip single file
+ArchiveUtils.gzip_file('document.txt', 'document.txt.gz')
+ArchiveUtils.gunzip_file('document.txt.gz', 'document.txt')
+```
+
 # CI Test
