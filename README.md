@@ -4098,6 +4098,135 @@ MIT License - 免费用于个人和商业项目
 
 ## 📦 Latest Addition
 
+### VB - HTTP Utilities
+
+Location: `VB/http_utils/mod.vb`
+
+A comprehensive HTTP client utility module for VB.NET with support for GET, POST, PUT, DELETE, PATCH, HEAD requests, URL manipulation, and request customization.
+
+**HTTP Methods:**
+- **GET**: `HttpUtils.Get(url, options)` - Send HTTP GET request
+- **POST**: `HttpUtils.Post(url, body, contentType, options)` - Send HTTP POST request
+- **POST JSON**: `HttpUtils.PostJson(url, jsonData, options)` - Send JSON POST request
+- **POST Form**: `HttpUtils.PostForm(url, formData, options)` - Send form POST request
+- **PUT**: `HttpUtils.Put(url, body, contentType, options)` - Send HTTP PUT request
+- **DELETE**: `HttpUtils.Delete(url, options)` - Send HTTP DELETE request
+- **PATCH**: `HttpUtils.Patch(url, body, contentType, options)` - Send HTTP PATCH request
+- **HEAD**: `HttpUtils.Head(url, options)` - Send HTTP HEAD request
+
+**URL Utilities:**
+- **URL Encode**: `HttpUtils.UrlEncode(value)` - URL encode a string
+- **URL Decode**: `HttpUtils.UrlDecode(value)` - URL decode a string
+- **Build Query String**: `HttpUtils.BuildQueryString(parameters)` - Build URL-encoded query string
+- **Build URL**: `HttpUtils.BuildUrl(baseUrl, parameters)` - Build URL with query parameters
+- **Parse URL**: `HttpUtils.ParseUrl(url)` - Parse URL into components (scheme, host, port, path, query, fragment)
+- **Validate URL**: `HttpUtils.IsValidUrl(url)` - Check if string is valid URL
+- **Get Domain**: `HttpUtils.GetDomain(url)` - Extract domain from URL
+- **Get Path**: `HttpUtils.GetPath(url)` - Extract path from URL
+- **Add Query Params**: `HttpUtils.AddQueryParams(url, params)` - Add query parameters to URL
+
+**HTTP Response (HttpResponse class):**
+- **Status Code**: `response.StatusCode` - HTTP status code
+- **Status Description**: `response.StatusDescription` - HTTP status text
+- **Body**: `response.Body` - Response body as string
+- **Body Bytes**: `response.BodyBytes` - Response body as byte array
+- **Headers**: `response.Headers` - Response headers dictionary
+- **Success**: `response.IsSuccess` - True if status 200-299
+- **Response Time**: `response.ResponseTime` - Request duration in milliseconds
+- **JSON Parse**: `response.Json()` - Parse body as JSON object
+- **Is JSON**: `response.IsJson()` - Check if body is valid JSON
+- **Get Header**: `response.GetHeader(name)` - Get header value by name
+
+**HTTP Options (HttpOptions class):**
+- **Headers**: Custom request headers dictionary
+- **Timeout**: Request timeout in milliseconds (default: 30000)
+- **Allow Redirect**: Auto-follow redirects (default: True)
+- **Max Redirects**: Maximum redirect hops (default: 10)
+- **Validate SSL**: SSL certificate verification (default: True)
+- **Proxy**: HTTP proxy server address
+- **Username/Password**: Basic authentication credentials
+
+**Features:**
+- Zero dependencies, uses only .NET standard library (System.Net, System.IO, System.Text)
+- Supports .NET Framework 4.5+ / .NET Core / .NET 5+
+- Full HTTP method support: GET, POST, PUT, DELETE, PATCH, HEAD
+- Automatic JSON and form data encoding
+- Complete URL manipulation utilities
+- Custom headers and timeout configuration
+- Response time tracking
+- SSL/TLS certificate verification control
+- HTTP proxy support
+- Basic authentication support
+- Response success status checking
+- Built-in JSON validation and parsing
+- Complete test suite with 30+ test cases
+- 9 comprehensive usage examples
+- Production-ready for REST API clients
+
+Compile and run tests:
+```bash
+cd VB/http_utils
+vbc http_utils_test.vb mod.vb /r:System.Web.Extensions.dll /out:http_test.exe
+http_test.exe
+```
+
+Run example:
+```bash
+cd VB/examples
+vbc http_utils_example.vb ../http_utils/mod.vb /r:System.Web.Extensions.dll /out:http_example.exe
+http_example.exe
+```
+
+Usage example:
+```vb
+Imports AllToolkit
+
+' Simple GET request
+Dim response As HttpResponse = HttpUtils.Get("https://api.example.com/users")
+If response.IsSuccess Then
+    Console.WriteLine(response.Body)
+End If
+
+' POST JSON data
+Dim data As New Dictionary(Of String, Object)()
+data.Add("name", "John")
+data.Add("email", "john@example.com")
+Dim response As HttpResponse = HttpUtils.PostJson("https://api.example.com/users", data)
+
+' POST Form data
+Dim formData As New Dictionary(Of String, String)()
+formData.Add("username", "admin")
+formData.Add("password", "secret")
+Dim response As HttpResponse = HttpUtils.PostForm("https://api.example.com/login", formData)
+
+' URL building
+Dim params As New Dictionary(Of String, String)()
+params.Add("q", "hello world")
+params.Add("page", "1")
+Dim url As String = HttpUtils.BuildUrl("https://api.example.com/search", params)
+' Result: 'https://api.example.com/search?q=hello%20world&page=1'
+
+' URL parsing
+Dim parts As Dictionary(Of String, String) = HttpUtils.ParseUrl("https://api.example.com:8080/v1/users")
+' parts("host") = "api.example.com"
+' parts("port") = "8080"
+
+' Custom options
+Dim options As New HttpOptions()
+options.Timeout = 60000
+options.AddHeader("Authorization", "Bearer token123")
+Dim response As HttpResponse = HttpUtils.Get("https://api.example.com/protected", options)
+
+' URL validation
+Dim isValid As Boolean = HttpUtils.IsValidUrl("https://example.com")  ' True
+
+' URL encoding
+Dim encoded As String = HttpUtils.UrlEncode("hello world")  ' "hello%20world"
+Dim decoded As String = HttpUtils.UrlDecode("hello%20world")  ' "hello world"
+```
+
+---
+
 ### C# - Base64 Utilities
 
 Location: `C#/base64_utils/mod.cs`
