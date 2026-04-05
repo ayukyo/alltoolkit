@@ -39,12 +39,13 @@ func Truncate(s string, maxLen int) string {
 		return "..."
 	}
 
-	// Fast path: check byte length first (ASCII optimization)
-	if len(s) <= maxLen {
-		// Additional check for rune count to handle multi-byte chars
-		if utf8.RuneCountInString(s) <= maxLen {
+	// Fast path: check rune count for pure ASCII strings
+	if len(s) == utf8.RuneCountInString(s) {
+		if len(s) <= maxLen {
 			return s
 		}
+		// ASCII fast path: direct byte slicing
+		return s[:maxLen-ellipsisLen] + "..."
 	}
 
 	// Calculate target length (reserve space for ellipsis)
@@ -53,17 +54,19 @@ func Truncate(s string, maxLen int) string {
 		return "..."
 	}
 
-	// Pre-allocate result buffer for better memory efficiency
-	// Worst case: targetLen bytes + 3 for ellipsis
-	result := make([]byte, 0, targetLen+ellipsisLen)
+	// Single-pass: count runes and find truncation point
+	var truncIdx int
 	count := 0
-	
-	// Iterate with index to respect UTF-8 boundaries
 	for i := 0; i < len(s); {
 		r, size := utf8.DecodeRuneInString(s[i:])
 		
-		// Handle invalid UTF-8 gracefully
+		// Handle invalid UTF-8 gracefully - treat as single byte
 		if r == utf8.RuneError && size == 1 {
+			if count >= targetLen {
+				break
+			}
+			truncIdx = i + 1
+			count++
 			i++
 			continue
 		}
@@ -73,13 +76,12 @@ func Truncate(s string, maxLen int) string {
 			break
 		}
 		
-		// Append valid rune bytes to result
-		result = append(result, s[i:i+size]...)
+		truncIdx = i + size
 		count++
 		i += size
 	}
 
-	return string(result) + "..."
+	return s[:truncIdx] + "..."
 }
 
 // TruncateSafe is a variant that guarantees the result never exceeds maxLen bytes,

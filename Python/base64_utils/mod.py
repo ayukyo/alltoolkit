@@ -245,21 +245,49 @@ class Base64Utils:
         if not base64_string:
             return True  # Empty string is valid Base64
         
-        # Add padding if missing for validation
-        test_string = base64_string
-        padding_needed = 4 - (len(test_string) % 4)
-        if padding_needed != 4:
-            test_string += '=' * padding_needed
+        # Fast path: check length constraints
+        # Base64 length must be multiple of 4 (or 2/3 for unpadded data)
+        length = len(base64_string)
+        remainder = length % 4
         
-        if urlsafe:
-            pattern = r'^[A-Za-z0-9_-]+=*$'
-        else:
-            pattern = r'^[A-Za-z0-9+/]+=*$'
-        
-        if not re.match(pattern, test_string):
+        # 1 mod 4 is always invalid
+        if remainder == 1:
             return False
         
+        # Define valid character sets
+        if urlsafe:
+            valid_chars = set('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_')
+        else:
+            valid_chars = set('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/')
+        
+        # Check all characters before padding
+        padding_started = False
+        padding_count = 0
+        
+        for i, char in enumerate(base64_string):
+            if char == '=':
+                padding_started = True
+                padding_count += 1
+                # Padding can only appear at the end, max 2 padding chars
+                if padding_count > 2:
+                    return False
+                continue
+            
+            if padding_started:
+                # Non-padding char after padding is invalid
+                return False
+            
+            if char not in valid_chars:
+                return False
+        
+        # Validate by actual decoding (handles all edge cases correctly)
+        # Add padding for validation if missing
         try:
+            test_string = base64_string
+            padding_needed = 4 - (len(test_string) % 4)
+            if padding_needed != 4:
+                test_string += '=' * padding_needed
+            
             if urlsafe:
                 base64.urlsafe_b64decode(test_string)
             else:

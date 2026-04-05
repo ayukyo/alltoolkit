@@ -333,32 +333,97 @@ inline bool Base64Utils::isValid(const std::string& input, bool urlSafe) {
         return true;
     }
 
-    const std::string validChars = urlSafe
-        ? "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_="
-        : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+    const size_t len = input.length();
+    const size_t remainder = len % 4;
+    
+    // Fast path: 1 mod 4 is always invalid
+    if (remainder == 1) {
+        return false;
+    }
+
+    // Use lookup table for O(1) character validation
+    // Table: 0=invalid, 1=valid data char, 2=padding
+    static const uint8_t charTable[256] = {
+        // Control chars: 0
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  // 0x00-0x0F
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  // 0x10-0x1F
+        // Space ! " # $ % & ' ( ) * + , - . /
+        0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,  // 0x20-0x2F (+ and / are valid)
+        // 0 1 2 3 4 5 6 7 8 9 : ; < = > ?
+        1,1,1,1,1,1,1,1,1,1,0,0,0,2,0,0,  // 0x30-0x3F (0-9, =)
+        // @ A B C D E F G H I J K L M N O
+        0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // 0x40-0x4F (A-O)
+        // P Q R S T U V W X Y Z [ \ ] ^ _
+        1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,  // 0x50-0x5F (P-Z)
+        // ` a b c d e f g h i j k l m n o
+        0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // 0x60-0x6F (a-o)
+        // p q r s t u v w x y z { | } ~ DEL
+        1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,  // 0x70-0x7F (p-z)
+        // Extended ASCII: all invalid
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    };
+    
+    // URL-safe variant: '-' (0x2D) and '_' (0x5F) are valid instead of '+' (0x2B) and '/' (0x2F)
+    static const uint8_t urlSafeCharTable[256] = {
+        // Control chars: 0
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  // 0x00-0x0F
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  // 0x10-0x1F
+        // Space ! " # $ % & ' ( ) * + , - . /
+        0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,  // 0x20-0x2F (- is valid, + and / are not)
+        // 0 1 2 3 4 5 6 7 8 9 : ; < = > ?
+        1,1,1,1,1,1,1,1,1,1,0,0,0,2,0,0,  // 0x30-0x3F (0-9, =)
+        // @ A B C D E F G H I J K L M N O
+        0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // 0x40-0x4F (A-O)
+        // P Q R S T U V W X Y Z [ \ ] ^ _
+        1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,  // 0x50-0x5F (P-Z, _)
+        // ` a b c d e f g h i j k l m n o
+        0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // 0x60-0x6F (a-o)
+        // p q r s t u v w x y z { | } ~ DEL
+        1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,  // 0x70-0x7F (p-z)
+        // Extended ASCII: all invalid
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    };
+    
+    const uint8_t* table = urlSafe ? urlSafeCharTable : charTable;
 
     size_t meaningfulChars = 0;
     bool foundPadding = false;
-    for (char c : input) {
-        if (c == '=') {
+    
+    for (unsigned char c : input) {
+        uint8_t type = table[c];
+        
+        if (type == 2) {  // Padding
             foundPadding = true;
-            continue;  // Padding should be at the end
+            continue;
         }
+        
         if (foundPadding) {
             // Non-padding character after padding
             return false;
         }
-        if (validChars.find(c) == std::string::npos) {
+        
+        if (type == 0) {  // Invalid character
             return false;
         }
+        
         meaningfulChars++;
     }
 
     // Valid lengths: 0, 2, 3 mod 4 (1 mod 4 is invalid)
-    // 0 mod 4: complete groups of 4 chars -> 3 bytes
-    // 2 mod 4: 2 chars -> 1 byte
-    // 3 mod 4: 3 chars -> 2 bytes
-    // 1 mod 4: invalid (can't decode 1 char to complete bytes)
     size_t mod = meaningfulChars % 4;
     return mod == 0 || mod == 2 || mod == 3;
 }

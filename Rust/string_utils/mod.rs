@@ -235,14 +235,16 @@ pub fn count_words(s: &str) -> usize {
 
 /// Checks if a string is a valid email address.
 ///
-/// Performs a basic validation that checks for:
+/// Performs validation that checks for:
 /// - Presence of exactly one @ symbol
-/// - Non-empty local part (before @)
-/// - Non-empty domain part (after @)
+/// - Non-empty local part (before @) with valid characters
+/// - Non-empty domain part (after @) with valid structure
 /// - Domain contains at least one dot
-/// - No spaces in the email
+/// - No spaces or control characters in the email
+/// - Local part length <= 64 characters (RFC 5321)
+/// - Total length <= 254 characters (RFC 5321)
 ///
-/// Note: This is a pragmatic check, not RFC 5322 compliant.
+/// Note: This is a pragmatic check, not fully RFC 5322 compliant.
 /// For full compliance, use a dedicated email validation library.
 ///
 /// # Parameters
@@ -271,9 +273,13 @@ pub fn count_words(s: &str) -> usize {
 ///
 /// Time: O(n) where n is the email length.
 /// Memory: O(1) additional space.
-/// Optimized: Single-pass validation without allocations.
+/// Optimized: Single-pass validation with early termination.
 pub fn is_valid_email(email: &str) -> bool {
-    if email.is_empty() {
+    // RFC 5321 limits: local part <= 64, total <= 254
+    const MAX_LOCAL_LEN: usize = 64;
+    const MAX_TOTAL_LEN: usize = 254;
+    
+    if email.is_empty() || email.len() > MAX_TOTAL_LEN {
         return false;
     }
 
@@ -282,14 +288,24 @@ pub fn is_valid_email(email: &str) -> bool {
     let mut at_count = 0;
     let mut at_pos = 0;
 
-    // Check for spaces and count @ symbols in single pass
+    // Single-pass validation with early termination
     for (i, &b) in bytes.iter().enumerate() {
-        if b == b' ' {
+        // Check for invalid characters (space, control chars, and common invalid chars)
+        if b == b' ' || b < 32 || b == b'(' || b == b')' || b == b'<' || b == b'>' || b == b',' || b == b';' || b == b':' || b == b'\\' || b == b'"' {
             return false;
         }
+        
         if b == b'@' {
+            // Check local part length constraint
+            if i > MAX_LOCAL_LEN {
+                return false;
+            }
             at_count += 1;
             at_pos = i;
+            // Early termination if more than one @
+            if at_count > 1 {
+                return false;
+            }
         }
     }
 
@@ -298,19 +314,24 @@ pub fn is_valid_email(email: &str) -> bool {
         return false;
     }
 
-    // Local part must be non-empty and not start/end with special chars
-    if at_pos == 0 || at_pos == len - 1 {
+    // Local part must be non-empty
+    if at_pos == 0 {
         return false;
     }
 
-    // Domain must contain at least one dot
+    // Domain must be non-empty and contain at least one dot
     let domain = &email[at_pos + 1..];
-    if !domain.contains('.') {
+    if domain.len() < 3 || !domain.contains('.') {
         return false;
     }
 
     // Domain must not start or end with dot
     if domain.starts_with('.') || domain.ends_with('.') {
+        return false;
+    }
+    
+    // Domain must not have consecutive dots
+    if domain.contains("..") {
         return false;
     }
 

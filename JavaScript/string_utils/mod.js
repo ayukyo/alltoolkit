@@ -446,38 +446,52 @@
         // Constants for password generation
         const MIN_LENGTH = 4;
         const DEFAULT_LENGTH = 16;
+        const MAX_LENGTH = 1024; // Prevent excessive memory allocation
         
         // Validate and normalize length with bounds checking
-        if (typeof length !== 'number' || isNaN(length)) {
+        if (typeof length !== 'number' || !isFinite(length)) {
             length = DEFAULT_LENGTH;
         } else {
             length = Math.floor(length);
         }
         
-        // Ensure minimum length to accommodate required character types
+        // Clamp length to valid range
         if (length < MIN_LENGTH) {
             length = MIN_LENGTH;
+        } else if (length > MAX_LENGTH) {
+            length = MAX_LENGTH;
         }
+        
+        // Use crypto.getRandomValues when available for better randomness
+        const hasCrypto = typeof crypto !== 'undefined' && crypto.getRandomValues;
+        const getRandomInt = function(max) {
+            if (hasCrypto && max <= 256) {
+                const arr = new Uint8Array(1);
+                crypto.getRandomValues(arr);
+                return arr[0] % max;
+            }
+            return Math.floor(Math.random() * max);
+        };
         
         // Build password with guaranteed character diversity
         const required = [
-            LOWERCASE.charAt(Math.floor(Math.random() * LOWERCASE.length)),
-            UPPERCASE.charAt(Math.floor(Math.random() * UPPERCASE.length)),
-            DIGITS.charAt(Math.floor(Math.random() * DIGITS.length)),
-            SPECIAL_CHARS.charAt(Math.floor(Math.random() * SPECIAL_CHARS.length))
+            LOWERCASE.charAt(getRandomInt(LOWERCASE.length)),
+            UPPERCASE.charAt(getRandomInt(UPPERCASE.length)),
+            DIGITS.charAt(getRandomInt(DIGITS.length)),
+            SPECIAL_CHARS.charAt(getRandomInt(SPECIAL_CHARS.length))
         ];
         
         // Fill remaining length with random characters from all sets
         const remaining = length - MIN_LENGTH;
         const allCharsLen = ALL_CHARS.length;
         for (let i = 0; i < remaining; i++) {
-            required.push(ALL_CHARS.charAt(Math.floor(Math.random() * allCharsLen)));
+            required.push(ALL_CHARS.charAt(getRandomInt(allCharsLen)));
         }
         
         // Fisher-Yates shuffle for unbiased randomization
         // More reliable than sort-based shuffle for cryptographic purposes
         for (let i = required.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
+            const j = getRandomInt(i + 1);
             const temp = required[i];
             required[i] = required[j];
             required[j] = temp;
