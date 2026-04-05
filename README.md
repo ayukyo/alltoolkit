@@ -5820,4 +5820,126 @@ const email = renderTemplate(emailTemplate, {
 });
 ```
 
+---
+
+## 📦 Latest Addition
+
+### PHP - QR Code Utilities
+
+Location: `PHP/qr_code_utils/mod.php`
+
+A zero-dependency QR Code generation library for PHP supporting QR Code Model 2 with versions 1-10 and all error correction levels (L, M, Q, H). Generates QR Codes in ASCII art, SVG, and binary matrix formats.
+
+**QR Code Generation:**
+- **Constructor**: `new QrCodeGenerator(version, errorCorrectionLevel)` - Create QR Code generator
+  - Versions 1-10 supported (21x21 to 57x57 modules)
+  - Error correction levels: L (~7%), M (~15%), Q (~25%), H (~30%)
+- **generate**: `$qr->generate(data)` - Generate QR Code binary matrix
+- **Mode Detection**: `QrCodeGenerator::detectMode(data)` - Auto-detect best encoding mode
+  - Numeric: Digits only (0-9)
+  - Alphanumeric: Uppercase, digits, and special characters
+  - Byte: Any text including Unicode
+
+**Output Formats:**
+- **ASCII Art**: `$qr->toAscii(data, darkChar, lightChar)` - Generate text-based QR Code
+  - Default: '██' for dark, '  ' for light
+  - Customizable characters for terminal display
+- **SVG**: `$qr->toSvg(data, moduleSize, darkColor, lightColor)` - Generate SVG vector graphic
+  - Configurable module size in pixels
+  - Custom colors support
+  - Includes quiet zone (border)
+- **Binary Matrix**: `$qr->toMatrix(data)` - Get 2D array of 0s and 1s
+  - Direct access to QR Code structure
+  - Useful for custom rendering
+
+**Utility Functions:**
+- **Quick ASCII**: `QrCodeUtils::toAscii(data, version, ecLevel, darkChar, lightChar)`
+- **Quick SVG**: `QrCodeUtils::toSvg(data, version, ecLevel, moduleSize, darkColor, lightColor)`
+- **Quick Matrix**: `QrCodeUtils::toMatrix(data, version, ecLevel)`
+- **Save SVG**: `QrCodeUtils::saveSvg(data, filename, ...)` - Save SVG to file
+- **Get Mode Name**: `QrCodeUtils::getModeName(mode)` - Get human-readable mode name
+- **Get EC Level Name**: `QrCodeUtils::getErrorCorrectionLevelName(level)` - Get L/M/Q/H name
+
+**Features:**
+- Zero dependencies, uses only PHP standard library
+- Supports QR Code versions 1-10 (21x21 to 57x57 modules)
+- All error correction levels: L, M, Q, H
+- Automatic mode detection (Numeric, Alphanumeric, Byte)
+- Multiple output formats: ASCII, SVG, binary matrix
+- Customizable appearance (colors, characters)
+- Finder patterns, alignment patterns, timing patterns
+- Format information and dark module
+- Complete test suite with 50+ test cases
+- 16 practical usage examples
+- Production-ready for ticketing, payments, and data sharing
+
+Run tests:
+```bash
+cd PHP/qr_code_utils
+php qr_code_utils_test.php
+```
+
+Run example:
+```bash
+cd PHP/examples
+php qr_code_utils_example.php
+```
+
+Usage example:
+```php
+require_once 'PHP/qr_code_utils/mod.php';
+
+use AllToolkit\QrCodeGenerator;
+use AllToolkit\QrCodeUtils;
+
+// Create QR Code generator
+$qr = new QrCodeGenerator(1, QrCodeGenerator::ERROR_CORRECTION_L);
+
+// Generate ASCII art QR Code
+echo $qr->toAscii("HELLO WORLD");
+// Output:
+//                          
+//   ████████████████████   
+//   ██                ██   
+//   ██  ████████████  ██   
+//   ...
+
+// Generate SVG
+$svg = $qr->toSvg("HELLO WORLD", 4, '#000000', '#ffffff');
+file_put_contents('qrcode.svg', $svg);
+
+// Get binary matrix
+$matrix = $qr->toMatrix("HELLO WORLD");
+// Returns 2D array of 0s and 1s
+
+// Quick generation with utility functions
+$ascii = QrCodeUtils::toAscii("QUICK CODE", 2, QrCodeGenerator::ERROR_CORRECTION_M);
+$svg = QrCodeUtils::toSvg("https://example.com", 3, QrCodeGenerator::ERROR_CORRECTION_H, 4, '#ff0000', '#ffffff');
+
+// Save SVG directly
+QrCodeUtils::saveSvg("SAVE ME", '/path/to/output.svg');
+
+// Detect encoding mode
+$mode = QrCodeGenerator::detectMode("123456");  // Numeric
+$mode = QrCodeGenerator::detectMode("HELLO");   // Alphanumeric
+$mode = QrCodeGenerator::detectMode("Hello!");  // Byte
+
+// WiFi QR Code (scan to connect)
+$wifiQr = new QrCodeGenerator(2, QrCodeGenerator::ERROR_CORRECTION_H);
+echo $wifiQr->toAscii("WIFI:T:WPA;S:MyNetwork;P:MyPassword;;");
+
+// Email QR Code
+$emailQr = new QrCodeGenerator(2, QrCodeGenerator::ERROR_CORRECTION_M);
+echo $emailQr->toAscii("mailto:contact@example.com?subject=Hello");
+
+// Custom ASCII characters
+$qr = new QrCodeGenerator(1, QrCodeGenerator::ERROR_CORRECTION_L);
+echo $qr->toAscii("TEST", "##", "..");
+// Output with custom characters:
+//   #####################   
+//   ##                ##   
+//   ##  ############  ##   
+//   ...
+```
+
 # CI Test
