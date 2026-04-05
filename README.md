@@ -5276,6 +5276,106 @@ Location: `Rust/math_utils/math_utils_test.rs`
 
 ## 📦 Latest Addition
 
+### TypeScript - UUID Utilities
+
+Location: `TypeScript/uuid_utils/mod.ts`
+
+A comprehensive UUID (Universally Unique Identifier) generation and manipulation utility module for TypeScript with zero dependencies. Supports UUID v1/v4 generation, validation, parsing, format conversion, and alternative ID formats like Nano ID.
+
+**UUID Generation:**
+- **v4**: `v4()` - Generate UUID v4 (random-based, RFC 4122 compliant)
+- **v1**: `v1()` - Generate UUID v1 (timestamp-based)
+- **compact**: `compact(version?)` - Generate compact UUID (32 chars, no hyphens)
+- **uppercase**: `uppercase(version?)` - Generate uppercase UUID
+
+**Validation & Parsing:**
+- **isValid**: `isValid(uuid, version?)` - Validate UUID string, optionally check version
+- **parse**: `parse(uuid)` - Parse UUID into components (version, variant, timestamp for v1)
+- **getVersion**: `getVersion(uuid)` - Get UUID version (1, 3, 4, 5) or -1
+- **getVariant**: `getVariant(uuid)` - Get UUID variant (0-3) or -1
+
+**Format Conversion:**
+- **toCompact**: `toCompact(uuid)` - Convert standard UUID to compact format
+- **toStandard**: `toStandard(compact)` - Convert compact UUID to standard format
+- **equals**: `equals(uuid1, uuid2)` - Compare UUIDs case-insensitively
+
+**Alternative ID Formats:**
+- **nanoId**: `nanoId(size?)` - Generate URL-safe Nano ID (default 21 chars)
+- **shortId**: `shortId(length?)` - Generate Base62 short ID (default 8 chars)
+
+**Random String Generation:**
+- **randomString**: `randomString(length, charset?)` - Generate random string from charset
+- **randomPassword**: `randomPassword(length?)` - Generate secure password with mixed character types
+
+**Constants:**
+- **UUID_NAMESPACES**: Predefined namespaces (DNS, URL, OID, X500)
+- **CHARSETS**: Character sets (LOWERCASE, UPPERCASE, DIGITS, SPECIAL, HEX, ALPHANUMERIC, URL_SAFE)
+- **UuidVersion**: Enum for UUID versions
+- **UuidVariant**: Enum for UUID variants
+
+**Features:**
+- Zero dependencies, uses only TypeScript/JavaScript standard library
+- Cryptographically secure random generation using Web Crypto API (with Math.random() fallback)
+- Full RFC 4122 compliance for UUID v1 and v4
+- UUID parsing with timestamp extraction for v1
+- Case-insensitive UUID comparison
+- URL-safe Nano ID generation (like nanoid library)
+- Secure password generation with guaranteed character diversity
+- 40+ comprehensive unit tests
+- 15 practical usage examples
+- Production-ready for database primary keys, session tokens, and API keys
+
+Compile and run tests:
+```bash
+cd TypeScript/uuid_utils
+npx ts-node uuid_utils_test.ts
+```
+
+Run example:
+```bash
+cd TypeScript/examples
+npx ts-node uuid_utils_example.ts
+```
+
+Usage example:
+```typescript
+import { v4, v1, isValid, parse, nanoId, randomPassword, UuidUtils } from './uuid_utils/mod';
+
+// Generate UUID v4
+const uuid = v4();
+// "550e8400-e29b-41d4-a716-446655440000"
+
+// Validate UUID
+if (isValid(uuid)) {
+  console.log('Valid UUID!');
+}
+
+// Check version
+const version = getVersion(uuid); // 4
+
+// Parse UUID
+const parsed = parse(uuid);
+// { version: 4, variant: 1 }
+
+// Generate compact UUID
+const compactUuid = compact();
+// "550e8400e29b41d4a716446655440000"
+
+// Generate Nano ID for URL-safe tokens
+const token = nanoId(32);
+// "V1StGXR8_Z5jdHi6B-myT_q9wRp2sTu"
+
+// Generate secure password
+const password = randomPassword(16);
+// "aB3$xK9@mPqR2#sT"
+
+// Using namespace
+const id = UuidUtils.v4();
+const valid = UuidUtils.isValid(id);
+```
+
+---
+
 ### Ruby - Archive Utilities
 
 Location: `Ruby/archive_utils/mod.rb`
