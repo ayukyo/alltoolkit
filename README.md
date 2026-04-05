@@ -6055,4 +6055,153 @@ max = AllToolkit::QrCodeUtils.max_data_length(5, AllToolkit::QrCodeUtils::LEVEL_
 puts "Version 5, Level M can hold #{max} characters"
 ```
 
+---
+
+## 📦 Latest Addition
+
+### Go - Log Utilities
+
+Location: `Go/log_utils/mod.go`
+
+A comprehensive logging utility for Go applications with support for multiple log levels, customizable output formats, file rotation, and concurrent-safe logging operations.
+
+**Log Levels:**
+- **DEBUG**: Detailed debugging information
+- **INFO**: General informational messages
+- **WARN**: Warning messages
+- **ERROR**: Error messages
+- **FATAL**: Fatal errors that terminate the application
+
+**Core Functions:**
+- **NewLogger**: `log_utils.NewLogger(level)` - Create new logger with specified level
+- **NewWithConfig**: `log_utils.NewWithConfig(config)` - Create logger with custom configuration
+- **DefaultConfig**: `log_utils.DefaultConfig()` - Get default configuration
+
+**Configuration Options:**
+- **Level**: Minimum log level to output (DEBUG, INFO, WARN, ERROR, FATAL)
+- **Output**: Output destination (stdout, stderr, file)
+- **Format**: Output format (text or JSON)
+- **FilePath**: Path to log file (when Output is file)
+- **MaxSize**: Maximum log file size before rotation (bytes)
+- **MaxBackups**: Maximum number of backup files to keep
+- **IncludeCaller**: Include caller information (file:line) in logs
+- **TimeFormat**: Timestamp format (default: RFC3339)
+- **Prefix**: Prefix added to all log messages
+
+**Logging Methods:**
+- **Debug**: `logger.Debug(message, keyValues...)` - Log debug message
+- **Info**: `logger.Info(message, keyValues...)` - Log info message
+- **Warn**: `logger.Warn(message, keyValues...)` - Log warning message
+- **Error**: `logger.Error(message, keyValues...)` - Log error message
+- **Fatal**: `logger.Fatal(message, keyValues...)` - Log fatal message and exit
+
+**Formatted Logging:**
+- **Debugf**: `logger.Debugf(format, args...)` - Formatted debug message
+- **Infof**: `logger.Infof(format, args...)` - Formatted info message
+- **Warnf**: `logger.Warnf(format, args...)` - Formatted warning message
+- **Errorf**: `logger.Errorf(format, args...)` - Formatted error message
+- **Fatalf**: `logger.Fatalf(format, args...)` - Formatted fatal message
+
+**Structured Logging:**
+- Add key-value pairs to any log message
+- Automatic JSON serialization for structured output
+- Example: `logger.Info("User action", "user_id", 123, "action", "login")`
+
+**File Rotation:**
+- Automatic rotation when file exceeds MaxSize
+- Backup files named with numeric suffix (.1, .2, etc.)
+- Configurable maximum number of backups
+- Thread-safe rotation operations
+
+**Utility Functions:**
+- **SetLevel**: `logger.SetLevel(level)` - Change log level dynamically
+- **GetLevel**: `logger.GetLevel()` - Get current log level
+- **LevelFromString**: `log_utils.LevelFromString(str)` - Convert string to LogLevel
+- **WithPrefix**: `logger.WithPrefix(prefix)` - Create logger with prefix
+- **Close**: `logger.Close()` - Close logger and release resources
+
+**Features:**
+- Zero dependencies, uses only Go standard library
+- Multiple log levels with filtering
+- Structured logging with key-value pairs
+- Text and JSON output formats
+- File rotation by size
+- Concurrent-safe operations with mutex
+- Caller information tracking (optional)
+- Customizable timestamp formats
+- Prefix support for log categorization
+- 20+ comprehensive unit tests
+- 10 practical usage examples
+- Production-ready for application logging
+
+Compile and run tests:
+```bash
+cd Go/log_utils
+go test -v
+```
+
+Run example:
+```bash
+cd Go/examples
+go run log_utils_example.go
+```
+
+Usage example:
+```go
+package main
+
+import (
+    "github.com/ayukyo/alltoolkit/Go/log_utils"
+)
+
+func main() {
+    // Basic logger with INFO level
+    logger := log_utils.NewLogger(log_utils.INFO)
+    logger.Info("Application started")
+    logger.Debug("This won't show (level is INFO)")
+    
+    // Structured logging with fields
+    logger.Info("User logged in", 
+        "user_id", 12345, 
+        "username", "john_doe",
+        "ip", "192.168.1.1")
+    
+    // Formatted logging
+    logger.Infof("Processing %d items", 42)
+    logger.Warnf("Memory usage at %.2f%%", 85.5)
+    
+    // File logging with rotation
+    config := log_utils.Config{
+        Level:      log_utils.DEBUG,
+        Output:     log_utils.OutputFile,
+        FilePath:   "/var/log/app.log",
+        MaxSize:    100 * 1024 * 1024, // 100MB
+        MaxBackups: 5,
+        Format:     log_utils.FormatJSON,
+    }
+    fileLogger := log_utils.NewWithConfig(config)
+    fileLogger.Info("Logging to file with JSON format")
+    defer fileLogger.Close()
+    
+    // JSON format output
+    jsonConfig := log_utils.DefaultConfig()
+    jsonConfig.Format = log_utils.FormatJSON
+    jsonLogger := log_utils.NewWithConfig(jsonConfig)
+    jsonLogger.Info("JSON log", "service", "api", "version", "1.0.0")
+    // Output: {"timestamp":"2024-01-15T10:30:00Z","level":"INFO","message":"JSON log",
+    //          "fields":{"service":"api","version":"1.0.0"}}
+    
+    // Dynamic level changes
+    logger.SetLevel(log_utils.DEBUG)
+    logger.Debug("Now this will show")
+    
+    // Logger with prefix
+    prefixedLogger := logger.WithPrefix("[API]")
+    prefixedLogger.Info("Request received") // Output: [API] Request received
+    
+    // String to level conversion
+    level := log_utils.LevelFromString("warn") // Returns WARN
+}
+```
+
 # CI Test
