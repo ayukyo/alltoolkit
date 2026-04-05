@@ -5546,4 +5546,151 @@ const trimmed = StringUtils.trim('  hello  ');
 const slug = StringUtils.slugify('Hello World!');  // "hello-world"
 ```
 
+---
+
+## 📦 Latest Addition
+
+### TypeScript - Template Engine Utilities
+
+Location: `TypeScript/template_utils/mod.ts`
+
+A lightweight, zero-dependency template engine for TypeScript with variable interpolation, conditionals, loops, filters, and partial includes.
+
+**Variable Interpolation:**
+- **Basic**: `{{ variable }}` - Output variable value
+- **Nested**: `{{ user.name }}` - Access nested object properties
+- **Safe**: Returns empty string for undefined/null values
+
+**Filters:**
+- **String**: `upper`, `lower`, `capitalize`, `title`, `trim`, `reverse`, `truncate`, `replace`
+- **HTML**: `escape` - Escape HTML entities
+- **Array**: `join`, `first`, `last`, `size`, `sort`, `reverse_array`
+- **Number**: `round`, `abs`
+- **Utility**: `default`, `url_encode`, `url_decode`
+- **Chaining**: `{{ text | trim | upper }}` - Apply multiple filters
+
+**Conditionals:**
+- **If**: `{% if condition %} ... {% endif %}`
+- **If-Else**: `{% if condition %} ... {% else %} ... {% endif %}`
+- **Operators**: `==`, `!=`, `>`, `<`, `>=`, `<=`
+- **Not**: `{% if not user %} ... {% endif %}`
+
+**Loops:**
+- **For**: `{% for item in items %} ... {% endfor %}`
+- **Loop variables**: `loop.index`, `loop.index1`, `loop.first`, `loop.last`
+- **Filters in loops**: `{% for item in items %}{{ item | upper }}{% endfor %}`
+
+**Partials (Includes):**
+- **Include**: `{% include "partial_name" %}`
+- **Nested rendering**: Partials can include other partials
+- **Context inheritance**: Partials share parent context
+
+**Comments:**
+- **Syntax**: `{# This is a comment #}`
+- **Behavior**: Removed from output
+
+**Custom Filters:**
+- **Register**: `engine.registerFilter(name, fn)`
+- **Usage**: `{{ value | custom_filter }}`
+
+**TemplateEngine Class:**
+- **Constructor**: `new TemplateEngine(options?)`
+- **registerFilter**: Add custom filter function
+- **getFilter**: Get filter by name
+- **render**: Render template with context and partials
+
+**Convenience Function:**
+- **renderTemplate**: `renderTemplate(template, context, partials, options?)` - Quick render without class
+
+**Features:**
+- Zero dependencies, uses only TypeScript/JavaScript standard library
+- Full TypeScript type support with generics
+- 20+ built-in filters for common transformations
+- Nested object property access
+- Filter chaining support
+- Partial template includes
+- Comment support
+- Custom filter registration
+- 25+ comprehensive unit tests
+- 15 practical usage examples
+- Production-ready for email templates, HTML generation, and dynamic content
+
+Compile and run tests:
+```bash
+cd TypeScript/template_utils
+npx tsc template_utils_test.ts && node template_utils_test.js
+```
+
+Run example:
+```bash
+cd TypeScript/examples
+npx tsc template_utils_example.ts && node template_utils_example.js
+```
+
+Usage example:
+```typescript
+import { TemplateEngine, renderTemplate } from './template_utils/mod';
+
+// Simple variable interpolation
+const result = renderTemplate('Hello, {{ name }}!', { name: 'World' });
+// Returns: "Hello, World!"
+
+// Using filters
+const upper = renderTemplate('{{ name | upper }}', { name: 'alice' });
+// Returns: "ALICE"
+
+// Filter chaining
+const chained = renderTemplate('{{ text | trim | upper }}', { text: '  hello  ' });
+// Returns: "HELLO"
+
+// Conditionals
+const template = `{% if user %}Hello, {{ user }}{% else %}Welcome, guest{% endif %}`;
+const result = renderTemplate(template, { user: 'Alice' });
+// Returns: "Hello, Alice"
+
+// Loops
+const loopTemplate = '{% for item in items %}{{ item }}{% endfor %}';
+const loopResult = renderTemplate(loopTemplate, { items: ['a', 'b', 'c'] });
+// Returns: "abc"
+
+// Partials
+const partials = { header: '<h1>{{ title }}</h1>' };
+const page = renderTemplate('{% include "header" %}', { title: 'Page' }, partials);
+// Returns: "<h1>Page</h1>"
+
+// Custom filters
+const engine = new TemplateEngine();
+engine.registerFilter('double', (n: number) => n * 2);
+const custom = engine.render('{{ num | double }}', { num: 21 });
+// Returns: "42"
+
+// Nested objects
+const nested = renderTemplate('{{ user.address.city }}', {
+  user: { address: { city: 'New York' } }
+});
+// Returns: "New York"
+
+// Email template example
+const emailTemplate = `Subject: {{ subject | upper }}
+
+Dear {{ user.name | title }},
+
+Thank you for your order of {{ items | size }} items:
+{% for item in items %}
+- {{ item.name }} - ${{ item.price }}
+{% endfor %}
+
+Total: ${{ total | round:2 }}
+
+{% if discount > 0 %}You saved ${{ discount }}!{% endif %}`;
+
+const email = renderTemplate(emailTemplate, {
+  subject: 'order confirmation',
+  user: { name: 'john doe' },
+  items: [{ name: 'Widget', price: 29.99 }],
+  total: 29.99,
+  discount: 5.00
+});
+```
+
 # CI Test
