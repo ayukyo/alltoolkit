@@ -6304,4 +6304,147 @@ func main() {
 }
 ```
 
+---
+
+## 📦 Latest Addition
+
+### Fortran - String Utilities
+
+Location: `Fortran/string_utils/mod.f90`
+
+A comprehensive string manipulation utility module for Fortran 90/95/2003+ providing common string operations with zero dependencies.
+
+**Empty/Blank Checks:**
+- **is_empty**: `is_empty(str)` - Check if string is empty (length 0)
+- **is_blank**: `is_blank(str)` - Check if string is blank (empty or whitespace only)
+- **is_not_blank**: `is_not_blank(str)` - Check if string has content
+
+**Trimming and Whitespace:**
+- **str_trim**: `str_trim(str)` - Remove leading and trailing whitespace
+- **remove_whitespace**: `remove_whitespace(str)` - Remove all whitespace from string
+- **normalize_whitespace**: `normalize_whitespace(str)` - Collapse multiple spaces to single
+- **is_whitespace**: `is_whitespace(c)` - Check if character is whitespace
+
+**Case Conversion:**
+- **to_lower**: `to_lower(str)` - Convert string to lowercase
+- **to_upper**: `to_upper(str)` - Convert string to uppercase
+- **capitalize**: `capitalize(str)` - Capitalize first letter of string
+- **swap_case**: `swap_case(str)` - Swap uppercase/lowercase
+
+**Substring Operations:**
+- **substring_after**: `substring_after(str, separator)` - Extract substring after first occurrence of separator
+- **substring_after_last**: `substring_after_last(str, separator)` - Extract substring after last occurrence
+- **substring_before**: `substring_before(str, separator)` - Extract substring before first occurrence
+- **substring_before_last**: `substring_before_last(str, separator)` - Extract substring before last occurrence
+- **substring_between**: `substring_between(str, open_marker, close_marker)` - Extract substring between markers
+- **truncate**: `truncate(str, max_len, suffix)` - Truncate string with suffix
+
+**Prefix/Suffix Operations:**
+- **starts_with**: `starts_with(str, prefix)` - Check if string starts with prefix (case sensitive)
+- **starts_with_ignore_case**: `starts_with_ignore_case(str, prefix)` - Case insensitive check
+- **ends_with**: `ends_with(str, suffix)` - Check if string ends with suffix (case sensitive)
+- **ends_with_ignore_case**: `ends_with_ignore_case(str, suffix)` - Case insensitive check
+- **remove_prefix**: `remove_prefix(str, prefix)` - Remove prefix if present
+- **remove_suffix**: `remove_suffix(str, suffix)` - Remove suffix if present
+
+**Search and Count:**
+- **count_substring**: `count_substring(str, substr)` - Count occurrences of substring
+- **contains_substring**: `contains_substring(str, substr)` - Check if string contains substring
+- **contains_substring_ignore_case**: `contains_substring_ignore_case(str, substr)` - Case insensitive
+- **index_of**: `index_of(str, substr)` - Find position of first occurrence
+- **last_index_of**: `last_index_of(str, substr)` - Find position of last occurrence
+
+**Replacement:**
+- **replace_first**: `replace_first(str, old_substr, new_substr)` - Replace first occurrence
+- **replace_all**: `replace_all(str, old_substr, new_substr)` - Replace all occurrences
+
+**Padding:**
+- **pad_left**: `pad_left(str, target_len, pad_char)` - Pad string on the left
+- **pad_right**: `pad_right(str, target_len, pad_char)` - Pad string on the right
+- **center**: `center(str, target_len, pad_char)` - Center string with padding
+
+**Reversal and Repetition:**
+- **reverse_string**: `reverse_string(str)` - Reverse string
+- **repeat_string**: `repeat_string(str, n)` - Repeat string n times
+
+**Validation:**
+- **is_numeric**: `is_numeric(str)` - Check if string is numeric (integer or float)
+- **is_integer_str**: `is_integer_str(str)` - Check if string is integer
+- **is_alpha**: `is_alpha(str)` - Check if string contains only alphabetic characters
+- **is_alphanumeric**: `is_alphanumeric(str)` - Check if string is alphanumeric
+- **is_valid_email**: `is_valid_email(str)` - Basic email format validation
+
+**Utility Functions:**
+- **default_if_blank**: `default_if_blank(str, default_val)` - Return default if blank
+- **str_equals**: `str_equals(str1, str2)` - Compare strings (case sensitive)
+- **str_equals_ignore_case**: `str_equals_ignore_case(str1, str2)` - Compare strings (case insensitive)
+
+**Features:**
+- Zero dependencies, uses only Fortran standard library
+- Compatible with Fortran 90/95/2003+
+- Complete FORD-style documentation comments
+- Full support for fixed-length Fortran strings
+- Case conversion with ASCII character support
+- Comprehensive substring extraction operations
+- String validation for common formats
+- 30+ comprehensive unit tests
+- 11 practical usage examples
+- Production-ready for scientific computing and data processing
+
+Compile and run tests:
+```bash
+cd Fortran/string_utils
+gfortran -o string_utils_test mod.f90 string_utils_test.f90 && ./string_utils_test
+```
+
+Run example:
+```bash
+cd Fortran/examples
+gfortran -o string_utils_example ../string_utils/mod.f90 string_utils_example.f90 && ./string_utils_example
+```
+
+Usage example:
+```fortran
+use string_utils
+
+! Empty checks
+if (is_blank(user_input)) then
+    print *, 'Input is required'
+end if
+
+! Case conversion
+lower = to_lower('HELLO WORLD')    ! 'hello world'
+upper = to_upper('hello')           ! 'HELLO'
+capitalized = capitalize('hello')   ! 'Hello'
+
+! Substring operations
+filename = substring_after_last('/path/to/file.txt', '/')  ! 'file.txt'
+content = substring_between('<tag>', '</tag>')             ! 'content'
+truncated = truncate('very long text', 10, '...')         ! 'very lo...'
+
+! Prefix/suffix checks
+if (starts_with(str, 'prefix')) then
+    ! Process string
+end if
+if (ends_with_ignore_case(filename, '.TXT')) then
+    ! Process text file
+end if
+
+! Search and replace
+count = count_substring('hello hello world', 'hello')      ! 2
+replaced = replace_all('hello world', 'world', 'universe') ! 'hello universe'
+
+! Padding
+padded = pad_left('42', 5, '0')    ! '00042'
+centered = center('hi', 6, ' ')    ! '  hi  '
+
+! Validation
+if (is_valid_email(email)) then
+    ! Process valid email
+end if
+if (is_numeric(input_str)) then
+    read(input_str, *) number
+end if
+```
+
 # CI Test
