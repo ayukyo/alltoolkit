@@ -5381,4 +5381,169 @@ ArchiveUtils.gzip_file('document.txt', 'document.txt.gz')
 ArchiveUtils.gunzip_file('document.txt.gz', 'document.txt')
 ```
 
+---
+
+## 📦 Latest Addition
+
+### ArkTS - String Utilities
+
+Location: `ArkTS/string_utils/mod.ets`
+
+A comprehensive string manipulation utility module for ArkTS/HarmonyOS providing common string operations with zero dependencies.
+
+**Empty/Blank Checks:**
+- **isBlank**: `isBlank(str)` - Check if string is null, undefined, empty, or whitespace only
+- **isNotBlank**: `isNotBlank(str)` - Check if string has content
+- **isEmpty**: `isEmpty(str)` - Check if string is empty (length === 0)
+
+**Trimming and Whitespace:**
+- **trim**: `trim(str)` - Remove leading and trailing whitespace
+- **trimLeft**: `trimLeft(str)` - Remove leading whitespace
+- **trimRight**: `trimRight(str)` - Remove trailing whitespace
+- **removeWhitespace**: `removeWhitespace(str)` - Remove all whitespace
+- **normalizeWhitespace**: `normalizeWhitespace(str)` - Collapse multiple spaces to single space
+
+**Case Conversion:**
+- **toLowerCase**: `toLowerCase(str)` - Convert to lowercase
+- **toUpperCase**: `toUpperCase(str)` - Convert to uppercase
+- **capitalize**: `capitalize(str)` - Capitalize first character
+- **uncapitalize**: `uncapitalize(str)` - Uncapitalize first character
+- **toTitleCase**: `toTitleCase(str)` - Convert to Title Case
+- **toCamelCase**: `toCamelCase(str)` - Convert to camelCase
+- **toPascalCase**: `toPascalCase(str)` - Convert to PascalCase
+- **toSnakeCase**: `toSnakeCase(str)` - Convert to snake_case
+- **toKebabCase**: `toKebabCase(str)` - Convert to kebab-case
+
+**Substring Operations:**
+- **truncate**: `truncate(str, maxLength, suffix?)` - Truncate string with ellipsis
+- **substringBetween**: `substringBetween(str, open, close)` - Extract substring between markers
+- **substringAfter**: `substringAfter(str, separator)` - Extract after first separator
+- **substringBefore**: `substringBefore(str, separator)` - Extract before first separator
+- **substringAfterLast**: `substringAfterLast(str, separator)` - Extract after last separator
+- **substringBeforeLast**: `substringBeforeLast(str, separator)` - Extract before last separator
+
+**Prefix/Suffix Operations:**
+- **startsWith**: `startsWith(str, prefix, ignoreCase?)` - Check if string starts with prefix
+- **endsWith**: `endsWith(str, suffix, ignoreCase?)` - Check if string ends with suffix
+- **removePrefix**: `removePrefix(str, prefix)` - Remove prefix if present
+- **removeSuffix**: `removeSuffix(str, suffix)` - Remove suffix if present
+
+**Validation:**
+- **isValidEmail**: `isValidEmail(str)` - Validate email format
+- **isValidUrl**: `isValidUrl(str)` - Validate URL format
+- **isNumeric**: `isNumeric(str)` - Check if numeric
+- **isInteger**: `isInteger(str)` - Check if integer
+- **isAlpha**: `isAlpha(str)` - Check if alphabetic
+- **isAlphanumeric**: `isAlphanumeric(str)` - Check if alphanumeric
+
+**Padding and Alignment:**
+- **padLeft**: `padLeft(str, length, padChar?)` - Pad string on left
+- **padRight**: `padRight(str, length, padChar?)` - Pad string on right
+- **center**: `center(str, length, padChar?)` - Center string with padding
+
+**Search and Replace:**
+- **contains**: `contains(str, search, ignoreCase?)` - Check if string contains substring
+- **countMatches**: `countMatches(str, search)` - Count occurrences of substring
+- **replaceAll**: `replaceAll(str, search, replacement)` - Replace all occurrences
+
+**Split and Join:**
+- **split**: `split(str, separator, limit?)` - Split string into array
+- **lines**: `lines(str, trimEmpty?)` - Split string by newlines
+- **join**: `join(array, separator?)` - Join array elements
+
+**Encoding/Decoding:**
+- **base64Encode**: `base64Encode(str)` - Encode string to Base64
+- **base64Decode**: `base64Decode(str)` - Decode Base64 string
+- **urlEncode**: `urlEncode(str)` - URL encode string
+- **urlDecode**: `urlDecode(str)` - URL decode string
+
+**Random Generation:**
+- **randomString**: `randomString(length, chars?)` - Generate random string
+- **randomAlphanumeric**: `randomAlphanumeric(length)` - Generate alphanumeric string
+- **randomNumeric**: `randomNumeric(length)` - Generate numeric string
+- **randomAlphabetic**: `randomAlphabetic(length)` - Generate alphabetic string
+- **randomPassword**: `randomPassword(length?)` - Generate secure password
+
+**Utility Functions:**
+- **reverse**: `reverse(str)` - Reverse string
+- **repeat**: `repeat(str, count)` - Repeat string
+- **defaultIfBlank**: `defaultIfBlank(str, defaultValue)` - Return default if blank
+- **defaultIfEmpty**: `defaultIfEmpty(str, defaultValue)` - Return default if empty
+- **equals**: `equals(str1, str2, ignoreCase?)` - Compare strings
+- **slugify**: `slugify(str, separator?)` - Create URL-friendly slug
+
+**StringUtils Class:**
+- Static class providing all functions as static methods
+- Alternative API: `StringUtils.trim(str)`, `StringUtils.toCamelCase(str)`, etc.
+
+**Features:**
+- Zero dependencies, uses only ArkTS standard library
+- Full TypeScript type support with null/undefined safety
+- 50+ comprehensive string manipulation functions
+- Case conversion support (camelCase, PascalCase, snake_case, kebab-case)
+- Email and URL validation
+- Base64 and URL encoding/decoding
+- Random string and password generation
+- Complete test suite with 40+ test cases
+- 13 practical usage examples
+- Production-ready for HarmonyOS application development
+
+Run tests:
+```bash
+cd ArkTS/string_utils
+# Requires HarmonyOS development environment
+```
+
+Run example:
+```bash
+cd ArkTS/examples
+# Requires HarmonyOS development environment
+```
+
+Usage example:
+```typescript
+import { 
+  isBlank, trim, toCamelCase, truncate,
+  isValidEmail, padLeft, base64Encode,
+  randomPassword, StringUtils 
+} from '../string_utils/mod';
+
+// Empty checks
+if (isBlank(userInput)) {
+  console.log('Input is required');
+}
+
+// Case conversion
+const camelCase = toCamelCase('hello_world');     // "helloWorld"
+const pascalCase = toPascalCase('hello_world');   // "HelloWorld"
+const snakeCase = toSnakeCase('HelloWorld');      // "hello_world"
+const kebabCase = toKebabCase('HelloWorld');      // "hello-world"
+
+// Substring operations
+const filename = substringAfterLast('/path/to/file.txt', '/');  // "file.txt"
+const content = substringBetween('<div>content</div>', '<div>', '</div>');  // "content"
+const summary = truncate('This is a very long text...', 20);   // "This is a very lo..."
+
+// Validation
+if (isValidEmail('user@example.com')) {
+  // Process valid email
+}
+
+// Padding
+const padded = padLeft('5', 3, '0');  // "005"
+const centered = center('hi', 6);      // "  hi  "
+
+// Encoding
+const encoded = base64Encode('Hello, World!');
+const urlSafe = urlEncode('hello world');  // "hello%20world"
+
+// Random generation
+const token = randomAlphanumeric(32);
+const password = randomPassword(16);
+
+// Using StringUtils class
+const trimmed = StringUtils.trim('  hello  ');
+const slug = StringUtils.slugify('Hello World!');  // "hello-world"
+```
+
 # CI Test
