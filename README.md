@@ -5942,4 +5942,117 @@ echo $qr->toAscii("TEST", "##", "..");
 //   ...
 ```
 
+---
+
+## 📦 Latest Addition
+
+### Ruby - QR Code Utilities
+
+Location: `Ruby/qr_code_utils/mod.rb`
+
+A pure Ruby QR Code generator with zero dependencies. Supports multiple output formats including ASCII art, Unicode block characters, and SVG vector graphics. Implements QR Code versions 1-10 with all error correction levels.
+
+**QR Code Generation:**
+- **generate**: `QrCodeUtils.generate(data, error_correction_level)` - Generate QR code from text
+  - Automatic version detection based on data length
+  - Error correction levels: LEVEL_L, LEVEL_M, LEVEL_Q, LEVEL_H
+- **QrCode class**: Direct access to QR code construction and properties
+
+**Output Formats:**
+- **to_ascii**: `qr.to_ascii(border, dark_char, light_char)` - ASCII art with full block characters
+  - Default: '██' for dark, '  ' for light
+  - Configurable border size
+- **to_unicode**: `qr.to_unicode(border)` - Compact Unicode output using half-height blocks
+  - Uses '█', '▀', '▄' characters for compact display
+  - Half the height of ASCII output
+- **to_compact_ascii**: Alias for to_unicode
+- **to_svg**: `qr.to_svg(module_size, border_modules)` - SVG vector graphic
+  - Configurable module size in pixels
+  - Configurable quiet zone (border modules)
+  - Standard SVG format for web use
+
+**QR Code Properties:**
+- **data**: Original data string
+- **version**: QR code version (1-10)
+- **size**: Module count (e.g., 21 for version 1)
+- **error_correction_level**: Error correction level (0-3)
+- **modules**: 2D boolean array of modules
+
+**Utility Functions:**
+- **max_data_length**: `QrCodeUtils.max_data_length(version, level)` - Get max characters for version/level
+
+**Features:**
+- Zero dependencies, uses only Ruby standard library
+- QR Code versions 1-10 (21x21 to 57x57 modules)
+- All error correction levels: L (~7%), M (~15%), Q (~25%), H (~30%)
+- Byte mode encoding (supports any text including Unicode)
+- Complete QR Code structure: finder patterns, timing patterns, alignment patterns
+- Format information with BCH error correction
+- Data masking and zigzag placement
+- Multiple output formats: ASCII, Unicode, SVG
+- 30+ comprehensive unit tests
+- 15 practical usage examples
+- Production-ready for ticketing, payments, WiFi sharing, and more
+
+Run tests:
+```bash
+cd Ruby/qr_code_utils
+ruby qr_code_utils_test.rb
+```
+
+Run example:
+```bash
+cd Ruby/examples
+ruby qr_code_utils_example.rb
+```
+
+Usage example:
+```ruby
+require_relative 'Ruby/qr_code_utils/mod'
+
+# Generate QR code
+qr = AllToolkit::QrCodeUtils.generate("Hello, World!")
+
+# ASCII art output (full size)
+puts qr.to_ascii
+# Output:
+# ████████████████████████████████
+# ██                            ██
+# ██  ████████████████████████  ██
+# ...
+
+# Compact Unicode output (half height)
+puts qr.to_unicode
+# Output:
+# ████████████████████████████████
+# █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
+# ...
+
+# SVG output
+svg = qr.to_svg(10, 4)  # 10px modules, 4 module border
+File.write('qrcode.svg', svg)
+
+# Different error correction levels
+qr_l = AllToolkit::QrCodeUtils.generate("Data", AllToolkit::QrCodeUtils::LEVEL_L)
+qr_h = AllToolkit::QrCodeUtils.generate("Data", AllToolkit::QrCodeUtils::LEVEL_H)
+
+# Access QR properties
+puts "Version: #{qr.version}"
+puts "Size: #{qr.size}x#{qr.size}"
+puts "Data length: #{qr.data.length}"
+
+# Get matrix representation
+matrix = qr.to_matrix
+matrix.each { |row| puts row.map { |m| m ? '██' : '  ' }.join }
+
+# WiFi QR code
+wifi = "WIFI:T:WPA;S:MyNetwork;P:password;;"
+qr = AllToolkit::QrCodeUtils.generate(wifi)
+puts qr.to_unicode(1)  # Small border
+
+# Check max data length
+max = AllToolkit::QrCodeUtils.max_data_length(5, AllToolkit::QrCodeUtils::LEVEL_M)
+puts "Version 5, Level M can hold #{max} characters"
+```
+
 # CI Test
