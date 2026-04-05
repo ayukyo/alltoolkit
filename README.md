@@ -6623,4 +6623,106 @@ func main() {
 
 ---
 
+---
+
+## 📦 Latest Addition
+
+### Python - QR Code Utilities
+
+Location: `Python/qr_code_utils/mod.py`
+
+A comprehensive QR Code generation utility module for Python with zero dependencies. Supports encoding with multiple error correction levels, ASCII art output, SVG generation, and raw bitmap access.
+
+**Encoding Functions:**
+- **Encode**: `QRCodeUtils.encode(data, ec_level, version)` - Encode data into QR Code
+- **Validate**: `QRCodeUtils.validate(data)` - Check if data can be encoded
+- **Get Capacity**: `QRCodeUtils.get_capacity(version, ec_level)` - Get max data capacity
+- **Is Valid QR String**: `QRCodeUtils.is_valid_qr_string(qr_string)` - Validate QR representation
+
+**Error Correction Levels:**
+- `ErrorCorrectionLevel.L` - ~7% recovery
+- `ErrorCorrectionLevel.M` - ~15% recovery (default)
+- `ErrorCorrectionLevel.Q` - ~25% recovery
+- `ErrorCorrectionLevel.H` - ~30% recovery
+
+**Encoding Modes:**
+- `QRMode.NUMERIC` - Numeric only (0-9)
+- `QRMode.ALPHANUMERIC` - Alphanumeric (0-9, A-Z, space, $%*+-./:)
+- `QRMode.BYTE` - Binary/Unicode data
+
+**QRCode Class Methods:**
+- **To ASCII**: `qr.to_ascii(border, black, white)` - Generate ASCII art with custom styling
+- **To Compact ASCII**: `qr.to_compact_ascii(border)` - Compact half-block ASCII art
+- **To Unicode**: `qr.to_unicode(border)` - Unicode block characters
+- **To SVG**: `qr.to_svg(module_size, border)` - Generate SVG for web use
+- **To Bitmap**: `qr.to_bitmap()` - Get raw 2D matrix (1=black, 0=white)
+- **Get Info**: `qr.get_info()` - Get QR metadata (version, size, mode, etc.)
+- **Save to File**: `qr.save_to_file(filepath, format)` - Save as ASCII, SVG, or Unicode
+
+**Convenience Functions:**
+- `encode(data, ec_level, version)` - Module-level encode function
+- `validate(data)` - Module-level validate function
+- `get_capacity(version, ec_level)` - Module-level capacity function
+- `is_valid_qr_string(qr_string)` - Module-level validation function
+
+**Features:**
+- Zero dependencies, uses only Python standard library
+- Supports QR Code versions 1-5 (21x21 to 37x37 modules)
+- Automatic encoding mode detection (numeric, alphanumeric, byte)
+- Multiple output formats: ASCII art, compact ASCII, SVG, raw bitmap
+- Customizable ASCII styling (block characters, colors)
+- WiFi connection QR codes (WIFI: protocol)
+- vCard/contact QR codes
+- URL QR codes
+- Complete test suite with 15 test cases
+- 11 practical usage examples
+- Production-ready for terminal applications, web generation, and automation
+
+Run tests:
+```bash
+cd Python/qr_code_utils
+python qr_code_utils_test.py
+```
+
+Run example:
+```bash
+cd Python/examples
+python qr_code_utils_example.py
+```
+
+Usage example:
+```python
+from qr_code_utils.mod import QRCodeUtils, ErrorCorrectionLevel, encode
+
+# Basic encoding
+qr = QRCodeUtils.encode("Hello, World!")
+print(qr.to_ascii())
+
+# WiFi QR Code
+wifi_data = "WIFI:S:MyNetwork;T:WPA;P:password123;;"
+qr = QRCodeUtils.encode(wifi_data, ec_level=ErrorCorrectionLevel.H)
+print(qr.to_compact_ascii())
+
+# Custom styling
+qr = QRCodeUtils.encode("https://example.com")
+print(qr.to_ascii(black='██', white='  '))
+print(qr.to_ascii(black='█', white='░'))
+
+# Generate SVG for web
+svg = qr.to_svg(module_size=8)
+with open("qr.svg", "w") as f:
+    f.write(svg)
+
+# Get QR info
+info = qr.get_info()
+print(f"Version: {info['version']}, Size: {info['size']}x{info['size']}")
+print(f"Mode: {info['mode']}, EC Level: {info['error_correction']}")
+
+# Convenience functions
+qr = encode("Quick encode")
+print(qr.to_compact_ascii())
+```
+
+---
+
 # CI Test
