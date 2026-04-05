@@ -4098,6 +4098,126 @@ MIT License - 免费用于个人和商业项目
 
 ## 📦 Latest Addition
 
+### Kotlin - Base64 Utilities
+
+Location: `Kotlin/base64_utils/mod.kt`
+
+A comprehensive Base64 encoding and decoding utility module for Kotlin with support for standard Base64 and URL-safe Base64 (RFC 4648).
+
+**Encoding Functions:**
+- **Encode String**: `Base64Utils.encode(input, charset)` - Encode string to Base64
+- **Encode Bytes**: `Base64Utils.encode(data)` - Encode byte array to Base64
+- **Encode URL-Safe**: `Base64Utils.encodeUrlSafe(input, charset, padding)` - Encode to URL-safe Base64
+- **Encode URL-Safe Bytes**: `Base64Utils.encodeUrlSafe(data, padding)` - Encode bytes to URL-safe Base64
+
+**Decoding Functions:**
+- **Decode**: `Base64Utils.decode(base64, charset)` - Decode Base64 to string
+- **Decode to Bytes**: `Base64Utils.decodeToBytes(base64)` - Decode Base64 to byte array
+- **Decode URL-Safe**: `Base64Utils.decodeUrlSafe(base64Url, charset)` - Decode URL-safe Base64 to string
+- **Decode URL-Safe to Bytes**: `Base64Utils.decodeUrlSafeToBytes(base64Url)` - Decode URL-safe Base64 to bytes
+- **Safe Decode**: `Base64Utils.decodeOrNull(base64, charset)` - Safe decode, returns null on failure
+- **Safe URL-Safe Decode**: `Base64Utils.decodeUrlSafeOrNull(base64Url, charset)` - Safe URL-safe decode
+
+**Format Conversion:**
+- **To URL-Safe**: `Base64Utils.toUrlSafe(base64, padding)` - Convert standard Base64 to URL-safe format
+- **From URL-Safe**: `Base64Utils.fromUrlSafe(base64Url)` - Convert URL-safe Base64 to standard format
+
+**Validation Functions:**
+- **Is Valid**: `Base64Utils.isValid(str)` - Check if string is valid Base64
+- **Is Valid URL-Safe**: `Base64Utils.isValidUrlSafe(str)` - Check if string is valid URL-safe Base64
+
+**Utility Functions:**
+- **Encoded Length**: `Base64Utils.encodedLength(inputLength, padding)` - Calculate encoded string length
+- **Decoded Max Length**: `Base64Utils.decodedMaxLength(base64Length)` - Calculate maximum decoded length
+
+**Extension Functions:**
+- **String.toBase64()**: Encode string to Base64
+- **String.toBase64UrlSafe(padding)**: Encode string to URL-safe Base64
+- **String.fromBase64()**: Decode Base64 string
+- **String.fromBase64OrNull()**: Safe decode Base64, returns null on failure
+- **String.fromBase64UrlSafe()**: Decode URL-safe Base64 string
+- **String.fromBase64UrlSafeOrNull()**: Safe decode URL-safe Base64
+- **ByteArray.toBase64()**: Encode byte array to Base64
+- **ByteArray.toBase64UrlSafe(padding)**: Encode byte array to URL-safe Base64
+
+**Features:**
+- Zero dependencies, uses only Kotlin/Java standard library (java.util.Base64)
+- Full UTF-8 support including Unicode characters and emoji
+- URL-safe Base64 variant (RFC 4648) with optional padding control
+- Binary data support via ByteArray
+- Safe decoding methods that return null instead of throwing exceptions
+- Complete input validation with descriptive error messages
+- Convenient extension functions for idiomatic Kotlin usage
+- Thread-safe (all methods are stateless)
+- 25+ comprehensive unit tests covering all functionality
+- 12 practical usage examples
+- Production-ready for data encoding/decoding tasks
+
+Compile and run tests:
+```bash
+cd Kotlin/base64_utils
+kotlinc -include-runtime -d test.jar *.kt && java -jar test.jar
+```
+
+Run example:
+```bash
+cd Kotlin/examples
+kotlinc -cp ../base64_utils base64_utils_example.kt && kotlin -cp ../base64_utils:. Base64UtilsExampleKt
+```
+
+Usage example:
+```kotlin
+import base64_utils.Base64Utils
+import base64_utils.toBase64
+import base64_utils.fromBase64
+import base64_utils.toBase64UrlSafe
+import base64_utils.fromBase64UrlSafe
+
+// Basic encoding
+val encoded = Base64Utils.encode("Hello, World!")
+// Returns: "SGVsbG8sIFdvcmxkIQ=="
+
+// Basic decoding
+val decoded = Base64Utils.decode("SGVsbG8sIFdvcmxkIQ==")
+// Returns: "Hello, World!"
+
+// URL-safe encoding (for URLs/filenames)
+val urlSafe = Base64Utils.encodeUrlSafe("user+name/file", padding = false)
+// Returns: "dXNlcituYW1lL2ZpbGU"
+
+// Binary data encoding
+val data = byteArrayOf(0x00, 0x01, 0x02, 0xFF.toByte())
+val binaryEncoded = Base64Utils.encode(data)
+// Returns: "AAEC/w=="
+
+// Unicode support (Chinese)
+val chinese = Base64Utils.encode("你好世界")
+val chineseDecoded = Base64Utils.decode(chinese)
+// Returns: "你好世界"
+
+// Extension functions
+val extEncoded = "Hello".toBase64()
+// Returns: "SGVsbG8="
+
+val extDecoded = "SGVsbG8=".fromBase64()
+// Returns: "Hello"
+
+// Safe decoding
+val result = Base64Utils.decodeOrNull("Invalid")  // Returns null
+val valid = Base64Utils.decodeOrNull("SGVsbG8=")  // Returns "Hello"
+
+// Validation
+val isValid = Base64Utils.isValid("SGVsbG8=")     // true
+val isInvalid = Base64Utils.isValid("Invalid!")   // false
+
+// Convert between formats
+val standard = "SGVsbG8sIFdvcmxkIQ=="
+val urlSafeFmt = Base64Utils.toUrlSafe(standard, padding = false)
+val backToStandard = Base64Utils.fromUrlSafe(urlSafeFmt)
+```
+
+---
+
 ### VB - HTTP Utilities
 
 Location: `VB/http_utils/mod.vb`
