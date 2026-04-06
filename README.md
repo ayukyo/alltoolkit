@@ -7882,4 +7882,145 @@ const sum = QueueUtils.reduce(numbers, (acc, n) => acc + n, 0);
 
 ---
 
+## 📦 Latest Addition
+
+### R - Cache Utilities
+
+Location: `R/cache_utils/mod.R`
+
+A comprehensive caching utility module for R with zero dependencies. Provides in-memory key-value storage with TTL (Time To Live) support, LRU (Least Recently Used) eviction policy, and comprehensive cache statistics.
+
+**Core Functions:**
+- **cache_create**: `cache_create(max_size, default_ttl)` - Create a new cache instance
+  - `max_size`: Maximum number of items (default: 1000)
+  - `default_ttl`: Default TTL in seconds (NULL means no expiration)
+
+**Cache Operations:**
+- **set**: `cache$set(key, value, ttl)` - Store a value with optional TTL
+- **get**: `cache$get(key, default)` - Retrieve a value with optional default
+- **has**: `cache$has(key)` - Check if key exists and is not expired
+- **delete**: `cache$delete(key)` - Remove a key from cache
+- **clear**: `cache$clear()` - Remove all items from cache
+- **keys**: `cache$keys()` - Get all valid keys
+- **size**: `cache$size()` - Get current number of items
+
+**TTL (Time To Live):**
+- **ttl**: `cache$ttl(key)` - Get remaining TTL in seconds
+  - Returns seconds remaining, NULL (no TTL), or -1 (expired/not found)
+- Per-key TTL overrides default TTL
+- Automatic expiration on access
+
+**LRU Eviction:**
+- Automatic eviction of least recently used items when cache reaches capacity
+- Access order tracking for efficient LRU implementation
+- Configurable max_size to control memory usage
+
+**Batch Operations:**
+- **set_multiple**: `cache$set_multiple(key_values, ttl)` - Set multiple key-value pairs
+- **get_multiple**: `cache$get_multiple(keys, default)` - Get multiple values at once
+- **delete_multiple**: `cache$delete_multiple(keys)` - Delete multiple keys
+
+**Atomic Operations:**
+- **get_or_set**: `cache$get_or_set(key, factory, ttl)` - Get or compute and cache
+  - Implements memoization pattern
+  - Factory function called only if key not in cache
+- **increment**: `cache$increment(key, amount, ttl)` - Increment numeric value
+- **decrement**: `cache$decrement(key, amount, ttl)` - Decrement numeric value
+
+**Statistics:**
+- **get_stats**: `cache$get_stats()` - Get comprehensive statistics
+  - `hits`: Number of cache hits
+  - `misses`: Number of cache misses
+  - `hit_rate`: Hit rate as decimal (0.0 to 1.0)
+  - `evictions`: Number of LRU evictions
+  - `expirations`: Number of TTL expirations
+  - `sets`: Number of set operations
+  - `deletes`: Number of delete operations
+  - `current_size`: Current number of items
+  - `max_size`: Maximum capacity
+- **reset_stats**: `cache$reset_stats()` - Reset all statistics
+
+**Configuration:**
+- **get_config**: `cache$get_config()` - Get cache configuration
+  - Returns max_size and default_ttl
+
+**Features:**
+- Zero dependencies, uses only R standard library
+- TTL support for automatic expiration
+- LRU eviction policy when cache reaches capacity
+- Comprehensive cache statistics (hits, misses, hit rate)
+- Support for all R data types (vectors, lists, data frames, etc.)
+- Batch operations for efficiency
+- Memoization pattern support with get_or_set
+- Atomic increment/decrement operations
+- Custom print method for cache summary
+- 20+ comprehensive unit tests
+- 10 practical usage examples
+- Production-ready for data caching and memoization
+
+Run tests:
+```bash
+cd R/cache_utils
+Rscript cache_utils_test.R
+```
+
+Run example:
+```bash
+cd R/examples
+Rscript cache_utils_example.R
+```
+
+Usage example:
+```r
+source("R/cache_utils/mod.R")
+
+# Create a cache
+cache <- cache_create(max_size = 100, default_ttl = 3600)
+
+# Basic set/get
+cache$set("user:123", list(name = "Alice", age = 30))
+user <- cache$get("user:123")
+print(user$name)  # "Alice"
+
+# TTL expiration
+cache$set("session_token", "abc123", ttl = 300)  # 5 minutes
+print(cache$ttl("session_token"))  # ~300 seconds
+
+# Check existence
+if (cache$has("user:123")) {
+  print("User found in cache")
+}
+
+# Get with default
+result <- cache$get("nonexistent", default = list(name = "Unknown"))
+
+# Memoization pattern
+expensive_fn <- function(x) {
+  Sys.sleep(1)  # Simulate expensive computation
+  x * x
+}
+
+# First call computes and caches
+result1 <- cache$get_or_set("square:5", function() expensive_fn(5))
+
+# Second call returns cached value instantly
+result2 <- cache$get_or_set("square:5", function() expensive_fn(5))
+
+# Batch operations
+cache$set_multiple(list(a = 1, b = 2, c = 3))
+results <- cache$get_multiple(c("a", "b", "c"))
+
+# Statistics
+stats <- cache$get_stats()
+print(paste("Hit rate:", round(stats$hit_rate * 100, 2), "%"))
+
+# Print cache summary
+print(cache)
+# Output: Cache (3/100 items)
+#   Hit rate: 66.67% (2 hits, 1 misses)
+#   Evictions: 0, Expirations: 0
+```
+
+---
+
 # CI Test
