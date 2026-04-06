@@ -6870,4 +6870,107 @@ print(qr.to_compact_ascii())
 
 ---
 
+## 📦 Latest Addition
+
+### Java - QR Code Utilities
+
+Location: `Java/qr_code_utils/mod.java`
+
+A comprehensive QR Code generation utility module for Java with zero dependencies. Supports encoding with multiple error correction levels, text/ASCII art output, and BufferedImage generation using only Java standard library.
+
+**QR Code Generation:**
+- **Generate**: `mod.generate(data)` - Generate QR code with default settings (M error correction)
+- **Generate with EC Level**: `mod.generate(data, errorCorrectionLevel)` - Specify error correction level
+- **Generate with Version**: `mod.generate(data, errorCorrectionLevel, version)` - Specify exact version
+
+**Error Correction Levels:**
+- `ErrorCorrectionLevel.L` - ~7% recovery
+- `ErrorCorrectionLevel.M` - ~15% recovery (default)
+- `ErrorCorrectionLevel.Q` - ~25% recovery
+- `ErrorCorrectionLevel.H` - ~30% recovery
+
+**Encoding Modes (Auto-detected):**
+- `Mode.NUMERIC` - Numeric only (0-9), most efficient
+- `Mode.ALPHANUMERIC` - Alphanumeric (0-9, A-Z, space, $%*+-./:)
+- `Mode.BYTE` - Binary/UTF-8 data
+
+**QRCode Class Methods:**
+- **To Text**: `qr.toText()` - Unicode block characters for terminal display
+- **To ASCII**: `qr.toAscii()` - Simple ASCII art with # characters
+- **To Image**: `qr.toImage(moduleSize, quietZone)` - Generate BufferedImage
+- **Get Module**: `qr.getModule(row, col)` - Access individual module state
+- **Properties**: `qr.version`, `qr.size`, `qr.mode`, `qr.errorCorrectionLevel`, `qr.data`
+
+**Utility Functions:**
+- **Generate Text**: `mod.generateText(data)` - Direct text output
+- **Generate ASCII**: `mod.generateAscii(data)` - Direct ASCII output
+- **Generate Image**: `mod.generateImage(data)` - Direct BufferedImage output
+- **Can Encode**: `mod.canEncode(data, errorCorrectionLevel)` - Check if data fits
+- **Get Minimum Version**: `mod.getMinimumVersion(data, errorCorrectionLevel)` - Find minimum version
+- **Get QR Size**: `mod.getQrSize(version)` - Get size in modules for version
+- **Get Capacity**: `mod.getCapacity(version, mode, errorCorrectionLevel)` - Get character capacity
+
+**Features:**
+- Zero dependencies, uses only Java standard library (AWT for images)
+- Supports QR Code versions 1-40 (21x21 to 177x177 modules)
+- Automatic encoding mode detection for optimal efficiency
+- Multiple output formats: Unicode text, ASCII art, BufferedImage
+- Complete finder patterns, timing patterns, and alignment patterns
+- Format information with error correction
+- Mask pattern application
+- Comprehensive test suite with 11 test categories
+- 7 practical usage examples
+- Production-ready for desktop applications, server-side generation, and CLI tools
+
+Compile and run tests:
+```bash
+cd Java/qr_code_utils
+javac mod.java qr_code_utils_test.java
+java qr_code_utils.qr_code_utils_test
+```
+
+Compile and run example:
+```bash
+cd Java
+javac -cp . qr_code_utils/mod.java examples/qr_code_utils_example.java
+java -cp . examples.qr_code_utils_example
+```
+
+Usage example:
+```java
+import qr_code_utils.mod;
+import qr_code_utils.mod.QRCode;
+import qr_code_utils.mod.ErrorCorrectionLevel;
+
+// Basic generation
+QRCode qr = mod.generate("Hello, World!");
+System.out.println("Version: " + qr.version);
+System.out.println("Size: " + qr.size + "x" + qr.size);
+
+// Text output for terminal
+String textQr = mod.generateText("HELLO");
+System.out.println(textQr);
+
+// ASCII output
+String asciiQr = mod.generateAscii("TEST");
+System.out.println(asciiQr);
+
+// Image output
+BufferedImage image = mod.generateImage("https://example.com");
+// Save to file: ImageIO.write(image, "PNG", new File("qr.png"));
+
+// Custom error correction
+QRCode qrH = mod.generate("Important Data", ErrorCorrectionLevel.H);
+
+// Check capacity before encoding
+boolean canEncode = mod.canEncode("Long data string...", ErrorCorrectionLevel.M);
+int minVersion = mod.getMinimumVersion("Data", ErrorCorrectionLevel.M);
+
+// Get capacity info
+int capacity = mod.getCapacity(5, mod.Mode.BYTE, ErrorCorrectionLevel.M);
+System.out.println("Version 5 can hold ~" + capacity + " bytes");
+```
+
+---
+
 # CI Test
