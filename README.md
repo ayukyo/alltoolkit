@@ -5276,6 +5276,143 @@ Location: `Rust/math_utils/math_utils_test.rs`
 
 ## 📦 Latest Addition
 
+### PHP - Number Utilities
+
+Location: `PHP/number_utils/mod.php`
+
+A comprehensive number utility module for PHP providing formatting, conversion, mathematical operations, and statistical functions with zero dependencies.
+
+**Formatting Functions:**
+- **format**: `NumberUtils::format($number, $decimals, $decimalSeparator, $thousandsSeparator)` - Format with thousands separator
+- **currency**: `NumberUtils::currency($amount, $symbol, $decimals)` - Format as currency
+- **percentage**: `NumberUtils::percentage($number, $decimals, $includeSymbol)` - Format as percentage
+- **compact**: `NumberUtils::compact($number, $precision)` - Compact notation (K, M, B, T)
+- **ordinal**: `NumberUtils::ordinal($number)` - Convert to ordinal (1st, 2nd, 3rd)
+- **toWords**: `NumberUtils::toWords($number)` - Convert to English words
+
+**Conversion Functions:**
+- **toRoman**: `NumberUtils::toRoman($number)` - Integer to Roman numeral (1-3999)
+- **fromRoman**: `NumberUtils::fromRoman($roman)` - Roman numeral to integer
+- **toBinary**: `NumberUtils::toBinary($number, $prefix, $minWidth)` - Convert to binary
+- **toHex**: `NumberUtils::toHex($number, $prefix, $uppercase, $minWidth)` - Convert to hexadecimal
+- **toOctal**: `NumberUtils::toOctal($number, $prefix)` - Convert to octal
+
+**Mathematical Functions:**
+- **clamp**: `NumberUtils::clamp($value, $min, $max)` - Clamp value between min and max
+- **lerp**: `NumberUtils::lerp($start, $end, $t)` - Linear interpolation
+- **mapRange**: `NumberUtils::mapRange($value, $inMin, $inMax, $outMin, $outMax)` - Map between ranges
+- **approxEqual**: `NumberUtils::approxEqual($a, $b, $epsilon)` - Approximate equality check
+- **roundToMultiple**: `NumberUtils::roundToMultiple($number, $multiple)` - Round to nearest multiple
+- **roundToPlaces**: `NumberUtils::roundToPlaces($number, $places)` - Round to decimal places
+
+**Statistical Functions:**
+- **mean**: `NumberUtils::mean($numbers)` - Calculate arithmetic mean
+- **median**: `NumberUtils::median($numbers)` - Calculate median value
+- **mode**: `NumberUtils::mode($numbers)` - Calculate mode (most frequent)
+- **stdDev**: `NumberUtils::stdDev($numbers, $sample)` - Calculate standard deviation
+- **sumOfSquares**: `NumberUtils::sumOfSquares($numbers)` - Sum of squares
+- **range**: `NumberUtils::range($numbers)` - Range (max - min)
+
+**Validation Functions:**
+- **isNumeric**: `NumberUtils::isNumeric($value)` - Check if numeric
+- **isInteger**: `NumberUtils::isInteger($value)` - Check if integer
+- **isEven**: `NumberUtils::isEven($number)` - Check if even
+- **isOdd**: `NumberUtils::isOdd($number)` - Check if odd
+- **isPositive**: `NumberUtils::isPositive($number)` - Check if positive
+- **isNegative**: `NumberUtils::isNegative($number)` - Check if negative
+- **isZero**: `NumberUtils::isZero($number)` - Check if zero
+- **between**: `NumberUtils::between($number, $min, $max, $inclusive)` - Check if in range
+- **isPrime**: `NumberUtils::isPrime($number)` - Check if prime
+- **isPerfectSquare**: `NumberUtils::isPerfectSquare($number)` - Check if perfect square
+
+**Parsing Functions:**
+- **parse**: `NumberUtils::parse($str, $default)` - Parse string to number
+- **parseInt**: `NumberUtils::parseInt($str, $default, $base)` - Parse to integer
+- **parseFloat**: `NumberUtils::parseFloat($str, $default)` - Parse to float
+
+**Utility Functions:**
+- **gcd**: `NumberUtils::gcd($a, $b)` - Greatest common divisor
+- **lcm**: `NumberUtils::lcm($a, $b)` - Least common multiple
+- **factorial**: `NumberUtils::factorial($n)` - Calculate factorial
+- **fibonacci**: `NumberUtils::fibonacci($n)` - Calculate Fibonacci number
+- **sqrt**: `NumberUtils::sqrt($number)` - Square root
+- **nthRoot**: `NumberUtils::nthRoot($number, $n)` - Nth root
+- **toRadians**: `NumberUtils::toRadians($degrees)` - Degrees to radians
+- **toDegrees**: `NumberUtils::toDegrees($radians)` - Radians to degrees
+- **normalizeAngle**: `NumberUtils::normalizeAngle($degrees)` - Normalize to 0-360
+- **sumOfDigits**: `NumberUtils::sumOfDigits($number)` - Sum of digits
+- **reverseDigits**: `NumberUtils::reverseDigits($number)` - Reverse digits
+- **isPalindrome**: `NumberUtils::isPalindrome($number)` - Check if palindrome
+
+**Random Generation:**
+- **random**: `NumberUtils::random($min, $max)` - Random float in range
+- **randomInt**: `NumberUtils::randomInt($min, $max)` - Random integer in range
+- **randomNormal**: `NumberUtils::randomNormal($mean, $stdDev)` - Normal distribution
+
+**Features:**
+- Zero dependencies, uses only PHP standard library
+- Complete number formatting with internationalization support
+- Roman numeral conversion (1-3999)
+- Binary, hexadecimal, and octal conversions
+- Statistical functions for data analysis
+- Prime number and perfect square detection
+- Number parsing with default values
+- Random number generation with normal distribution
+- 50+ comprehensive unit tests
+- 11 practical usage examples
+- Production-ready for financial and scientific applications
+
+Run tests:
+```bash
+cd PHP/number_utils
+php number_utils_test.php
+```
+
+Run example:
+```bash
+cd PHP/examples
+php number_utils_example.php
+```
+
+Usage example:
+```php
+use AllToolkit\NumberUtils;
+
+// Formatting
+echo NumberUtils::format(1234567.89, 2);        // "1,234,567.89"
+echo NumberUtils::currency(1234.5);             // "$1,234.50"
+echo NumberUtils::percentage(0.1567, 2);        // "15.67%"
+echo NumberUtils::compact(1500000);             // "1.5M"
+echo NumberUtils::ordinal(21);                  // "21st"
+echo NumberUtils::toWords(123);                 // "one hundred twenty-three"
+
+// Conversion
+echo NumberUtils::toRoman(2024);                // "MMXXIV"
+echo NumberUtils::fromRoman("XLII");            // 42
+echo NumberUtils::toBinary(255, true);          // "0b11111111"
+echo NumberUtils::toHex(255, true, true);       // "0xFF"
+
+// Math
+echo NumberUtils::clamp(15, 0, 10);             // 10
+echo NumberUtils::lerp(0, 100, 0.5);            // 50
+echo NumberUtils::mapRange(5, 0, 10, 0, 100);   // 50
+
+// Statistics
+$mean = NumberUtils::mean([1, 2, 3, 4, 5]);     // 3
+$median = NumberUtils::median([1, 2, 3, 4, 5]); // 3
+
+// Validation
+$isPrime = NumberUtils::isPrime(7);             // true
+$isSquare = NumberUtils::isPerfectSquare(16);   // true
+
+// Utilities
+echo NumberUtils::gcd(24, 36);                  // 12
+echo NumberUtils::factorial(5);                 // 120
+echo NumberUtils::fibonacci(10);                // 55
+```
+
+---
+
 ### TypeScript - UUID Utilities
 
 Location: `TypeScript/uuid_utils/mod.ts`
