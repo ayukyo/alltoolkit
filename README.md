@@ -7681,4 +7681,66 @@ if TDateTimeUtils.IsValidTime(10, 30, 45, 500) then
 
 ---
 
+## 🧪 最新测试更新 (2025-04-07)
+
+### Go - QR Code Utilities 测试套件
+
+Location: `Go/qr_code_utils/qr_code_utils_test.go`
+
+新增测试覆盖:
+- **基础编码测试**: 简单文本、数字、字母数字、中文、URL、空字符串、长文本
+- **选项编码测试**: 默认选项、不同纠错级别(L/M/Q/H)、不同编码模式(数字/字母数字/字节)、nil选项
+- **属性测试**: GetSize、GetVersion、GetErrorCorrectionLevel
+- **输出格式测试**: ToASCII、ToASCIIWithBorder、ToSmallASCII、ToBitmap、ToStringPattern、ToBase64
+- **模块检查测试**: IsBlack有效/无效坐标
+- **字符串表示测试**: String方法
+- **纠错级别测试**: 所有4个级别(L/M/Q/H)
+- **编码模式测试**: Numeric、Alphanumeric、Byte模式
+- **不同数据类型测试**: 纯数字、字母数字混合、特殊字符、Unicode、URL、JSON
+
+运行测试: `cd Go/qr_code_utils && go test -v`
+
+---
+
+### TypeScript - File Utilities 测试套件
+
+Location: `TypeScript/file_utils/file_utils_test.ts`
+
+新增测试覆盖:
+- **formatBytes测试**: 0字节、KB、MB、小数位
+- **readTextFile测试**: 现有文件、不存在文件、默认值
+- **writeTextFile测试**: 新文件、自动创建目录、原子写入
+- **二进制文件测试**: writeBinaryFile、readBinaryFile、内容匹配
+- **fileExists测试**: 存在/不存在文件
+- **isFile/isDirectory测试**: 文件判断、目录判断、交叉验证
+- **ensureDirectory测试**: 创建嵌套目录、已存在目录
+- **listFiles测试**: 基本列出、模式过滤
+- **copyFile测试**: 复制文件、内容验证
+- **moveFile测试**: 移动文件、源删除验证
+- **deleteFile测试**: 删除文件、missingOk参数
+- **getFileInfo测试**: 文件信息获取
+- **calculateHash测试**: SHA256、MD5哈希计算
+- **getUniqueFilename测试**: 唯一文件名生成
+
+运行测试: `cd TypeScript/file_utils && npx ts-node file_utils_test.ts`
+
+---
+
+### Fortran - Array Utilities 测试套件
+
+Location: `Fortran/array_utils/array_utils_test.f90`
+
+新增测试覆盖:
+- **sort测试**: real(dp)排序、integer排序、单元素、空数组
+- **search测试**: linear_search_dp/int、binary_search_dp、找到/未找到
+- **statistics测试**: array_sum、array_product、mean、median(奇/偶)、variance、std_dev
+- **array_operations测试**: add_arrays、subtract_arrays、multiply_arrays、divide_arrays、dot_product_safe
+- **unique测试**: unique real/int、重复计数
+- **reverse测试**: reverse real/int
+- **extrema测试**: array_min/max、argmin/argmax
+
+运行测试: `cd Fortran/array_utils && gfortran -o test mod.f90 array_utils_test.f90 && ./test`
+
+---
+
 # CI Test
