@@ -7122,4 +7122,184 @@ std::string ext = FileUtils::getExtension(full);      // "txt"
 
 ---
 
+## 📦 Latest Addition
+
+### PHP - Validation Utilities
+
+Location: `PHP/validation_utils/mod.php`
+
+A comprehensive validation utility module for PHP providing common validation functions for strings, numbers, emails, URLs, IDs, credit cards, passwords, and more with zero dependencies.
+
+**Basic Validation:**
+- **isEmpty**: `isEmpty(value)` - Check if value is null, empty string, or empty array
+- **isNotEmpty**: `isNotEmpty(value)` - Check if value is not empty
+- **isBlank**: `isBlank(str)` - Check if string is null, empty, or whitespace only
+- **isNotBlank**: `isNotBlank(str)` - Check if string has content
+
+**Email & URL Validation:**
+- **isEmail**: `isEmail(email)` - Validate email format (RFC 5322 compliant)
+- **isUrl**: `isUrl(url, requireHttp)` - Validate URL format
+- **isIpv4**: `isIpv4(ip)` - Validate IPv4 address
+- **isIpv6**: `isIpv6(ip)` - Validate IPv6 address
+- **isIp**: `isIp(ip)` - Validate IP address (IPv4 or IPv6)
+
+**Format Validation:**
+- **isUuid**: `isUuid(uuid, version)` - Validate UUID format, optionally check version
+- **isHexColor**: `isHexColor(color)` - Validate hex color code (#RGB or #RRGGBB)
+- **isMacAddress**: `isMacAddress(mac)` - Validate MAC address format
+- **isJson**: `isJson(json)` - Validate JSON string
+- **isDate**: `isDate(date, format)` - Validate date format
+
+**Character Type Validation:**
+- **isAlpha**: `isAlpha(str)` - Check if string contains only alphabetic characters
+- **isAlphanumeric**: `isAlphanumeric(str)` - Check if string contains only alphanumeric characters
+- **isNumeric**: `isNumeric(str)` - Check if string contains only digits
+- **isInteger**: `isInteger(str)` - Check if string is a valid integer (including negative)
+- **isFloat**: `isFloat(str)` - Check if string is a valid float number
+- **isNumber**: `isNumber(value)` - Check if value is a valid number (int or float)
+
+**Range Validation:**
+- **between**: `between(value, min, max)` - Check if numeric value is within range
+- **lengthBetween**: `lengthBetween(str, min, max)` - Check if string length is within range
+- **isPositive**: `isPositive(value)` - Check if value is positive
+- **isNegative**: `isNegative(value)` - Check if value is negative
+- **isZero**: `isZero(value)` - Check if value is zero
+
+**Security Validation:**
+- **isCreditCard**: `isCreditCard(cardNumber)` - Validate credit card number using Luhn algorithm
+- **isStrongPassword**: `isStrongPassword(password, minLength, requireUpper, requireLower, requireDigit, requireSpecial)` - Validate strong password
+- **isUsername**: `isUsername(username, minLength, maxLength)` - Validate username format
+
+**China-specific Validation:**
+- **isChinaMobile**: `isChinaMobile(phone)` - Validate China mainland mobile phone number (11 digits, starts with 1)
+- **isChinaIdCard**: `isChinaIdCard(idCard)` - Validate China mainland ID card number (18 digits with check code verification)
+
+**Pattern Matching:**
+- **matches**: `matches(str, pattern)` - Check if string matches regex pattern
+
+**Array Validation:**
+- **isIn**: `isIn(value, allowed, strict)` - Check if value is in array (enum validation)
+- **hasRequiredKeys**: `hasRequiredKeys(array, required)` - Check if array has all required keys
+
+**Validation Result:**
+- **ValidationResult class**: Object containing validation result
+  - `isValid()` - Check if validation passed
+  - `getMessage()` - Get error message
+  - `getField()` - Get field name
+  - `toArray()` - Convert to array
+
+**Batch Validation:**
+- **validate**: `validate(value, rule, field, errorMessage)` - Validate with custom rule and return result object
+- **validateMultiple**: `validateMultiple(validations)` - Run multiple validations and return all results
+- **allValid**: `allValid(results)` - Check if all validations passed
+- **firstError**: `firstError(results)` - Get first error from validation results
+- **allErrors**: `allErrors(results)` - Get all errors from validation results
+
+**Features:**
+- Zero dependencies, uses only PHP standard library
+- Null-safe all methods (handle null inputs gracefully)
+- RFC 5322 compliant email validation
+- Luhn algorithm for credit card validation
+- Complete ID card check code verification for China
+- IPv4/IPv6 address validation using filter_var
+- Strong password policy enforcement
+- UUID version validation support
+- Batch validation with detailed error messages
+- 50+ comprehensive unit tests
+- 12 practical usage examples
+- Production-ready for form validation and data sanitization
+
+Run tests:
+```bash
+cd PHP/validation_utils
+php validation_utils_test.php
+```
+
+Run example:
+```bash
+cd PHP/examples
+php validation_utils_example.php
+```
+
+Usage example:
+```php
+use AllToolkit\ValidationUtils;
+use AllToolkit\ValidationResult;
+
+// Basic validation
+if (ValidationUtils::isBlank($userInput)) {
+    echo "Input is required";
+}
+
+// Email validation
+if (ValidationUtils::isEmail("user@example.com")) {
+    // Process valid email
+}
+
+// Phone validation (China)
+if (ValidationUtils::isChinaMobile("13800138000")) {
+    // Valid China mobile number
+}
+
+// IP validation
+if (ValidationUtils::isIpv4("192.168.1.1")) {
+    // Valid IPv4 address
+}
+
+// ID card validation (China)
+if (ValidationUtils::isChinaIdCard("110101199001011234")) {
+    // Valid ID card number
+}
+
+// Credit card validation
+if (ValidationUtils::isCreditCard("4532015112830366")) {
+    // Valid credit card number (Luhn check passed)
+}
+
+// Password validation
+if (ValidationUtils::isStrongPassword("MyP@ssw0rd!", 8, true, true, true, true)) {
+    // Strong password
+}
+
+// Range validation
+if (ValidationUtils::lengthBetween($password, 8, 20)) {
+    // Password length is valid
+}
+
+if (ValidationUtils::between($age, 18, 120)) {
+    // Age is within valid range
+}
+
+// UUID validation
+if (ValidationUtils::isUuid("550e8400-e29b-41d4-a716-446655440000", 4)) {
+    // Valid UUID v4
+}
+
+// Batch validation
+$validations = [
+    ['field' => 'email', 'value' => $email, 'rule' => fn($v) => ValidationUtils::isEmail($v), 'message' => 'Invalid email'],
+    ['field' => 'age', 'value' => $age, 'rule' => fn($v) => ValidationUtils::between($v, 18, 120), 'message' => 'Age must be 18-120'],
+    ['field' => 'username', 'value' => $username, 'rule' => fn($v) => ValidationUtils::isUsername($v), 'message' => 'Invalid username']
+];
+
+$results = ValidationUtils::validateMultiple($validations);
+if (ValidationUtils::allValid($results)) {
+    echo "All validations passed!";
+} else {
+    $error = ValidationUtils::firstError($results);
+    echo "Validation failed: {$error}";
+}
+
+// Custom validation
+$result = ValidationUtils::validate($value, function($v) {
+    return strlen($v) >= 5 && strlen($v) <= 10;
+}, 'custom_field', 'Value must be 5-10 characters');
+
+if (!$result->isValid()) {
+    echo $result->getMessage();
+}
+```
+
+---
+
 # CI Test
