@@ -7743,4 +7743,143 @@ Location: `Fortran/array_utils/array_utils_test.f90`
 
 ---
 
+## 📦 Latest Addition
+
+### TypeScript - Queue Utilities
+
+Location: `TypeScript/queue_utils/mod.ts`
+
+A comprehensive queue data structure utility module providing FIFO (First In First Out) queue, LIFO (Last In First Out) stack, priority queue, double-ended queue (deque), circular buffer, and queue manipulation utilities with zero dependencies.
+
+**Queue (FIFO):**
+- **enqueue**: `queue.enqueue(value)` - Add element to the back of the queue
+- **dequeue**: `queue.dequeue()` - Remove and return the front element
+- **peek**: `queue.peek()` - Get front element without removing
+- **isEmpty**: `queue.isEmpty()` - Check if queue is empty
+- **size**: `queue.size()` - Get number of elements
+- **clear**: `queue.clear()` - Remove all elements
+- **contains**: `queue.contains(value)` - Check if value exists
+- **toArray**: `queue.toArray()` - Convert to array
+
+**Stack (LIFO):**
+- **push**: `stack.push(value)` - Add element to the top
+- **pop**: `stack.pop()` - Remove and return the top element
+- **peek**: `stack.peek()` - Get top element without removing
+- **isEmpty**: `stack.isEmpty()` - Check if stack is empty
+- **size**: `stack.size()` - Get number of elements
+- **clear**: `stack.clear()` - Remove all elements
+- **contains**: `stack.contains(value)` - Check if value exists
+- **toArray**: `stack.toArray()` - Convert to array (top to bottom)
+
+**PriorityQueue:**
+- **enqueue**: `pq.enqueue(value, priority)` - Add element with priority (higher = more important)
+- **dequeue**: `pq.dequeue()` - Remove and return highest priority element
+- **peek**: `pq.peek()` - Get highest priority element
+- **peekPriority**: `pq.peekPriority()` - Get priority of highest element
+- **updatePriority**: `pq.updatePriority(value, newPriority)` - Change element priority
+- **isEmpty**: `pq.isEmpty()` - Check if empty
+- **size**: `pq.size()` - Get number of elements
+- **contains**: `pq.contains(value)` - Check if value exists
+
+**Deque (Double-ended Queue):**
+- **pushFront**: `deque.pushFront(value)` - Add to front
+- **pushBack**: `deque.pushBack(value)` - Add to back
+- **popFront**: `deque.popFront()` - Remove from front
+- **popBack**: `deque.popBack()` - Remove from back
+- **peekFront**: `deque.peekFront()` - Get front element
+- **peekBack**: `deque.peekBack()` - Get back element
+- **reverse**: `deque.reverse()` - Reverse in place
+- **isEmpty**: `deque.isEmpty()` - Check if empty
+- **size**: `deque.size()` - Get number of elements
+
+**CircularBuffer:**
+- **write**: `buffer.write(value)` - Write value (overwrites oldest when full)
+- **read**: `buffer.read()` - Read and remove oldest value
+- **peek**: `buffer.peek()` - Get oldest value without removing
+- **isEmpty**: `buffer.isEmpty()` - Check if empty
+- **isFull**: `buffer.isFull()` - Check if full
+- **size**: `buffer.size()` - Get current size
+- **getCapacity**: `buffer.getCapacity()` - Get capacity
+- **clear**: `buffer.clear()` - Remove all elements
+
+**QueueUtils (Static Helper Functions):**
+- **fromArray**: `QueueUtils.fromArray(array)` - Create queue from array
+- **stackFromArray**: `QueueUtils.stackFromArray(array)` - Create stack from array
+- **reverse**: `QueueUtils.reverse(queue)` - Reverse a queue
+- **merge**: `QueueUtils.merge(q1, q2)` - Merge two queues
+- **isPalindrome**: `QueueUtils.isPalindrome(queue)` - Check if palindrome
+- **sort**: `QueueUtils.sort(queue, compareFn)` - Sort queue
+- **filter**: `QueueUtils.filter(queue, predicate)` - Filter elements
+- **map**: `QueueUtils.map(queue, transform)` - Transform elements
+- **reduce**: `QueueUtils.reduce(queue, reducer, initial)` - Reduce to single value
+- **find**: `QueueUtils.find(queue, predicate)` - Find first matching element
+- **count**: `QueueUtils.count(queue, predicate)` - Count matching elements
+
+**Features:**
+- Zero dependencies, uses only TypeScript standard library
+- Full TypeScript type support with generics
+- O(1) enqueue/dequeue for Queue and Deque
+- O(n) priority insertion for PriorityQueue (stable sort)
+- Iterator support for all data structures
+- Method chaining support (returns `this`)
+- 45+ comprehensive unit tests
+- 12 practical usage examples including BFS and Undo system
+- Production-ready for algorithm implementations and task scheduling
+
+Compile and run tests:
+```bash
+cd TypeScript/queue_utils
+npx ts-node queue_utils_test.ts
+```
+
+Run example:
+```bash
+cd TypeScript/examples
+npx ts-node queue_utils_example.ts
+```
+
+Usage example:
+```typescript
+import { Queue, Stack, PriorityQueue, Deque, CircularBuffer, QueueUtils } from './queue_utils/mod';
+
+// Queue (FIFO)
+const queue = new Queue<string>();
+queue.enqueue('task1').enqueue('task2').enqueue('task3');
+console.log(queue.dequeue()); // 'task1'
+console.log(queue.peek());    // 'task2'
+
+// Stack (LIFO)
+const stack = new Stack<number>();
+stack.push(1).push(2).push(3);
+console.log(stack.pop());  // 3
+console.log(stack.peek()); // 2
+
+// Priority Queue
+const pq = new PriorityQueue<string>();
+pq.enqueue('low', 1);
+pq.enqueue('high', 10);
+pq.enqueue('medium', 5);
+console.log(pq.dequeue()); // 'high' (highest priority)
+
+// Deque
+const deque = new Deque<number>();
+deque.pushBack(1).pushFront(2).pushBack(3);
+console.log(deque.toArray()); // [2, 1, 3]
+console.log(deque.popFront()); // 2
+console.log(deque.popBack());  // 3
+
+// Circular Buffer
+const buffer = new CircularBuffer<number>(3);
+buffer.write(1).write(2).write(3).write(4); // 4 overwrites 1
+console.log(buffer.toArray()); // [2, 3, 4]
+
+// QueueUtils
+const numbers = QueueUtils.fromArray([1, 2, 3, 4, 5]);
+const evens = QueueUtils.filter(numbers, n => n % 2 === 0);
+const doubled = QueueUtils.map(numbers, n => n * 2);
+const sum = QueueUtils.reduce(numbers, (acc, n) => acc + n, 0);
+```
+
+---
+
 # CI Test
