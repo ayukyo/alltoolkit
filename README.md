@@ -7439,4 +7439,246 @@ if (!$result->isValid()) {
 
 ---
 
+## 📦 Latest Addition
+
+### Delphi - DateTime Utilities
+
+Location: `Delphi/datetime_utils/mod.pas`
+
+A comprehensive date and time manipulation utility module for Delphi/Object Pascal with zero dependencies. Provides complete date/time operations including formatting, parsing, arithmetic, validation, and relative time calculations.
+
+**Formatting Functions:**
+- **FormatDateTime**: `TDateTimeUtils.FormatDateTime(dateTime, format)` - Format date/time with custom pattern
+- **ToISO8601**: `TDateTimeUtils.ToISO8601(dateTime)` - Format to ISO 8601 standard
+- **ToRFC3339**: `TDateTimeUtils.ToRFC3339(dateTime)` - Format to RFC 3339 standard
+- **ToChineseFormat**: `TDateTimeUtils.ToChineseFormat(dateTime)` - Format to Chinese locale
+- **ToUSFormat**: `TDateTimeUtils.ToUSFormat(dateTime)` - Format to US locale (MM/DD/YYYY)
+- **ToUKFormat**: `TDateTimeUtils.ToUKFormat(dateTime)` - Format to UK locale (DD/MM/YYYY)
+- **ToCompactFormat**: `TDateTimeUtils.ToCompactFormat(dateTime)` - Format to compact string (yyyymmddhhnnss)
+
+**Parsing Functions:**
+- **Parse**: `TDateTimeUtils.Parse(dateString, format)` - Parse date/time from string
+- **ParseISO8601**: `TDateTimeUtils.ParseISO8601(dateString)` - Parse ISO 8601 format
+- **TryParse**: `TDateTimeUtils.TryParse(dateString, format, out dateTime)` - Safe parsing with boolean result
+- **TryParseISO8601**: `TDateTimeUtils.TryParseISO8601(dateString, out dateTime)` - Safe ISO 8601 parsing
+
+**Current Time Functions:**
+- **Now**: `TDateTimeUtils.Now` - Get current local date/time
+- **NowUTC**: `TDateTimeUtils.NowUTC` - Get current UTC date/time
+- **Today**: `TDateTimeUtils.Today` - Get current date (time set to 00:00:00)
+- **Timestamp**: `TDateTimeUtils.Timestamp` - Get Unix timestamp (seconds)
+- **TimestampMS**: `TDateTimeUtils.TimestampMS` - Get Unix timestamp (milliseconds)
+
+**Timestamp Conversion:**
+- **FromTimestamp**: `TDateTimeUtils.FromTimestamp(timestamp)` - Convert Unix seconds to DateTime
+- **FromTimestampMS**: `TDateTimeUtils.FromTimestampMS(timestampMS)` - Convert Unix milliseconds to DateTime
+- **ToTimestamp**: `TDateTimeUtils.ToTimestamp(dateTime)` - Convert DateTime to Unix seconds
+- **ToTimestampMS**: `TDateTimeUtils.ToTimestampMS(dateTime)` - Convert DateTime to Unix milliseconds
+
+**Date Arithmetic:**
+- **AddDays**: `TDateTimeUtils.AddDays(dateTime, days)` - Add/subtract days
+- **AddHours**: `TDateTimeUtils.AddHours(dateTime, hours)` - Add/subtract hours
+- **AddMinutes**: `TDateTimeUtils.AddMinutes(dateTime, minutes)` - Add/subtract minutes
+- **AddSeconds**: `TDateTimeUtils.AddSeconds(dateTime, seconds)` - Add/subtract seconds
+- **AddMonths**: `TDateTimeUtils.AddMonths(dateTime, months)` - Add/subtract months
+- **AddYears**: `TDateTimeUtils.AddYears(dateTime, years)` - Add/subtract years
+- **AddWeeks**: `TDateTimeUtils.AddWeeks(dateTime, weeks)` - Add/subtract weeks
+
+**Time Difference:**
+- **DaysBetween**: `TDateTimeUtils.DaysBetween(start, end)` - Calculate days between dates
+- **HoursBetween**: `TDateTimeUtils.HoursBetween(start, end)` - Calculate hours between
+- **MinutesBetween**: `TDateTimeUtils.MinutesBetween(start, end)` - Calculate minutes between
+- **SecondsBetween**: `TDateTimeUtils.SecondsBetween(start, end)` - Calculate seconds between
+- **MilliSecondsBetween**: `TDateTimeUtils.MilliSecondsBetween(start, end)` - Calculate milliseconds between
+- **WeeksBetween**: `TDateTimeUtils.WeeksBetween(start, end)` - Calculate weeks between
+- **MonthsBetween**: `TDateTimeUtils.MonthsBetween(start, end)` - Calculate months between
+- **YearsBetween**: `TDateTimeUtils.YearsBetween(start, end)` - Calculate years between
+
+**Date Checks:**
+- **IsToday**: `TDateTimeUtils.IsToday(dateTime)` - Check if date is today
+- **IsYesterday**: `TDateTimeUtils.IsYesterday(dateTime)` - Check if date was yesterday
+- **IsTomorrow**: `TDateTimeUtils.IsTomorrow(dateTime)` - Check if date is tomorrow
+- **IsThisWeek**: `TDateTimeUtils.IsThisWeek(dateTime)` - Check if in current week
+- **IsThisMonth**: `TDateTimeUtils.IsThisMonth(dateTime)` - Check if in current month
+- **IsThisYear**: `TDateTimeUtils.IsThisYear(dateTime)` - Check if in current year
+- **IsWeekend**: `TDateTimeUtils.IsWeekend(dateTime)` - Check if Saturday or Sunday
+- **IsWeekday**: `TDateTimeUtils.IsWeekday(dateTime)` - Check if Monday-Friday
+- **IsLeapYear**: `TDateTimeUtils.IsLeapYear(year)` - Check if leap year
+- **IsSameDay**: `TDateTimeUtils.IsSameDay(date1, date2)` - Check if same calendar day
+- **IsAM**: `TDateTimeUtils.IsAM(dateTime)` - Check if before noon
+- **IsPM**: `TDateTimeUtils.IsPM(dateTime)` - Check if afternoon/evening
+
+**Period Boundaries:**
+- **StartOfDay**: `TDateTimeUtils.StartOfDay(dateTime)` - Get start of day (00:00:00)
+- **EndOfDay**: `TDateTimeUtils.EndOfDay(dateTime)` - Get end of day (23:59:59.999)
+- **StartOfWeek**: `TDateTimeUtils.StartOfWeek(dateTime)` - Get first day of week
+- **EndOfWeek**: `TDateTimeUtils.EndOfWeek(dateTime)` - Get last day of week
+- **StartOfMonth**: `TDateTimeUtils.StartOfMonth(dateTime)` - Get first day of month
+- **EndOfMonth**: `TDateTimeUtils.EndOfMonth(dateTime)` - Get last day of month
+- **StartOfYear**: `TDateTimeUtils.StartOfYear(dateTime)` - Get first day of year
+- **EndOfYear**: `TDateTimeUtils.EndOfYear(dateTime)` - Get last day of year
+- **StartOfQuarter**: `TDateTimeUtils.StartOfQuarter(dateTime)` - Get first day of quarter
+- **EndOfQuarter**: `TDateTimeUtils.EndOfQuarter(dateTime)` - Get last day of quarter
+
+**Component Extraction:**
+- **GetYear**: `TDateTimeUtils.GetYear(dateTime)` - Extract year (1-9999)
+- **GetMonth**: `TDateTimeUtils.GetMonth(dateTime)` - Extract month (1-12)
+- **GetDay**: `TDateTimeUtils.GetDay(dateTime)` - Extract day (1-31)
+- **GetHour**: `TDateTimeUtils.GetHour(dateTime)` - Extract hour (0-23)
+- **GetMinute**: `TDateTimeUtils.GetMinute(dateTime)` - Extract minute (0-59)
+- **GetSecond**: `TDateTimeUtils.GetSecond(dateTime)` - Extract second (0-59)
+- **GetMillisecond**: `TDateTimeUtils.GetMillisecond(dateTime)` - Extract millisecond (0-999)
+- **GetDayOfWeek**: `TDateTimeUtils.GetDayOfWeek(dateTime)` - Get day of week (1-7)
+- **GetDayOfYear**: `TDateTimeUtils.GetDayOfYear(dateTime)` - Get day of year (1-366)
+- **GetWeekOfYear**: `TDateTimeUtils.GetWeekOfYear(dateTime)` - Get ISO week number
+- **GetQuarter**: `TDateTimeUtils.GetQuarter(dateTime)` - Get quarter (1-4)
+- **DaysInMonth**: `TDateTimeUtils.DaysInMonth(year, month)` - Get days in month
+- **DaysInYear**: `TDateTimeUtils.DaysInYear(year)` - Get days in year (365/366)
+
+**Component Modification:**
+- **SetYear**: `TDateTimeUtils.SetYear(dateTime, year)` - Set year component
+- **SetMonth**: `TDateTimeUtils.SetMonth(dateTime, month)` - Set month component
+- **SetDay**: `TDateTimeUtils.SetDay(dateTime, day)` - Set day component
+- **SetHour**: `TDateTimeUtils.SetHour(dateTime, hour)` - Set hour component
+- **SetMinute**: `TDateTimeUtils.SetMinute(dateTime, minute)` - Set minute component
+- **SetSecond**: `TDateTimeUtils.SetSecond(dateTime, second)` - Set second component
+
+**Age Calculation:**
+- **CalculateAge**: `TDateTimeUtils.CalculateAge(birthDate, referenceDate)` - Calculate age in years
+- **CalculateAgeToday**: `TDateTimeUtils.CalculateAgeToday(birthDate)` - Calculate age as of today
+
+**Relative Time:**
+- **RelativeTime**: `TDateTimeUtils.RelativeTime(dateTime, referenceDate)` - Get human-readable relative time
+- **TimeAgo**: `TDateTimeUtils.TimeAgo(dateTime)` - Get "X time ago" string
+
+**Duration Formatting:**
+- **FormatDuration**: `TDateTimeUtils.FormatDuration(seconds)` - Format seconds to human-readable (e.g., "1 day, 2 hours, 3 minutes")
+- **FormatDurationShort**: `TDateTimeUtils.FormatDurationShort(seconds)` - Short format (e.g., "1d 2h 3m")
+- **FormatDurationMS**: `TDateTimeUtils.FormatDurationMS(milliseconds)` - Format milliseconds
+
+**Time Zone:**
+- **LocalToUTC**: `TDateTimeUtils.LocalToUTC(dateTime)` - Convert local time to UTC
+- **UTCToLocal**: `TDateTimeUtils.UTCToLocal(dateTime)` - Convert UTC to local time
+- **GetTimeZoneOffset**: `TDateTimeUtils.GetTimeZoneOffset` - Get local timezone offset in hours
+
+**Validation:**
+- **IsValidDate**: `TDateTimeUtils.IsValidDate(year, month, day)` - Validate date components
+- **IsValidTime**: `TDateTimeUtils.IsValidTime(hour, minute, second, millisecond)` - Validate time components
+
+**Utility Functions:**
+- **Min**: `TDateTimeUtils.Min(date1, date2)` - Get earlier date
+- **Max**: `TDateTimeUtils.Max(date1, date2)` - Get later date
+- **Clamp**: `TDateTimeUtils.Clamp(dateTime, min, max)` - Clamp date to range
+- **GetDayName**: `TDateTimeUtils.GetDayName(dateTime)` - Get full day name (e.g., "Monday")
+- **GetMonthName**: `TDateTimeUtils.GetMonthName(dateTime)` - Get full month name (e.g., "January")
+- **GetShortDayName**: `TDateTimeUtils.GetShortDayName(dateTime)` - Get abbreviated day name (e.g., "Mon")
+- **GetShortMonthName**: `TDateTimeUtils.GetShortMonthName(dateTime)` - Get abbreviated month name (e.g., "Jan")
+
+**Format Constants:**
+- `FORMAT_ISO8601` - ISO 8601 format (yyyy-mm-dd"T"hh:nn:ss)
+- `FORMAT_ISO8601_MS` - ISO 8601 with milliseconds
+- `FORMAT_RFC3339` - RFC 3339 format
+- `FORMAT_CHINESE` - Chinese locale format
+- `FORMAT_US` - US format (mm/dd/yyyy)
+- `FORMAT_UK` - UK format (dd/mm/yyyy)
+- `FORMAT_COMPACT` - Compact format (yyyymmddhhnnss)
+- `FORMAT_DATE_ONLY` - Date only (yyyy-mm-dd)
+- `FORMAT_TIME_ONLY` - Time only (hh:nn:ss)
+
+**Features:**
+- Zero dependencies, uses only Delphi standard library (SysUtils, DateUtils)
+- 80+ comprehensive date/time manipulation functions
+- Multiple date/time formatting standards (ISO 8601, RFC 3339, locale-specific)
+- Complete date arithmetic (add/subtract days, months, years, etc.)
+- Time difference calculations with multiple units
+- Period boundary calculations (start/end of day, week, month, year, quarter)
+- Age calculation with proper leap year handling
+- Human-readable relative time formatting ("2 hours ago", "in 3 days")
+- Duration formatting ("1 day, 2 hours, 30 minutes")
+- Time zone conversion support
+- Date/time validation functions
+- 35+ comprehensive unit tests
+- 13 practical usage examples
+- Production-ready for scheduling, logging, and time-based calculations
+
+Compile and run tests:
+```bash
+cd Delphi/datetime_utils
+# Requires Delphi compiler (dcc32 or Free Pascal)
+fpc datetime_utils_test.pas
+./datetime_utils_test
+```
+
+Run example:
+```bash
+cd Delphi/examples
+fpc datetime_utils_example.pas
+./datetime_utils_example
+```
+
+Usage example:
+```pascal
+uses mod;
+
+// Formatting
+var Dt := EncodeDate(2024, 3, 15) + EncodeTime(10, 30, 45, 0);
+WriteLn(TDateTimeUtils.ToISO8601(Dt));           // "2024-03-15T10:30:45"
+WriteLn(TDateTimeUtils.ToUSFormat(Dt));          // "03/15/2024 10:30:45"
+WriteLn(TDateTimeUtils.ToChineseFormat(Dt));     // "2024年03月15日 10时30分45秒"
+
+// Parsing
+var Parsed := TDateTimeUtils.Parse('2024-03-15', 'yyyy-mm-dd');
+var ISO := TDateTimeUtils.ParseISO8601('2024-03-15T10:30:00');
+
+// Current time
+var Now := TDateTimeUtils.Now;
+var Timestamp := TDateTimeUtils.Timestamp;
+
+// Date arithmetic
+var Future := TDateTimeUtils.AddDays(Dt, 7);
+var Past := TDateTimeUtils.AddMonths(Dt, -2);
+
+// Time difference
+var Days := TDateTimeUtils.DaysBetween(Dt, Future);
+var Hours := TDateTimeUtils.HoursBetween(Dt, Future);
+
+// Date checks
+if TDateTimeUtils.IsToday(Dt) then
+  WriteLn('Is today');
+if TDateTimeUtils.IsWeekend(Dt) then
+  WriteLn('Is weekend');
+if TDateTimeUtils.IsLeapYear(2024) then
+  WriteLn('2024 is a leap year');
+
+// Period boundaries
+var StartOfMonth := TDateTimeUtils.StartOfMonth(Dt);
+var EndOfMonth := TDateTimeUtils.EndOfMonth(Dt);
+
+// Component extraction
+var Year := TDateTimeUtils.GetYear(Dt);
+var Month := TDateTimeUtils.GetMonth(Dt);
+var Day := TDateTimeUtils.GetDay(Dt);
+
+// Age calculation
+var BirthDate := EncodeDate(1990, 6, 15);
+var Age := TDateTimeUtils.CalculateAgeToday(BirthDate);
+WriteLn(Format('Age: %d years', [Age]));
+
+// Relative time
+var Ago := TDateTimeUtils.TimeAgo(TDateTimeUtils.AddHours(Now, -2));
+WriteLn(Ago);  // "2 hours ago"
+
+// Duration formatting
+var Duration := TDateTimeUtils.FormatDuration(90061);
+WriteLn(Duration);  // "1 day, 1 hour, 1 minute, and 1 second"
+
+// Validation
+if TDateTimeUtils.IsValidDate(2024, 2, 29) then
+  WriteLn('Valid date');
+if TDateTimeUtils.IsValidTime(10, 30, 45, 500) then
+  WriteLn('Valid time');
+```
+
+---
+
 # CI Test
