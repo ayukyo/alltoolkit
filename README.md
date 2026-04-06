@@ -6973,4 +6973,153 @@ System.out.println("Version 5 can hold ~" + capacity + " bytes");
 
 ---
 
+## 📦 Latest Addition
+
+### C++ - File Utilities
+
+Location: `C++/file_utils/mod.hpp`
+
+A comprehensive file utility module for C++ providing common file operations with zero external dependencies. Uses only C++11 standard library.
+
+**File Reading:**
+- **readText**: `FileUtils::readText(filepath)` - Read entire text file into string
+- **readLines**: `FileUtils::readLines(filepath)` - Read file into vector of lines
+- **readBinary**: `FileUtils::readBinary(filepath)` - Read binary file into byte vector
+
+**File Writing:**
+- **writeText**: `FileUtils::writeText(filepath, content, append)` - Write text to file
+- **writeLines**: `FileUtils::writeLines(filepath, lines, lineEnding)` - Write vector of lines
+- **writeBinary**: `FileUtils::writeBinary(filepath, data)` - Write binary data
+- **appendText**: `FileUtils::appendText(filepath, content)` - Append text to file
+
+**File Checks:**
+- **exists**: `FileUtils::exists(filepath)` - Check if file/directory exists
+- **isFile**: `FileUtils::isFile(filepath)` - Check if regular file
+- **isDirectory**: `FileUtils::isDirectory(filepath)` - Check if directory
+- **isSymlink**: `FileUtils::isSymlink(filepath)` - Check if symbolic link
+- **isReadable**: `FileUtils::isReadable(filepath)` - Check if readable
+- **isWritable**: `FileUtils::isWritable(filepath)` - Check if writable
+- **isExecutable**: `FileUtils::isExecutable(filepath)` - Check if executable
+
+**File Info:**
+- **getSize**: `FileUtils::getSize(filepath)` - Get file size in bytes
+- **getModifiedTime**: `FileUtils::getModifiedTime(filepath)` - Get modification time
+- **getInfo**: `FileUtils::getInfo(filepath)` - Get complete file information (FileInfo struct)
+
+**File Manipulation:**
+- **copy**: `FileUtils::copy(source, dest, overwrite)` - Copy file
+- **move**: `FileUtils::move(source, dest, overwrite)` - Move/rename file
+- **remove**: `FileUtils::remove(filepath)` - Delete file
+- **touch**: `FileUtils::touch(filepath)` - Create empty file or update timestamp
+
+**Directory Operations:**
+- **ensureDirectory**: `FileUtils::ensureDirectory(dirpath, mode)` - Create directory recursively
+- **removeDirectory**: `FileUtils::removeDirectory(dirpath, recursive)` - Remove directory
+- **listEntries**: `FileUtils::listEntries(dirpath, includeHidden)` - List all entries
+- **listFiles**: `FileUtils::listFiles(dirpath, includeHidden)` - List files only
+- **listDirectories**: `FileUtils::listDirectories(dirpath, includeHidden)` - List directories only
+
+**Path Utilities:**
+- **joinPath**: `FileUtils::joinPath(base, path)` - Join path components
+- **getDirectory**: `FileUtils::getDirectory(filepath)` - Get parent directory
+- **getFilename**: `FileUtils::getFilename(filepath)` - Get file name
+- **getBasename**: `FileUtils::getBasename(filepath)` - Get file name without extension
+- **getExtension**: `FileUtils::getExtension(filepath)` - Get file extension (lowercase)
+- **normalizePath**: `FileUtils::normalizePath(filepath)` - Normalize path (resolve .. and .)
+- **isAbsolutePath**: `FileUtils::isAbsolutePath(filepath)` - Check if absolute path
+
+**Utility Functions:**
+- **formatSize**: `FileUtils::formatSize(bytes, precision)` - Format bytes to human-readable string
+- **getTempDirectory**: `FileUtils::getTempDirectory()` - Get system temp directory
+- **getTempFile**: `FileUtils::getTempFile(prefix, suffix)` - Generate temp file path
+
+**FileInfo Structure:**
+- `path` - Full file path
+- `name` - File name
+- `extension` - File extension
+- `directory` - Parent directory
+- `size` - File size in bytes
+- `modified`, `accessed`, `created` - Timestamps
+- `isDirectory`, `isFile`, `isSymlink` - Type flags
+- `readable`, `writable`, `executable` - Permission flags
+
+**FileResult Template:**
+- `success` - Boolean indicating operation success
+- `value` - Result value (if successful)
+- `error` - Error message (if failed)
+- Implicit bool conversion for easy checking
+
+**Features:**
+- Zero dependencies, uses only C++11 standard library
+- Header-only design - just include and use
+- Thread-safe, stateless static methods
+- Result type for error handling (no exceptions required)
+- Full POSIX compliance (Linux/macOS/Unix)
+- Binary and text file support
+- Recursive directory operations
+- Human-readable size formatting (B, KB, MB, GB, TB)
+- Path normalization and manipulation
+- Complete test suite with 19 test cases
+- 10 practical usage examples
+- Production-ready for file management tasks
+
+Compile and run tests:
+```bash
+cd C++/file_utils
+g++ -std=c++11 -o file_utils_test file_utils_test.cpp && ./file_utils_test
+```
+
+Run example:
+```bash
+cd C++/examples
+g++ -std=c++11 -o file_utils_example file_utils_example.cpp && ./file_utils_example
+```
+
+Usage example:
+```cpp
+#include "file_utils/mod.hpp"
+using namespace alltoolkit;
+
+// Read file
+auto result = FileUtils::readText("data.txt");
+if (result) {
+    std::cout << result.value;
+} else {
+    std::cerr << "Error: " << result.error;
+}
+
+// Write file
+FileUtils::writeText("output.txt", "Hello, World!");
+
+// Check existence
+if (FileUtils::exists("config.json")) {
+    // Process file
+}
+
+// File info
+FileInfo info = FileUtils::getInfo("document.pdf");
+std::cout << "Size: " << FileUtils::formatSize(info.size);
+std::cout << "Modified: " << info.modified;
+
+// Copy and move
+FileUtils::copy("source.txt", "backup.txt");
+FileUtils::move("old.txt", "new.txt");
+
+// Directory operations
+FileUtils::ensureDirectory("/path/to/nested/dir");
+auto files = FileUtils::listFiles("/path/to/dir");
+for (const auto& file : files) {
+    std::cout << file << std::endl;
+}
+
+// Path utilities
+std::string full = FileUtils::joinPath("/home", "user/file.txt");
+std::string dir = FileUtils::getDirectory(full);      // "/home/user"
+std::string name = FileUtils::getFilename(full);      // "file.txt"
+std::string base = FileUtils::getBasename(full);      // "file"
+std::string ext = FileUtils::getExtension(full);      // "txt"
+```
+
+---
+
 # CI Test
