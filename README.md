@@ -7884,6 +7884,119 @@ const sum = QueueUtils.reduce(numbers, (acc, n) => acc + n, 0);
 
 ## 📦 Latest Addition
 
+### C# - QR Code Utilities
+
+Location: `C#/qr_code_utils/mod.cs`
+
+A comprehensive QR Code generation utility module for C# with zero dependencies. Provides functionality to generate QR codes in multiple output formats including ASCII art, SVG, Unicode blocks, and bitmap representation. Supports configurable error correction levels and automatic version selection.
+
+**QR Code Generation:**
+- **Generate**: `QrCodeUtils.Generate(content, errorCorrection, version)` - Generate QR code from text content
+  - Returns QrCode object with content, size, version, and error correction level
+  - Supports automatic version selection based on content length
+- **GenerateAscii**: `QrCodeUtils.GenerateAscii(content, errorCorrection, compact)` - Generate ASCII art representation
+  - Full mode: Uses full block characters (██ for dark, spaces for light)
+  - Compact mode: Uses half-height block characters for smaller output
+- **GenerateBitmap**: `QrCodeUtils.GenerateBitmap(content, errorCorrection)` - Generate bitmap string (1s and 0s)
+- **GenerateSvg**: `QrCodeUtils.GenerateSvg(content, errorCorrection, moduleSize, foreground, background)` - Generate SVG
+  - Configurable module size in pixels
+  - Custom foreground and background colors (hex format)
+- **GenerateUnicode**: `QrCodeUtils.GenerateUnicode(content, errorCorrection)` - Generate Unicode block characters
+
+**Error Correction Levels:**
+- **L (Low)**: ~7% error correction capability
+- **M (Medium)**: ~15% error correction capability (default)
+- **Q (Quartile)**: ~25% error correction capability
+- **H (High)**: ~30% error correction capability
+
+**QR Code Versions:**
+- **V1-V10**: Fixed versions with specific sizes (V1 = 21x21, V10 = 57x57)
+- **Auto**: Automatically select minimum version based on content length
+
+**Utility Methods:**
+- **GetMinimumVersion**: `QrCodeUtils.GetMinimumVersion(content, errorCorrection)` - Calculate minimum version required
+- **GetEncodingMode**: `QrCodeUtils.GetEncodingMode(content)` - Determine optimal encoding mode (Numeric/Alphanumeric/Byte)
+- **IsNumeric**: `QrCodeUtils.IsNumeric(content)` - Check if content can be encoded in numeric mode
+- **IsAlphanumeric**: `QrCodeUtils.IsAlphanumeric(content)` - Check if content can be encoded in alphanumeric mode
+- **CanEncode**: `QrCodeUtils.CanEncode(content, maxVersion)` - Validate that content can be encoded
+- **GetCapacity**: `QrCodeUtils.GetCapacity(version, errorCorrection)` - Get maximum character capacity
+
+**QrCode Class Properties:**
+- **Size**: Size of QR code in modules (e.g., 21 for V1)
+- **Content**: Original content string
+- **ErrorCorrection**: Error correction level used
+- **Version**: QR code version
+
+**QrCode Class Methods:**
+- **GetModule**: `qr.GetModule(row, col)` - Get module state at specific position
+- **ToAscii**: `qr.ToAscii(compact)` - Convert to ASCII art
+- **ToBitmapString**: `qr.ToBitmapString()` - Convert to bitmap string
+- **ToSvg**: `qr.ToSvg(moduleSize, foreground, background)` - Convert to SVG
+- **ToUnicode**: `qr.ToUnicode()` - Convert to Unicode blocks
+
+**Features:**
+- Zero dependencies, uses only C# standard library
+- Multiple output formats: ASCII, SVG, Unicode, Bitmap
+- Configurable error correction levels (L, M, Q, H)
+- Automatic version selection based on content
+- Encoding mode detection (Numeric, Alphanumeric, Byte)
+- Capacity calculation for planning
+- Complete test suite with 10+ test cases
+- 10 practical usage examples
+- Production-ready for generating scannable QR codes
+
+Compile and run tests:
+```bash
+cd C#/qr_code_utils
+csc qr_code_utils_test.cs mod.cs && qr_code_utils_test.exe
+```
+
+Run example:
+```bash
+cd C#/examples
+csc qr_code_utils_example.cs ../qr_code_utils/mod.cs && qr_code_utils_example.exe
+```
+
+Usage example:
+```csharp
+using AllToolkit;
+
+// Basic QR code generation
+var qr = QrCodeUtils.Generate("Hello, World!");
+Console.WriteLine($"Size: {qr.Size}x{qr.Size}");
+
+// ASCII output
+string ascii = QrCodeUtils.GenerateAscii("HELLO");
+Console.WriteLine(ascii);
+
+// SVG output with custom colors
+string svg = QrCodeUtils.GenerateSvg("https://example.com", 
+    moduleSize: 4, foreground: "#000000", background: "#FFFFFF");
+File.WriteAllText("qrcode.svg", svg);
+
+// Compact ASCII (half height)
+string compact = QrCodeUtils.GenerateAscii("HI", compact: true);
+Console.WriteLine(compact);
+
+// Different error correction levels
+var qrL = QrCodeUtils.Generate("Test", QrCodeUtils.ErrorCorrectionLevel.L);
+var qrH = QrCodeUtils.Generate("Test", QrCodeUtils.ErrorCorrectionLevel.H);
+
+// Check encoding mode
+bool isNumeric = QrCodeUtils.IsNumeric("12345");      // true
+bool isAlpha = QrCodeUtils.IsAlphanumeric("HELLO");   // true
+
+// Get minimum version
+var version = QrCodeUtils.GetMinimumVersion("Long text content here");
+Console.WriteLine($"Minimum version: {version}");
+
+// Get capacity
+int capacity = QrCodeUtils.GetCapacity(QrCodeUtils.QrVersion.V5);
+Console.WriteLine($"V5 capacity: ~{capacity} characters");
+```
+
+---
+
 ### R - Cache Utilities
 
 Location: `R/cache_utils/mod.R`
