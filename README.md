@@ -5835,6 +5835,130 @@ ArchiveUtils.gunzip_file('document.txt.gz', 'document.txt')
 
 ## 📦 Latest Addition
 
+### C# - Event Bus Utilities
+
+Location: `C#/event_bus/mod.cs`
+
+A comprehensive Event Bus implementation for C# providing publish-subscribe pattern for decoupled component communication with support for sync/async handlers, priorities, filters, and event history.
+
+**Subscription Methods:**
+- **Subscribe**: `Subscribe<T>(handler, priority)` - Subscribe to event type with optional priority
+- **SubscribeAsync**: `SubscribeAsync<T>(asyncHandler, priority)` - Subscribe with async handler
+- **SubscribeOnce**: `SubscribeOnce<T>(handler, priority)` - Subscribe for single event only
+- **SubscribeWithFilter**: `SubscribeWithFilter<T>(handler, filter, priority)` - Subscribe with event filter
+- **Unsubscribe**: `Unsubscribe(token)` - Cancel subscription using token
+- **UnsubscribeAll**: `UnsubscribeAll<T>()` - Remove all subscriptions for event type
+
+**Publish Methods:**
+- **Publish**: `Publish<T>(eventData)` - Publish event synchronously
+- **PublishAsync**: `PublishAsync<T>(eventData)` - Publish event asynchronously
+- **PublishDelayed**: `PublishDelayed<T>(eventData, delay)` - Publish with delay
+
+**History Methods:**
+- **GetHistory**: `GetHistory<T>()` - Get all published events of type
+- **GetLastEvent**: `GetLastEvent<T>()` - Get most recent event
+- **ClearHistory**: `ClearHistory<T>()` - Clear event history
+
+**Utility Methods:**
+- **HasSubscribers**: `HasSubscribers<T>()` - Check if event type has subscribers
+- **GetSubscriberCount**: `GetSubscriberCount<T>()` - Get subscriber count
+- **ClearAllSubscriptions**: `ClearAllSubscriptions()` - Remove all subscriptions
+
+**Classes:**
+- **EventBus**: Main event bus class with static Default instance
+- **SubscriptionToken**: Token for managing subscriptions
+- **Subscription**: Internal subscription representation
+
+**Features:**
+- Zero dependencies, uses only .NET standard library
+- Thread-safe with ReaderWriterLockSlim
+- Priority-based handler execution (higher first)
+- Event filtering with predicates
+- One-time subscriptions auto-unsubscribe after first event
+- Configurable event history (default 100 events per type)
+- Both sync and async handler support
+- 10 comprehensive test categories
+- 8 practical usage examples
+- Production-ready for decoupled architecture
+
+Compile and run tests:
+```bash
+cd C#/event_bus
+dotnet build
+dotnet run --project event_bus_test.cs
+```
+
+Run example:
+```bash
+cd C#/examples
+dotnet run event_bus_example.cs
+```
+
+Usage example:
+```csharp
+using AllToolkit;
+
+// Create event bus
+var bus = new EventBus();
+
+// Define event
+public class UserLoggedInEvent
+{
+    public string Username { get; set; }
+    public DateTime LoginTime { get; set; }
+}
+
+// Subscribe to event
+var token = bus.Subscribe<UserLoggedInEvent>(evt =>
+{
+    Console.WriteLine($"User logged in: {evt.Username}");
+});
+
+// Subscribe with priority (higher = earlier)
+bus.Subscribe<OrderCreatedEvent>(
+    evt => Console.WriteLine($"[High] Validating: {evt.OrderId}"),
+    priority: 10);
+
+// Subscribe with filter
+bus.SubscribeWithFilter<OrderEvent>(
+    evt => Console.WriteLine($"VIP Order: {evt.Amount}"),
+    filter: evt => evt.Amount > 1000);
+
+// One-time subscription
+bus.SubscribeOnce<SystemAlertEvent>(
+    evt => Console.WriteLine($"First alert: {evt.Message}"));
+
+// Async handler
+bus.SubscribeAsync<DataReceivedEvent>(async evt =>
+{
+    await ProcessDataAsync(evt.Data);
+});
+
+// Publish events
+bus.Publish(new UserLoggedInEvent 
+{ 
+    Username = "john_doe", 
+    LoginTime = DateTime.Now 
+});
+
+// Async publish
+await bus.PublishAsync(new OrderCreatedEvent { OrderId = "ORD-123" });
+
+// Delayed publish
+await bus.PublishDelayed(
+    new ReminderEvent { Message = "Time's up!" },
+    TimeSpan.FromMinutes(5));
+
+// Access event history
+var history = bus.GetHistory<UserLoggedInEvent>();
+var lastLogin = bus.GetLastEvent<UserLoggedInEvent>();
+
+// Unsubscribe
+token.Unsubscribe();
+```
+
+---
+
 ### ArkTS - String Utilities
 
 Location: `ArkTS/string_utils/mod.ets`
