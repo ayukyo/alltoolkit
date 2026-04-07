@@ -35,24 +35,20 @@ func Truncate(s string, maxLen int) string {
 
 	// Validate maxLen with bounds checking
 	const ellipsisLen = 3
-	if maxLen < ellipsisLen {
+	if maxLen <= ellipsisLen {
 		return "..."
 	}
 
-	// Fast path: check rune count for pure ASCII strings
-	if len(s) == utf8.RuneCountInString(s) {
-		if len(s) <= maxLen {
+	// Fast path: check byte length for pure ASCII strings
+	if len(s) <= maxLen {
+		// Verify it's actually ASCII (no multi-byte chars)
+		if len(s) == utf8.RuneCountInString(s) {
 			return s
 		}
-		// ASCII fast path: direct byte slicing
-		return s[:maxLen-ellipsisLen] + "..."
 	}
 
 	// Calculate target length (reserve space for ellipsis)
 	targetLen := maxLen - ellipsisLen
-	if targetLen <= 0 {
-		return "..."
-	}
 
 	// Single-pass: count runes and find truncation point
 	var truncIdx int
@@ -60,25 +56,21 @@ func Truncate(s string, maxLen int) string {
 	for i := 0; i < len(s); {
 		r, size := utf8.DecodeRuneInString(s[i:])
 		
-		// Handle invalid UTF-8 gracefully - treat as single byte
-		if r == utf8.RuneError && size == 1 {
-			if count >= targetLen {
-				break
-			}
-			truncIdx = i + 1
-			count++
-			i++
-			continue
-		}
-		
 		// Check if we've reached the target length
 		if count >= targetLen {
 			break
 		}
 		
-		truncIdx = i + size
-		count++
-		i += size
+		// Handle invalid UTF-8 gracefully - treat as single byte
+		if r == utf8.RuneError && size == 1 {
+			truncIdx = i + 1
+			count++
+			i++
+		} else {
+			truncIdx = i + size
+			count++
+			i += size
+		}
 	}
 
 	return s[:truncIdx] + "..."
@@ -105,7 +97,7 @@ func TruncateSafe(s string, maxLen int) string {
 
 	// Validate maxLen with bounds checking
 	const ellipsisLen = 3
-	if maxLen < ellipsisLen {
+	if maxLen <= ellipsisLen {
 		return "..."
 	}
 
@@ -116,9 +108,6 @@ func TruncateSafe(s string, maxLen int) string {
 
 	// Reserve space for ellipsis
 	targetLen := maxLen - ellipsisLen
-	if targetLen <= 0 {
-		return "..."
-	}
 
 	// Walk backwards to find valid UTF-8 boundary
 	for i := targetLen; i > 0; i-- {

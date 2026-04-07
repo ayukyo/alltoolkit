@@ -92,51 +92,54 @@ class DateTimeUtils:
         """解析日期时间字符串"""
         return datetime.strptime(date_string, fmt)
 
-    @staticmethod
-    def parse_auto(date_string: str) -> Optional[datetime]:
-        """自动解析日期时间字符串（支持多种常见格式）"""
-        formats = [
-            "%Y-%m-%d %H:%M:%S",
-            "%Y-%m-%d %H:%M",
-            "%Y-%m-%d",
-            "%Y/%m/%d %H:%M:%S",
-            "%Y/%m/%d",
-            "%d/%m/%Y %H:%M:%S",
-            "%d/%m/%Y",
-            "%m/%d/%Y %H:%M:%S",
-            "%m/%d/%Y",
-            "%Y-%m-%dT%H:%M:%S",
-            "%Y-%m-%dT%H:%M:%S.%fZ",
-            "%Y-%m-%dT%H:%M:%S.%f",
-            "%Y%m%d%H%M%S",
-            "%Y%m%d",
-            "%H:%M:%S",
-            "%H:%M",
-        ]
+    # 预编译的 ISO 8601 正则表达式，避免重复编译
+    _ISO8601_TZ_PATTERN = re.compile(r'(.+?)([+-]\d{2}:\d{2})$')
+    _ISO8601_FORMATS = ("%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S")
+    
+    # 预定义的日期时间格式列表
+    _PARSE_FORMATS = [
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%Y-%m-%d",
+        "%Y/%m/%d %H:%M:%S",
+        "%Y/%m/%d",
+        "%d/%m/%Y %H:%M:%S",
+        "%d/%m/%Y",
+        "%m/%d/%Y %H:%M:%S",
+        "%m/%d/%Y",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S.%fZ",
+        "%Y-%m-%dT%H:%M:%S.%f",
+        "%Y%m%d%H%M%S",
+        "%Y%m%d",
+        "%H:%M:%S",
+        "%H:%M",
+    ]
 
-        for fmt in formats:
+    @classmethod
+    def parse_auto(cls, date_string: str) -> Optional[datetime]:
+        """自动解析日期时间字符串（支持多种常见格式）"""
+        # 快速路径：尝试预定义格式
+        for fmt in cls._PARSE_FORMATS:
             try:
                 return datetime.strptime(date_string, fmt)
             except ValueError:
                 continue
 
-        # 尝试 ISO 8601 格式（带时区）- Python 3.7+ 支持
+        # 处理 ISO 8601 带时区格式
         try:
-            # 处理带 Z 的 ISO 格式
             iso_str = date_string.replace('Z', '+00:00')
-            # 尝试解析带时区的格式
+            # 检查是否有时区部分
             if '+' in iso_str or '-' in iso_str[10:]:
-                # 手动解析 ISO 8601 带时区格式
-                match = re.match(r'(.+?)([+-]\d{2}:\d{2})$', iso_str)
+                match = cls._ISO8601_TZ_PATTERN.match(iso_str)
                 if match:
                     dt_part = match.group(1)
-                    tz_part = match.group(2)
-                    # 移除时区部分，作为 UTC 时间返回
-                    for fmt in ["%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"]:
+                    for fmt in cls._ISO8601_FORMATS:
                         try:
                             return datetime.strptime(dt_part, fmt)
                         except ValueError:
                             continue
+            # 无时区的基本 ISO 格式
             return datetime.strptime(iso_str.replace('+00:00', ''), "%Y-%m-%dT%H:%M:%S")
         except (ValueError, AttributeError):
             pass
@@ -336,55 +339,57 @@ class DateTimeUtils:
         else:
             return months_en[month - 1]
 
-    @staticmethod
-    def relative_time(dt: datetime, now: Optional[datetime] = None) -> str:
+    # 时间阈值常量（秒）
+    _THRESHOLD_MINUTE = 60
+    _THRESHOLD_HOUR = 3600
+    _THRESHOLD_DAY = 86400
+    _THRESHOLD_YESTERDAY = 172800
+    _THRESHOLD_WEEK = 604800
+    _THRESHOLD_MONTH = 2592000
+    _THRESHOLD_YEAR = 31536000
+
+    @classmethod
+    def relative_time(cls, dt: datetime, now: Optional[datetime] = None) -> str:
         """获取相对时间描述（如：刚刚、5分钟前、昨天等）"""
         if now is None:
             now = datetime.now()
 
-        diff = now - dt
-        seconds = diff.total_seconds()
+        seconds = (now - dt).total_seconds()
 
-        if seconds < 60:
+        if seconds < cls._THRESHOLD_MINUTE:
             return "刚刚"
-        elif seconds < 3600:
-            minutes = int(seconds / 60)
-            return f"{minutes}分钟前"
-        elif seconds < 86400:
-            hours = int(seconds / 3600)
-            return f"{hours}小时前"
-        elif seconds < 172800:
+        elif seconds < cls._THRESHOLD_HOUR:
+            return f"{int(seconds // 60)}分钟前"
+        elif seconds < cls._THRESHOLD_DAY:
+            return f"{int(seconds // 3600)}小时前"
+        elif seconds < cls._THRESHOLD_YESTERDAY:
             return "昨天"
-        elif seconds < 604800:
-            days = int(seconds / 86400)
-            return f"{days}天前"
-        elif seconds < 2592000:
-            weeks = int(seconds / 604800)
-            return f"{weeks}周前"
-        elif seconds < 31536000:
-            months = int(seconds / 2592000)
-            return f"{months}个月前"
+        elif seconds < cls._THRESHOLD_WEEK:
+            return f"{int(seconds // 86400)}天前"
+        elif seconds < cls._THRESHOLD_MONTH:
+            return f"{int(seconds // 604800)}周前"
+        elif seconds < cls._THRESHOLD_YEAR:
+            return f"{int(seconds // 2592000)}个月前"
         else:
-            years = int(seconds / 31536000)
-            return f"{years}年前"
+            return f"{int(seconds // 31536000)}年前"
 
-    @staticmethod
-    def format_duration(seconds: Union[int, float], level: str = 'auto') -> str:
+    @classmethod
+    def format_duration(cls, seconds: Union[int, float], level: str = 'auto') -> str:
         """格式化时长（秒数转换为可读字符串）"""
         if level == 'auto':
-            if seconds < 60:
+            if seconds < cls._THRESHOLD_MINUTE:
                 return f"{int(seconds)}秒"
-            elif seconds < 3600:
-                minutes = int(seconds / 60)
+            elif seconds < cls._THRESHOLD_HOUR:
+                minutes = int(seconds // 60)
                 secs = int(seconds % 60)
                 return f"{minutes}分{secs}秒" if secs > 0 else f"{minutes}分钟"
-            elif seconds < 86400:
-                hours = int(seconds / 3600)
-                minutes = int((seconds % 3600) / 60)
+            elif seconds < cls._THRESHOLD_DAY:
+                hours = int(seconds // 3600)
+                minutes = int((seconds % 3600) // 60)
                 return f"{hours}小时{minutes}分" if minutes > 0 else f"{hours}小时"
             else:
-                days = int(seconds / 86400)
-                hours = int((seconds % 86400) / 3600)
+                days = int(seconds // 86400)
+                hours = int((seconds % 86400) // 3600)
                 return f"{days}天{hours}小时" if hours > 0 else f"{days}天"
         elif level == 'second':
             return f"{int(seconds)}秒"
@@ -434,23 +439,23 @@ class DateTimeUtils:
         """转换为 ISO 8601 格式字符串"""
         return dt.isoformat()
 
-    @staticmethod
-    def from_iso8601(iso_string: str) -> datetime:
+    @classmethod
+    def from_iso8601(cls, iso_string: str) -> datetime:
         """从 ISO 8601 格式字符串解析"""
         # 处理带 Z 的 UTC 格式
         iso_str = iso_string.replace('Z', '+00:00')
         # 移除时区信息，解析为本地时间
         if '+' in iso_str or '-' in iso_str[10:]:
-            match = re.match(r'(.+?)([+-]\d{2}:\d{2})$', iso_str)
+            match = cls._ISO8601_TZ_PATTERN.match(iso_str)
             if match:
                 dt_part = match.group(1)
-                for fmt in ["%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"]:
+                for fmt in cls._ISO8601_FORMATS:
                     try:
                         return datetime.strptime(dt_part, fmt)
                     except ValueError:
                         continue
         # 基本格式
-        for fmt in ["%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"]:
+        for fmt in cls._ISO8601_FORMATS:
             try:
                 return datetime.strptime(iso_str, fmt)
             except ValueError:

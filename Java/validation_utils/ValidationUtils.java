@@ -187,22 +187,48 @@ public class ValidationUtils {
     }
     
     /**
-     * 验证 IPv4 地址
+     * 验证 IPv4 地址 - 优化版本
+     * 手动解析避免正则和多次字符串分割
      * 
      * @param ip IP地址
      * @return 是否有效
      */
     public static boolean isIpv4(String ip) {
         if (isBlank(ip)) return false;
-        if (!IPV4_PATTERN.matcher(ip).matches()) return false;
         
-        // 额外验证每个段是否在 0-255 范围内
-        String[] parts = ip.split("\\.");
-        for (String part : parts) {
-            int num = Integer.parseInt(part);
-            if (num < 0 || num > 255) return false;
+        int len = ip.length();
+        if (len < 7 || len > 15) return false; // 最短: 0.0.0.0, 最长: 255.255.255.255
+        
+        int num = 0;
+        int dotCount = 0;
+        int digitCount = 0;
+        
+        for (int i = 0; i < len; i++) {
+            char c = ip.charAt(i);
+            
+            if (c == '.') {
+                // 检查是否有数字，且数字在有效范围
+                if (digitCount == 0 || num > 255) return false;
+                // 检查是否有前导零（如 01 是无效的）
+                if (digitCount > 1 && ip.charAt(i - digitCount) == '0') return false;
+                
+                dotCount++;
+                num = 0;
+                digitCount = 0;
+            } else if (c >= '0' && c <= '9') {
+                num = num * 10 + (c - '0');
+                digitCount++;
+                if (digitCount > 3) return false; // 每个段最多3位数字
+            } else {
+                return false; // 非法字符
+            }
         }
-        return true;
+        
+        // 检查最后一段
+        if (digitCount == 0 || num > 255) return false;
+        if (digitCount > 1 && ip.charAt(len - digitCount) == '0') return false;
+        
+        return dotCount == 3;
     }
     
     /**
@@ -242,26 +268,28 @@ public class ValidationUtils {
         return validateIdCardCheckCode(idCard);
     }
     
+    // 身份证校验权重和校验码（预计算，避免重复创建）
+    private static final int[] ID_CARD_WEIGHTS = {7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2};
+    private static final char[] ID_CARD_CHECK_CODES = {'1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2'};
+    
     /**
-     * 验证身份证号校验码
+     * 验证身份证号校验码 - 优化版本
+     * 使用预计算的权重和校验码数组
      * 
      * @param idCard 身份证号
      * @return 校验码是否正确
      */
     private static boolean validateIdCardCheckCode(String idCard) {
-        String[] weights = {"7", "9", "10", "5", "8", "4", "2", "1", "6", "3", "7", "9", "10", "5", "8", "4", "2"};
-        String[] checkCodes = {"1", "0", "X", "9", "8", "7", "6", "5", "4", "3", "2"};
-        
         int sum = 0;
+        // 前17位加权求和
         for (int i = 0; i < 17; i++) {
-            sum += Integer.parseInt(String.valueOf(idCard.charAt(i))) * Integer.parseInt(weights[i]);
+            sum += (idCard.charAt(i) - '0') * ID_CARD_WEIGHTS[i];
         }
         
-        int mod = sum % 11;
-        String expectedCheckCode = checkCodes[mod];
-        String actualCheckCode = idCard.substring(17).toUpperCase();
+        char expectedCheckCode = ID_CARD_CHECK_CODES[sum % 11];
+        char actualCheckCode = Character.toUpperCase(idCard.charAt(17));
         
-        return expectedCheckCode.equals(actualCheckCode);
+        return expectedCheckCode == actualCheckCode;
     }
     
     /**
@@ -283,22 +311,23 @@ public class ValidationUtils {
     }
     
     /**
-     * Luhn 算法验证
+     * Luhn 算法验证 - 优化版本
+     * 使用查表法避免重复计算
      * 
      * @param cardNumber 清理后的卡号
      * @return 是否通过验证
      */
     private static boolean luhnCheck(String cardNumber) {
+        // Luhn 算法查表：doubled[n] = (n * 2) > 9 ? (n * 2) - 9 : (n * 2)
+        final int[] DOUBLED = {0, 2, 4, 6, 8, 1, 3, 5, 7, 9};
+        
         int sum = 0;
         boolean alternate = false;
         
+        // 从右向左遍历
         for (int i = cardNumber.length() - 1; i >= 0; i--) {
-            int n = Integer.parseInt(cardNumber.substring(i, i + 1));
-            if (alternate) {
-                n *= 2;
-                if (n > 9) n -= 9;
-            }
-            sum += n;
+            int n = cardNumber.charAt(i) - '0';
+            sum += alternate ? DOUBLED[n] : n;
             alternate = !alternate;
         }
         
@@ -616,8 +645,12 @@ public class ValidationUtils {
     
     // ==================== 辅助方法 ====================
     
+    // 每月天数（非闰年），索引0对应1月
+    private static final int[] DAYS_IN_MONTH = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    
     /**
-     * 验证日期是否有效（考虑闰年等因素）
+     * 验证日期是否有效（考虑闰年等因素）- 优化版本
+     * 使用预计算的每月天数数组
      * 
      * @param year 年份
      * @param month 月份（1-12）
@@ -627,14 +660,13 @@ public class ValidationUtils {
     private static boolean isValidDate(int year, int month, int day) {
         if (year < 1 || month < 1 || month > 12 || day < 1) return false;
         
-        int[] daysInMonth = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-        
-        // 闰年判断
-        if (isLeapYear(year)) {
-            daysInMonth[1] = 29;
+        int maxDay = DAYS_IN_MONTH[month - 1];
+        // 闰年2月特殊处理
+        if (month == 2 && isLeapYear(year)) {
+            maxDay = 29;
         }
         
-        return day <= daysInMonth[month - 1];
+        return day <= maxDay;
     }
     
     /**

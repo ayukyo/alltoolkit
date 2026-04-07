@@ -15,15 +15,17 @@
 
     const StringUtils = {};
 
-    // Constants
+    // Character set constants
     const LOWERCASE = 'abcdefghijklmnopqrstuvwxyz';
     const UPPERCASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const DIGITS = '0123456789';
     const SPECIAL_CHARS = '!@#$%^&*()-_=+[]{}|;:,.<>?';
     const ALPHANUMERIC = LOWERCASE + UPPERCASE + DIGITS;
     const ALL_CHARS = ALPHANUMERIC + SPECIAL_CHARS;
+    
+    // Pre-compiled regex patterns for better performance
     const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-    const URL_REGEX = /^(https?:\/\/)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/;
+    const URL_REGEX = /^(https?:\/\/)?(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)$/;
     const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
 
     // Empty/Blank Checks
@@ -442,25 +444,21 @@
         return StringUtils.random(length, LOWERCASE + UPPERCASE);
     };
 
+    // Password generation constants
+    const PASSWORD_MIN_LENGTH = 4;
+    const PASSWORD_DEFAULT_LENGTH = 16;
+    const PASSWORD_MAX_LENGTH = 1024;
+    
     StringUtils.randomPassword = function(length) {
-        // Constants for password generation
-        const MIN_LENGTH = 4;
-        const DEFAULT_LENGTH = 16;
-        const MAX_LENGTH = 1024; // Prevent excessive memory allocation
-        
         // Validate and normalize length with bounds checking
         if (typeof length !== 'number' || !isFinite(length)) {
-            length = DEFAULT_LENGTH;
+            length = PASSWORD_DEFAULT_LENGTH;
         } else {
             length = Math.floor(length);
         }
         
         // Clamp length to valid range
-        if (length < MIN_LENGTH) {
-            length = MIN_LENGTH;
-        } else if (length > MAX_LENGTH) {
-            length = MAX_LENGTH;
-        }
+        length = Math.max(PASSWORD_MIN_LENGTH, Math.min(length, PASSWORD_MAX_LENGTH));
         
         // Use crypto.getRandomValues when available for better randomness
         const hasCrypto = typeof crypto !== 'undefined' && crypto.getRandomValues;
@@ -473,31 +471,30 @@
             return Math.floor(Math.random() * max);
         };
         
+        // Pre-allocate array for better performance
+        const result = new Array(length);
+        
         // Build password with guaranteed character diversity
-        const required = [
-            LOWERCASE.charAt(getRandomInt(LOWERCASE.length)),
-            UPPERCASE.charAt(getRandomInt(UPPERCASE.length)),
-            DIGITS.charAt(getRandomInt(DIGITS.length)),
-            SPECIAL_CHARS.charAt(getRandomInt(SPECIAL_CHARS.length))
-        ];
+        result[0] = LOWERCASE.charAt(getRandomInt(LOWERCASE.length));
+        result[1] = UPPERCASE.charAt(getRandomInt(UPPERCASE.length));
+        result[2] = DIGITS.charAt(getRandomInt(DIGITS.length));
+        result[3] = SPECIAL_CHARS.charAt(getRandomInt(SPECIAL_CHARS.length));
         
         // Fill remaining length with random characters from all sets
-        const remaining = length - MIN_LENGTH;
         const allCharsLen = ALL_CHARS.length;
-        for (let i = 0; i < remaining; i++) {
-            required.push(ALL_CHARS.charAt(getRandomInt(allCharsLen)));
+        for (let i = PASSWORD_MIN_LENGTH; i < length; i++) {
+            result[i] = ALL_CHARS.charAt(getRandomInt(allCharsLen));
         }
         
         // Fisher-Yates shuffle for unbiased randomization
-        // More reliable than sort-based shuffle for cryptographic purposes
-        for (let i = required.length - 1; i > 0; i--) {
+        for (let i = length - 1; i > 0; i--) {
             const j = getRandomInt(i + 1);
-            const temp = required[i];
-            required[i] = required[j];
-            required[j] = temp;
+            const temp = result[i];
+            result[i] = result[j];
+            result[j] = temp;
         }
         
-        return required.join('');
+        return result.join('');
     };
 
     // URL Encoding

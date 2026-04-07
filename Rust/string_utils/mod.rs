@@ -62,7 +62,7 @@ pub fn truncate(s: &str, max_len: usize) -> String {
 
     // Validate max_len with bounds checking
     const ELLIPSIS_LEN: usize = 3;
-    if max_len < ELLIPSIS_LEN {
+    if max_len <= ELLIPSIS_LEN {
         return "...".to_string();
     }
 
@@ -71,23 +71,28 @@ pub fn truncate(s: &str, max_len: usize) -> String {
         return s.to_string();
     }
 
-    // Single-pass: count chars and check if we need truncation
-    let mut char_count = 0;
-    for (idx, _) in s.char_indices() {
-        char_count += 1;
-        if char_count > max_len {
-            // Need truncation - pre-allocate result buffer
-            let target_len = max_len.saturating_sub(ELLIPSIS_LEN);
-            let truncate_idx = s.char_indices()
-                .nth(target_len)
-                .map(|(idx, _)| idx)
-                .unwrap_or(idx);
-            return s[..truncate_idx].to_string() + "...";
-        }
+    // Calculate target length (reserve space for ellipsis)
+    let target_len = max_len - ELLIPSIS_LEN;
+    
+    // Count characters
+    let char_count = s.chars().count();
+    
+    // If string fits, return as-is
+    if char_count <= max_len {
+        return s.to_string();
     }
     
-    // String fits within limit, return as-is
-    s.to_string()
+    // Find the byte index for truncation at target_len characters
+    let truncate_idx = s.char_indices()
+        .nth(target_len)
+        .map(|(idx, _)| idx)
+        .unwrap_or(s.len());
+    
+    // Build result with pre-allocated capacity
+    let mut result = String::with_capacity(truncate_idx + ELLIPSIS_LEN);
+    result.push_str(&s[..truncate_idx]);
+    result.push_str("...");
+    result
 }
 
 /// Converts a string to a URL-friendly slug.
@@ -279,24 +284,19 @@ pub fn is_valid_email(email: &str) -> bool {
     const MAX_LOCAL_LEN: usize = 64;
     const MAX_TOTAL_LEN: usize = 254;
     
-    if email.is_empty() || email.len() > MAX_TOTAL_LEN {
+    let len = email.len();
+    if len == 0 || len > MAX_TOTAL_LEN {
         return false;
     }
 
     let bytes = email.as_bytes();
-    let len = bytes.len();
     let mut at_count = 0;
     let mut at_pos = 0;
 
     // Single-pass validation with early termination
     for (i, &b) in bytes.iter().enumerate() {
-        // Check for invalid characters (space, control chars, and common invalid chars)
-        if b == b' ' || b < 32 || b == b'(' || b == b')' || b == b'<' || b == b'>' || b == b',' || b == b';' || b == b':' || b == b'\\' || b == b'"' {
-            return false;
-        }
-        
+        // Fast path: check for @ first (most common case)
         if b == b'@' {
-            // Check local part length constraint
             if i > MAX_LOCAL_LEN {
                 return false;
             }
@@ -306,31 +306,35 @@ pub fn is_valid_email(email: &str) -> bool {
             if at_count > 1 {
                 return false;
             }
+            continue;
+        }
+        
+        // Check for invalid characters (space, control chars, and common invalid chars)
+        if b <= b' ' || b == b'(' || b == b')' || b == b'<' || b == b'>' || 
+           b == b',' || b == b';' || b == b':' || b == b'\\' || b == b'"' {
+            return false;
         }
     }
 
     // Must have exactly one @
-    if at_count != 1 {
-        return false;
-    }
-
-    // Local part must be non-empty
-    if at_pos == 0 {
+    if at_count != 1 || at_pos == 0 {
         return false;
     }
 
     // Domain must be non-empty and contain at least one dot
     let domain = &email[at_pos + 1..];
-    if domain.len() < 3 || !domain.contains('.') {
+    let domain_len = domain.len();
+    if domain_len < 3 || !domain.contains('.') {
         return false;
     }
 
-    // Domain must not start or end with dot
-    if domain.starts_with('.') || domain.ends_with('.') {
+    // Domain must not start or end with dot, and no consecutive dots
+    let domain_bytes = domain.as_bytes();
+    if domain_bytes[0] == b'.' || domain_bytes[domain_len - 1] == b'.' {
         return false;
     }
     
-    // Domain must not have consecutive dots
+    // Check for consecutive dots in domain
     if domain.contains("..") {
         return false;
     }
