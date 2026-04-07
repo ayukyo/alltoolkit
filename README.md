@@ -4098,6 +4098,118 @@ MIT License - 免费用于个人和商业项目
 
 ## 📦 Latest Addition
 
+### Swift - Log Utilities
+
+Location: `Swift/log_utils/mod.swift`
+
+A comprehensive logging utility for Swift providing multiple log levels, formatted output, file logging, and customizable log handlers.
+
+**Log Levels:**
+- **debug**: Detailed debugging information
+- **info**: General information messages
+- **warn**: Warning messages
+- **error**: Error messages
+- **fatal**: Critical error messages
+
+**Core Classes:**
+- **LogLevel**: Enumeration with emoji support (🐛 DEBUG, ℹ️ INFO, ⚠️ WARN, ❌ ERROR, 💀 FATAL)
+- **LogEntry**: Represents a log entry with timestamp, level, message, source location, and metadata
+- **LogFormatter Protocol**: For custom log formatting
+- **DefaultLogFormatter**: Configurable formatter with timestamp, level, source, thread options
+
+**Log Handlers:**
+- **ConsoleLogHandler**: Outputs to console/stdout with thread-safe operations
+- **FileLogHandler**: Writes to file with automatic rotation (configurable max size and file count)
+
+**Logger:**
+- **Logger.shared**: Singleton logger instance
+- **log(level, message)**: Generic logging method
+- **debug/info/warn/error/fatal**: Convenience methods for each level
+- **addHandler/removeAllHandlers**: Manage log handlers
+- **minLevel**: Configure minimum log level
+
+**LogUtils:**
+- **consoleHandler**: Create console handler with custom options
+- **fileHandler**: Create file handler with rotation settings
+- **configure**: Configure shared logger with multiple handlers
+- **setLevel/getLevel**: Get/set minimum log level
+- **isEnabled**: Check if a level is enabled
+- **flush**: Flush all handlers
+
+**Features:**
+- Zero dependencies, uses only Swift standard library (Foundation)
+- Thread-safe logging with NSLock
+- Automatic log file rotation when size limit reached
+- Customizable log formatters
+- Source file and line number tracking
+- Metadata support for structured logging
+- Multiple concurrent handlers support
+- Emoji and text log level indicators
+- Complete test suite with 7 test categories
+- 7 practical usage examples
+- Production-ready for iOS, macOS, watchOS, tvOS applications
+
+Run tests:
+```bash
+cd Swift/log_utils
+swift log_utils_test.swift
+```
+
+Run example:
+```bash
+cd Swift/examples
+swift log_utils_example.swift
+```
+
+Usage example:
+```swift
+import log_utils
+
+// Basic logging
+Logger.shared.info("Application started")
+Logger.shared.debug("Debug info")
+Logger.shared.warn("Warning message")
+Logger.shared.error("Error occurred")
+
+// With metadata
+Logger.shared.info("User action", metadata: ["userId": "12345"])
+
+// Configure log level
+LogUtils.setLevel(.warn)  // Only warn and above
+
+// File logging
+let fileHandler = LogUtils.fileHandler(
+    path: "/tmp/app.log",
+    minLevel: .info,
+    maxFileSize: 10 * 1024 * 1024,  // 10MB
+    maxFiles: 5
+)
+Logger.shared.addHandler(fileHandler)
+
+// Multiple handlers
+LogUtils.configure(
+    handlers: [
+        LogUtils.consoleHandler(minLevel: .info, useEmoji: true),
+        LogUtils.fileHandler(path: "/tmp/debug.log", minLevel: .debug)
+    ],
+    minLevel: .debug
+)
+
+// Custom formatter
+struct SimpleFormatter: LogFormatter {
+    func format(_ entry: LogEntry) -> String {
+        return "[\(entry.level.shortDescription)] \(entry.message)"
+    }
+}
+
+// Conditional logging
+if LogUtils.isEnabled(.debug) {
+    Logger.shared.debug(expensiveDebugInfo())
+}
+```
+
+---
+
 ### Delphi - QR Code Utilities
 
 Location: `Delphi/qr_code_utils/mod.pas`
