@@ -4098,6 +4098,147 @@ MIT License - 免费用于个人和商业项目
 
 ## 📦 Latest Addition
 
+### Swift - Validation Utilities
+
+Location: `Swift/validation_utils/mod.swift`
+
+A comprehensive data validation utility module for Swift providing common validation functions for emails, URLs, phone numbers, credit cards, IP addresses, passwords, UUIDs, and more.
+
+**String Validation:**
+- **isBlank**: `isBlank(string)` - Check if string is nil, empty, or whitespace only
+- **isNotBlank**: `isNotBlank(string)` - Check if string has content
+- **isEmpty**: `isEmpty(string)` - Check if string is empty
+- **isNotEmpty**: `isNotEmpty(string)` - Check if string is not empty
+- **lengthBetween**: `lengthBetween(string, min, max)` - Check string length is within range
+- **minLength**: `minLength(string, min)` - Check minimum length
+- **maxLength**: `maxLength(string, max)` - Check maximum length
+- **isAlpha**: `isAlpha(string)` - Check if contains only letters
+- **isNumeric**: `isNumeric(string)` - Check if contains only digits
+- **isAlphanumeric**: `isAlphanumeric(string)` - Check if contains only letters and digits
+
+**Email Validation:**
+- **isValidEmail**: `isValidEmail(email)` - Validate email format (RFC 5322)
+- **isValidEmailStrict**: `isValidEmailStrict(email)` - Validate with stricter rules
+
+**URL Validation:**
+- **isValidURL**: `isValidURL(url, requireScheme)` - Validate URL format
+- **isValidHTTPS**: `isValidHTTPS(url)` - Validate HTTPS URL
+
+**Phone Number Validation:**
+- **isValidPhone**: `isValidPhone(phone)` - Validate international phone (7-15 digits)
+- **isValidUSPhone**: `isValidUSPhone(phone)` - Validate US phone (10 digits)
+- **isValidChinaMobile**: `isValidChinaMobile(phone)` - Validate China mobile (11 digits)
+
+**IP Address Validation:**
+- **isValidIPv4**: `isValidIPv4(ip)` - Validate IPv4 address
+- **isValidIPv6**: `isValidIPv6(ip)` - Validate IPv6 address
+- **isValidIP**: `isValidIP(ip)` - Validate IPv4 or IPv6
+
+**Credit Card Validation:**
+- **isValidCreditCard**: `isValidCreditCard(cardNumber)` - Validate using Luhn algorithm
+
+**UUID Validation:**
+- **isValidUUID**: `isValidUUID(uuid)` - Validate standard UUID format
+- **isValidUUIDSimple**: `isValidUUIDSimple(uuid)` - Validate UUID without dashes
+
+**Hex Color Validation:**
+- **isValidHexColor**: `isValidHexColor(color)` - Validate #RGB or #RRGGBB
+- **isValidHexColorWithAlpha**: `isValidHexColorWithAlpha(color)` - Validate with alpha
+
+**MAC Address Validation:**
+- **isValidMACAddress**: `isValidMACAddress(mac)` - Validate MAC address format
+
+**ID Card Validation:**
+- **isValidChinaIDCard**: `isValidChinaIDCard(idCard)` - Validate China ID card (18 digits)
+
+**Password Validation:**
+- **isStrongPassword**: `isStrongPassword(password)` - Check strong password (8+ chars, mixed case, digit, special)
+- **checkPasswordStrength**: `checkPasswordStrength(password)` - Returns PasswordStrength enum with score and messages
+
+**Password Strength Levels:**
+- `veryWeak`, `weak`, `medium`, `strong`, `veryStrong`
+
+**Date Validation:**
+- **isValidDate**: `isValidDate(dateString, format)` - Validate date with format
+- **isValidISODate**: `isValidISODate(dateString)` - Validate ISO 8601 date
+
+**Regex Validation:**
+- **matches**: `matches(string, pattern)` - Validate against regex pattern
+- **contains**: `contains(string, pattern)` - Check if contains pattern
+
+**Numeric Validation:**
+- **between**: `between(value, min, max)` - Check if value is in range
+- **isValidInteger**: `isValidInteger(string)` - Check if valid integer
+- **isValidFloat**: `isValidFloat(string)` - Check if valid float
+- **isPositive**: `isPositive(string)` - Check if positive number
+- **isNegative**: `isNegative(string)` - Check if negative number
+
+**Features:**
+- Zero dependencies, uses only Swift standard library (Foundation)
+- Supports iOS 13.0+, macOS 10.15+, watchOS 6.0+, tvOS 13.0+
+- Complete validation for common data types
+- Luhn algorithm for credit card validation
+- Password strength scoring with detailed feedback
+- China-specific validations (mobile, ID card)
+- IPv4 and IPv6 address support
+- Thread-safe (all methods are static)
+- 50+ comprehensive unit tests
+- 12 practical usage examples
+- Production-ready for form validation and data sanitization
+
+Run tests:
+```bash
+cd Swift/validation_utils
+swift validation_utils_test.swift
+```
+
+Run example:
+```bash
+cd Swift/examples
+swift validation_utils_example.swift
+```
+
+Usage example:
+```swift
+import validation_utils
+
+// Email validation
+if ValidationUtils.isValidEmail("user@example.com") {
+    print("Valid email")
+}
+
+// Password strength
+let result = ValidationUtils.checkPasswordStrength("MyP@ssw0rd")
+print("Strength: \(result.strength.description)")  // "Strong"
+
+// IP validation
+if ValidationUtils.isValidIPv4("192.168.1.1") {
+    print("Valid IPv4")
+}
+
+// Credit card
+if ValidationUtils.isValidCreditCard("4532015112830366") {
+    print("Valid card number")
+}
+
+// Form validation
+func validateForm(email: String, phone: String) -> [String] {
+    var errors: [String] = []
+    
+    if !ValidationUtils.isValidEmail(email) {
+        errors.append("Invalid email")
+    }
+    
+    if !ValidationUtils.isValidChinaMobile(phone) {
+        errors.append("Invalid phone number")
+    }
+    
+    return errors
+}
+```
+
+---
+
 ### Swift - Log Utilities
 
 Location: `Swift/log_utils/mod.swift`
