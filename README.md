@@ -115,6 +115,113 @@ Each language directory contains standalone, dependency-free utility modules wit
 
 ## Latest Addition
 
+### Fortran - Random Utilities
+
+Location: `Fortran/random_utils/mod.f90`
+
+A comprehensive random number generation module for Fortran providing various distributions and utility functions for scientific computing and simulations.
+
+**Seed Management:**
+- **init_random_seed**: `init_random_seed()` - Initialize random seed using system clock
+- **set_seed**: `set_seed(seed_value)` - Set specific seed for reproducible randomness
+- **get_seed**: `get_seed(seed)` - Get current random seed
+
+**Uniform Distribution:**
+- **random_real**: `random_real()` - Generate random real in [0, 1)
+- **random_real_range**: `random_real_range(min_val, max_val)` - Generate random real in [min_val, max_val)
+- **random_int**: `random_int(min_val, max_val)` - Generate random integer in [min_val, max_val]
+- **random_bool**: `random_bool()` - Generate random logical (.true./.false.)
+- **random_bool_prob**: `random_bool_prob(probability)` - Generate logical with custom probability
+
+**Normal (Gaussian) Distribution:**
+- **random_normal**: `random_normal()` - Generate from standard normal N(0, 1) using Box-Muller transform
+- **random_normal_dist**: `random_normal_dist(mean, std_dev)` - Generate from N(mean, std_dev²)
+
+**Other Distributions:**
+- **random_exponential**: `random_exponential(lambda)` - Generate from exponential distribution
+- **random_poisson**: `random_poisson(lambda)` - Generate from Poisson distribution
+
+**Random Arrays:**
+- **random_real_array**: `random_real_array(arr)` - Fill array with random reals in [0, 1)
+- **random_real_array_range**: `random_real_array_range(arr, min_val, max_val)` - Fill array with range
+- **random_int_array**: `random_int_array(n, min_val, max_val)` - Generate array of random integers
+
+**Shuffling and Permutation:**
+- **shuffle_int**: `shuffle_int(arr)` - Shuffle integer array in place (Fisher-Yates)
+- **shuffle_real**: `shuffle_real(arr)` - Shuffle real array in place
+- **random_permutation**: `random_permutation(n)` - Generate random permutation of 1 to n
+- **random_sample**: `random_sample(n, k)` - Generate k unique samples from 1 to n
+
+**Random Choice:**
+- **random_choice_int**: `random_choice_int(arr)` - Select random element from int array
+- **random_choice_real**: `random_choice_real(arr)` - Select random element from real array
+- **random_choice_string**: `random_choice_string(arr)` - Select random element from string array
+
+**Utility Functions:**
+- **random_angle**: `random_angle()` - Generate random angle in [0, 2π)
+- **random_point_in_circle**: `random_point_in_circle(x, y)` - Generate random point in unit circle
+- **random_point_on_sphere**: `random_point_on_sphere(x, y, z)` - Generate random point on unit sphere
+- **random_color**: `random_color(r, g, b)` - Generate random RGB color values
+
+**Features:**
+- Zero dependencies, uses only Fortran standard library
+- Supports Fortran 90/95/2003+
+- Box-Muller transform for normal distribution
+- Fisher-Yates shuffle algorithm
+- Reproducible randomness with seed control
+- Monte Carlo simulation support
+- 23 comprehensive unit tests
+- 17 practical usage examples
+- Production-ready for scientific computing
+
+Compile and run tests:
+```bash
+cd Fortran/random_utils
+gfortran -o random_utils_test mod.f90 random_utils_test.f90 && ./random_utils_test
+```
+
+Run example:
+```bash
+cd Fortran/examples
+gfortran -o random_utils_example ../random_utils/mod.f90 random_utils_example.f90 && ./random_utils_example
+```
+
+Usage example:
+```fortran
+use random_utils
+
+! Initialize with system clock
+call init_random_seed()
+
+! Random numbers
+r = random_real()                    ! [0, 1)
+r = random_real_range(10.0, 20.0)    ! [10, 20)
+i = random_int(1, 100)               ! Integer in [1, 100]
+
+! Distributions
+r = random_normal_dist(100.0, 15.0)  ! IQ-like scores
+r = random_exponential(0.5)          ! Inter-arrival times
+i = random_poisson(4.0)              ! Event counts
+
+! Arrays
+arr = random_int_array(10, 1, 6)     ! 10 dice rolls
+call shuffle_int(arr)                ! Shuffle in place
+
+! Sampling
+perm = random_permutation(52)        ! Card deck shuffle
+sample = random_sample(100, 10)      ! 10 unique from 1-100
+
+! Geometric
+call random_point_in_circle(x, y)    ! Random point in circle
+call random_point_on_sphere(x, y, z) ! Random point on sphere
+
+! Reproducibility
+call set_seed(12345)                 ! Set specific seed
+r = random_real()                    ! Will be same each time
+```
+
+---
+
 ### Go - XML Utilities
 
 Location: `Go/xml_utils/mod.go`
