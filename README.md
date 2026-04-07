@@ -4098,6 +4098,107 @@ MIT License - 免费用于个人和商业项目
 
 ## 📦 Latest Addition
 
+### Delphi - QR Code Utilities
+
+Location: `Delphi/qr_code_utils/mod.pas`
+
+A comprehensive QR Code generation utility module for Delphi, supporting multiple error correction levels, encoding modes, and output formats.
+
+**QR Code Generation:**
+- **Generate**: `TQRCodeUtils.Generate(Data, ErrorLevel)` - Generate QR Code structure
+- **GenerateText**: `TQRCodeUtils.GenerateText(Data, DarkModule, LightModule, ErrorLevel)` - Generate as text
+- **GenerateSVG**: `TQRCodeUtils.GenerateSVG(Data, ModuleSize, ErrorLevel)` - Generate as SVG
+
+**Encoding Modes:**
+- **GetMode**: `TQRCodeUtils.GetMode(Data)` - Detect encoding mode (Numeric/Alphanumeric/Byte)
+- **EncodeNumeric**: `TQRCodeUtils.EncodeNumeric(Data)` - Encode numeric data
+- **EncodeAlphanumeric**: `TQRCodeUtils.EncodeAlphanumeric(Data)` - Encode alphanumeric data
+
+**Capacity & Validation:**
+- **GetQRCodeSize**: `TQRCodeUtils.GetQRCodeSize(Version)` - Get size in modules (17 + 4*Version)
+- **CanEncode**: `TQRCodeUtils.CanEncode(Data, Version, ErrorLevel)` - Check if data fits
+- **GetMaxCapacity**: `TQRCodeUtils.GetMaxCapacity(Version, ErrorLevel, Mode)` - Get max capacity
+- **GetRecommendedVersion**: `TQRCodeUtils.GetRecommendedVersion(Data, ErrorLevel)` - Get best version
+- **ValidateData**: `TQRCodeUtils.ValidateData(Data)` - Validate input data
+- **GetCapacityInfo**: `TQRCodeUtils.GetCapacityInfo(Data, ErrorLevel)` - Get capacity details
+
+**Error Correction Levels:**
+- **ecL** (Low): ~7% recovery capacity
+- **ecM** (Medium): ~15% recovery capacity (default)
+- **ecQ** (Quartile): ~25% recovery capacity
+- **ecH** (High): ~30% recovery capacity
+
+**Level Conversion:**
+- **ErrorLevelToString**: `TQRCodeUtils.ErrorLevelToString(ErrorLevel)` - Level to string
+- **StringToErrorLevel**: `TQRCodeUtils.StringToErrorLevel(S)` - String to level
+
+**Types:**
+- **TQRCode**: Record with Version, Width, Matrix, ErrorLevel, Mode
+- **TErrorCorrectionLevel**: (ecL, ecM, ecQ, ecH)
+- **TQRCodeMode**: (qmNumeric, qmAlphanumeric, qmByte)
+- **EQRCodeException**: Exception class for QR errors
+
+**Features:**
+- Zero dependencies, uses only Delphi standard library (SysUtils, Classes)
+- Supports QR Code versions 1-10
+- Three encoding modes: Numeric, Alphanumeric, Byte
+- Four error correction levels
+- Text and SVG output formats
+- Capacity calculation and validation
+- Complete test suite with 40+ test cases
+- 12 practical usage examples
+- Compatible with Delphi 7+ and Free Pascal
+- Production-ready for QR generation tasks
+
+Compile and run tests:
+```bash
+cd Delphi/qr_code_utils
+fpc qr_code_utils_test.pas && ./qr_code_utils_test
+```
+
+Run example:
+```bash
+cd Delphi/examples
+fpc qr_code_utils_example.pas && ./qr_code_utils_example
+```
+
+Usage example:
+```pascal
+uses mod;
+
+// Generate QR Code
+var QRCode: TQRCode;
+QRCode := TQRCodeUtils.Generate('HELLO WORLD', ecM);
+Writeln('Version: ', QRCode.Version);
+Writeln('Size: ', QRCode.Width, 'x', QRCode.Width);
+
+// Generate as text
+var TextQR: string;
+TextQR := TQRCodeUtils.GenerateText('TEST', '#', ' ', ecM);
+Writeln(TextQR);
+
+// Generate as SVG
+var SVG: string;
+SVG := TQRCodeUtils.GenerateSVG('https://example.com', 4, ecM);
+// Save SVG to file
+
+// Check capacity
+if TQRCodeUtils.CanEncode('My Data', 1, ecM) then
+  Writeln('Fits in Version 1');
+
+// Get encoding mode
+var Mode: TQRCodeMode;
+Mode := TQRCodeUtils.GetMode('12345'); // qmNumeric
+Mode := TQRCodeUtils.GetMode('HELLO'); // qmAlphanumeric
+Mode := TQRCodeUtils.GetMode('Hello'); // qmByte
+
+// Get capacity info
+Writeln(TQRCodeUtils.GetCapacityInfo('My Data', ecM));
+// Output: Mode: Byte, Version: 1, Data Length: 7, Max Capacity: 11, Can Encode: True
+```
+
+---
+
 ### Rust - URL Utilities
 
 Location: `Rust/url_utils/mod.rs`
