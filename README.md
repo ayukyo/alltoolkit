@@ -4098,6 +4098,126 @@ MIT License - 免费用于个人和商业项目
 
 ## 📦 Latest Addition
 
+### C# - QR Code Utilities
+
+Location: `C#/qr_code_utils/mod.cs`
+
+A comprehensive QR Code generation utility for C# supporting multiple error correction levels, encoding modes, and output formats.
+
+**QR Code Generation:**
+- **Generate**: `QRCodeUtils.Generate(data, errorLevel)` - Generate QR Code from string data
+- **GenerateText**: `QRCodeUtils.GenerateText(data, darkModule, lightModule, errorLevel)` - Generate text representation
+- **GenerateSvg**: `QRCodeUtils.GenerateSvg(data, moduleSize, errorLevel)` - Generate SVG output
+
+**Output Formats:**
+- **ToText**: `QRCodeUtils.ToText(qr, darkModule, lightModule)` - Convert to text with custom characters
+- **ToSvg**: `QRCodeUtils.ToSvg(qr, moduleSize)` - Convert to SVG string
+
+**Encoding Modes:**
+- **Numeric**: Digits 0-9 only (highest capacity)
+- **Alphanumeric**: 0-9, A-Z, space, $%*+-./: (medium capacity)
+- **Byte**: Any ISO 8859-1 characters (lowest capacity)
+
+**Error Correction Levels:**
+- **L** (Low): ~7% recovery capacity
+- **M** (Medium): ~15% recovery capacity (default)
+- **Q** (Quartile): ~25% recovery capacity
+- **H** (High): ~30% recovery capacity
+
+**Capacity & Validation:**
+- **GetMode**: `QRCodeUtils.GetMode(data)` - Detect best encoding mode
+- **CanEncode**: `QRCodeUtils.CanEncode(data, version, errorLevel)` - Check if data fits
+- **GetRecommendedVersion**: `QRCodeUtils.GetRecommendedVersion(data, errorLevel)` - Get best version
+- **GetMaxCapacity**: `QRCodeUtils.GetMaxCapacity(version, mode, errorLevel)` - Get max capacity
+- **GetCapacityInfo**: `QRCodeUtils.GetCapacityInfo(data, errorLevel)` - Get capacity details
+- **ValidateData**: `QRCodeUtils.ValidateData(data)` - Validate input data
+- **GetQRCodeSize**: `QRCodeUtils.GetQRCodeSize(version)` - Get size in modules
+
+**Utility Methods:**
+- **ErrorLevelToString**: `QRCodeUtils.ErrorLevelToString(level)` - Convert level to string
+- **StringToErrorLevel**: `QRCodeUtils.StringToErrorLevel(str)` - Parse level from string
+
+**QRCode Properties:**
+- `Version` - QR Code version (1-10)
+- `Width` - Size in modules (17 + 4*Version)
+- `Matrix` - 2D boolean array (true = dark)
+- `ErrorCorrectionLevel` - Level used
+- `Mode` - Encoding mode used
+- `Data` - Original data
+
+**QRCapacityInfo Properties:**
+- `Mode` - Detected encoding mode
+- `Version` - Recommended version
+- `DataLength` - Input data length
+- `MaxCapacity` - Maximum capacity
+- `CanEncode` - Whether data can be encoded
+
+**Features:**
+- Zero dependencies, uses only .NET standard library
+- Supports QR Code versions 1-10
+- Three encoding modes: Numeric, Alphanumeric, Byte
+- Four error correction levels
+- Text and SVG output formats
+- Automatic mode detection
+- Capacity calculation and validation
+- Complete test suite with 40+ test cases
+- 10 practical usage examples
+- Compatible with .NET Framework 4.5+ / .NET Core / .NET 5+
+- Production-ready for QR generation tasks
+
+Compile and run tests:
+```bash
+cd C#/qr_code_utils
+csc mod.cs qr_code_utils_test.cs /out:qr_test.exe
+qr_test.exe
+```
+
+Run example:
+```bash
+cd C#/examples
+csc ../qr_code_utils/mod.cs qr_code_utils_example.cs /out:qr_example.exe
+qr_example.exe
+```
+
+Usage example:
+```csharp
+using AllToolkit;
+
+// Basic generation
+var qr = QRCodeUtils.Generate("HELLO WORLD");
+Console.WriteLine($"Version: {qr.Version}");
+Console.WriteLine($"Size: {qr.Width}x{qr.Width}");
+
+// Text output
+string text = QRCodeUtils.GenerateText("TEST", "██", "  ");
+Console.WriteLine(text);
+
+// SVG output
+string svg = QRCodeUtils.GenerateSvg("https://example.com", 4);
+File.WriteAllText("qrcode.svg", svg);
+
+// Different error levels
+var qrHigh = QRCodeUtils.Generate("DATA", QRErrorCorrectionLevel.H);
+
+// Mode detection
+QRMode mode = QRCodeUtils.GetMode("12345");  // Numeric
+mode = QRCodeUtils.GetMode("HELLO");           // Alphanumeric
+mode = QRCodeUtils.GetMode("hello");           // Byte
+
+// Capacity info
+var info = QRCodeUtils.GetCapacityInfo("MY DATA");
+Console.WriteLine(info);
+// Output: Mode: Alphanumeric, Version: 1, Data Length: 7, Max Capacity: 20, Can Encode: True
+
+// Check if data fits
+bool canEncode = QRCodeUtils.CanEncode("LONG DATA", 2, QRErrorCorrectionLevel.M);
+
+// Custom text characters
+string custom = QRCodeUtils.GenerateText("HI", "##", "..");
+```
+
+---
+
 ### Swift - Validation Utilities
 
 Location: `Swift/validation_utils/mod.swift`
