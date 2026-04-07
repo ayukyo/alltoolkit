@@ -9188,7 +9188,154 @@ func main() {
 
 ---
 
-## 🧪 Test Summary
+### C# - Number Utilities
+
+Location: `C#/number_utils/mod.cs`
+
+A comprehensive number utility module for C# providing formatting, base conversion, Roman numerals, mathematical operations, statistical functions, and number validation.
+
+**Formatting Functions:**
+- **Format**: `NumberUtils.Format(number, decimalPlaces, culture)` - Format with thousands separator
+- **Currency**: `NumberUtils.Currency(amount, symbol, decimalPlaces)` - Format as currency (e.g., "$1,234.56")
+- **Percentage**: `NumberUtils.Percentage(value, decimalPlaces, includeSymbol)` - Format as percentage
+- **Compact**: `NumberUtils.Compact(number, decimalPlaces)` - Compact notation (K, M, B, T)
+- **ToOrdinal**: `NumberUtils.ToOrdinal(number)` - Convert to ordinal (1st, 2nd, 3rd)
+- **ToWords**: `NumberUtils.ToWords(number)` - Convert to English words
+
+**Base Conversion:**
+- **ToBinary**: `NumberUtils.ToBinary(number, minDigits, prefix)` - Convert to binary string
+- **ToHex**: `NumberUtils.ToHex(number, minDigits, uppercase, prefix)` - Convert to hexadecimal
+- **ToOctal**: `NumberUtils.ToOctal(number, minDigits, prefix)` - Convert to octal
+- **FromBinary**: `NumberUtils.FromBinary(binary)` - Parse binary string
+- **FromHex**: `NumberUtils.FromHex(hex)` - Parse hexadecimal string
+- **FromOctal**: `NumberUtils.FromOctal(octal)` - Parse octal string
+
+**Roman Numerals:**
+- **ToRoman**: `NumberUtils.ToRoman(number)` - Convert to Roman numeral (1-3999)
+- **FromRoman**: `NumberUtils.FromRoman(roman)` - Parse Roman numeral
+
+**Mathematical Operations:**
+- **Clamp**: `NumberUtils.Clamp(value, min, max)` - Clamp value to range
+- **Lerp**: `NumberUtils.Lerp(start, end, t)` - Linear interpolation
+- **MapRange**: `NumberUtils.MapRange(value, inMin, inMax, outMin, outMax)` - Map between ranges
+- **ApproxEqual**: `NumberUtils.ApproxEqual(a, b, epsilon)` - Approximate equality check
+- **RoundToMultiple**: `NumberUtils.RoundToMultiple(value, multiple)` - Round to nearest multiple
+- **RoundToSignificantFigures**: `NumberUtils.RoundToSignificantFigures(value, figures)` - Round to significant figures
+
+**Statistical Functions:**
+- **Mean**: `NumberUtils.Mean(numbers)` - Arithmetic mean
+- **Median**: `NumberUtils.Median(numbers)` - Median value
+- **Mode**: `NumberUtils.Mode(numbers)` - Most frequent value
+- **StdDev**: `NumberUtils.StdDev(numbers, sample)` - Standard deviation
+- **Variance**: `NumberUtils.Variance(numbers, sample)` - Variance
+- **Range**: `NumberUtils.Range(numbers)` - Range (max - min)
+- **SumOfSquares**: `NumberUtils.SumOfSquares(numbers)` - Sum of squares
+
+**Validation:**
+- **IsValidNumber**: `NumberUtils.IsValidNumber(value)` - Check if valid (not NaN/Infinity)
+- **IsEven/IsOdd**: `NumberUtils.IsEven(number)` / `NumberUtils.IsOdd(number)`
+- **IsPositive/IsNegative/IsZero**: Sign checks
+- **IsBetween**: `NumberUtils.IsBetween(number, min, max)` - Range check
+- **IsPrime**: `NumberUtils.IsPrime(number)` - Prime number check
+- **IsPerfectSquare**: `NumberUtils.IsPerfectSquare(number)` - Perfect square check
+- **IsPerfectCube**: `NumberUtils.IsPerfectCube(number)` - Perfect cube check
+
+**Parsing:**
+- **ParseOrDefault**: `NumberUtils.ParseOrDefault(str, defaultValue)` - Parse with default
+- **ParseIntOrDefault**: `NumberUtils.ParseIntOrDefault(str, defaultValue)` - Parse int with default
+- **ParseLongOrDefault**: `NumberUtils.ParseLongOrDefault(str, defaultValue)` - Parse long with default
+- **TryParse**: `NumberUtils.TryParse(str, out result)` - Safe parsing
+
+**Utility Functions:**
+- **Gcd**: `NumberUtils.Gcd(a, b)` - Greatest common divisor
+- **Lcm**: `NumberUtils.Lcm(a, b)` - Least common multiple
+- **Factorial**: `NumberUtils.Factorial(n)` - Factorial (0-20)
+- **Fibonacci**: `NumberUtils.Fibonacci(n)` - Fibonacci number (0-92)
+- **SumOfDigits**: `NumberUtils.SumOfDigits(number)` - Sum of digits
+- **ReverseDigits**: `NumberUtils.ReverseDigits(number)` - Reverse digits
+- **IsPalindrome**: `NumberUtils.IsPalindrome(number)` - Palindrome check
+- **DegreesToRadians**: `NumberUtils.DegreesToRadians(degrees)` - Angle conversion
+- **RadiansToDegrees**: `NumberUtils.RadiansToDegrees(radians)` - Angle conversion
+- **NormalizeAngle**: `NumberUtils.NormalizeAngle(degrees)` - Normalize to 0-360
+
+**Random Generation:**
+- **Random**: `NumberUtils.Random(min, max)` - Random double in range
+- **RandomInt**: `NumberUtils.RandomInt(min, max)` - Random integer in range
+- **RandomNormal**: `NumberUtils.RandomNormal(mean, stdDev)` - Normal distribution
+
+**Features:**
+- Zero dependencies, uses only .NET standard library
+- Supports .NET Framework 4.5+ / .NET Core / .NET 5+
+- Complete number formatting with culture support
+- Binary, hexadecimal, and octal conversions
+- Roman numeral conversion (1-3999)
+- Statistical functions for data analysis
+- Prime number and perfect square/cube detection
+- Number parsing with default values
+- Random number generation with normal distribution
+- 50+ comprehensive unit tests
+- 9 practical usage examples
+- Production-ready for financial and scientific applications
+
+Compile and run tests:
+```bash
+cd C#/number_utils
+csc mod.cs number_utils_test.cs /out:number_test.exe
+number_test.exe
+```
+
+Run example:
+```bash
+cd C#/examples
+csc ../number_utils/mod.cs number_utils_example.cs /out:number_example.exe
+number_example.exe
+```
+
+Usage example:
+```csharp
+using AllToolkit;
+
+// Formatting
+string formatted = NumberUtils.Format(1234567.89, 2);  // "1,234,567.89"
+string currency = NumberUtils.Currency(1234.56);       // "$1,234.56"
+string compact = NumberUtils.Compact(1500000);         // "1.5M"
+string ordinal = NumberUtils.ToOrdinal(21);            // "21st"
+string words = NumberUtils.ToWords(1234);              // "one thousand two hundred thirty-four"
+
+// Base conversion
+string binary = NumberUtils.ToBinary(255, 8, true);    // "0b11111111"
+string hex = NumberUtils.ToHex(255, 2, true, true);    // "0xFF"
+long dec = NumberUtils.FromHex("FF");                  // 255
+
+// Roman numerals
+string roman = NumberUtils.ToRoman(2024);              // "MMXXIV"
+int year = NumberUtils.FromRoman("MMXXIV");          // 2024
+
+// Mathematical operations
+double clamped = NumberUtils.Clamp(15, 0, 10);         // 10
+double lerped = NumberUtils.Lerp(0, 100, 0.5);       // 50
+double mapped = NumberUtils.MapRange(32, 32, 212, 0, 100);  // 0 (F to C)
+bool approx = NumberUtils.ApproxEqual(0.1 + 0.2, 0.3); // true
+
+// Statistics
+var data = new List<double> { 1, 2, 3, 4, 5 };
+double mean = NumberUtils.Mean(data);                  // 3.0
+double median = NumberUtils.Median(data);              // 3.0
+double stdDev = NumberUtils.StdDev(data);              // ~1.414
+
+// Validation
+bool isPrime = NumberUtils.IsPrime(7);                 // true
+bool isSquare = NumberUtils.IsPerfectSquare(144);      // true
+bool inRange = NumberUtils.IsBetween(5, 0, 10);        // true
+
+// Utilities
+long gcd = NumberUtils.Gcd(24, 36);                    // 12
+long lcm = NumberUtils.Lcm(24, 36);                    // 72
+long fact = NumberUtils.Factorial(5);                  // 120
+int sumDigits = NumberUtils.SumOfDigits(12345);        // 15
+
+// Random generation
+double random = NumberUtils.Random(0, 1);
 
 | Language | Module | Test File | Test Count | Status |
 |----------|--------|-----------|------------|--------|
