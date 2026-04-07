@@ -9037,15 +9037,167 @@ rustc --test mod.rs -o benchmark_test && ./benchmark_test
 
 ---
 
+---
+
+## 📦 Latest Addition
+
+### Go - Semaphore Utilities
+
+Location: `Go/semaphore_utils/mod.go`
+
+A comprehensive semaphore implementation for Go with support for weighted semaphores, timeout operations, context cancellation, and semaphore pools. Perfect for rate limiting, connection pooling, and resource management in concurrent applications.
+
+**Standard Semaphore:**
+- **New**: `New(capacity)` - Create semaphore with fixed capacity
+- **Acquire**: `sem.Acquire(ctx)` - Acquire permit with context support
+- **AcquireTimeout**: `sem.AcquireTimeout(timeout)` - Acquire with timeout
+- **TryAcquire**: `sem.TryAcquire()` - Non-blocking acquire attempt
+- **Release**: `sem.Release()` - Release permit back to semaphore
+
+**Semaphore Status:**
+- **Available**: `sem.Available()` - Get number of available permits
+- **Capacity**: `sem.Capacity()` - Get total capacity
+- **InUse**: `sem.InUse()` - Get number of permits currently in use
+- **Waiters**: `sem.Waiters()` - Get number of waiting goroutines
+
+**Weighted Semaphore:**
+- **NewWeighted**: `NewWeighted(capacity)` - Create weighted semaphore
+- **Acquire**: `sem.Acquire(ctx, n)` - Acquire n units
+- **AcquireTimeout**: `sem.AcquireTimeout(timeout, n)` - Acquire n units with timeout
+- **TryAcquire**: `sem.TryAcquire(n)` - Non-blocking acquire of n units
+- **Release**: `sem.Release(n)` - Release n units
+
+**Semaphore Pool:**
+- **NewPool**: `NewPool(defaultCapacity)` - Create pool of semaphores
+- **Get**: `pool.Get(key)` - Get or create semaphore for key
+- **Remove**: `pool.Remove(key)` - Remove semaphore from pool
+- **Keys**: `pool.Keys()` - Get all keys in pool
+- **Size**: `pool.Size()` - Get number of semaphores in pool
+
+**Helper Functions:**
+- **RunWithSemaphore**: `RunWithSemaphore(ctx, sem, fn)` - Run function with semaphore acquired
+- **RunWithTimeout**: `RunWithTimeout(timeout, sem, fn)` - Run with timeout
+- **RunWeightedWithSemaphore**: `RunWeightedWithSemaphore(ctx, sem, n, fn)` - Run with weighted semaphore
+- **BatchAcquire**: `BatchAcquire(ctx, semaphores)` - Acquire from multiple semaphores atomically
+
+**Error Constants:**
+- **ErrTimeout**: Returned when acquire operation times out
+- **ErrCancelled**: Returned when context is cancelled
+
+**Features:**
+- Zero dependencies, uses only Go standard library (context, sync, time, errors)
+- Standard semaphore with fixed capacity for simple use cases
+- Weighted semaphore for variable resource allocation
+- Context-aware operations with cancellation support
+- Timeout support for all acquire operations
+- Non-blocking try-acquire operations
+- Semaphore pool for managing multiple resources by key
+- Batch acquire for atomic multi-semaphore operations
+- Helper functions for common patterns
+- Thread-safe implementation with proper synchronization
+- 20+ comprehensive unit tests
+- 10 practical usage examples
+- Production-ready for rate limiting, connection pooling, and resource management
+
+Compile and run tests:
+```bash
+cd Go/semaphore_utils
+go test -v
+```
+
+Run example:
+```bash
+cd Go/examples
+go run semaphore_utils_example.go
+```
+
+Usage example:
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "time"
+    "github.com/ayukyo/alltoolkit/Go/semaphore_utils"
+)
+
+func main() {
+    // Basic rate limiting - allow 10 concurrent operations
+    sem := semaphore_utils.New(10)
+    ctx := context.Background()
+
+    // Acquire permit
+    if err := sem.Acquire(ctx); err != nil {
+        fmt.Printf("Failed to acquire: %v\n", err)
+        return
+    }
+    defer sem.Release()
+
+    // Do work...
+    fmt.Printf("Available permits: %d\n", sem.Available())
+
+    // Weighted semaphore for variable resource usage
+    weighted := semaphore_utils.NewWeighted(100)
+
+    // Acquire 20 units of resource
+    if err := weighted.Acquire(ctx, 20); err != nil {
+        fmt.Printf("Failed to acquire: %v\n", err)
+        return
+    }
+    defer weighted.Release(20)
+
+    fmt.Printf("Available units: %d\n", weighted.Available())
+
+    // Timeout handling
+    err := sem.AcquireTimeout(5 * time.Second)
+    if err == semaphore_utils.ErrTimeout {
+        fmt.Println("Timeout waiting for permit")
+    }
+
+    // Non-blocking acquire
+    if sem.TryAcquire() {
+        defer sem.Release()
+        fmt.Println("Got permit immediately")
+    } else {
+        fmt.Println("Semaphore is full")
+    }
+
+    // Semaphore pool for different resources
+    pool := semaphore_utils.NewPool(5)
+    apiSem := pool.Get("api/users")
+    dbSem := pool.Get("database")
+
+    // Use helper function
+    err = semaphore_utils.RunWithSemaphore(ctx, sem, func() error {
+        fmt.Println("Running with semaphore")
+        return nil
+    })
+
+    // Batch acquire from multiple semaphores
+    release, err := semaphore_utils.BatchAcquire(ctx, map[*semaphore_utils.WeightedSemaphore]int64{
+        weighted: 10,
+    })
+    if err != nil {
+        fmt.Printf("Batch acquire failed: %v\n", err)
+        return
+    }
+    defer release() // Release all at once
+}
+```
+
+---
+
 ## 🧪 Test Summary
 
 | Language | Module | Test File | Test Count | Status |
 |----------|--------|-----------|------------|--------|
 | Go | cache_utils | cache_utils_test.go | 30+ | ✅ Pass |
+| Go | semaphore_utils | semaphore_utils_test.go | 20+ | ✅ Pass |
 | PHP | uuid_utils | uuid_utils_test.php | 12 categories | ✅ Pass |
 | Perl | datetime_utils | datetime_utils_test.pl | 8 categories | ✅ Pass |
 | Perl | number_utils | number_utils_test.pl | 10 categories | ✅ Pass |
 | Rust | benchmark_utils | benchmark_utils_test.rs | 7 tests | ✅ Pass |
 
-**Total New Tests: 60+ test cases**
+**Total New Tests: 80+ test cases**
 
