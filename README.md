@@ -4205,6 +4205,110 @@ MIT License - 免费用于个人和商业项目
 
 ## 📦 Latest Addition
 
+### MATLAB - HTTP Utilities
+
+Location: `MATLAB/http_utils/mod.m`
+
+A comprehensive HTTP client utility for MATLAB providing HTTP methods (GET, POST, PUT, DELETE, PATCH, HEAD), URL manipulation, query string handling, and JSON processing with zero dependencies.
+
+**HTTP Methods:**
+- **get**: `http_utils.get(url, options)` - Send HTTP GET request
+- **post**: `http_utils.post(url, body, content_type, options)` - Send HTTP POST request
+- **post_json**: `http_utils.post_json(url, data, options)` - Send POST with JSON body
+- **put**: `http_utils.put(url, body, content_type, options)` - Send HTTP PUT request
+- **put_json**: `http_utils.put_json(url, data, options)` - Send PUT with JSON body
+- **delete_req**: `http_utils.delete_req(url, options)` - Send HTTP DELETE request
+- **patch**: `http_utils.patch(url, body, content_type, options)` - Send HTTP PATCH request
+- **head**: `http_utils.head(url, options)` - Send HTTP HEAD request
+
+**URL Manipulation:**
+- **parse_url**: `http_utils.parse_url(url)` - Parse URL into components (scheme, host, port, path, query, fragment)
+- **build_url**: `http_utils.build_url(base_url, params)` - Build URL with query parameters
+- **build_query_string**: `http_utils.build_query_string(params)` - Build URL-encoded query string
+- **parse_query_string**: `http_utils.parse_query_string(query_string)` - Parse query string into struct
+- **url_encode**: `http_utils.url_encode(str)` - URL encode a string
+- **url_decode**: `http_utils.url_decode(str)` - URL decode a string
+- **is_valid_url**: `http_utils.is_valid_url(url)` - Check if string is valid URL
+- **get_domain**: `http_utils.get_domain(url)` - Extract domain from URL
+- **get_path**: `http_utils.get_path(url)` - Extract path from URL
+- **add_query_params**: `http_utils.add_query_params(url, params)` - Add query parameters to URL
+
+**JSON Utilities:**
+- **to_json**: `http_utils.to_json(data)` - Convert MATLAB data to JSON string
+- **from_json**: `http_utils.from_json(json_str)` - Parse JSON string to MATLAB data
+- **is_valid_json**: `http_utils.is_valid_json(str)` - Check if string is valid JSON
+
+**HTTP Status Utilities:**
+- **status_text**: `http_utils.status_text(code)` - Get HTTP status text
+- **is_success_status**: `http_utils.is_success_status(code)` - Check if status indicates success (200-299)
+
+**Response Structure:**
+- `status_code` - HTTP status code
+- `status_text` - HTTP status text
+- `body` - Response body as string
+- `headers` - Response headers struct
+- `url` - Final URL after redirects
+- `success` - Boolean, true if status 200-299
+- `response_time` - Response time in seconds
+
+**Features:**
+- Zero dependencies, uses only MATLAB built-in functions (webread, webwrite, weboptions)
+- Full HTTP method support: GET, POST, PUT, DELETE, PATCH, HEAD
+- Automatic JSON encoding/decoding
+- Complete URL manipulation utilities
+- Query string parsing and building
+- URL validation and component extraction
+- Response time tracking
+- Error handling with informative messages
+- 15+ comprehensive unit tests
+- 6 practical usage examples
+- Production-ready for REST API clients
+
+Run tests:
+```matlab
+cd MATLAB/http_utils
+http_utils_test()
+```
+
+Run example:
+```matlab
+cd MATLAB/examples
+http_utils_example()
+```
+
+Usage example:
+```matlab
+% GET request
+response = http_utils.get('https://api.example.com/users');
+if response.success
+    disp(response.body);
+end
+
+% POST JSON
+data = struct('name', 'John', 'age', 30);
+response = http_utils.post_json('https://api.example.com/users', data);
+
+% URL manipulation
+params = struct('q', 'hello world', 'page', 1);
+url = http_utils.build_url('https://api.example.com/search', params);
+% Result: 'https://api.example.com/search?q=hello%20world&page=1'
+
+% Parse URL
+parsed = http_utils.parse_url('https://api.example.com:8080/v1/users?page=1');
+% parsed.scheme = 'https'
+% parsed.host = 'api.example.com'
+% parsed.port = '8080'
+% parsed.path = '/v1/users'
+% parsed.query = 'page=1'
+
+% JSON conversion
+data = struct('product', 'Laptop', 'price', 999.99);
+json_str = http_utils.to_json(data);
+% Result: '{"product":"Laptop","price":999.99}'
+```
+
+---
+
 ### Fortran - File Utilities
 
 Location: `Fortran/file_utils/mod.f90`
