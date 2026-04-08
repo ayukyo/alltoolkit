@@ -483,17 +483,41 @@ public class mod {
 
     /**
      * 读取输入流为字符串
+     * 优化：使用固定大小缓冲区避免频繁字符串拼接，减少内存分配
      */
     private static String readStream(InputStream is) throws IOException {
-        StringBuilder sb = new StringBuilder();
+        // 使用 StringBuilder 预分配合理容量（8KB）
+        StringBuilder sb = new StringBuilder(8192);
+        char[] buffer = new char[8192];
+        
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(is, StandardCharsets.UTF_8))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line).append("\n");
+            int charsRead;
+            while ((charsRead = reader.read(buffer, 0, buffer.length)) != -1) {
+                sb.append(buffer, 0, charsRead);
             }
         }
-        return sb.toString().trim();
+        
+        // 去除首尾空白，避免不必要的 trim() 调用
+        int len = sb.length();
+        if (len == 0) {
+            return "";
+        }
+        
+        int start = 0;
+        int end = len;
+        
+        // 手动去除尾部换行符（HTTP 响应常见）
+        while (end > start && (sb.charAt(end - 1) == '\n' || sb.charAt(end - 1) == '\r')) {
+            end--;
+        }
+        
+        // 去除前导空白
+        while (start < end && Character.isWhitespace(sb.charAt(start))) {
+            start++;
+        }
+        
+        return (start == 0 && end == len) ? sb.toString() : sb.substring(start, end);
     }
 
     /**

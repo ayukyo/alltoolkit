@@ -160,22 +160,17 @@ def get_file_size(filepath: PathLike, human_readable: bool = False, decimal_plac
         if size < 0:
             return None
         
-        # Optimized: Pre-calculate thresholds for O(1) unit selection
+        # Optimized: Use logarithm for O(1) unit selection
         units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB']
         
-        # Use bit shifting for power-of-2 calculations (1024 = 2^10)
-        # Find appropriate unit using bit length for efficiency
-        unit_index = 0
-        size_float = float(size)
-        
-        # O(1) unit selection using bit manipulation
-        while unit_index < len(units) - 1 and size >= (1024 << (unit_index * 10)):
-            unit_index += 1
+        # Calculate appropriate unit using logarithm
+        # Avoid log(0) as we already handled size == 0
+        import math
+        unit_index = min(int(math.log2(size) / 10), len(units) - 1)
         
         # Calculate final value with proper division
-        if unit_index > 0:
-            divisor = 1024.0 ** unit_index
-            size_float = size / divisor
+        divisor = 1024.0 ** unit_index
+        size_float = size / divisor
         
         # Format based on magnitude for cleaner output
         if unit_index == 0:

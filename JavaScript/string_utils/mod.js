@@ -451,7 +451,7 @@
     
     StringUtils.randomPassword = function(length) {
         // Validate and normalize length with bounds checking
-        if (typeof length !== 'number' || !isFinite(length)) {
+        if (typeof length !== 'number' || !isFinite(length) || length < 0) {
             length = PASSWORD_DEFAULT_LENGTH;
         } else {
             length = Math.floor(length);
@@ -460,12 +460,18 @@
         // Clamp length to valid range
         length = Math.max(PASSWORD_MIN_LENGTH, Math.min(length, PASSWORD_MAX_LENGTH));
         
-        // Use crypto.getRandomValues when available for better randomness
+        // Use crypto.getRandomValues when available for cryptographically secure randomness
         const hasCrypto = typeof crypto !== 'undefined' && crypto.getRandomValues;
+        
+        // Get secure random integer in range [0, max)
         const getRandomInt = function(max) {
-            if (hasCrypto && max <= 256) {
-                const arr = new Uint8Array(1);
-                crypto.getRandomValues(arr);
+            if (hasCrypto && max <= 65536) {
+                // Use rejection sampling to avoid modulo bias
+                const arr = new Uint32Array(1);
+                const maxValid = Math.floor(0x100000000 / max) * max;
+                do {
+                    crypto.getRandomValues(arr);
+                } while (arr[0] >= maxValid);
                 return arr[0] % max;
             }
             return Math.floor(Math.random() * max);

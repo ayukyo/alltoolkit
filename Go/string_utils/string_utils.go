@@ -17,6 +17,7 @@ import "unicode/utf8"
 //   - A truncated string with "..." appended if truncation occurred.
 //   - The original string if its length <= maxLen.
 //   - Empty string if input is empty.
+//   - "..." if maxLen < 3.
 //
 // Examples:
 //
@@ -33,9 +34,9 @@ func Truncate(s string, maxLen int) string {
 		return ""
 	}
 
-	// Validate maxLen with bounds checking
+	// Validate maxLen with bounds checking - must be at least 3 for ellipsis
 	const ellipsisLen = 3
-	if maxLen <= ellipsisLen {
+	if maxLen < ellipsisLen {
 		return "..."
 	}
 
@@ -49,6 +50,11 @@ func Truncate(s string, maxLen int) string {
 
 	// Calculate target length (reserve space for ellipsis)
 	targetLen := maxLen - ellipsisLen
+	
+	// Fast path: count runes first to avoid unnecessary work
+	if utf8.RuneCountInString(s) <= targetLen {
+		return s
+	}
 
 	// Single-pass: count runes and find truncation point
 	var truncIdx int

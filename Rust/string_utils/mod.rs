@@ -248,6 +248,7 @@ pub fn count_words(s: &str) -> usize {
 /// - No spaces or control characters in the email
 /// - Local part length <= 64 characters (RFC 5321)
 /// - Total length <= 254 characters (RFC 5321)
+/// - Domain labels (parts between dots) are 1-63 characters (RFC 1035)
 ///
 /// Note: This is a pragmatic check, not fully RFC 5322 compliant.
 /// For full compliance, use a dedicated email validation library.
@@ -272,6 +273,8 @@ pub fn count_words(s: &str) -> usize {
 /// assert!(!is_valid_email("user@@example.com"));
 /// assert!(!is_valid_email("user @example.com"));
 /// assert!(!is_valid_email(""));
+/// assert!(!is_valid_email("user@.example.com"));
+/// assert!(!is_valid_email("user@example..com"));
 /// ```
 ///
 /// # Performance
@@ -283,6 +286,8 @@ pub fn is_valid_email(email: &str) -> bool {
     // RFC 5321 limits: local part <= 64, total <= 254
     const MAX_LOCAL_LEN: usize = 64;
     const MAX_TOTAL_LEN: usize = 254;
+    // RFC 1035: domain label max length is 63
+    const MAX_LABEL_LEN: usize = 63;
     
     let len = email.len();
     if len == 0 || len > MAX_TOTAL_LEN {
@@ -292,12 +297,13 @@ pub fn is_valid_email(email: &str) -> bool {
     let bytes = email.as_bytes();
     let mut at_count = 0;
     let mut at_pos = 0;
+    let mut last_dot_pos: Option<usize> = None;
 
     // Single-pass validation with early termination
     for (i, &b) in bytes.iter().enumerate() {
         // Fast path: check for @ first (most common case)
         if b == b'@' {
-            if i > MAX_LOCAL_LEN {
+            if i > MAX_LOCAL_LEN || i == 0 {
                 return false;
             }
             at_count += 1;
@@ -309,6 +315,24 @@ pub fn is_valid_email(email: &str) -> bool {
             continue;
         }
         
+        // Track dot positions for domain label length validation
+        if b == b'.' && at_count == 1 {
+            // Check for consecutive dots
+            if last_dot_pos == Some(i - 1) {
+                return false;
+            }
+            // Check label length
+            if let Some(last_dot) = last_dot_pos {
+                if i - last_dot - 1 > MAX_LABEL_LEN {
+                    return false;
+                }
+            } else if i - at_pos - 1 > MAX_LABEL_LEN {
+                // First label after @
+                return false;
+            }
+            last_dot_pos = Some(i);
+        }
+        
         // Check for invalid characters (space, control chars, and common invalid chars)
         if b <= b' ' || b == b'(' || b == b')' || b == b'<' || b == b'>' || 
            b == b',' || b == b';' || b == b':' || b == b'\\' || b == b'"' {
@@ -317,7 +341,7 @@ pub fn is_valid_email(email: &str) -> bool {
     }
 
     // Must have exactly one @
-    if at_count != 1 || at_pos == 0 {
+    if at_count != 1 {
         return false;
     }
 
@@ -328,15 +352,17 @@ pub fn is_valid_email(email: &str) -> bool {
         return false;
     }
 
-    // Domain must not start or end with dot, and no consecutive dots
+    // Domain must not start or end with dot
     let domain_bytes = domain.as_bytes();
     if domain_bytes[0] == b'.' || domain_bytes[domain_len - 1] == b'.' {
         return false;
     }
     
-    // Check for consecutive dots in domain
-    if domain.contains("..") {
-        return false;
+    // Check final domain label length
+    if let Some(last_dot) = last_dot_pos {
+        if domain_len - (last_dot - at_pos) - 1 > MAX_LABEL_LEN {
+            return false;
+        }
     }
 
     true
