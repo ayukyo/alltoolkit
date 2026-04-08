@@ -4205,6 +4205,128 @@ MIT License - 免费用于个人和商业项目
 
 ## 📦 Latest Addition
 
+### Fortran - File Utilities
+
+Location: `Fortran/file_utils/mod.f90`
+
+A comprehensive file and directory operations utility module for Fortran providing file I/O, path manipulation, and file information utilities with zero dependencies.
+
+**File Existence and Permissions:**
+- **file_exists**: `file_exists(filepath)` - Check if a file exists
+- **file_is_readable**: `file_is_readable(filepath)` - Check if file is readable
+- **file_is_writable**: `file_is_writable(filepath)` - Check if file is writable
+- **directory_exists**: `directory_exists(dirpath)` - Check if a directory exists
+
+**File Information:**
+- **file_size**: `file_size(filepath)` - Get file size in bytes (-1 if not found)
+- **file_modification_time**: `file_modification_time(filepath)` - Get modification timestamp
+- **file_creation_time**: `file_creation_time(filepath)` - Get creation timestamp
+- **get_file_info**: Returns `FileInfo` structure with path, name, size, type, permissions
+
+**File Operations:**
+- **file_copy**: `file_copy(source, dest)` - Copy file from source to destination
+- **file_move**: `file_move(source, dest)` - Move/rename file
+- **file_rename**: `file_rename(oldname, newname)` - Rename file (alias for file_move)
+- **file_delete**: `file_delete(filepath)` - Delete file
+
+**Directory Operations:**
+- **directory_create**: `directory_create(dirpath)` - Create directory
+- **directory_delete**: `directory_delete(dirpath)` - Delete directory
+- **get_current_directory**: `get_current_directory()` - Get current working directory
+- **change_directory**: `change_directory(dirpath)` - Change working directory
+
+**Path Manipulation:**
+- **path_join**: `path_join(path1, path2)` - Join two path components
+- **path_split**: `path_split(filepath)` - Split path into components (dirname, basename, extension)
+- **path_basename**: `path_basename(filepath)` - Get filename with extension
+- **path_dirname**: `path_dirname(filepath)` - Get directory path
+- **path_extension**: `path_extension(filepath)` - Get file extension (without dot)
+- **path_without_extension**: `path_without_extension(filepath)` - Get filename without extension
+- **path_is_absolute**: `path_is_absolute(filepath)` - Check if path is absolute
+- **path_normalize**: `path_normalize(filepath)` - Normalize path separators
+- **path_relative**: `path_relative(from, to)` - Get relative path
+- **path_separator**: `path_separator()` - Get system path separator
+
+**File I/O:**
+- **read_file_text**: `read_file_text(filepath, content)` - Read entire file as text
+- **write_file_text**: `write_file_text(filepath, content)` - Write text to file
+- **append_file_text**: `append_file_text(filepath, content)` - Append text to file
+- **read_file_binary**: `read_file_binary(filepath, data)` - Read file as binary data
+- **write_file_binary**: `write_file_binary(filepath, data)` - Write binary data to file
+
+**Data Types:**
+- **FileInfo**: Structure with path, name, size, mod_time, is_directory, is_file, is_readable, is_writable
+- **PathComponents**: Structure with dirname, basename, filename, extension
+- **FileList**: Structure for directory listing (simplified in pure Fortran)
+
+**Features:**
+- Zero dependencies, uses only Fortran standard library (iso_fortran_env)
+- Supports Fortran 90/95/2003+
+- Cross-platform path handling (Unix/Windows)
+- Binary and text file I/O
+- File existence and permission checking
+- Path manipulation and normalization
+- Complete test suite with 25+ test cases
+- 6 practical usage examples
+- Production-ready for file operations
+
+Compile and run tests:
+```bash
+cd Fortran/file_utils
+gfortran -o file_utils_test mod.f90 file_utils_test.f90 && ./file_utils_test
+```
+
+Run example:
+```bash
+cd Fortran/examples
+gfortran -o file_utils_example ../file_utils/mod.f90 file_utils_example.f90 && ./file_utils_example
+```
+
+Usage example:
+```fortran
+use file_utils
+
+! Check file existence
+if (file_exists('data.txt')) then
+    print *, 'File exists'
+end if
+
+! Read file content
+character(len=:), allocatable :: content
+logical :: success
+success = read_file_text('input.txt', content)
+
+! Write file
+success = write_file_text('output.txt', 'Hello, World!')
+
+! Path manipulation
+character(len=:), allocatable :: joined, basename, ext
+joined = path_join('/home', 'user/file.txt')  ! '/home/user/file.txt'
+basename = path_basename('/path/to/file.txt') ! 'file.txt'
+ext = path_extension('document.pdf')          ! 'pdf'
+
+! File operations
+success = file_copy('source.txt', 'backup.txt')
+success = file_rename('old.txt', 'new.txt')
+success = file_delete('temp.txt')
+
+! Directory operations
+success = directory_create('new_folder')
+success = directory_delete('old_folder')
+
+! File information
+integer(int64) :: fsize
+fsize = file_size('data.txt')
+print *, 'Size: ', fsize, ' bytes'
+
+! Binary I/O
+integer(int32), dimension(:), allocatable :: data
+success = read_file_binary('data.bin', data)
+success = write_file_binary('output.bin', data)
+```
+
+---
+
 ### C# - QR Code Utilities
 
 Location: `C#/qr_code_utils/mod.cs`
