@@ -21,7 +21,7 @@
 
 | 语言 | 模块数 | 状态 |
 |------|--------|------|
-| Python | 15+ | ✅ 活跃 |
+| Python | 16+ | ✅ 活跃 |
 | Go | 15+ | ✅ 活跃 |
 | Rust | 10+ | ✅ 活跃 |
 | Java | 10+ | ✅ 活跃 |
@@ -162,11 +162,25 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ### 最近新增测试
 
-- **Kotlin zip_utils**: 新增 15 个测试用例，覆盖文件压缩、解压、目录处理、排除模式等
-- **Perl csv_utils**: 新增 30+ 测试用例，覆盖 CSV 解析、生成、过滤、排序等
-- **Python network_utils**: 已有 70+ 测试用例，覆盖 URL/IP/MAC/端口/HTTP 等
-- **Python text_utils**: 已有 60+ 测试用例，覆盖字符串清理、格式化、分析等
+- **Python email_utils**: 41 个测试用例，覆盖验证、解析、规范化、一次性邮箱检测、批量处理等 📧
+- **Kotlin zip_utils**: 15 个测试用例，覆盖文件压缩、解压、目录处理、排除模式等
+- **Perl csv_utils**: 30+ 测试用例，覆盖 CSV 解析、生成、过滤、排序等
+- **Python network_utils**: 70+ 测试用例，覆盖 URL/IP/MAC/端口/HTTP 等
+- **Python text_utils**: 60+ 测试用例，覆盖字符串清理、格式化、分析等
+
+### 测试覆盖详情
+
+| 模块 | 语言 | 测试数 | 覆盖率 |
+|------|------|--------|--------|
+| xml_utils | Python | 20 | ✅ 100% |
+| markdown_utils | Python | 108 | ✅ 100% |
+| regex_utils | Python | 34 | ✅ 100% |
+| env_utils | Python | 8 大类 | ✅ 100% |
+| shell_utils | Python | 14 | ✅ 100% |
+| phone_utils | Python | 31 | ✅ 100% |
+| jwt_utils | Python | 15 | ✅ 100% |
+| cache_utils | Python | 30+ | ✅ 100% |
 
 ---
 
-**最后更新**: 2026-04-09
+**最后更新**: 2026-04-10
