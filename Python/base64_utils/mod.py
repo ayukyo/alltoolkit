@@ -221,6 +221,10 @@ class Base64Utils:
             standard += '=' * padding_needed
         return standard
 
+    # Pre-compiled valid character sets for performance
+    _STANDARD_CHARS = frozenset('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/')
+    _URLSAFE_CHARS = frozenset('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_')
+
     @staticmethod
     def is_valid(base64_string: str, urlsafe: bool = False) -> bool:
         """
@@ -254,17 +258,14 @@ class Base64Utils:
         if remainder == 1:
             return False
         
-        # Define valid character sets
-        if urlsafe:
-            valid_chars = set('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_')
-        else:
-            valid_chars = set('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/')
+        # Use pre-compiled character sets
+        valid_chars = Base64Utils._URLSAFE_CHARS if urlsafe else Base64Utils._STANDARD_CHARS
         
-        # Check all characters before padding
+        # Check all characters and padding in single pass
         padding_started = False
         padding_count = 0
         
-        for i, char in enumerate(base64_string):
+        for char in base64_string:
             if char == '=':
                 padding_started = True
                 padding_count += 1

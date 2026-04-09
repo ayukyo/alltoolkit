@@ -197,7 +197,7 @@ pub fn slugify(s: &str) -> String {
 ///
 /// Time: O(n) where n is the string length.
 /// Memory: O(1) additional space.
-/// Optimized: Uses bytes iterator for ASCII fast path.
+/// Optimized: Uses bytes iterator for ASCII fast path, unified logic for both paths.
 pub fn count_words(s: &str) -> usize {
     if s.is_empty() {
         return 0;
@@ -209,29 +209,23 @@ pub fn count_words(s: &str) -> usize {
     // Fast path for ASCII strings using byte iteration
     if s.is_ascii() {
         for &b in s.as_bytes() {
-            let is_alnum = (b >= b'0' && b <= b'9') || 
-                           (b >= b'A' && b <= b'Z') || 
-                           (b >= b'a' && b <= b'z');
-            if is_alnum {
-                if !in_word {
-                    count += 1;
-                    in_word = true;
-                }
+            let is_alnum = b.is_ascii_alphanumeric();
+            in_word = if is_alnum {
+                if !in_word { count += 1; }
+                true
             } else {
-                in_word = false;
-            }
+                false
+            };
         }
     } else {
         // Unicode path
         for c in s.chars() {
-            if c.is_alphanumeric() {
-                if !in_word {
-                    count += 1;
-                    in_word = true;
-                }
+            in_word = if c.is_alphanumeric() {
+                if !in_word { count += 1; }
+                true
             } else {
-                in_word = false;
-            }
+                false
+            };
         }
     }
 

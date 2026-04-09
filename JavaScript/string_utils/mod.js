@@ -449,24 +449,31 @@
     const PASSWORD_DEFAULT_LENGTH = 16;
     const PASSWORD_MAX_LENGTH = 1024;
     
+    /**
+     * Generates a cryptographically secure random password.
+     * Ensures at least one lowercase, one uppercase, one digit, and one special character.
+     * 
+     * @param {number} length - Desired password length (default: 16, min: 4, max: 1024)
+     * @returns {string} Generated password
+     */
     StringUtils.randomPassword = function(length) {
         // Validate and normalize length with bounds checking
-        if (typeof length !== 'number' || !isFinite(length) || length < 0) {
+        if (typeof length !== 'number' || !Number.isFinite(length)) {
             length = PASSWORD_DEFAULT_LENGTH;
+        } else if (length < PASSWORD_MIN_LENGTH) {
+            length = PASSWORD_MIN_LENGTH;
+        } else if (length > PASSWORD_MAX_LENGTH) {
+            length = PASSWORD_MAX_LENGTH;
         } else {
             length = Math.floor(length);
         }
         
-        // Clamp length to valid range
-        length = Math.max(PASSWORD_MIN_LENGTH, Math.min(length, PASSWORD_MAX_LENGTH));
-        
         // Use crypto.getRandomValues when available for cryptographically secure randomness
-        const hasCrypto = typeof crypto !== 'undefined' && crypto.getRandomValues;
+        const hasCrypto = typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function';
         
-        // Get secure random integer in range [0, max)
+        // Get secure random integer in range [0, max) using rejection sampling
         const getRandomInt = function(max) {
             if (hasCrypto && max <= 65536) {
-                // Use rejection sampling to avoid modulo bias
                 const arr = new Uint32Array(1);
                 const maxValid = Math.floor(0x100000000 / max) * max;
                 do {
@@ -495,9 +502,8 @@
         // Fisher-Yates shuffle for unbiased randomization
         for (let i = length - 1; i > 0; i--) {
             const j = getRandomInt(i + 1);
-            const temp = result[i];
-            result[i] = result[j];
-            result[j] = temp;
+            // Swap in place without temp variable for micro-optimization
+            result[i] = result[j] + (result[j] = result[i], '');
         }
         
         return result.join('');

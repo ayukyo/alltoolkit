@@ -328,12 +328,15 @@ func XorEncrypt(input, key string) string {
 	if key == "" {
 		return Base64Encode(input)
 	}
-	encrypted := make([]byte, len(input))
+	inputBytes := []byte(input)
 	keyBytes := []byte(key)
-	for i, c := range []byte(input) {
-		encrypted[i] = c ^ keyBytes[i%len(keyBytes)]
+	keyLen := len(keyBytes)
+	encrypted := make([]byte, len(inputBytes))
+	
+	for i := 0; i < len(inputBytes); i++ {
+		encrypted[i] = inputBytes[i] ^ keyBytes[i%keyLen]
 	}
-	return Base64Encode(string(encrypted))
+	return base64.StdEncoding.EncodeToString(encrypted)
 }
 
 // XorDecrypt decrypts a Base64 string that was encrypted with XorEncrypt.
@@ -341,14 +344,16 @@ func XorDecrypt(encrypted, key string) string {
 	if key == "" {
 		return Base64Decode(encrypted)
 	}
-	data := Base64Decode(encrypted)
-	if data == "" {
+	data, err := base64.StdEncoding.DecodeString(encrypted)
+	if err != nil || len(data) == 0 {
 		return ""
 	}
-	decrypted := make([]byte, len(data))
 	keyBytes := []byte(key)
-	for i, c := range []byte(data) {
-		decrypted[i] = c ^ keyBytes[i%len(keyBytes)]
+	keyLen := len(keyBytes)
+	decrypted := make([]byte, len(data))
+	
+	for i := 0; i < len(data); i++ {
+		decrypted[i] = data[i] ^ keyBytes[i%keyLen]
 	}
 	return string(decrypted)
 }

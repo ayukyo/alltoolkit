@@ -421,23 +421,28 @@ class UUIDUtils {
         $rand = random_bytes(10);
 
         // Crockford's Base32 encoding
-        $ Crockford = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+        $crockford = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 
         $result = '';
 
         // Encode 48-bit timestamp (10 characters)
         for ($i = 9; $i >= 0; $i--) {
-            $result = $Crockford[$timestamp & 0x1F] . $result;
+            $result = $crockford[$timestamp & 0x1F] . $result;
             $timestamp >>= 5;
         }
 
         // Encode 80-bit randomness (16 characters)
         $randHex = bin2hex($rand);
-        $randValue = hexdec(substr($randHex, 0, 16)) | (hexdec(substr($randHex, 16)) << 64);
+        $randValue = hexdec(substr($randHex, 0, 16));
+        $randValueHigh = hexdec(substr($randHex, 16));
 
-        for ($i = 15; $i >= 0; $i--) {
-            $result .= $Crockford[$randValue & 0x1F];
+        for ($i = 15; $i >= 8; $i--) {
+            $result .= $crockford[$randValue & 0x1F];
             $randValue >>= 5;
+        }
+        for ($i = 7; $i >= 0; $i--) {
+            $result .= $crockford[$randValueHigh & 0x1F];
+            $randValueHigh >>= 5;
         }
 
         return $result;
