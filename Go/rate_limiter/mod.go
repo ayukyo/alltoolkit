@@ -114,9 +114,16 @@ type TokenBucket struct {
 }
 
 // NewTokenBucket creates a new token bucket rate limiter.
-// capacity: maximum tokens in bucket (burst size)
-// fillRate: tokens added per second (sustained rate)
+// capacity: maximum tokens in bucket (burst size), must be > 0
+// fillRate: tokens added per second (sustained rate), must be > 0
 func NewTokenBucket(capacity int, fillRate float64) *TokenBucket {
+	if capacity <= 0 {
+		capacity = 100
+	}
+	if fillRate <= 0 {
+		fillRate = 10
+	}
+	
 	tb := &TokenBucket{
 		capacity:     capacity,
 		tokens:       float64(capacity),
@@ -270,9 +277,16 @@ type FixedWindow struct {
 }
 
 // NewFixedWindow creates a new fixed window rate limiter.
-// capacity: maximum requests allowed per window
-// window: time window duration
+// capacity: maximum requests allowed per window, must be > 0
+// window: time window duration, must be > 0
 func NewFixedWindow(capacity int, window time.Duration) *FixedWindow {
+	if capacity <= 0 {
+		capacity = 100
+	}
+	if window <= 0 {
+		window = time.Minute
+	}
+	
 	return &FixedWindow{
 		capacity:  capacity,
 		window:    window,
@@ -398,9 +412,16 @@ type SlidingWindow struct {
 }
 
 // NewSlidingWindow creates a new sliding window rate limiter.
-// capacity: maximum requests allowed per window
-// window: time window duration
+// capacity: maximum requests allowed per window, must be > 0
+// window: time window duration, must be > 0
 func NewSlidingWindow(capacity int, window time.Duration) *SlidingWindow {
+	if capacity <= 0 {
+		capacity = 100
+	}
+	if window <= 0 {
+		window = time.Minute
+	}
+	
 	return &SlidingWindow{
 		capacity:   capacity,
 		window:     window,
@@ -540,9 +561,16 @@ type LeakyBucket struct {
 }
 
 // NewLeakyBucket creates a new leaky bucket rate limiter.
-// leakRate: requests processed per second (sustained rate)
-// capacity: maximum requests in bucket (burst size)
+// leakRate: requests processed per second (sustained rate), must be > 0
+// capacity: maximum requests in bucket (burst size), must be > 0
 func NewLeakyBucket(leakRate float64, capacity int) *LeakyBucket {
+	if leakRate <= 0 {
+		leakRate = 10
+	}
+	if capacity <= 0 {
+		capacity = 100
+	}
+	
 	lb := &LeakyBucket{
 		capacity: capacity,
 		leakRate: leakRate,

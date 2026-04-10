@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // XmlNode represents a node in the XML document tree.
@@ -140,8 +141,23 @@ func ParseReader(reader io.Reader) (*XmlDocument, error) {
 	return doc, nil
 }
 
+// extractAttr extracts attribute value from XML processing instruction
+// Uses pre-compiled regex for better performance
+var attrRegexCache = make(map[string]*regexp.Regexp)
+var attrRegexMu sync.RWMutex
+
 func extractAttr(content, name string) string {
-	re := regexp.MustCompile(name + `=["']([^"']+)["']`)
+	attrRegexMu.RLock()
+	re, exists := attrRegexCache[name]
+	attrRegexMu.RUnlock()
+	
+	if !exists {
+		re = regexp.MustCompile(regexp.QuoteMeta(name) + `=["']([^"']+)["']`)
+		attrRegexMu.Lock()
+		attrRegexCache[name] = re
+		attrRegexMu.Unlock()
+	}
+	
 	matches := re.FindStringSubmatch(content)
 	if len(matches) > 1 {
 		return matches[1]
@@ -443,14 +459,18 @@ func (n *XmlNode) writeTo(buf *bytes.Buffer, prefix, indent string) {
 	}
 }
 
+// xmlEscaper is a strings.Replacer for XML escaping, created once for efficiency
+var xmlEscaper = strings.NewReplacer(
+	"&", "&amp;",
+	"<", "&lt;",
+	">", "&gt;",
+	"\"", "&quot;",
+	"'", "&apos;",
+)
+
 // escapeXML escapes special XML characters.
 func escapeXML(s string) string {
-	s = strings.ReplaceAll(s, "&", "&amp;")
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	s = strings.ReplaceAll(s, "\"", "&quot;")
-	s = strings.ReplaceAll(s, "'", "&apos;")
-	return s
+	return xmlEscaper.Replace(s)
 }
 // ==================== Utility Functions ====================
 

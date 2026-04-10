@@ -61,6 +61,16 @@ classdef mod < handle
             %       arr = repeat(5, 3)  % Returns [5, 5, 5]
             %       arr = repeat('a', 4) % Returns 'aaaa'
             
+            % Validate count parameter
+            if ~isnumeric(count) || ~isscalar(count) || count < 0 || count ~= floor(count)
+                error('count must be a non-negative integer');
+            end
+            
+            if count == 0
+                arr = [];
+                return;
+            end
+            
             if isnumeric(value)
                 arr = repmat(value, 1, count);
             else
@@ -291,6 +301,16 @@ classdef mod < handle
             if nargin < 3
                 pad_value = 0;
             end
+            
+            % Validate inputs
+            if ~isnumeric(pad_size) || ~isscalar(pad_size) || pad_size < 0 || pad_size ~= floor(pad_size)
+                error('pad_size must be a non-negative integer');
+            end
+            
+            if pad_size == 0
+                return;
+            end
+            
             arr = padarray(arr, pad_size * ones(1, ndims(arr)), pad_value);
         end
         
@@ -301,8 +321,24 @@ classdef mod < handle
             %   Example:
             %       arr = trim([0, 0, 0; 0, 1, 0; 0, 0, 0], 1)  % Returns [1]
             
+            % Validate trim_size
+            if ~isnumeric(trim_size) || ~isscalar(trim_size) || trim_size < 0 || trim_size ~= floor(trim_size)
+                error('trim_size must be a non-negative integer');
+            end
+            
+            if trim_size == 0
+                return;
+            end
+            
             sz = size(arr);
             nd = ndims(arr);
+            
+            % Check if trim would result in empty array
+            if any(sz <= 2 * trim_size)
+                arr = [];
+                return;
+            end
+            
             idx = cell(1, nd);
             for i = 1:nd
                 idx{i} = (trim_size + 1):(sz(i) - trim_size);

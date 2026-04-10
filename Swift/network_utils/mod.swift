@@ -22,6 +22,9 @@ public final class NetworkUtils {
         public let error: Error?
         
         public var isSuccess: Bool { statusCode >= 200 && statusCode < 300 }
+        public var isClientError: Bool { statusCode >= 400 && statusCode < 500 }
+        public var isServerError: Bool { statusCode >= 500 && statusCode < 600 }
+        public var isRedirect: Bool { statusCode >= 300 && statusCode < 400 }
         
         public var isJson: Bool {
             guard let contentType = headers["Content-Type"] ?? headers["content-type"] else { return false }
@@ -45,10 +48,7 @@ public final class NetworkUtils {
         
         public func header(_ name: String) -> String? {
             let lowerName = name.lowercased()
-            for (key, value) in headers {
-                if key.lowercased() == lowerName { return value }
-            }
-            return nil
+            return headers.first { $0.key.lowercased() == lowerName }?.value
         }
     }
     
@@ -87,14 +87,22 @@ public final class NetworkUtils {
         public var retryCount: Int
         public var retryDelay: TimeInterval
         
-        public init(headers: [String: String] = [:], timeout: TimeInterval = 30.0, cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy, allowsCellularAccess: Bool = true, httpShouldHandleCookies: Bool = true, retryCount: Int = 0, retryDelay: TimeInterval = 1.0) {
+        public init(
+            headers: [String: String] = [:],
+            timeout: TimeInterval = 30.0,
+            cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy,
+            allowsCellularAccess: Bool = true,
+            httpShouldHandleCookies: Bool = true,
+            retryCount: Int = 0,
+            retryDelay: TimeInterval = 1.0
+        ) {
             self.headers = headers
             self.timeout = timeout
             self.cachePolicy = cachePolicy
             self.allowsCellularAccess = allowsCellularAccess
             self.httpShouldHandleCookies = httpShouldHandleCookies
-            self.retryCount = retryCount
-            self.retryDelay = retryDelay
+            self.retryCount = max(0, retryCount)
+            self.retryDelay = max(0.1, retryDelay)
         }
         
         public static let `default` = RequestOptions()
@@ -110,38 +118,54 @@ public final class NetworkUtils {
         public var username: String?
         public var password: String?
         
-        public init(scheme: String = "https", host: String = "", port: Int? = nil, path: String = "", query: [String: String] = [:], fragment: String? = nil, username: String? = nil, password: String? = nil) {
-            self.scheme = scheme; self.host = host; self.port = port; self.path = path
-            self.query = query; self.fragment = fragment; self.username = username; self.password = password
+        public init(
+            scheme: String = "https",
+            host: String = "",
+            port: Int? = nil,
+            path: String = "",
+            query: [String: String] = [:],
+            fragment: String? = nil,
+            username: String? = nil,
+            password: String? = nil
+        ) {
+            self.scheme = scheme
+            self.host = host
+            self.port = port
+            self.path = path
+            self.query = query
+            self.fragment = fragment
+            self.username = username
+            self.password = password
         }
         
         public func build() -> String {
-            var url = "\(scheme)://"
+            var components = URLComponents()
+            components.scheme = scheme
+            components.host = host
+            components.port = port
+            components.path = path.hasPrefix("/") ? path : "/" + path
+            components.queryItems = query.isEmpty ? nil : query.map { URLQueryItem(name: $0.key, value: $0.value) }
+            components.fragment = fragment
+            
             if let username = username {
-                url += username
-                if let password = password { url += ":\(password)" }
-                url += "@"
+                components.user = username
+                components.password = password
             }
-            url += host
-            if let port = port { url += ":\(port)" }
-            if !path.hasPrefix("/") { url += "/" }
-            url += path
-            if !query.isEmpty {
-                url += "?" + query.map { "\($0)=\($1.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $1)" }.joined(separator: "&")
-            }
-            if let fragment = fragment { url += "#\(fragment)" }
-            return url
+            
+            return components.string ?? ""
         }
     }
     
+    // MARK: - HTTP Methods
+    
     @discardableResult
     public static func get(_ url: String, options: RequestOptions = .default) async throws -> HTTPResponse {
-        return try await request(url: url, method: .get, body: nil, contentType: nil, options: options)
+        try await request(url: url, method: .get, body: nil, contentType: nil, options: options)
     }
     
     @discardableResult
     public static func post(_ url: String, body: Data? = nil, contentType: String? = nil, options: RequestOptions = .default) async throws -> HTTPResponse {
-        return try await request(url: url, method: .post, body: body, contentType: contentType, options: options)
+        try await request(url: url, method: .post, body: body, contentType: contentType, options: options)
     }
     
     @discardableResult
@@ -154,7 +178,9 @@ public final class NetworkUtils {
     
     @discardableResult
     public static func postForm(_ url: String, data: [String: String], options: RequestOptions = .default) async throws -> HTTPResponse {
-        let bodyString = data.map { "\($0)=\($1.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $1)" }.joined(separator: "&")
+        var components = URLComponents()
+        components.queryItems = data.map { URLQueryItem(name: $0.key, value: $0.value) }
+        let bodyString = components.percentEncodedQuery ?? ""
         let body = bodyString.data(using: .utf8)
         var opts = options
         opts.headers["Content-Type"] = "application/x-www-form-urlencoded"
@@ -163,16 +189,93 @@ public final class NetworkUtils {
     
     @discardableResult
     public static func put(_ url: String, body: Data? = nil, contentType: String? = nil, options: RequestOptions = .default) async throws -> HTTPResponse {
-        return try await request(url: url, method: .put, body: body, contentType: contentType, options: options)
+        try await request(url: url, method: .put, body: body, contentType: contentType, options: options)
     }
     
     @discardableResult
-    public static func putJSON<T: Encodable>(_ url: String, data: T, options: RequestOptions = .default) async throws -> HTTPResponse {
-        let body = try JSONEncoder().encode(data)
-        var opts = options
-        opts.headers["Content-Type"] = "application/json"
-        return try await request(url: url, method: .put, body: body, contentType: "application/json", options: opts)
+    public static func putJSON<T: Encodable>(_ url: String, data: T, options:
+    @discardableResult
+    public static func delete(_ url: String, options: RequestOptions = .default) async throws -> HTTPResponse {
+        try await request(url: url, method: .delete, body: nil, contentType: nil, options: options)
     }
     
     @discardableResult
-    public static func delete(_ url: String, options: RequestOptions = .default) async throws -> HTTPResponse
+    public static func patch(_ url: String, body: Data? = nil, contentType: String? = nil, options: RequestOptions = .default) async throws -> HTTPResponse {
+        try await request(url: url, method: .patch, body: body, contentType: contentType, options: options)
+    }
+    
+    @discardableResult
+    public static func head(_ url: String, options: RequestOptions = .default) async throws -> HTTPResponse {
+        try await request(url: url, method: .head, body: nil, contentType: nil, options: options)
+    }
+    
+    // MARK: - Private Request Method
+    
+    private static func request(url: String, method: HTTPMethod, body: Data?, contentType: String?, options: RequestOptions) async throws -> HTTPResponse {
+        guard let urlObj = URL(string: url) else {
+            throw NetworkError.invalidURL
+        }
+        
+        var request = URLRequest(url: urlObj)
+        request.httpMethod = method.rawValue
+        request.timeoutInterval = options.timeout
+        request.cachePolicy = options.cachePolicy
+        request.allowsCellularAccess = options.allowsCellularAccess
+        request.httpShouldHandleCookies = options.httpShouldHandleCookies
+        
+        // Add headers
+        for (key, value) in options.headers {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+        
+        // Add body
+        if let body = body {
+            request.httpBody = body
+        }
+        
+        // Add content type if provided
+        if let contentType = contentType {
+            request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        }
+        
+        let startTime = Date()
+        
+        // Perform request with retry logic
+        var lastError: Error?
+        for attempt in 0...options.retryCount {
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                let responseTime = Date().timeIntervalSince(startTime)
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw NetworkError.noData
+                }
+                
+                var headers: [String: String] = [:]
+                for (key, value) in httpResponse.allHeaderFields {
+                    if let key = key as? String, let value = value as? String {
+                        headers[key] = value
+                    }
+                }
+                
+                return HTTPResponse(
+                    statusCode: httpResponse.statusCode,
+                    statusMessage: HTTPURLResponse.localizedString(forStatusCode: httpResponse.statusCode),
+                    headers: headers,
+                    body: data,
+                    bodyString: String(data: data, encoding: .utf8),
+                    url: urlObj,
+                    responseTime: responseTime,
+                    error: nil
+                )
+            } catch {
+                lastError = error
+                if attempt < options.retryCount {
+                    try await Task.sleep(nanoseconds: UInt64(options.retryDelay * 1_000_000_000))
+                }
+            }
+        }
+        
+        throw lastError.map { NetworkError.unknown($0) } ?? NetworkError.unknown(NSError(domain: "NetworkUtils", code: -1))
+    }
+}

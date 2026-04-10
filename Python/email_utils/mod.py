@@ -179,6 +179,10 @@ class EmailUtils:
         'aliyun.com', 'tom.com', '21cn.com', 'yeah.net'
     ])
 
+    # Pre-compiled regex patterns for performance
+    _CONSECUTIVE_DOTS = re.compile(r'\.\.')
+    _TLD_ALPHA = re.compile(r'^[a-zA-Z]+$')
+    
     @staticmethod
     def validate(email: str) -> bool:
         """
@@ -209,8 +213,14 @@ class EmailUtils:
         
         email = email.strip()
         
-        # Quick length check
-        if len(email) > 320:  # RFC 5321 max
+        # Quick length check (RFC 5321 max: 64@255 = 320)
+        email_len = len(email)
+        if email_len > 320 or email_len < 3:  # minimum: a@b
+            return False
+        
+        # Fast path: check for @ symbol
+        at_idx = email.find('@')
+        if at_idx <= 0 or at_idx == email_len - 1:
             return False
         
         # Basic regex match
@@ -222,27 +232,24 @@ class EmailUtils:
         domain = match.group('domain')
         
         # Local part checks
-        if len(local) > 64:
+        if len(local) > 64 or local.startswith('.') or local.endswith('.'):
             return False
-        if local.startswith('.') or local.endswith('.'):
-            return False
-        if '..' in local:
+        if EmailUtils._CONSECUTIVE_DOTS.search(local):
             return False
         
         # Domain checks
-        if len(domain) > 255:
+        if len(domain) > 255 or domain.startswith('.') or domain.endswith('.'):
             return False
-        if domain.startswith('.') or domain.endswith('.'):
-            return False
-        if '..' in domain:
+        if EmailUtils._CONSECUTIVE_DOTS.search(domain):
             return False
         
-        # TLD must be at least 2 characters and alphabetic
-        # Domain must have at least one dot (e.g., example.com, not just example)
-        if '.' not in domain:
+        # TLD validation: must have at least one dot and valid TLD
+        dot_idx = domain.rfind('.')
+        if dot_idx <= 0 or dot_idx == len(domain) - 1:
             return False
-        tld = domain.split('.')[-1]
-        if len(tld) < 2 or not tld.isalpha():
+        
+        tld = domain[dot_idx + 1:]
+        if len(tld) < 2 or not EmailUtils._TLD_ALPHA.match(tld):
             return False
         
         return True
@@ -441,7 +448,7 @@ class EmailUtils:
         Obfuscate an email address for display.
         
         Shows first N characters of local part, replaces rest with asterisks.
-        Always shows at least 6 asterisks for privacy.
+        Uses fixed 7 asterisks for consistent obfuscation appearance.
 
         Args:
             email: Email address to obfuscate
@@ -454,12 +461,20 @@ class EmailUtils:
             >>> EmailUtils.obfuscate("john.doe@example.com")
             'jo*******@example.com'
         """
+        # Validate show_chars
+        if not isinstance(show_chars, int) or show_chars < 0:
+            show_chars = 2
+        
         parsed = EmailUtils.parse(email)
         if not parsed:
             return None
         
         local = parsed.local
         domain = parsed.domain
+        
+        # Handle edge cases
+        if not local:
+            return f"*******@{domain}"
         
         if len(local) <= show_chars:
             obfuscated_local = local
