@@ -71,6 +71,12 @@ test('swapCase swaps case', () => assertEqual(StringUtils.swapCase('Hello'), 'hE
 // Substring Operations
 test('truncate truncates string', () => assertEqual(StringUtils.truncate('hello world', 8), 'hello...'));
 test('truncate with custom suffix', () => assertEqual(StringUtils.truncate('hello world', 8, '>>'), 'hello >>'));
+test('truncate returns original if shorter than maxLength', () => assertEqual(StringUtils.truncate('hi', 10), 'hi'));
+test('truncate handles empty string', () => assertEqual(StringUtils.truncate('', 10), ''));
+test('truncate handles null', () => assertEqual(StringUtils.truncate(null, 10), ''));
+test('truncate handles undefined', () => assertEqual(StringUtils.truncate(undefined, 10), ''));
+test('truncate handles exact length', () => assertEqual(StringUtils.truncate('hello', 5), 'hello'));
+test('truncate with long suffix', () => assertEqual(StringUtils.truncate('hello', 4, '...'), 'h...'));
 test('substringBetween extracts between markers', () => assertEqual(StringUtils.substringBetween('hello [world] there', '[', ']'), 'world'));
 test('substringAfter extracts after separator', () => assertEqual(StringUtils.substringAfter('hello-world', '-'), 'world'));
 test('substringBefore extracts before separator', () => assertEqual(StringUtils.substringBefore('hello-world', '-'), 'hello'));
@@ -142,6 +148,40 @@ test('random generates string of correct length', () => {
 test('randomAlphanumeric generates alphanumeric', () => assertTrue(StringUtils.isAlphanumeric(StringUtils.randomAlphanumeric(10))));
 test('randomNumeric generates numeric', () => assertTrue(StringUtils.isNumeric(StringUtils.randomNumeric(10))));
 test('randomPassword generates password of correct length', () => assertEqual(StringUtils.randomPassword(16).length, 16));
+test('randomPassword generates password with minimum length', () => {
+    const result = StringUtils.randomPassword(2); // Should use minimum 4
+    assertEqual(result.length, 4);
+});
+test('randomPassword generates password with maximum length cap', () => {
+    const result = StringUtils.randomPassword(2000); // Should cap at 1024
+    assertEqual(result.length, 1024);
+});
+test('randomPassword contains all required character types', () => {
+    const password = StringUtils.randomPassword(16);
+    const hasLower = /[a-z]/.test(password);
+    const hasUpper = /[A-Z]/.test(password);
+    const hasDigit = /[0-9]/.test(password);
+    const hasSpecial = /[!@#$%^&*()\-_=+\[\]{}|;:,.<>?]/.test(password);
+    assertTrue(hasLower, 'Password should contain lowercase letter');
+    assertTrue(hasUpper, 'Password should contain uppercase letter');
+    assertTrue(hasDigit, 'Password should contain digit');
+    assertTrue(hasSpecial, 'Password should contain special character');
+});
+test('randomPassword handles invalid length input', () => {
+    const result1 = StringUtils.randomPassword('invalid');
+    assertEqual(result1.length, 16); // Should use default
+    const result2 = StringUtils.randomPassword(null);
+    assertEqual(result2.length, 16); // Should use default
+    const result3 = StringUtils.randomPassword(undefined);
+    assertEqual(result3.length, 16); // Should use default
+});
+test('randomPassword generates different passwords each time', () => {
+    const p1 = StringUtils.randomPassword(16);
+    const p2 = StringUtils.randomPassword(16);
+    const p3 = StringUtils.randomPassword(16);
+    // Very unlikely to get same password 3 times
+    assertTrue(p1 !== p2 || p2 !== p3, 'Passwords should be random');
+});
 
 // URL Encoding
 test('urlEncode encodes URL', () => assertEqual(StringUtils.urlEncode('hello world'), 'hello%20world'));

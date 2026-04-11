@@ -118,6 +118,15 @@ def test_is_valid_standard():
     assert Base64Utils.is_valid("") == True
     assert Base64Utils.is_valid("Invalid!") == False
     assert Base64Utils.is_valid("aGVsbG8-") == False  # URL-safe in standard mode
+    # Additional edge cases for is_valid
+    assert Base64Utils.is_valid("a") == False  # 1 mod 4 is invalid
+    assert Base64Utils.is_valid("ab") == True  # 2 mod 4 can be valid (unpadded)
+    assert Base64Utils.is_valid("abc") == True  # 3 mod 4 can be valid (unpadded)
+    assert Base64Utils.is_valid("abcd") == True  # 0 mod 4 is valid
+    assert Base64Utils.is_valid("abc=") == True  # Proper padding
+    assert Base64Utils.is_valid("ab==") == True  # Proper padding
+    assert Base64Utils.is_valid("a===") == False  # Too much padding
+    assert Base64Utils.is_valid("abc====") == False  # Too much padding
     print("✓ test_is_valid_standard passed")
 
 
@@ -127,6 +136,11 @@ def test_is_valid_urlsafe():
     assert Base64Utils.is_valid("aGVsbG8_", urlsafe=True) == True
     assert Base64Utils.is_valid("SGVsbG8=", urlsafe=True) == True  # Standard is also valid URL-safe
     assert Base64Utils.is_valid("Invalid!", urlsafe=True) == False
+    # Additional edge cases for URL-safe validation
+    assert Base64Utils.is_valid("aGVsbG8-", urlsafe=True) == True  # URL-safe chars
+    assert Base64Utils.is_valid("aGVsbG8_", urlsafe=True) == True  # URL-safe chars
+    assert Base64Utils.is_valid("aGVsbG8-", urlsafe=False) == False  # URL-safe in standard mode
+    assert Base64Utils.is_valid("aGVsbG8_", urlsafe=False) == False  # URL-safe in standard mode
     print("✓ test_is_valid_urlsafe passed")
 
 
@@ -134,6 +148,9 @@ def test_is_valid_non_string():
     """Test validation with non-string input."""
     assert Base64Utils.is_valid(123) == False
     assert Base64Utils.is_valid(None) == False
+    assert Base64Utils.is_valid([]) == False
+    assert Base64Utils.is_valid({}) == False
+    assert Base64Utils.is_valid(3.14) == False
     print("✓ test_is_valid_non_string passed")
 
 

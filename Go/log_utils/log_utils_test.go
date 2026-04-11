@@ -165,6 +165,60 @@ func TestLogEntryFormatText(t *testing.T) {
 	}
 }
 
+// TestLogEntryFormatTextNoCaller tests text formatting without caller
+func TestLogEntryFormatTextNoCaller(t *testing.T) {
+	entry := LogEntry{
+		Timestamp: time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
+		Level:     "DEBUG",
+		Message:   "debug message",
+		Caller:    "",
+		Fields:    map[string]interface{}{},
+	}
+	
+	result := entry.formatText(time.RFC3339)
+	
+	if !strings.Contains(result, "[DEBUG]") {
+		t.Error("Expected level in output")
+	}
+	if !strings.Contains(result, "debug message") {
+		t.Error("Expected message in output")
+	}
+	// Should not contain empty parentheses when no caller
+	if strings.Contains(result, "()") {
+		t.Error("Should not contain empty caller parentheses")
+	}
+}
+
+// TestLogEntryFormatTextMultipleFields tests text formatting with multiple fields
+func TestLogEntryFormatTextMultipleFields(t *testing.T) {
+	entry := LogEntry{
+		Timestamp: time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
+		Level:     "ERROR",
+		Message:   "error occurred",
+		Caller:    "",
+		Fields: map[string]interface{}{
+			"user_id": 12345,
+			"action":  "delete",
+			"status":  "failed",
+		},
+	}
+	
+	result := entry.formatText(time.RFC3339)
+	
+	if !strings.Contains(result, "error occurred") {
+		t.Error("Expected message in output")
+	}
+	if !strings.Contains(result, "user_id=12345") {
+		t.Error("Expected user_id field in output")
+	}
+	if !strings.Contains(result, "action=delete") {
+		t.Error("Expected action field in output")
+	}
+	if !strings.Contains(result, "status=failed") {
+		t.Error("Expected status field in output")
+	}
+}
+
 // TestLogEntryFormatJSON tests JSON formatting
 func TestLogEntryFormatJSON(t *testing.T) {
 	entry := LogEntry{

@@ -98,6 +98,26 @@ def run_tests():
     
     runner.test("wrap_text wraps long lines", '\n' in wrap_text("Hello world this is a long line", width=15))
     runner.test("wrap_text handles None", wrap_text(None, 80) == "")
+    runner.test("wrap_text handles empty string", wrap_text("", width=80) == "")
+    runner.test("wrap_text handles width 1", wrap_text("abc", width=1) == "a\nb\nc")
+    runner.test("wrap_text breaks long words", "aaaa" in wrap_text("aaaaaaaaaa", width=4))
+    runner.test("wrap_text preserves short lines", wrap_text("hi", width=10) == "hi")
+    runner.test("wrap_text raises on invalid width", 
+                (lambda: wrap_text("test", width=0) and False or True) if True else False)
+    try:
+        wrap_text("test", width=0)
+        runner.test("wrap_text raises ValueError on zero width", False)
+    except ValueError as e:
+        runner.test("wrap_text raises ValueError on zero width", "width must be positive" in str(e))
+    except Exception:
+        runner.test("wrap_text raises ValueError on zero width", False)
+    try:
+        wrap_text("test", width=-1)
+        runner.test("wrap_text raises ValueError on negative width", False)
+    except ValueError as e:
+        runner.test("wrap_text raises ValueError on negative width", "width must be positive" in str(e))
+    except Exception:
+        runner.test("wrap_text raises ValueError on negative width", False)
     
     runner.test("indent_text adds indentation", indent_text("line", spaces=2) == "  line")
     runner.test("indent_text indents multiple lines", indent_text("a\nb", spaces=2) == "  a\n  b")

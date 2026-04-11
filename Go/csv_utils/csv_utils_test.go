@@ -236,6 +236,70 @@ func TestSortByNumeric(t *testing.T) {
 	}
 }
 
+// TestSortByWithOptionsDescending tests descending sort
+func TestSortByWithOptionsDescending(t *testing.T) {
+	data := &CsvData{
+		Headers: []string{"name", "age"},
+		Rows: []CsvRow{
+			{"name": "Alice", "age": "30"},
+			{"name": "Charlie", "age": "35"},
+			{"name": "Bob", "age": "25"},
+		},
+	}
+
+	sorted := data.SortByWithOptions("age", false, true)
+
+	if sorted.Rows[0].GetInt("age", 0) != 35 {
+		t.Errorf("Expected first age to be 35 (desc), got %d", sorted.Rows[0].GetInt("age", 0))
+	}
+	if sorted.Rows[1].GetInt("age", 0) != 30 {
+		t.Errorf("Expected second age to be 30 (desc), got %d", sorted.Rows[1].GetInt("age", 0))
+	}
+	if sorted.Rows[2].GetInt("age", 0) != 25 {
+		t.Errorf("Expected third age to be 25 (desc), got %d", sorted.Rows[2].GetInt("age", 0))
+	}
+}
+
+// TestSortByWithOptionsNonNumericFallback tests string fallback for invalid numbers
+func TestSortByWithOptionsNonNumericFallback(t *testing.T) {
+	data := &CsvData{
+		Headers: []string{"name", "score"},
+		Rows: []CsvRow{
+			{"name": "Alice", "score": "B"},
+			{"name": "Bob", "score": "A"},
+			{"name": "Charlie", "score": "C"},
+		},
+	}
+
+	sorted := data.SortByWithOptions("score", true, true)
+
+	// Should fall back to string comparison
+	if sorted.Rows[0].Get("score") != "A" {
+		t.Errorf("Expected first score to be A, got %s", sorted.Rows[0].Get("score"))
+	}
+	if sorted.Rows[1].Get("score") != "B" {
+		t.Errorf("Expected second score to be B, got %s", sorted.Rows[1].Get("score"))
+	}
+}
+
+// TestSortByWithOptionsMissingColumn tests sorting with non-existent column
+func TestSortByWithOptionsMissingColumn(t *testing.T) {
+	data := &CsvData{
+		Headers: []string{"name", "age"},
+		Rows: []CsvRow{
+			{"name": "Alice", "age": "30"},
+			{"name": "Bob", "age": "25"},
+		},
+	}
+
+	// Should return data unchanged when column doesn't exist
+	sorted := data.SortByWithOptions("nonexistent", true, false)
+
+	if len(sorted.Rows) != 2 {
+		t.Errorf("Expected 2 rows, got %d", len(sorted.Rows))
+	}
+}
+
 // TestGetColumn tests getting column values
 func TestGetColumn(t *testing.T) {
 	data := &CsvData{

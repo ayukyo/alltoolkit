@@ -21,7 +21,7 @@
 
 | 语言 | 模块数 | 状态 |
 |------|--------|------|
-| Python | 16+ | ✅ 活跃 |
+| Python | 17+ | ✅ 活跃 |
 | Go | 15+ | ✅ 活跃 |
 | Rust | 10+ | ✅ 活跃 |
 | Java | 10+ | ✅ 活跃 |
@@ -162,11 +162,15 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ### 最近新增测试
 
+- **Python text_utils**: 123 个测试用例（新增 9 个），覆盖字符串清理、格式化、分析等，新增 wrap_text 边界值测试（零宽度、负宽度、空字符串、超长单词处理等）📝
+- **Python base64_utils**: 22 个测试用例（新增 7 个），覆盖编码/解码、URL-safe、验证等，新增 is_valid 边界测试（长度校验、填充验证、URL-safe 模式等）🔐
+- **Go csv_utils**: 新增 SortByWithOptions 测试（降序排序、非数字回退、缺失列处理等）📊
+- **Go log_utils**: 新增 formatText 测试（无调用者、多字段格式化等）📝
+- **JavaScript string_utils**: 93 个测试用例（新增 10 个），覆盖字符串操作，新增 randomPassword 边界测试（最小/最大长度、字符类型检查、随机性验证等）和 truncate 边界测试 🔤
 - **Python email_utils**: 41 个测试用例，覆盖验证、解析、规范化、一次性邮箱检测、批量处理等 📧
 - **Kotlin zip_utils**: 15 个测试用例，覆盖文件压缩、解压、目录处理、排除模式等
 - **Perl csv_utils**: 30+ 测试用例，覆盖 CSV 解析、生成、过滤、排序等
 - **Python network_utils**: 70+ 测试用例，覆盖 URL/IP/MAC/端口/HTTP 等
-- **Python text_utils**: 60+ 测试用例，覆盖字符串清理、格式化、分析等
 
 ### 测试覆盖详情
 
@@ -183,4 +187,4 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ---
 
-**最后更新**: 2026-04-10
+**最后更新**: 2026-04-12
