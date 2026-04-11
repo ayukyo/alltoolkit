@@ -1,5 +1,25 @@
 # AllToolkit 更新日志
 
+## [2026-04-12]
+
+### 新增
+- **Swift: array_utils (47 测试，完整数组/集合工具)** 📦
+  - 空值与安全访问（isEmpty/isNotEmpty/firstSafe/lastSafe/safeGet/firstOr）
+  - 切片操作（take/skip/takeLast/slice）
+  - 去重与过滤（unique/filterNot/compacted/hasDuplicates/duplicates）
+  - 转换与映射（compactMapNotNull/join）
+  - 统计与聚合（sum/average/max/min/product/standardDeviation/median）
+  - 搜索与查找（index/contains/findAll）
+  - 分组与分区（groupBy/partition）
+  - 排序（sortBy/isSortedAscending/isSortedDescending）
+  - 组合与连接（concat）
+  - 随机与打乱（randomElement/sample）
+  - 工具函数（range/arithmeticSequence/geometricSequence/merge/interleave/transpose/filled/incrementingArray）
+  - 类型安全扩展（Comparable/Hashable/Numeric/BinaryFloatingPoint 专用方法）
+  - 零依赖，纯 Swift 标准库实现
+  - 完整示例（基础用法 + 高级应用场景）
+  - 边界值测试（空数组/单元素/负数/大数组）
+
 ## [2026-04-11]
 
 ### 新增
