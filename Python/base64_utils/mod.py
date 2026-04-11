@@ -281,8 +281,7 @@ class Base64Utils:
             if char not in valid_chars:
                 return False
         
-        # Validate by actual decoding (handles all edge cases correctly)
-        # Add padding for validation if missing
+        # Validate by actual decoding - add padding if missing for validation
         try:
             test_string = base64_string
             padding_needed = 4 - (len(test_string) % 4)

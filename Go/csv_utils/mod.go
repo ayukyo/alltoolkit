@@ -41,6 +41,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -368,43 +369,32 @@ func (d *CsvData) SortByWithOptions(column string, ascending, numeric bool) *Csv
 		return sorted
 	}
 
-	// Sort rows
-	for i := 0; i < len(sorted.Rows)-1; i++ {
-		for j := i + 1; j < len(sorted.Rows); j++ {
-			shouldSwap := false
-			val1 := sorted.Rows[i].Get(column)
-			val2 := sorted.Rows[j].Get(column)
+	// Use sort.Slice for O(n log n) performance instead of O(n²) bubble sort
+	sort.Slice(sorted.Rows, func(i, j int) bool {
+		val1 := sorted.Rows[i].Get(column)
+		val2 := sorted.Rows[j].Get(column)
 
-			if numeric {
-				num1, err1 := strconv.ParseFloat(val1, 64)
-				num2, err2 := strconv.ParseFloat(val2, 64)
-				if err1 == nil && err2 == nil {
-					if ascending {
-						shouldSwap = num1 > num2
-					} else {
-						shouldSwap = num1 < num2
-					}
-				} else {
-					// Fall back to string comparison
-					if ascending {
-						shouldSwap = val1 > val2
-					} else {
-						shouldSwap = val1 < val2
-					}
-				}
-			} else {
+		if numeric {
+			num1, err1 := strconv.ParseFloat(val1, 64)
+			num2, err2 := strconv.ParseFloat(val2, 64)
+			if err1 == nil && err2 == nil {
 				if ascending {
-					shouldSwap = val1 > val2
-				} else {
-					shouldSwap = val1 < val2
+					return num1 < num2
 				}
+				return num1 > num2
 			}
-
-			if shouldSwap {
-				sorted.Rows[i], sorted.Rows[j] = sorted.Rows[j], sorted.Rows[i]
+			// Fall back to string comparison
+			if ascending {
+				return val1 < val2
 			}
+			return val1 > val2
 		}
-	}
+		
+		if ascending {
+			return val1 < val2
+		}
+		return val1 > val2
+	})
 
 	return sorted
 }

@@ -502,8 +502,10 @@
         // Fisher-Yates shuffle for unbiased randomization
         for (let i = length - 1; i > 0; i--) {
             const j = getRandomInt(i + 1);
-            // Swap in place without temp variable for micro-optimization
-            result[i] = result[j] + (result[j] = result[i], '');
+            // Standard swap using temp variable (clearer and more reliable)
+            const temp = result[i];
+            result[i] = result[j];
+            result[j] = temp;
         }
         
         return result.join('');

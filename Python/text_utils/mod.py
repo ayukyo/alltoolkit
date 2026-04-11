@@ -275,39 +275,48 @@ def wrap_text(text: str, width: int = 80, break_long_words: bool = True) -> str:
     """
     if text is None:
         return ""
+    if width <= 0:
+        raise ValueError(f"width must be positive, got {width}")
     
     words = text.split()
+    if not words:
+        return ""
+    
     lines = []
-    current_line = []
+    current_line_parts = []
     current_length = 0
     
     for word in words:
         word_length = len(word)
         
         if break_long_words and word_length > width:
-            if current_line:
-                lines.append(' '.join(current_line))
-                current_line = []
+            # Flush current line first
+            if current_line_parts:
+                lines.append(' '.join(current_line_parts))
+                current_line_parts = []
                 current_length = 0
             
-            # Break long word
-            while len(word) > width:
-                lines.append(word[:width])
-                word = word[width:]
-            
-            if word:
-                current_line.append(word)
-                current_length = len(word)
-        elif current_length + word_length + (1 if current_line else 0) <= width:
-            current_line.append(word)
-            current_length += word_length + (1 if current_line else 0)
+            # Break long word into chunks
+            for i in range(0, word_length, width):
+                chunk = word[i:i + width]
+                if i + width < word_length:
+                    lines.append(chunk)
+                else:
+                    current_line_parts.append(chunk)
+                    current_length = len(chunk)
         else:
-            lines.append(' '.join(current_line))
-            current_line = [word]
-            current_length = word_length
+            # Check if word fits (add 1 for space if not first word)
+            space_needed = 1 if current_line_parts else 0
+            if current_length + word_length + space_needed <= width:
+                current_line_parts.append(word)
+                current_length += word_length + space_needed
+            else:
+                lines.append(' '.join(current_line_parts))
+                current_line_parts = [word]
+                current_length = word_length
     
-    if current_line:
-        lines.append(' '.join(current_line))
+    if current_line_parts:
+        lines.append(' '.join(current_line_parts))
     
     return '\n'.join(lines)
 

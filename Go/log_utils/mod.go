@@ -243,16 +243,17 @@ type LogEntry struct {
 
 // formatText formats a log entry as text
 func (e LogEntry) formatText(timeFormat string) string {
-	var parts []string
-	parts = append(parts, e.Timestamp.Format(timeFormat))
-	parts = append(parts, "["+e.Level+"]")
+	// Pre-allocate parts slice with estimated capacity for efficiency
+	parts := make([]string, 0, 4+len(e.Fields))
+	parts = append(parts, e.Timestamp.Format(timeFormat), "["+e.Level+"]")
+	
 	if e.Caller != "" {
 		parts = append(parts, "("+e.Caller+")")
 	}
 	parts = append(parts, e.Message)
 	
 	if len(e.Fields) > 0 {
-		var fieldParts []string
+		fieldParts := make([]string, 0, len(e.Fields))
 		for k, v := range e.Fields {
 			fieldParts = append(fieldParts, fmt.Sprintf("%s=%v", k, v))
 		}
