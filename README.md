@@ -38,6 +38,7 @@
 | Delphi | 5+ | ✅ 活跃 |
 | Perl | 6+ | ✅ 活跃 |
 | Kotlin | 6+ | ✅ 活跃 |
+| Swift | 9+ | ✅ 活跃 |
 
 *完整列表见 [docs/languages.md](docs/languages.md)*
 
