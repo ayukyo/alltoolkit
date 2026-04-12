@@ -3,6 +3,26 @@
 ## [2026-04-12]
 
 ### 新增
+- **ArkTS: array_utils (130+ 测试，完整数组/集合工具)** 📦
+  - 空值检查（isEmpty/isNotEmpty/size）
+  - 安全访问（first/last/get/getOrThrow，支持负索引）
+  - 查找与过滤（find/findIndex/contains/filter/filterNull）
+  - 转换（map/mapNotNull/flatMap/flatten/flattenDeep）
+  - 排序（sort/sortBy/sortByDesc/reverse/shuffle/isSorted）
+  - 集合操作（unique/union/intersection/difference/duplicates）
+  - 分组（groupBy/partition/chunk/splitAt）
+  - 切片（take/takeLast/takeWhile/drop/dropWhile/slice）
+  - 聚合（sum/average/min/max/count/countBy）
+  - 随机（randomElement/randomElements/sample）
+  - 修改（insert/removeAt/append/prepend/concat/updateAt）
+  - 比较（equals/equalsIgnoreOrder/startsWith/endsWith）
+  - 生成（range/fill/fillFn）
+  - 工具（forEach/reduce/every/some/join/zip/unzip/rotate/interleave）
+  - 类 API（ArrayUtils 静态方法）
+  - 零依赖，纯 ArkTS 标准库实现
+  - 完整示例（16 个 HarmonyOS 应用场景）
+  - 边界值测试（空数组/null/undefined/负索引/越界）
+
 - **Python: process_utils (61 测试，完整进程管理工具)** ⚙️
   - 命令执行（run/run_shell，支持超时控制）
   - 流式输出（run_streaming，实时捕获 stdout/stderr）
