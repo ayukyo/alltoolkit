@@ -1,0 +1,11 @@
+.{
+    .name = "json-query",
+    .version = "1.0.0",
+    .minimum_zig_version = "0.11.0",
+    .dependencies = .{},
+    .paths = .{
+        "src",
+        "examples",
+        "README.md",
+    },
+}

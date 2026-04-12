@@ -1,0 +1,57 @@
+{
+  "name": "JSON Query Test Data",
+  "version": "1.0.0",
+  "config": {
+    "debug": true,
+    "maxConnections": 100,
+    "timeout": 30.5,
+    "endpoints": [
+      "/api/users",
+      "/api/posts",
+      "/api/comments"
+    ]
+  },
+  "users": [
+    {
+      "id": 1,
+      "name": "Alice Johnson",
+      "email": "alice@example.com",
+      "age": 30,
+      "active": true,
+      "profile": {
+        "bio": "Software Engineer",
+        "location": "San Francisco",
+        "skills": ["Go", "Rust", "Zig"]
+      }
+    },
+    {
+      "id": 2,
+      "name": "Bob Smith",
+      "email": "bob@example.com",
+      "age": 25,
+      "active": false,
+      "profile": {
+        "bio": "Designer",
+        "location": "New York",
+        "skills": ["Figma", "CSS", "JavaScript"]
+      }
+    },
+    {
+      "id": 3,
+      "name": "Charlie Brown",
+      "email": "charlie@example.com",
+      "age": 35,
+      "active": true,
+      "profile": {
+        "bio": "DevOps Engineer",
+        "location": "Seattle",
+        "skills": ["Kubernetes", "Docker", "AWS"]
+      }
+    }
+  ],
+  "metadata": {
+    "createdAt": "2024-01-01",
+    "updatedAt": "2024-06-15",
+    "author": "Test Suite"
+  }
+}
