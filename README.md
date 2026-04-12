@@ -163,6 +163,7 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ### 最近新增测试
 
+- **TypeScript crypto_utils**: 86 个测试用例（新增），覆盖哈希函数（MD5/SHA-1/SHA-256/SHA-384/SHA-512）、HMAC 签名/验证、Base64 编码解码、Hex 编码解码、随机生成（字符串/Hex/UUID）等 🔐
 - **Python text_utils**: 123 个测试用例（新增 9 个），覆盖字符串清理、格式化、分析等，新增 wrap_text 边界值测试（零宽度、负宽度、空字符串、超长单词处理等）📝
 - **Python base64_utils**: 22 个测试用例（新增 7 个），覆盖编码/解码、URL-safe、验证等，新增 is_valid 边界测试（长度校验、填充验证、URL-safe 模式等）🔐
 - **Go csv_utils**: 新增 SortByWithOptions 测试（降序排序、非数字回退、缺失列处理等）📊
@@ -177,6 +178,7 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 | 模块 | 语言 | 测试数 | 覆盖率 |
 |------|------|--------|--------|
+| crypto_utils | TypeScript | 86 | ✅ 100% |
 | xml_utils | Python | 20 | ✅ 100% |
 | markdown_utils | Python | 108 | ✅ 100% |
 | regex_utils | Python | 34 | ✅ 100% |
@@ -185,7 +187,8 @@ perl Perl/csv_utils/csv_utils_test.pl
 | phone_utils | Python | 31 | ✅ 100% |
 | jwt_utils | Python | 15 | ✅ 100% |
 | cache_utils | Python | 30+ | ✅ 100% |
+| uuid_utils | Java | 69 | ✅ 100% |
 
 ---
 
-**最后更新**: 2026-04-12
+**最后更新**: 2026-04-13
