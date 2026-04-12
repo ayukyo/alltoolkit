@@ -1,5 +1,24 @@
 # AllToolkit 更新日志
 
+## [2026-04-13]
+
+### 新增
+- **Swift: http_utils (80+ 测试，完整 HTTP 客户端工具)** 🌐
+  - 全 HTTP 方法支持（GET/POST/PUT/PATCH/DELETE/HEAD/OPTIONS）
+  - JSON 编码/解码（自动 Codable 支持）
+  - 认证助手（Bearer Token、Basic Auth）
+  - URL 构建器（查询参数链式构建）
+  - 表单编码（URL-encoded、Multipart）
+  - 文件上传（Multipart 文件上传支持）
+  - 响应处理（状态码分类、字符串/JSON 解析）
+  - 错误处理（超时/网络/HTTP 错误类型）
+  - 可配置超时（请求级别超时控制）
+  - 默认请求头（客户端级别全局配置）
+  - 自定义 URLSession 配置支持
+  - 零外部依赖，纯 Swift Foundation 实现
+  - 完整示例（18 个实际使用场景）
+  - 边界测试（状态码边界/空数据/Unicode/错误处理）
+
 ## [2026-04-12]
 
 ### 新增
