@@ -1,0 +1,13 @@
+[package]
+name = "regex_utils"
+version = "1.0.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "Comprehensive regular expression utilities for Rust - validation, extraction, replacement"
+license = "MIT"
+readme = "README.md"
+keywords = ["regex", "validation", "extraction", "pattern", "text-processing"]
+categories = ["text-processing", "parsing"]
+
+[dependencies]
+regex = "1"

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <title>Monthly Sales Comparison</title>
+  <rect x="0" y="0" width="800" height="600" fill="#ffffff" stroke="none" stroke-width="1" rx="0"/>
+  <text x="400.0" y="30" fill="#333333" font-size="16" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="bold">Monthly Sales Comparison</text>
+  <line x1="80" y1="60.0" x2="740" y2="60.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="60.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">465.0</text>
+  <line x1="80" y1="152.0" x2="740" y2="152.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="152.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">372.0</text>
+  <line x1="80" y1="244.0" x2="740" y2="244.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="244.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">279.0</text>
+  <line x1="80" y1="336.0" x2="740" y2="336.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="336.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">186.0</text>
+  <line x1="80" y1="428.0" x2="740" y2="428.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="428.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">93.0</text>
+  <line x1="80" y1="520.0" x2="740" y2="520.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="520.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">0.0</text>
+  <rect x="85.5" y="401.2903225806452" width="21.0" height="118.70967741935483" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="140.5" y="371.61290322580646" width="21.0" height="148.38709677419354" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="195.5" y="341.93548387096774" width="21.0" height="178.06451612903226" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="250.5" y="302.36559139784947" width="21.0" height="217.63440860215053" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="305.5" y="332.04301075268813" width="21.0" height="187.95698924731184" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="360.5" y="282.58064516129036" width="21.0" height="237.41935483870967" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="415.5" y="243.01075268817203" width="21.0" height="276.98924731182797" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="470.5" y="262.7956989247312" width="21.0" height="257.2043010752688" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="525.5" y="223.22580645161293" width="21.0" height="296.7741935483871" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="580.5" y="203.44086021505376" width="21.0" height="316.55913978494624" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="635.5" y="173.76344086021504" width="21.0" height="346.23655913978496" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="690.5" y="144.08602150537632" width="21.0" height="375.9139784946237" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="107.5" y="381.505376344086" width="21.0" height="138.49462365591398" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="162.5" y="351.8279569892473" width="21.0" height="168.1720430107527" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="217.5" y="322.1505376344086" width="21.0" height="197.8494623655914" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="272.5" y="272.68817204301075" width="21.0" height="247.31182795698925" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="327.5" y="292.4731182795699" width="21.0" height="227.5268817204301" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="382.5" y="243.01075268817203" width="21.0" height="276.98924731182797" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="437.5" y="203.44086021505376" width="21.0" height="316.55913978494624" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="492.5" y="223.22580645161293" width="21.0" height="296.7741935483871" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="547.5" y="173.76344086021504" width="21.0" height="346.23655913978496" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="602.5" y="144.08602150537632" width="21.0" height="375.9139784946237" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="657.5" y="124.30107526881721" width="21.0" height="395.6989247311828" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="712.5" y="104.51612903225805" width="21.0" height="415.48387096774195" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <text x="107.5" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">Jan</text>
+  <text x="162.5" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">Feb</text>
+  <text x="217.5" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">Mar</text>
+  <text x="272.5" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">Apr</text>
+  <text x="327.5" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">May</text>
+  <text x="382.5" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">Jun</text>
+  <text x="437.5" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">Jul</text>
+  <text x="492.5" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">Aug</text>
+  <text x="547.5" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">Sep</text>
+  <text x="602.5" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">Oct</text>
+  <text x="657.5" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">Nov</text>
+  <text x="712.5" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">Dec</text>
+  <rect x="590" y="62" width="15" height="15" fill="#3498db" stroke="#3498db" stroke-width="1" rx="0"/>
+  <text x="610" y="70" fill="#333333" font-size="12" font-family="Arial" text-anchor="start" dominant-baseline="baseline" font-weight="normal">Sales 2025</text>
+  <rect x="590" y="82" width="15" height="15" fill="#3498db" stroke="#3498db" stroke-width="1" rx="0"/>
+  <text x="610" y="90" fill="#333333" font-size="12" font-family="Arial" text-anchor="start" dominant-baseline="baseline" font-weight="normal">Sales 2026</text>
+  <line x1="80" y1="60" x2="80" y2="520" stroke="#333333" stroke-width="2"/>
+  <line x1="80" y1="520" x2="740" y2="520" stroke="#333333" stroke-width="2"/>
+</svg>

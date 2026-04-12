@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600">
+  <title>深色主题图表</title>
+  <rect x="0" y="0" width="1000" height="600" fill="#1a1a2e" stroke="none" stroke-width="1" rx="0"/>
+  <text x="500.0" y="30" fill="#eaeaea" font-size="18" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="bold">深色主题图表</text>
+  <line x1="80" y1="60.0" x2="940" y2="60.0" stroke="#16213e" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="60.0" fill="#eaeaea" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">103.5</text>
+  <line x1="80" y1="152.0" x2="940" y2="152.0" stroke="#16213e" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="152.0" fill="#eaeaea" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">83.1</text>
+  <line x1="80" y1="244.0" x2="940" y2="244.0" stroke="#16213e" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="244.0" fill="#eaeaea" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">62.7</text>
+  <line x1="80" y1="336.0" x2="940" y2="336.0" stroke="#16213e" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="336.0" fill="#eaeaea" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">42.3</text>
+  <line x1="80" y1="428.0" x2="940" y2="428.0" stroke="#16213e" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="428.0" fill="#eaeaea" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">21.9</text>
+  <line x1="80" y1="520.0" x2="940" y2="520.0" stroke="#16213e" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="520.0" fill="#eaeaea" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">1.5</text>
+  <text x="80.0" y="540" fill="#eaeaea" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">A</text>
+  <text x="223.33333333333334" y="540" fill="#eaeaea" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">B</text>
+  <text x="366.6666666666667" y="540" fill="#eaeaea" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">C</text>
+  <text x="510.0" y="540" fill="#eaeaea" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">D</text>
+  <text x="653.3333333333334" y="540" fill="#eaeaea" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">E</text>
+  <text x="796.6666666666666" y="540" fill="#eaeaea" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">F</text>
+  <text x="940.0" y="540" fill="#eaeaea" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">G</text>
+  <polyline points="80.0,481.66666666666663 223.33333333333334,414.0196078431373 366.6666666666667,346.37254901960785 510.0,278.72549019607845 653.3333333333334,211.07843137254903 796.6666666666666,143.4313725490196 940.0,98.33333333333334" fill="none" stroke="#e94560" stroke-width="2"/>
+  <circle cx="80.0" cy="481.66666666666663" r="4" fill="#e94560" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="223.33333333333334" cy="414.0196078431373" r="4" fill="#e94560" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="366.6666666666667" cy="346.37254901960785" r="4" fill="#e94560" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="510.0" cy="278.72549019607845" r="4" fill="#e94560" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="653.3333333333334" cy="211.07843137254903" r="4" fill="#e94560" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="796.6666666666666" cy="143.4313725490196" r="4" fill="#e94560" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="940.0" cy="98.33333333333334" r="4" fill="#e94560" stroke="#ffffff" stroke-width="2"/>
+  <line x1="80" y1="60" x2="80" y2="520" stroke="#eaeaea" stroke-width="2"/>
+  <line x1="80" y1="520" x2="940" y2="520" stroke="#eaeaea" stroke-width="2"/>
+</svg>

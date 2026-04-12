@@ -1,0 +1,43 @@
+[package]
+name = "date_utils"
+version = "1.0.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "Comprehensive date and time utilities for Rust - zero dependencies"
+license = "MIT"
+readme = "README.md"
+keywords = ["date", "time", "calendar", "datetime", "utilities"]
+categories = ["date-and-time", "utilities"]
+
+[lib]
+name = "date_utils"
+path = "mod.rs"
+
+[[example]]
+name = "basic_usage"
+path = "examples/basic_usage.rs"
+
+[[example]]
+name = "date_arithmetic"
+path = "examples/date_arithmetic.rs"
+
+[[example]]
+name = "date_range"
+path = "examples/date_range.rs"
+
+[[example]]
+name = "formatting"
+path = "examples/formatting.rs"
+
+[dependencies]
+# Zero dependencies - uses only Rust standard library!
+
+[dev-dependencies]
+# No dev dependencies needed - uses only stdlib
+
+[features]
+default = []
+
+[profile.release]
+opt-level = 3
+lto = true

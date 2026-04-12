@@ -1,0 +1,39 @@
+[package]
+name = "process_utils"
+version = "1.0.0"
+edition = "2021"
+authors = ["AllToolkit Contributors"]
+description = "Zero-dependency, production-ready Rust process management utilities"
+license = "MIT"
+readme = "README.md"
+keywords = ["process", "system", "utils", "alltoolkit"]
+categories = ["development-tools", "os"]
+
+[lib]
+name = "process_utils"
+path = "mod.rs"
+
+[[example]]
+name = "basic_usage"
+path = "examples/basic_usage.rs"
+
+[[example]]
+name = "process_monitor"
+path = "examples/process_monitor.rs"
+
+[[example]]
+name = "batch_processor"
+path = "examples/batch_processor.rs"
+
+[dependencies]
+# No external dependencies - zero-dependency library!
+
+[dev-dependencies]
+# No dev dependencies needed - uses only stdlib
+
+[features]
+default = []
+
+[profile.release]
+opt-level = 3
+lto = true

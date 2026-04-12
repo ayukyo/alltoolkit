@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <title>访问设备分布</title>
+  <rect x="0" y="0" width="800" height="600" fill="#ffffff" stroke="none" stroke-width="1" rx="0"/>
+  <text x="400.0" y="30" fill="#333333" font-size="16" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="bold">访问设备分布</text>
+  <line x1="80" y1="60.0" x2="740" y2="60.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="60.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">165.0</text>
+  <line x1="80" y1="152.0" x2="740" y2="152.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="152.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">132.0</text>
+  <line x1="80" y1="244.0" x2="740" y2="244.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="244.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">99.0</text>
+  <line x1="80" y1="336.0" x2="740" y2="336.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="336.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">66.0</text>
+  <line x1="80" y1="428.0" x2="740" y2="428.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="428.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">33.0</text>
+  <line x1="80" y1="520.0" x2="740" y2="520.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="520.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">0.0</text>
+  <polygon points="80.0,436.3636363636363 212.0,408.4848484848485 344.0,380.6060606060606 476.0,352.72727272727275 608.0,324.8484848484848 740.0,296.969696969697 740.0,520.0 608.0,520.0 476.0,520.0 344.0,520.0 212.0,520.0 80.0,520.0" fill="#3498db" fill-opacity="0.6" stroke="#2979af" stroke-width="2"/>
+  <polygon points="80.0,296.969696969697 212.0,283.030303030303 344.0,269.0909090909091 476.0,255.15151515151513 608.0,241.21212121212122 740.0,227.27272727272728 740.0,296.969696969697 608.0,324.8484848484848 476.0,352.72727272727275 344.0,380.6060606060606 212.0,408.4848484848485 80.0,436.3636363636363" fill="#3498db" fill-opacity="0.6" stroke="#2979af" stroke-width="2"/>
+  <polygon points="80.0,241.21212121212122 212.0,213.33333333333334 344.0,185.45454545454544 476.0,157.5757575757576 608.0,129.6969696969697 740.0,101.81818181818184 740.0,227.27272727272728 608.0,241.21212121212122 476.0,255.15151515151513 344.0,269.0909090909091 212.0,283.030303030303 80.0,296.969696969697" fill="#3498db" fill-opacity="0.6" stroke="#2979af" stroke-width="2"/>
+  <text x="80.0" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">1 月</text>
+  <text x="212.0" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">2 月</text>
+  <text x="344.0" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">3 月</text>
+  <text x="476.0" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">4 月</text>
+  <text x="608.0" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">5 月</text>
+  <text x="740.0" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">6 月</text>
+  <text x="20" y="300.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">访问量 (千)</text>
+  <rect x="590" y="62" width="15" height="15" fill="#3498db" stroke="#3498db" stroke-width="1" rx="0" fill-opacity="0.6"/>
+  <text x="610" y="70" fill="#333333" font-size="12" font-family="Arial" text-anchor="start" dominant-baseline="baseline" font-weight="normal">移动端</text>
+  <rect x="590" y="82" width="15" height="15" fill="#3498db" stroke="#3498db" stroke-width="1" rx="0" fill-opacity="0.6"/>
+  <text x="610" y="90" fill="#333333" font-size="12" font-family="Arial" text-anchor="start" dominant-baseline="baseline" font-weight="normal">桌面端</text>
+  <rect x="590" y="102" width="15" height="15" fill="#3498db" stroke="#3498db" stroke-width="1" rx="0" fill-opacity="0.6"/>
+  <text x="610" y="110" fill="#333333" font-size="12" font-family="Arial" text-anchor="start" dominant-baseline="baseline" font-weight="normal">平板</text>
+  <line x1="80" y1="60" x2="80" y2="520" stroke="#333333" stroke-width="2"/>
+  <line x1="80" y1="520" x2="740" y2="520" stroke="#333333" stroke-width="2"/>
+</svg>

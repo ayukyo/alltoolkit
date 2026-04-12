@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <title>Correlation Analysis</title>
+  <rect x="0" y="0" width="800" height="600" fill="#ffffff" stroke="none" stroke-width="1" rx="0"/>
+  <text x="400.0" y="30" fill="#333333" font-size="16" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="bold">Correlation Analysis</text>
+  <line x1="80.0" y1="60" x2="80.0" y2="520" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="80.0" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">-9.0</text>
+  <line x1="80" y1="60.0" x2="740" y2="60.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="60.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">62.7</text>
+  <line x1="212.0" y1="60" x2="212.0" y2="520" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="212.0" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">14.2</text>
+  <line x1="80" y1="152.0" x2="740" y2="152.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="152.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">48.0</text>
+  <line x1="344.0" y1="60" x2="344.0" y2="520" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="344.0" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">37.4</text>
+  <line x1="80" y1="244.0" x2="740" y2="244.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="244.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">33.3</text>
+  <line x1="476.0" y1="60" x2="476.0" y2="520" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="476.0" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">60.6</text>
+  <line x1="80" y1="336.0" x2="740" y2="336.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="336.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">18.6</text>
+  <line x1="608.0" y1="60" x2="608.0" y2="520" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="608.0" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">83.8</text>
+  <line x1="80" y1="428.0" x2="740" y2="428.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="428.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">3.8</text>
+  <line x1="740.0" y1="60" x2="740.0" y2="520" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="740.0" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">107.0</text>
+  <line x1="80" y1="520.0" x2="740" y2="520.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="520.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">-10.9</text>
+  <line x1="80.0" y1="474.5585683798232" x2="740.0" y2="122.06201495531236" stroke="#e74c3c" stroke-width="2" stroke-dasharray="5,5"/>
+  <circle cx="495.13273072981355" cy="268.51432263167027" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="145.5332282633417" cy="480.5387278649903" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="287.79247791304545" cy="395.250164547718" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="258.30797785320675" cy="327.7545195473351" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="550.3504937123206" cy="203.4760332329886" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="516.3406950419901" cy="227.0105469611384" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="638.9477292941218" cy="214.4259157237861" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="180.76997914000526" cy="396.25951063257423" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="371.3735398686857" cy="362.303251148584" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="148.2567012694624" cy="457.80635940412134" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="255.70609952013464" cy="322.57649649043253" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="418.846745311745" cy="276.6818223931718" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="146.4010672832693" cy="436.6451846106316" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="244.43981906379526" cy="366.864189287085" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="501.08307259355837" cy="206.18150648234845" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="441.37108098764946" cy="247.3200989264527" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="256.731796332822" cy="417.04368508966064" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="466.5913199152708" cy="326.4320464786356" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="591.8639196132056" cy="222.2433218854851" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="135.0" cy="479.04495271199926" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="589.809163017861" cy="236.42626092903902" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="528.5398898714324" cy="178.60304330497473" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="324.9029972006807" cy="298.724338206639" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="219.76925887805353" cy="426.63737533153716" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="675.9514518821793" cy="133.59016805607342" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="322.82276866755626" cy="359.9400713483441" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="184.07413776611077" cy="371.27486266681694" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="186.33335045283812" cy="426.9790002983699" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="613.5220843518143" cy="216.67166447008293" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="474.8191817102214" cy="295.1068611143869" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="590.553989344794" cy="192.23254760738067" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="546.5157948687117" cy="253.7284560747274" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="436.4132083138206" cy="273.96162455628826" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="685.0" cy="98.3333333333333" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="346.6863129151799" cy="346.3669498177448" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="445.4104604431432" cy="314.6659098306332" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="603.2291388442528" cy="130.7687908451727" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="483.2367312798428" cy="257.63293692413924" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="621.6089415507261" cy="233.97130058661983" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="459.8125789957823" cy="328.2774464183386" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="532.1999151543937" cy="280.7192448999783" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="157.37607355491807" cy="421.81005551349733" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="260.9751620792507" cy="344.35648907603354" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="295.96247165720854" cy="371.37262306381984" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="176.70345576964" cy="481.66666666666663" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="263.75903188315596" cy="394.11983721784395" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="188.77152286906758" cy="358.5021749067131" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="289.46776047100707" cy="361.57331067261634" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="493.0033508438226" cy="194.59424138805784" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <circle cx="338.8898340641841" cy="292.9928122791485" r="6" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <text x="400.0" y="580" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">X Value</text>
+  <text x="20" y="300.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">Y Value</text>
+  <line x1="80" y1="60" x2="80" y2="520" stroke="#333333" stroke-width="2"/>
+  <line x1="80" y1="520" x2="740" y2="520" stroke="#333333" stroke-width="2"/>
+</svg>

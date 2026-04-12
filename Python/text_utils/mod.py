@@ -1,1127 +1,1148 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-AllToolkit - Text Utilities Module
-====================================
-A comprehensive text processing utility module for Python with zero external dependencies.
+AllToolkit - Python Text Utilities
 
-Features:
-    - String cleaning and normalization
-    - Text formatting and transformation
-    - Search and replace utilities
-    - Text analysis (word count, readability, etc.)
-    - Pattern matching helpers
-    - Encoding and escaping utilities
+A zero-dependency, production-ready text utility module.
+Supports text formatting, analysis, transformation, cleaning, and statistics.
 
-Author: AllToolkit Contributors
+Author: AllToolkit
 License: MIT
 """
 
 import re
 import string
 import hashlib
-from typing import Any, Dict, List, Optional, Union, Callable, Pattern, Tuple
-from collections import Counter
+from typing import List, Dict, Tuple, Optional, Set, Any, Callable
+from dataclasses import dataclass, field
+from enum import Enum
+from collections import Counter, defaultdict
+import unicodedata
 
 
-# ============================================================================
-# String Cleaning Functions
-# ============================================================================
+# =============================================================================
+# Constants and Configuration
+# =============================================================================
 
-def clean_whitespace(text: str, normalize: bool = True) -> str:
-    """
-    Clean and normalize whitespace in text.
-    
-    Args:
-        text: The input text
-        normalize: Whether to normalize all whitespace to single spaces (default: True)
-    
-    Returns:
-        Cleaned text with normalized whitespace
-    
-    Example:
-        >>> clean_whitespace("  hello   world  ")
-        'hello world'
-        >>> clean_whitespace("hello\\n\\nworld", normalize=False)
-        'hello world'
-    """
-    if text is None:
-        return ""
-    # Replace all whitespace sequences with single space
-    result = re.sub(r'\s+', ' ', text)
-    if normalize:
-        return result.strip()
-    return result
+# Common punctuation sets
+PUNCTUATION_ALL = string.punctuation
+PUNCTUATION_BASIC = '.,!?;:'
+PUNCTUATION_QUOTES = '"\'"\'""''«»‹›'
+PUNCTUATION_BRACKETS = '()[]{}<>'
 
+# Whitespace characters
+WHITESPACE_ALL = ' \t\n\r\f\v'
+WHITESPACE_VISIBLE = ' \t'
 
-def clean_text(text: str, 
-               remove_punctuation: bool = False,
-               remove_digits: bool = False,
-               lowercase: bool = False,
-               strip: bool = True) -> str:
-    """
-    Clean text with multiple options.
-    
-    Args:
-        text: The input text
-        remove_punctuation: Whether to remove punctuation (default: False)
-        remove_digits: Whether to remove digits (default: False)
-        lowercase: Whether to convert to lowercase (default: False)
-        strip: Whether to strip leading/trailing whitespace (default: True)
-    
-    Returns:
-        Cleaned text
-    
-    Example:
-        >>> clean_text("Hello, World! 123", remove_punctuation=True, remove_digits=True)
-        'Hello World'
-    """
-    if text is None:
-        return ""
-    
-    result = text
-    
-    if remove_punctuation:
-        result = result.translate(str.maketrans('', '', string.punctuation))
-    
-    if remove_digits:
-        result = re.sub(r'\d', '', result)
-    
-    if lowercase:
-        result = result.lower()
-    
-    if strip:
-        result = result.strip()
-    
-    return result
+# Common stop words (English)
+STOP_WORDS_EN = {
+    'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+    'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
+    'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+    'should', 'may', 'might', 'must', 'shall', 'can', 'need', 'dare', 'ought',
+    'used', 'it', 'its', 'this', 'that', 'these', 'those', 'i', 'you', 'he',
+    'she', 'we', 'they', 'what', 'which', 'who', 'whom', 'whose', 'where',
+    'when', 'why', 'how', 'all', 'each', 'every', 'both', 'few', 'more',
+    'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own',
+    'same', 'so', 'than', 'too', 'very', 'just', 'also', 'now', 'here',
+    'there', 'then', 'once', 'if', 'unless', 'until', 'while', 'about',
+    'against', 'between', 'into', 'through', 'during', 'before', 'after',
+    'above', 'below', 'up', 'down', 'out', 'off', 'over', 'under', 'again',
+    'further', 'am', 'being', 'because', 'any', 'my', 'your', 'his', 'her',
+    'our', 'their', 'me', 'him', 'us', 'them', 'mine', 'yours', 'hers',
+    'ours', 'theirs', 'myself', 'yourself', 'himself', 'herself', 'itself',
+    'ourselves', 'themselves', 's', 't', 'd', 'll', 've', 're', 'm'
+}
+
+# Text case styles
+class TextCase(Enum):
+    """Text case styles."""
+    LOWER = "lower"
+    UPPER = "upper"
+    TITLE = "title"
+    SENTENCE = "sentence"
+    CAMEL = "camel"
+    PASCAL = "pascal"
+    SNAKE = "snake"
+    KEBAB = "kebab"
+    CONSTANT = "constant"
 
 
-def remove_html_tags(text: str) -> str:
-    """
-    Remove HTML tags from text.
-    
-    Args:
-        text: Text containing HTML tags
-    
-    Returns:
-        Text with HTML tags removed
-    
-    Example:
-        >>> remove_html_tags("<p>Hello <b>World</b></p>")
-        'Hello World'
-    """
-    if text is None:
-        return ""
-    return re.sub(r'<[^>]+>', '', text)
+# =============================================================================
+# Data Classes
+# =============================================================================
 
-
-def remove_urls(text: str, replacement: str = '') -> str:
-    """
-    Remove URLs from text.
-    
-    Args:
-        text: The input text
-        replacement: String to replace URLs with (default: '')
-    
-    Returns:
-        Text with URLs removed
-    
-    Example:
-        >>> remove_urls("Visit https://example.com for more")
-        'Visit  for more'
-    """
-    if text is None:
-        return ""
-    url_pattern = r'https?://\S+|www\.\S+'
-    return re.sub(url_pattern, replacement, text)
-
-
-def remove_emojis(text: str) -> str:
-    """
-    Remove emojis from text.
-    
-    Args:
-        text: The input text
-    
-    Returns:
-        Text with emojis removed
-    
-    Example:
-        >>> remove_emojis("Hello 👋 World 🌍")
-        'Hello  World '
-    """
-    if text is None:
-        return ""
-    # Emoji Unicode ranges
-    emoji_pattern = re.compile(
-        "["
-        "\U0001F600-\U0001F64F"  # emoticons
-        "\U0001F300-\U0001F5FF"  # symbols & pictographs
-        "\U0001F680-\U0001F6FF"  # transport & map symbols
-        "\U0001F1E0-\U0001F1FF"  # flags
-        "\U00002702-\U000027B0"
-        "\U000024C2-\U0001F251"
-        "]+",
-        flags=re.UNICODE
-    )
-    return emoji_pattern.sub('', text)
-
-
-# ============================================================================
-# Text Formatting Functions
-# ============================================================================
-
-def truncate(text: str, max_length: int, suffix: str = '...') -> str:
-    """
-    Truncate text to a maximum length with suffix.
-    
-    Args:
-        text: The input text
-        max_length: Maximum length including suffix
-        suffix: Suffix to add when truncated (default: '...')
-    
-    Returns:
-        Truncated text
-    
-    Example:
-        >>> truncate("Hello World", 8)
-        'Hello...'
-    """
-    if text is None:
-        return ""
-    if len(text) <= max_length:
-        return text
-    return text[:max_length - len(suffix)] + suffix
-
-
-def pad_left(text: str, width: int, fill_char: str = ' ') -> str:
-    """
-    Pad text on the left to reach specified width.
-    
-    Args:
-        text: The input text
-        width: Desired total width
-        fill_char: Character to use for padding (default: ' ')
-    
-    Returns:
-        Left-padded text
-    
-    Example:
-        >>> pad_left("42", 5, '0')
-        '00042'
-    """
-    if text is None:
-        return fill_char * width
-    return text.rjust(width, fill_char)
-
-
-def pad_right(text: str, width: int, fill_char: str = ' ') -> str:
-    """
-    Pad text on the right to reach specified width.
-    
-    Args:
-        text: The input text
-        width: Desired total width
-        fill_char: Character to use for padding (default: ' ')
-    
-    Returns:
-        Right-padded text
-    
-    Example:
-        >>> pad_right("Hello", 10)
-        'Hello     '
-    """
-    if text is None:
-        return fill_char * width
-    return text.ljust(width, fill_char)
-
-
-def pad_center(text: str, width: int, fill_char: str = ' ') -> str:
-    """
-    Center text within specified width.
-    
-    Args:
-        text: The input text
-        width: Desired total width
-        fill_char: Character to use for padding (default: ' ')
-    
-    Returns:
-        Centered text
-    
-    Example:
-        >>> pad_center("Title", 20, '=')
-        '=======Title======='
-    """
-    if text is None:
-        return fill_char * width
-    return text.center(width, fill_char)
-
-
-def wrap_text(text: str, width: int = 80, break_long_words: bool = True) -> str:
-    """
-    Wrap text to specified width.
-    
-    Args:
-        text: The input text
-        width: Maximum line width (default: 80)
-        break_long_words: Whether to break words longer than width (default: True)
-    
-    Returns:
-        Wrapped text with newlines
-    
-    Example:
-        >>> wrap_text("Hello world this is a long line", width=15)
-        'Hello world\\nthis is a long\\nline'
-    """
-    if text is None:
-        return ""
-    if width <= 0:
-        raise ValueError(f"width must be positive, got {width}")
-    
-    words = text.split()
-    if not words:
-        return ""
-    
-    lines = []
-    current_line_parts = []
-    current_length = 0
-    
-    for word in words:
-        word_length = len(word)
-        
-        if break_long_words and word_length > width:
-            # Flush current line first
-            if current_line_parts:
-                lines.append(' '.join(current_line_parts))
-                current_line_parts = []
-                current_length = 0
-            
-            # Break long word into chunks
-            for i in range(0, word_length, width):
-                chunk = word[i:i + width]
-                if i + width < word_length:
-                    lines.append(chunk)
-                else:
-                    current_line_parts.append(chunk)
-                    current_length = len(chunk)
-        else:
-            # Check if word fits (add 1 for space if not first word)
-            space_needed = 1 if current_line_parts else 0
-            if current_length + word_length + space_needed <= width:
-                current_line_parts.append(word)
-                current_length += word_length + space_needed
-            else:
-                lines.append(' '.join(current_line_parts))
-                current_line_parts = [word]
-                current_length = word_length
-    
-    if current_line_parts:
-        lines.append(' '.join(current_line_parts))
-    
-    return '\n'.join(lines)
-
-
-def indent_text(text: str, spaces: int = 4, skip_first: bool = False) -> str:
-    """
-    Add indentation to each line of text.
-    
-    Args:
-        text: The input text
-        spaces: Number of spaces for indentation (default: 4)
-        skip_first: Whether to skip indenting the first line (default: False)
-    
-    Returns:
-        Indented text
-    
-    Example:
-        >>> indent_text("line1\\nline2", spaces=2)
-        '  line1\\n  line2'
-    """
-    if text is None:
-        return ""
-    
-    indent = ' ' * spaces
-    lines = text.split('\n')
-    
-    if skip_first:
-        return lines[0] + '\n' + '\n'.join(indent + line for line in lines[1:])
-    
-    return '\n'.join(indent + line for line in lines)
-
-
-# ============================================================================
-# Case Conversion Functions
-# ============================================================================
-
-def to_camel_case(text: str) -> str:
-    """
-    Convert text to camelCase.
-    
-    Args:
-        text: The input text (snake_case, kebab-case, or space-separated)
-    
-    Returns:
-        camelCase text
-    
-    Example:
-        >>> to_camel_case("hello_world")
-        'helloWorld'
-        >>> to_camel_case("Hello World")
-        'helloWorld'
-    """
-    if text is None:
-        return ""
-    
-    # Split on various separators
-    words = re.split(r'[-_\s]+', text.lower())
-    if not words:
-        return ""
-    
-    return words[0] + ''.join(word.capitalize() for word in words[1:])
-
-
-def to_pascal_case(text: str) -> str:
-    """
-    Convert text to PascalCase.
-    
-    Args:
-        text: The input text
-    
-    Returns:
-        PascalCase text
-    
-    Example:
-        >>> to_pascal_case("hello_world")
-        'HelloWorld'
-    """
-    if text is None:
-        return ""
-    
-    words = re.split(r'[-_\s]+', text.lower())
-    return ''.join(word.capitalize() for word in words)
-
-
-def to_snake_case(text: str) -> str:
-    """
-    Convert text to snake_case.
-    
-    Args:
-        text: The input text (camelCase, PascalCase, or space-separated)
-    
-    Returns:
-        snake_case text
-    
-    Example:
-        >>> to_snake_case("helloWorld")
-        'hello_world'
-    """
-    if text is None:
-        return ""
-    
-    # Handle camelCase and PascalCase
-    s1 = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', text)
-    s2 = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', s1)
-    
-    # Replace other separators with underscore
-    s3 = re.sub(r'[-\s]+', '_', s2)
-    
-    return s3.lower()
-
-
-def to_kebab_case(text: str) -> str:
-    """
-    Convert text to kebab-case.
-    
-    Args:
-        text: The input text
-    
-    Returns:
-        kebab-case text
-    
-    Example:
-        >>> to_kebab_case("helloWorld")
-        'hello-world'
-    """
-    if text is None:
-        return ""
-    
-    snake = to_snake_case(text)
-    return snake.replace('_', '-')
-
-
-def to_title_case(text: str) -> str:
-    """
-    Convert text to title case.
-    
-    Args:
-        text: The input text
-    
-    Returns:
-        Title case text
-    
-    Example:
-        >>> to_title_case("hello world")
-        'Hello World'
-    """
-    if text is None:
-        return ""
-    return text.title()
-
-
-# ============================================================================
-# Search and Replace Functions
-# ============================================================================
-
-def replace_all(text: str, replacements: Dict[str, str]) -> str:
-    """
-    Replace multiple patterns in text.
-    
-    Args:
-        text: The input text
-        replacements: Dictionary of {pattern: replacement}
-    
-    Returns:
-        Text with all replacements applied
-    
-    Example:
-        >>> replace_all("hello world", {"hello": "hi", "world": "there"})
-        'hi there'
-    """
-    if text is None:
-        return ""
-    
-    result = text
-    for pattern, replacement in replacements.items():
-        result = result.replace(pattern, replacement)
-    return result
-
-
-def replace_regex(text: str, pattern: Union[str, Pattern], replacement: Union[str, Callable]) -> str:
-    """
-    Replace all matches of a regex pattern in text.
-    
-    Args:
-        text: The input text
-        pattern: Regex pattern (string or compiled pattern)
-        replacement: Replacement string or function
-    
-    Returns:
-        Text with replacements applied
-    
-    Example:
-        >>> replace_regex("abc123def", r'\\d+', 'X')
-        'abcXdef'
-    """
-    if text is None:
-        return ""
-    return re.sub(pattern, replacement, text)
-
-
-def find_all(text: str, pattern: Union[str, Pattern]) -> List[str]:
-    """
-    Find all matches of a pattern in text.
-    
-    Args:
-        text: The input text
-        pattern: Regex pattern
-    
-    Returns:
-        List of all matches
-    
-    Example:
-        >>> find_all("abc123def456", r'\\d+')
-        ['123', '456']
-    """
-    if text is None:
-        return []
-    return re.findall(pattern, text)
-
-
-def find_first(text: str, pattern: Union[str, Pattern], default: str = '') -> str:
-    """
-    Find the first match of a pattern in text.
-    
-    Args:
-        text: The input text
-        pattern: Regex pattern
-        default: Default value if no match found (default: '')
-    
-    Returns:
-        First match or default value
-    
-    Example:
-        >>> find_first("abc123def", r'\\d+')
-        '123'
-    """
-    if text is None:
-        return default
-    match = re.search(pattern, text)
-    return match.group(0) if match else default
-
-
-# ============================================================================
-# Text Analysis Functions
-# ============================================================================
-
-def count_words(text: str) -> int:
-    """
-    Count the number of words in text.
-    
-    Args:
-        text: The input text
-    
-    Returns:
-        Word count
-    
-    Example:
-        >>> count_words("Hello world this is a test")
-        6
-    """
-    if text is None:
-        return 0
-    return len(text.split())
-
-
-def count_chars(text: str, include_spaces: bool = True) -> int:
-    """
-    Count the number of characters in text.
-    
-    Args:
-        text: The input text
-        include_spaces: Whether to include spaces (default: True)
-    
-    Returns:
-        Character count
-    
-    Example:
-        >>> count_chars("Hello World", include_spaces=False)
-        10
-    """
-    if text is None:
-        return 0
-    if include_spaces:
-        return len(text)
-    return len(text.replace(' ', ''))
-
-
-def count_lines(text: str) -> int:
-    """
-    Count the number of lines in text.
-    
-    Args:
-        text: The input text
-    
-    Returns:
-        Line count
-    
-    Example:
-        >>> count_lines("line1\\nline2\\nline3")
-        3
-    """
-    if text is None:
-        return 0
-    if not text:
-        return 0
-    return text.count('\n') + 1
-
-
-def word_frequency(text: str, lowercase: bool = True) -> Dict[str, int]:
-    """
-    Calculate word frequency in text.
-    
-    Args:
-        text: The input text
-        lowercase: Whether to normalize to lowercase (default: True)
-    
-    Returns:
-        Dictionary of {word: count}
-    
-    Example:
-        >>> word_frequency("hello world hello")
-        {'hello': 2, 'world': 1}
-    """
-    if text is None:
-        return {}
-    
-    words = text.split()
-    if lowercase:
-        words = [w.lower() for w in words]
-    
-    return dict(Counter(words))
-
-
-def char_frequency(text: str) -> Dict[str, int]:
-    """
-    Calculate character frequency in text.
-    
-    Args:
-        text: The input text
-    
-    Returns:
-        Dictionary of {char: count}
-    
-    Example:
-        >>> char_frequency("hello")
-        {'h': 1, 'e': 1, 'l': 2, 'o': 1}
-    """
-    if text is None:
-        return {}
-    return dict(Counter(text))
-
-
-def readability_score(text: str) -> Dict[str, float]:
-    """
-    Calculate basic readability metrics.
-    
-    Args:
-        text: The input text
-    
-    Returns:
-        Dictionary with readability metrics:
-        - avg_sentence_length: Average words per sentence
-        - avg_word_length: Average characters per word
-        - sentence_count: Number of sentences
-        - word_count: Number of words
-    
-    Example:
-        >>> readability_score("Hello world. This is a test.")
-        {'avg_sentence_length': 3.5, 'avg_word_length': 3.5, ...}
-    """
-    if text is None:
-        return {}
-    
-    # Split into sentences (simple approach)
-    sentences = re.split(r'[.!?]+', text)
-    sentences = [s.strip() for s in sentences if s.strip()]
-    
-    words = text.split()
-    
-    if not sentences or not words:
+@dataclass
+class TextStats:
+    """Text statistics."""
+    char_count: int = 0
+    char_count_no_spaces: int = 0
+    word_count: int = 0
+    sentence_count: int = 0
+    paragraph_count: int = 0
+    line_count: int = 0
+    avg_word_length: float = 0.0
+    avg_sentence_length: float = 0.0
+    unique_words: int = 0
+    readability_score: float = 0.0
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
         return {
-            'avg_sentence_length': 0.0,
-            'avg_word_length': 0.0,
-            'sentence_count': 0,
-            'word_count': 0
+            'char_count': self.char_count,
+            'char_count_no_spaces': self.char_count_no_spaces,
+            'word_count': self.word_count,
+            'sentence_count': self.sentence_count,
+            'paragraph_count': self.paragraph_count,
+            'line_count': self.line_count,
+            'avg_word_length': self.avg_word_length,
+            'avg_sentence_length': self.avg_sentence_length,
+            'unique_words': self.unique_words,
+            'readability_score': self.readability_score,
         }
+
+
+@dataclass
+class WordInfo:
+    """Word information."""
+    word: str
+    count: int = 1
+    positions: List[int] = field(default_factory=list)
+    is_stop_word: bool = False
+    is_number: bool = False
+    is_mixed_case: bool = False
+
+
+@dataclass
+class TextAnalysis:
+    """Comprehensive text analysis result."""
+    stats: TextStats
+    word_frequencies: Dict[str, int]
+    char_frequencies: Dict[str, int]
+    ngrams: Dict[int, List[Tuple[str, ...]]]
+    keywords: List[str]
+    sentences: List[str]
+    words: List[str]
     
-    total_word_length = sum(len(word) for word in words)
-    
-    return {
-        'avg_sentence_length': len(words) / len(sentences),
-        'avg_word_length': total_word_length / len(words),
-        'sentence_count': len(sentences),
-        'word_count': len(words)
-    }
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            'stats': self.stats.to_dict(),
+            'word_frequencies': self.word_frequencies,
+            'char_frequencies': self.char_frequencies,
+            'ngrams': {k: [list(t) for t in v] for k, v in self.ngrams.items()},
+            'keywords': self.keywords,
+            'sentences': self.sentences,
+            'words': self.words,
+        }
 
 
-# ============================================================================
-# Encoding and Escaping Functions
-# ============================================================================
+# =============================================================================
+# Main Utility Class
+# =============================================================================
 
-def escape_html(text: str) -> str:
+class TextUtils:
     """
-    Escape HTML special characters.
-    
-    Args:
-        text: The input text
-    
-    Returns:
-        HTML-escaped text
-    
-    Example:
-        >>> escape_html("<script>alert('XSS')</script>")
-        '&lt;script&gt;alert(&#x27;XSS&#x27;)&lt;/script&gt;'
+    Comprehensive text utility class for formatting, analysis,
+    transformation, cleaning, and statistics.
     """
-    if text is None:
-        return ""
     
-    replacements = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#x27;',
-    }
+    def __init__(self, stop_words: Optional[Set[str]] = None):
+        """
+        Initialize TextUtils.
+        
+        Args:
+            stop_words: Custom stop words set. Defaults to English stop words.
+        """
+        self.stop_words = stop_words or STOP_WORDS_EN
     
-    result = text
-    for char, replacement in replacements.items():
-        result = result.replace(char, replacement)
-    return result
+    # -------------------------------------------------------------------------
+    # Formatting
+    # -------------------------------------------------------------------------
+    
+    def to_case(self, text: str, case: TextCase, separator: str = '_') -> str:
+        """
+        Convert text to specified case style.
+        
+        Args:
+            text: Input text
+            case: Target case style
+            separator: Separator for compound words (default: '_')
+        
+        Returns:
+            Formatted text
+        """
+        # Normalize: split into words
+        words = self.split_into_words(text)
+        words = [w.lower() for w in words if w]
+        
+        if case == TextCase.LOWER:
+            return text.lower()
+        elif case == TextCase.UPPER:
+            return text.upper()
+        elif case == TextCase.TITLE:
+            return text.title()
+        elif case == TextCase.SENTENCE:
+            return self.to_sentence_case(text)
+        elif case == TextCase.CAMEL:
+            if not words:
+                return ''
+            return words[0] + ''.join(w.capitalize() for w in words[1:])
+        elif case == TextCase.PASCAL:
+            return ''.join(w.capitalize() for w in words)
+        elif case == TextCase.SNAKE:
+            return separator.join(words)
+        elif case == TextCase.KEBAB:
+            return '-'.join(words)
+        elif case == TextCase.CONSTANT:
+            return '_'.join(w.upper() for w in words)
+        else:
+            return text
+    
+    def to_sentence_case(self, text: str) -> str:
+        """
+        Convert text to sentence case (first letter capitalized, rest lower).
+        
+        Args:
+            text: Input text
+        
+        Returns:
+            Sentence case text
+        """
+        if not text:
+            return text
+        
+        # Find first alphabetic character
+        for i, char in enumerate(text):
+            if char.isalpha():
+                return text[:i] + char.upper() + text[i+1:].lower()
+        return text.lower()
+    
+    def split_into_words(self, text: str) -> List[str]:
+        """
+        Split text into words, handling various separators.
+        
+        Args:
+            text: Input text
+        
+        Returns:
+            List of words
+        """
+        # Replace common separators with space
+        normalized = re.sub(r'[-_\s/.\\]+', ' ', text)
+        # Handle camelCase and PascalCase
+        normalized = re.sub(r'([a-z])([A-Z])', r'\1 \2', normalized)
+        # Split and filter
+        return [w.strip() for w in normalized.split() if w.strip()]
+    
+    def pad(self, text: str, width: int, side: str = 'left', 
+            char: str = ' ', truncate: bool = False) -> str:
+        """
+        Pad text to specified width.
+        
+        Args:
+            text: Input text
+            width: Target width
+            side: 'left', 'right', 'both', or 'center'
+            char: Padding character
+            truncate: If True, truncate text if longer than width
+        
+        Returns:
+            Padded text
+        """
+        if truncate and len(text) > width:
+            if side == 'left':
+                return text[-width:]
+            elif side == 'right':
+                return text[:width]
+            else:
+                # Center truncate
+                half = width // 2
+                return text[:half] + text[-(width - half):]
+        
+        if side == 'left':
+            return text.rjust(width, char)
+        elif side == 'right':
+            return text.ljust(width, char)
+        elif side == 'center':
+            return text.center(width, char)
+        elif side == 'both':
+            padding = width - len(text)
+            left = padding // 2
+            right = padding - left
+            return char * left + text + char * right
+        else:
+            return text
+    
+    def wrap(self, text: str, width: int = 80, 
+             break_long_words: bool = True) -> List[str]:
+        """
+        Wrap text to specified width.
+        
+        Args:
+            text: Input text
+            width: Maximum line width
+            break_long_words: If True, break words longer than width
+        
+        Returns:
+            List of wrapped lines
+        """
+        words = text.split()
+        if not words:
+            return []
+        
+        lines = []
+        current_line = []
+        current_length = 0
+        
+        for word in words:
+            word_len = len(word)
+            
+            if current_length + word_len + len(current_line) <= width:
+                current_line.append(word)
+                current_length += word_len
+            else:
+                if current_line:
+                    lines.append(' '.join(current_line))
+                current_line = [word]
+                current_length = word_len
+                
+                # Handle very long words
+                if word_len > width and break_long_words:
+                    while len(current_line[0]) > width:
+                        lines.append(current_line[0][:width])
+                        current_line[0] = current_line[0][width:]
+        
+        if current_line:
+            lines.append(' '.join(current_line))
+        
+        return lines
+    
+    # -------------------------------------------------------------------------
+    # Cleaning
+    # -------------------------------------------------------------------------
+    
+    def clean(self, text: str, 
+              remove_punctuation: bool = False,
+              remove_digits: bool = False,
+              remove_extra_spaces: bool = True,
+              normalize_unicode: bool = True,
+              strip: bool = True) -> str:
+        """
+        Clean text with various options.
+        
+        Args:
+            text: Input text
+            remove_punctuation: Remove punctuation marks
+            remove_digits: Remove digits
+            remove_extra_spaces: Normalize whitespace
+            normalize_unicode: Normalize Unicode characters
+            strip: Strip leading/trailing whitespace
+        
+        Returns:
+            Cleaned text
+        """
+        result = text
+        
+        if normalize_unicode:
+            result = unicodedata.normalize('NFKC', result)
+        
+        if remove_punctuation:
+            result = ''.join(c for c in result if c not in PUNCTUATION_ALL)
+        
+        if remove_digits:
+            result = ''.join(c for c in result if not c.isdigit())
+        
+        if remove_extra_spaces:
+            result = re.sub(r'\s+', ' ', result)
+        
+        if strip:
+            result = result.strip()
+        
+        return result
+    
+    def remove_html(self, text: str) -> str:
+        """
+        Remove HTML tags from text.
+        
+        Args:
+            text: Input text with HTML
+        
+        Returns:
+            Text without HTML tags
+        """
+        # Remove HTML tags
+        result = re.sub(r'<[^>]+>', '', text)
+        # Decode common HTML entities
+        html_entities = {
+            '&nbsp;': ' ', '&amp;': '&', '&lt;': '<', '&gt;': '>',
+            '&quot;': '"', '&#39;': "'", '&apos;': "'", '&ndash;': '–',
+            '&mdash;': '—', '&lsquo;': ''', '&rsquo;': ''',
+            '&ldquo;': '"', '&rdquo;': '"', '&hellip;': '…',
+            '&copy;': '©', '&reg;': '®', '&trade;': '™',
+        }
+        for entity, char in html_entities.items():
+            result = result.replace(entity, char)
+        return result
+    
+    def remove_urls(self, text: str, replace_with: str = '') -> str:
+        """
+        Remove URLs from text.
+        
+        Args:
+            text: Input text
+            replace_with: Replacement string
+        
+        Returns:
+            Text without URLs
+        """
+        url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+'
+        return re.sub(url_pattern, replace_with, text)
+    
+    def remove_emails(self, text: str, replace_with: str = '') -> str:
+        """
+        Remove email addresses from text.
+        
+        Args:
+            text: Input text
+            replace_with: Replacement string
+        
+        Returns:
+            Text without email addresses
+        """
+        email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+        return re.sub(email_pattern, replace_with, text)
+    
+    def normalize_whitespace(self, text: str) -> str:
+        """
+        Normalize all whitespace to single spaces.
+        
+        Args:
+            text: Input text
+        
+        Returns:
+            Text with normalized whitespace
+        """
+        return ' '.join(text.split())
+    
+    def normalize_line_endings(self, text: str, style: str = 'unix') -> str:
+        """
+        Normalize line endings to specified style.
+        
+        Args:
+            text: Input text
+            style: 'unix' (\n), 'windows' (\r\n), or 'old_mac' (\r)
+        
+        Returns:
+            Text with normalized line endings
+        """
+        # First normalize all to \n
+        text = text.replace('\r\n', '\n').replace('\r', '\n')
+        
+        if style == 'windows':
+            return text.replace('\n', '\r\n')
+        elif style == 'old_mac':
+            return text.replace('\n', '\r')
+        else:  # unix
+            return text
+    
+    # -------------------------------------------------------------------------
+    # Analysis
+    # -------------------------------------------------------------------------
+    
+    def analyze(self, text: str, top_n: int = 10, 
+                ngram_range: Tuple[int, int] = (1, 2)) -> TextAnalysis:
+        """
+        Perform comprehensive text analysis.
+        
+        Args:
+            text: Input text
+            top_n: Number of top items to return
+            ngram_range: (min_n, max_n) for n-gram analysis
+        
+        Returns:
+            TextAnalysis object with all analysis results
+        """
+        stats = self.get_stats(text)
+        words = self.extract_words(text)
+        sentences = self.split_sentences(text)
+        
+        # Word frequencies
+        word_counts = Counter(w.lower() for w in words)
+        word_frequencies = dict(word_counts.most_common(top_n))
+        
+        # Character frequencies
+        char_counts = Counter(c for c in text if not c.isspace())
+        char_frequencies = dict(char_counts.most_common(top_n))
+        
+        # N-grams
+        ngrams = {}
+        for n in range(ngram_range[0], min(ngram_range[1] + 1, 4)):
+            ngrams[n] = self.get_ngrams(words, n)[:top_n]
+        
+        # Keywords (non-stop words, sorted by frequency)
+        keywords = [
+            w for w, _ in word_counts.most_common(top_n * 2)
+            if w.lower() not in self.stop_words and len(w) > 2
+        ][:top_n]
+        
+        return TextAnalysis(
+            stats=stats,
+            word_frequencies=word_frequencies,
+            char_frequencies=char_frequencies,
+            ngrams=ngrams,
+            keywords=keywords,
+            sentences=sentences,
+            words=words,
+        )
+    
+    def get_stats(self, text: str) -> TextStats:
+        """
+        Get comprehensive text statistics.
+        
+        Args:
+            text: Input text
+        
+        Returns:
+            TextStats object
+        """
+        if not text:
+            return TextStats()
+        
+        chars = len(text)
+        chars_no_spaces = len(text.replace(' ', '').replace('\t', ''))
+        
+        words = self.extract_words(text)
+        word_count = len(words)
+        
+        sentences = self.split_sentences(text)
+        sentence_count = len(sentences)
+        
+        paragraphs = [p for p in text.split('\n\n') if p.strip()]
+        paragraph_count = len(paragraphs)
+        
+        lines = [l for l in text.split('\n') if l.strip()]
+        line_count = len(lines)
+        
+        avg_word_length = sum(len(w) for w in words) / word_count if word_count else 0
+        avg_sentence_length = word_count / sentence_count if sentence_count else 0
+        
+        unique_words = len(set(w.lower() for w in words))
+        
+        # Simple readability score (Flesch-like)
+        syllable_count = sum(self.count_syllables(w) for w in words)
+        if sentence_count > 0 and word_count > 0:
+            readability_score = 206.835 - 1.015 * (word_count / sentence_count) - \
+                               84.6 * (syllable_count / word_count)
+            readability_score = max(0, min(100, readability_score))
+        else:
+            readability_score = 0
+        
+        return TextStats(
+            char_count=chars,
+            char_count_no_spaces=chars_no_spaces,
+            word_count=word_count,
+            sentence_count=sentence_count,
+            paragraph_count=paragraph_count,
+            line_count=line_count,
+            avg_word_length=avg_word_length,
+            avg_sentence_length=avg_sentence_length,
+            unique_words=unique_words,
+            readability_score=readability_score,
+        )
+    
+    def count_syllables(self, word: str) -> int:
+        """
+        Estimate syllable count in a word.
+        
+        Args:
+            word: Input word
+        
+        Returns:
+            Estimated syllable count
+        """
+        word = word.lower()
+        if len(word) <= 3:
+            return 1
+        
+        # Count vowel groups
+        vowels = 'aeiouy'
+        count = 0
+        prev_vowel = False
+        
+        for char in word:
+            is_vowel = char in vowels
+            if is_vowel and not prev_vowel:
+                count += 1
+            prev_vowel = is_vowel
+        
+        # Adjust for silent e
+        if word.endswith('e') and count > 1:
+            count -= 1
+        
+        # Adjust for -le endings
+        if word.endswith('le') and len(word) > 2 and word[-3] not in vowels:
+            count += 1
+        
+        return max(1, count)
+    
+    def extract_words(self, text: str, min_length: int = 1) -> List[str]:
+        """
+        Extract words from text.
+        
+        Args:
+            text: Input text
+            min_length: Minimum word length
+        
+        Returns:
+            List of words
+        """
+        words = re.findall(r'\b\w+\b', text)
+        return [w for w in words if len(w) >= min_length]
+    
+    def split_sentences(self, text: str) -> List[str]:
+        """
+        Split text into sentences.
+        
+        Args:
+            text: Input text
+        
+        Returns:
+            List of sentences
+        """
+        # Handle common abbreviations
+        abbreviations = r'(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|vs|etc|Inc|Ltd|Co|Corp)\.'
+        
+        # Split on sentence-ending punctuation
+        sentences = re.split(
+            r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?|!)\s',
+            text
+        )
+        
+        return [s.strip() for s in sentences if s.strip()]
+    
+    def get_ngrams(self, words: List[str], n: int = 2) -> List[Tuple[str, ...]]:
+        """
+        Generate n-grams from word list.
+        
+        Args:
+            words: List of words
+            n: N-gram size
+        
+        Returns:
+            List of n-grams
+        """
+        if len(words) < n:
+            return []
+        
+        return [tuple(words[i:i+n]) for i in range(len(words) - n + 1)]
+    
+    def keyword_density(self, text: str, 
+                        min_length: int = 3) -> List[Tuple[str, float]]:
+        """
+        Calculate keyword density.
+        
+        Args:
+            text: Input text
+            min_length: Minimum word length
+        
+        Returns:
+            List of (keyword, density) tuples
+        """
+        words = self.extract_words(text, min_length)
+        total = len(words)
+        
+        if total == 0:
+            return []
+        
+        # Filter stop words
+        keywords = [w.lower() for w in words if w.lower() not in self.stop_words]
+        counts = Counter(keywords)
+        
+        return [(word, count / total * 100) 
+                for word, count in counts.most_common()]
+    
+    # -------------------------------------------------------------------------
+    # Transformation
+    # -------------------------------------------------------------------------
+    
+    def reverse(self, text: str, preserve_words: bool = False) -> str:
+        """
+        Reverse text.
+        
+        Args:
+            text: Input text
+            preserve_words: If True, reverse word order but keep words intact
+        
+        Returns:
+            Reversed text
+        """
+        if preserve_words:
+            return ' '.join(text.split()[::-1])
+        return text[::-1]
+    
+    def rotate(self, text: str, shift: int) -> str:
+        """
+        Rotate text characters.
+        
+        Args:
+            text: Input text
+            shift: Number of positions to shift (positive = right, negative = left)
+        
+        Returns:
+            Rotated text
+        """
+        if not text:
+            return text
+        shift = shift % len(text)
+        return text[-shift:] + text[:-shift]
+    
+    def alternate_case(self, text: str) -> str:
+        """
+        Convert text to alternating case.
+        
+        Args:
+            text: Input text
+        
+        Returns:
+            Alternating case text
+        """
+        result = []
+        upper = True
+        for char in text:
+            if char.isalpha():
+                result.append(char.upper() if upper else char.lower())
+                upper = not upper
+            else:
+                result.append(char)
+        return ''.join(result)
+    
+    def mirror(self, text: str) -> str:
+        """
+        Create mirrored text (text + reversed text).
+        
+        Args:
+            text: Input text
+        
+        Returns:
+            Mirrored text
+        """
+        return text + text[::-1]
+    
+    def truncate(self, text: str, max_length: int, 
+                 suffix: str = '...', align: str = 'start') -> str:
+        """
+        Truncate text to maximum length.
+        
+        Args:
+            text: Input text
+            max_length: Maximum length
+            suffix: Suffix to add
+            align: 'start', 'end', or 'middle'
+        
+        Returns:
+            Truncated text
+        """
+        if len(text) <= max_length:
+            return text
+        
+        suffix_len = len(suffix)
+        if max_length <= suffix_len:
+            return suffix[:max_length]
+        
+        available = max_length - suffix_len
+        
+        if align == 'start':
+            return text[:available] + suffix
+        elif align == 'middle':
+            half = available // 2
+            return text[:half] + suffix + text[-(available - half):]
+        else:  # end
+            return suffix + text[-available:]
+    
+    def abbreviate(self, text: str, max_words: int = 3) -> str:
+        """
+        Create abbreviation from text (first letters of words).
+        
+        Args:
+            text: Input text
+            max_words: Maximum words to abbreviate
+        
+        Returns:
+            Abbreviation
+        """
+        words = self.split_into_words(text)
+        return ''.join(w[0].upper() for w in words[:max_words])
+    
+    # -------------------------------------------------------------------------
+    # Hashing and Encoding
+    # -------------------------------------------------------------------------
+    
+    def hash_text(self, text: str, algorithm: str = 'md5') -> str:
+        """
+        Hash text using specified algorithm.
+        
+        Args:
+            text: Input text
+            algorithm: Hash algorithm ('md5', 'sha1', 'sha256', 'sha512')
+        
+        Returns:
+            Hex digest
+        """
+        algorithms = {
+            'md5': hashlib.md5,
+            'sha1': hashlib.sha1,
+            'sha256': hashlib.sha256,
+            'sha512': hashlib.sha512,
+        }
+        
+        if algorithm not in algorithms:
+            raise ValueError(f"Unsupported algorithm: {algorithm}")
+        
+        return algorithms[algorithm](text.encode()).hexdigest()
+    
+    def to_base64(self, text: str) -> str:
+        """
+        Convert text to Base64 (using standard library).
+        
+        Args:
+            text: Input text
+        
+        Returns:
+            Base64 encoded string
+        """
+        import base64
+        return base64.b64encode(text.encode()).decode()
+    
+    def from_base64(self, text: str) -> str:
+        """
+        Decode Base64 to text.
+        
+        Args:
+            text: Base64 encoded string
+        
+        Returns:
+            Decoded text
+        """
+        import base64
+        return base64.b64decode(text.encode()).decode()
+    
+    # -------------------------------------------------------------------------
+    # Search and Replace
+    # -------------------------------------------------------------------------
+    
+    def find_all(self, text: str, pattern: str, 
+                 case_sensitive: bool = True) -> List[int]:
+        """
+        Find all occurrences of pattern in text.
+        
+        Args:
+            text: Input text
+            pattern: Pattern to find
+            case_sensitive: Case sensitivity
+        
+        Returns:
+            List of start positions
+        """
+        if not case_sensitive:
+            text = text.lower()
+            pattern = pattern.lower()
+        
+        positions = []
+        start = 0
+        while True:
+            pos = text.find(pattern, start)
+            if pos == -1:
+                break
+            positions.append(pos)
+            start = pos + 1
+        
+        return positions
+    
+    def replace_all(self, text: str, replacements: Dict[str, str],
+                    case_sensitive: bool = True) -> str:
+        """
+        Replace multiple patterns in text.
+        
+        Args:
+            text: Input text
+            replacements: Dict of {pattern: replacement}
+            case_sensitive: Case sensitivity
+        
+        Returns:
+            Text with replacements
+        """
+        result = text
+        
+        if not case_sensitive:
+            for pattern, replacement in replacements.items():
+                result = re.sub(
+                    re.escape(pattern),
+                    replacement,
+                    result,
+                    flags=re.IGNORECASE
+                )
+        else:
+            for pattern, replacement in replacements.items():
+                result = result.replace(pattern, replacement)
+        
+        return result
+    
+    def highlight(self, text: str, terms: List[str],
+                  marker: str = '**') -> str:
+        """
+        Highlight terms in text.
+        
+        Args:
+            text: Input text
+            terms: Terms to highlight
+            marker: Marker to wrap terms
+        
+        Returns:
+            Text with highlighted terms
+        """
+        result = text
+        for term in sorted(terms, key=len, reverse=True):
+            pattern = re.compile(re.escape(term), re.IGNORECASE)
+            result = pattern.sub(f'{marker}\\g<0>{marker}', result)
+        return result
+    
+    # -------------------------------------------------------------------------
+    # Comparison
+    # -------------------------------------------------------------------------
+    
+    def similarity(self, text1: str, text2: str) -> float:
+        """
+        Calculate text similarity (Jaccard index on words).
+        
+        Args:
+            text1: First text
+            text2: Second text
+        
+        Returns:
+            Similarity score (0.0 to 1.0)
+        """
+        words1 = set(w.lower() for w in self.extract_words(text1))
+        words2 = set(w.lower() for w in self.extract_words(text2))
+        
+        if not words1 and not words2:
+            return 1.0
+        if not words1 or not words2:
+            return 0.0
+        
+        intersection = words1 & words2
+        union = words1 | words2
+        
+        return len(intersection) / len(union)
+    
+    def contains_all(self, text: str, terms: List[str],
+                     case_sensitive: bool = False) -> bool:
+        """
+        Check if text contains all terms.
+        
+        Args:
+            text: Input text
+            terms: Terms to check
+            case_sensitive: Case sensitivity
+        
+        Returns:
+            True if all terms found
+        """
+        if not case_sensitive:
+            text = text.lower()
+            terms = [t.lower() for t in terms]
+        
+        return all(term in text for term in terms)
+    
+    def contains_any(self, text: str, terms: List[str],
+                     case_sensitive: bool = False) -> bool:
+        """
+        Check if text contains any term.
+        
+        Args:
+            text: Input text
+            terms: Terms to check
+            case_sensitive: Case sensitivity
+        
+        Returns:
+            True if any term found
+        """
+        if not case_sensitive:
+            text = text.lower()
+            terms = [t.lower() for t in terms]
+        
+        return any(term in text for term in terms)
+    
+    def levenshtein_distance(self, s1: str, s2: str) -> int:
+        """
+        Calculate Levenshtein distance between two strings.
+        
+        Args:
+            s1: First string
+            s2: Second string
+        
+        Returns:
+            Edit distance
+        """
+        if len(s1) < len(s2):
+            return self.levenshtein_distance(s2, s1)
+        
+        if len(s2) == 0:
+            return len(s1)
+        
+        previous_row = range(len(s2) + 1)
+        for i, c1 in enumerate(s1):
+            current_row = [i + 1]
+            for j, c2 in enumerate(s2):
+                insertions = previous_row[j + 1] + 1
+                deletions = current_row[j] + 1
+                substitutions = previous_row[j] + (c1 != c2)
+                current_row.append(min(insertions, deletions, substitutions))
+            previous_row = current_row
+        
+        return previous_row[-1]
 
 
-def unescape_html(text: str) -> str:
-    """
-    Unescape HTML entities.
-    
-    Args:
-        text: HTML-escaped text
-    
-    Returns:
-        Unescaped text
-    
-    Example:
-        >>> unescape_html("&lt;hello&gt;")
-        '<hello>'
-    """
-    if text is None:
-        return ""
-    
-    replacements = {
-        '&amp;': '&',
-        '&lt;': '<',
-        '&gt;': '>',
-        '&quot;': '"',
-        '&#x27;': "'",
-        '&apos;': "'",
-        '&nbsp;': ' ',
-    }
-    
-    result = text
-    for entity, char in replacements.items():
-        result = result.replace(entity, char)
-    return result
+# =============================================================================
+# Module-level Functions (Convenience)
+# =============================================================================
+
+# Default instance for module-level functions
+_default_utils = TextUtils()
 
 
-def escape_regex(text: str) -> str:
-    """
-    Escape special regex characters in text.
-    
-    Args:
-        text: The input text
-    
-    Returns:
-        Regex-escaped text
-    
-    Example:
-        >>> escape_regex("price: $100")
-        'price: \\$100'
-    """
-    if text is None:
-        return ""
-    return re.escape(text)
+def to_case(text: str, case: TextCase, separator: str = '_') -> str:
+    """Convert text to specified case style."""
+    return _default_utils.to_case(text, case, separator)
 
 
-def hash_text(text: str, algorithm: str = 'sha256') -> str:
-    """
-    Generate a hash of the text.
-    
-    Args:
-        text: The input text
-        algorithm: Hash algorithm ('md5', 'sha1', 'sha256', 'sha512') (default: 'sha256')
-    
-    Returns:
-        Hexadecimal hash string
-    
-    Example:
-        >>> hash_text("hello", algorithm='md5')
-        '5d41402abc4b2a76b9719d911017c592'
-    """
-    if text is None:
-        return ""
-    
-    algorithms = {
-        'md5': hashlib.md5,
-        'sha1': hashlib.sha1,
-        'sha256': hashlib.sha256,
-        'sha512': hashlib.sha512,
-    }
-    
-    if algorithm not in algorithms:
-        raise ValueError(f"Unsupported algorithm: {algorithm}. Choose from {list(algorithms.keys())}")
-    
-    return algorithms[algorithm](text.encode('utf-8')).hexdigest()
+def to_sentence_case(text: str) -> str:
+    """Convert text to sentence case."""
+    return _default_utils.to_sentence_case(text)
 
 
-# ============================================================================
-# String Comparison Functions
-# ============================================================================
+def clean(text: str, **kwargs) -> str:
+    """Clean text with various options."""
+    return _default_utils.clean(text, **kwargs)
+
+
+def analyze(text: str, **kwargs) -> TextAnalysis:
+    """Perform comprehensive text analysis."""
+    return _default_utils.analyze(text, **kwargs)
+
+
+def get_stats(text: str) -> TextStats:
+    """Get text statistics."""
+    return _default_utils.get_stats(text)
+
+
+def extract_words(text: str, min_length: int = 1) -> List[str]:
+    """Extract words from text."""
+    return _default_utils.extract_words(text, min_length)
+
+
+def split_sentences(text: str) -> List[str]:
+    """Split text into sentences."""
+    return _default_utils.split_sentences(text)
+
+
+def get_ngrams(words: List[str], n: int = 2) -> List[Tuple[str, ...]]:
+    """Generate n-grams from word list."""
+    return _default_utils.get_ngrams(words, n)
+
+
+def remove_html(text: str) -> str:
+    """Remove HTML tags from text."""
+    return _default_utils.remove_html(text)
+
+
+def remove_urls(text: str, replace_with: str = '') -> str:
+    """Remove URLs from text."""
+    return _default_utils.remove_urls(text, replace_with)
+
+
+def normalize_whitespace(text: str) -> str:
+    """Normalize whitespace."""
+    return _default_utils.normalize_whitespace(text)
+
+
+def truncate(text: str, max_length: int, **kwargs) -> str:
+    """Truncate text."""
+    return _default_utils.truncate(text, max_length, **kwargs)
+
+
+def hash_text(text: str, algorithm: str = 'md5') -> str:
+    """Hash text."""
+    return _default_utils.hash_text(text, algorithm)
+
+
+def similarity(text1: str, text2: str) -> float:
+    """Calculate text similarity."""
+    return _default_utils.similarity(text1, text2)
+
 
 def levenshtein_distance(s1: str, s2: str) -> int:
-    """
-    Calculate the Levenshtein distance between two strings.
-    
-    Args:
-        s1: First string
-        s2: Second string
-    
-    Returns:
-        Edit distance between the strings
-    
-    Example:
-        >>> levenshtein_distance("kitten", "sitting")
-        3
-    """
-    if s1 is None:
-        s1 = ""
-    if s2 is None:
-        s2 = ""
-    
-    if len(s1) < len(s2):
-        return levenshtein_distance(s2, s1)
-    
-    if len(s2) == 0:
-        return len(s1)
-    
-    previous_row = range(len(s2) + 1)
-    
-    for i, c1 in enumerate(s1):
-        current_row = [i + 1]
-        for j, c2 in enumerate(s2):
-            insertions = previous_row[j + 1] + 1
-            deletions = current_row[j] + 1
-            substitutions = previous_row[j] + (c1 != c2)
-            current_row.append(min(insertions, deletions, substitutions))
-        previous_row = current_row
-    
-    return previous_row[-1]
+    """Calculate Levenshtein distance."""
+    return _default_utils.levenshtein_distance(s1, s2)
 
 
-def similarity_ratio(s1: str, s2: str) -> float:
-    """
-    Calculate similarity ratio between two strings (0.0 to 1.0).
-    
-    Args:
-        s1: First string
-        s2: Second string
-    
-    Returns:
-        Similarity ratio (1.0 = identical, 0.0 = completely different)
-    
-    Example:
-        >>> similarity_ratio("hello", "hello")
-        1.0
-        >>> similarity_ratio("hello", "hallo")
-        0.8
-    """
-    if s1 is None:
-        s1 = ""
-    if s2 is None:
-        s2 = ""
-    
-    if not s1 and not s2:
-        return 1.0
-    
-    distance = levenshtein_distance(s1, s2)
-    max_length = max(len(s1), len(s2))
-    
-    return 1.0 - (distance / max_length)
+# =============================================================================
+# CLI Interface
+# =============================================================================
 
-
-def is_palindrome(text: str, ignore_case: bool = True, ignore_spaces: bool = True) -> bool:
-    """
-    Check if text is a palindrome.
+if __name__ == '__main__':
+    import sys
+    import json
     
-    Args:
-        text: The input text
-        ignore_case: Whether to ignore case (default: True)
-        ignore_spaces: Whether to ignore spaces (default: True)
+    utils = TextUtils()
     
-    Returns:
-        True if palindrome, False otherwise
+    if len(sys.argv) < 2:
+        print("Text Utils - Command Line Interface")
+        print("Usage: python mod.py <command> [args]")
+        print("\nCommands:")
+        print("  stats <text>       - Get text statistics")
+        print("  clean <text>       - Clean text")
+        print("  case <text> <style> - Convert case (lower/upper/title/snake/kebab)")
+        print("  analyze <text>     - Full text analysis")
+        print("  hash <text>        - Hash text (MD5)")
+        print("  similarity <t1> <t2> - Compare two texts")
+        sys.exit(0)
     
-    Example:
-        >>> is_palindrome("A man a plan a canal Panama")
-        True
-    """
-    if text is None:
-        return False
+    command = sys.argv[1]
     
-    processed = text
-    if ignore_case:
-        processed = processed.lower()
-    if ignore_spaces:
-        processed = processed.replace(' ', '')
+    if command == 'stats' and len(sys.argv) > 2:
+        text = ' '.join(sys.argv[2:])
+        stats = utils.get_stats(text)
+        print(json.dumps(stats.to_dict(), indent=2))
     
-    return processed == processed[::-1]
-
-
-# ============================================================================
-# Utility Functions
-# ============================================================================
-
-def is_empty(text: str) -> bool:
-    """
-    Check if text is empty or whitespace-only.
+    elif command == 'clean' and len(sys.argv) > 2:
+        text = ' '.join(sys.argv[2:])
+        print(utils.clean(text, remove_extra_spaces=True))
     
-    Args:
-        text: The input text
+    elif command == 'case' and len(sys.argv) > 3:
+        text = sys.argv[2]
+        case_style = sys.argv[3]
+        try:
+            case = TextCase[case_style.upper()]
+            print(utils.to_case(text, case))
+        except KeyError:
+            print(f"Invalid case style: {case_style}")
+            sys.exit(1)
     
-    Returns:
-        True if empty or whitespace-only
+    elif command == 'analyze' and len(sys.argv) > 2:
+        text = ' '.join(sys.argv[2:])
+        analysis = utils.analyze(text)
+        print(json.dumps(analysis.to_dict(), indent=2, ensure_ascii=False))
     
-    Example:
-        >>> is_empty("   ")
-        True
-    """
-    if text is None:
-        return True
-    return len(text.strip()) == 0
-
-
-def is_not_empty(text: str) -> bool:
-    """
-    Check if text is not empty.
+    elif command == 'hash' and len(sys.argv) > 2:
+        text = ' '.join(sys.argv[2:])
+        print(f"MD5: {utils.hash_text(text, 'md5')}")
+        print(f"SHA256: {utils.hash_text(text, 'sha256')}")
     
-    Args:
-        text: The input text
+    elif command == 'similarity' and len(sys.argv) > 3:
+        text1 = sys.argv[2]
+        text2 = ' '.join(sys.argv[3:])
+        sim = utils.similarity(text1, text2)
+        print(f"Similarity: {sim:.2%}")
     
-    Returns:
-        True if not empty
-    
-    Example:
-        >>> is_not_empty("hello")
-        True
-    """
-    return not is_empty(text)
-
-
-def reverse_string(text: str) -> str:
-    """
-    Reverse a string.
-    
-    Args:
-        text: The input text
-    
-    Returns:
-        Reversed string
-    
-    Example:
-        >>> reverse_string("hello")
-        'olleh'
-    """
-    if text is None:
-        return ""
-    return text[::-1]
-
-
-def repeat_string(text: str, count: int, separator: str = '') -> str:
-    """
-    Repeat a string multiple times.
-    
-    Args:
-        text: The input text
-        count: Number of times to repeat
-        separator: Separator between repetitions (default: '')
-    
-    Returns:
-        Repeated string
-    
-    Example:
-        >>> repeat_string("ab", 3, separator='-')
-        'ab-ab-ab'
-    """
-    if text is None:
-        return ""
-    if count <= 0:
-        return ""
-    return separator.join([text] * count)
-
-
-def generate_random_string(length: int, 
-                           use_letters: bool = True,
-                           use_digits: bool = True,
-                           use_special: bool = False) -> str:
-    """
-    Generate a random string.
-    
-    Args:
-        length: Length of the string to generate
-        use_letters: Whether to include letters (default: True)
-        use_digits: Whether to include digits (default: True)
-        use_special: Whether to include special characters (default: False)
-    
-    Returns:
-        Random string
-    
-    Example:
-        >>> generate_random_string(10)  # e.g., 'aB3xK9mP2q'
-    """
-    import random
-    
-    chars = ''
-    if use_letters:
-        chars += string.ascii_letters
-    if use_digits:
-        chars += string.digits
-    if use_special:
-        chars += string.punctuation
-    
-    if not chars:
-        chars = string.ascii_letters + string.digits
-    
-    return ''.join(random.choice(chars) for _ in range(length))
-
-
-def extract_numbers(text: str) -> List[int]:
-    """
-    Extract all numbers from text.
-    
-    Args:
-        text: The input text
-    
-    Returns:
-        List of integers found in text
-    
-    Example:
-        >>> extract_numbers("I have 3 apples and 5 oranges")
-        [3, 5]
-    """
-    if text is None:
-        return []
-    return [int(n) for n in re.findall(r'\d+', text)]
-
-
-def extract_emails(text: str) -> List[str]:
-    """
-    Extract all email addresses from text.
-    
-    Args:
-        text: The input text
-    
-    Returns:
-        List of email addresses found in text
-    
-    Example:
-        >>> extract_emails("Contact us at support@example.com or sales@company.org")
-        ['support@example.com', 'sales@company.org']
-    """
-    if text is None:
-        return []
-    email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
-    return re.findall(email_pattern, text)
-
-
-def mask_text(text: str, 
-              mask_char: str = '*',
-              visible_start: int = 0,
-              visible_end: int = 0) -> str:
-    """
-    Mask text (useful for sensitive data like passwords, credit cards).
-    
-    Args:
-        text: The input text to mask
-        mask_char: Character to use for masking (default: '*')
-        visible_start: Number of characters to leave visible at start (default: 0)
-        visible_end: Number of characters to leave visible at end (default: 0)
-    
-    Returns:
-        Masked text
-    
-    Example:
-        >>> mask_text("1234567890", visible_end=4)
-        '******7890'
-        >>> mask_text("password", mask_char='*', visible_start=2, visible_end=2)
-        'pa****rd'
-    """
-    if text is None:
-        return ""
-    
-    total_length = len(text)
-    visible_total = visible_start + visible_end
-    
-    if visible_total >= total_length:
-        return text
-    
-    masked_length = total_length - visible_total
-    
-    return text[:visible_start] + (mask_char * masked_length) + text[-visible_end:] if visible_end else text[:visible_start] + (mask_char * masked_length)
+    else:
+        print(f"Unknown command or missing arguments: {command}")
+        sys.exit(1)

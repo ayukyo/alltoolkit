@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <title>Product Distribution</title>
+  <rect x="0" y="0" width="800" height="600" fill="#ffffff" stroke="none" stroke-width="1" rx="0"/>
+  <text x="400.0" y="30" fill="#333333" font-size="16" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="bold">Product Distribution</text>
+  <path d="M 400.0 290.0 L 400.0 80.0 A 210.0 210.0 0 0 1 599.7218684219822 354.89356881873897 Z" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <text x="510.43081973218034" y="204.76731306207742" fill="#ffffff" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="middle" font-weight="bold">Product A</text>
+  <text x="510.43081973218034" y="219.76731306207742" fill="#ffffff" font-size="10" font-family="Arial" text-anchor="middle" dominant-baseline="middle" font-weight="normal">(30.0%)</text>
+  <path d="M 400.0 290.0 L 599.7218684219822 354.89356881873897 A 210.0 210.0 0 0 1 190.0 290.0 Z" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <text x="378.6466955220085" y="419.81945849123633" fill="#ffffff" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="middle" font-weight="bold">Product B</text>
+  <text x="378.6466955220085" y="434.81945849123633" fill="#ffffff" font-size="10" font-family="Arial" text-anchor="middle" dominant-baseline="middle" font-weight="normal">(45.0%)</text>
+  <path d="M 400.0 290.0 L 190.0 290.0 A 210.0 210.0 0 0 1 276.5650970185806 120.10643118126106 Z" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <text x="278.3776094482878" y="223.03029678555188" fill="#ffffff" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="middle" font-weight="bold">Product C</text>
+  <text x="278.3776094482878" y="238.03029678555188" fill="#ffffff" font-size="10" font-family="Arial" text-anchor="middle" dominant-baseline="middle" font-weight="normal">(15.0%)</text>
+  <path d="M 400.0 290.0 L 276.5650970185806 120.10643118126106 A 210.0 210.0 0 0 1 399.99999999999994 80.0 Z" fill="#3498db" stroke="#ffffff" stroke-width="2"/>
+  <text x="357.81918026781966" y="155.18078552571154" fill="#ffffff" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="middle" font-weight="bold">Product D</text>
+  <text x="357.81918026781966" y="170.18078552571154" fill="#ffffff" font-size="10" font-family="Arial" text-anchor="middle" dominant-baseline="middle" font-weight="normal">(10.0%)</text>
+  <rect x="590" y="62" width="15" height="15" fill="#3498db" stroke="#3498db" stroke-width="1" rx="0"/>
+  <text x="610" y="70" fill="#333333" font-size="12" font-family="Arial" text-anchor="start" dominant-baseline="baseline" font-weight="normal">Product A: 30.0%</text>
+  <rect x="590" y="82" width="15" height="15" fill="#e74c3c" stroke="#e74c3c" stroke-width="1" rx="0"/>
+  <text x="610" y="90" fill="#333333" font-size="12" font-family="Arial" text-anchor="start" dominant-baseline="baseline" font-weight="normal">Product B: 45.0%</text>
+  <rect x="590" y="102" width="15" height="15" fill="#2ecc71" stroke="#2ecc71" stroke-width="1" rx="0"/>
+  <text x="610" y="110" fill="#333333" font-size="12" font-family="Arial" text-anchor="start" dominant-baseline="baseline" font-weight="normal">Product C: 15.0%</text>
+  <rect x="590" y="122" width="15" height="15" fill="#f39c12" stroke="#f39c12" stroke-width="1" rx="0"/>
+  <text x="610" y="130" fill="#333333" font-size="12" font-family="Arial" text-anchor="start" dominant-baseline="baseline" font-weight="normal">Product D: 10.0%</text>
+</svg>

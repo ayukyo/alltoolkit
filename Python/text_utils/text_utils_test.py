@@ -1,282 +1,580 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""AllToolkit - Text Utilities Test Suite"""
+"""
+AllToolkit - Python Text Utilities Test Suite
 
+Comprehensive tests for text_utils module.
+Run with: python text_utils_test.py
+"""
+
+import unittest
 import sys
 import os
 
+# Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from mod import (
-    clean_whitespace, clean_text, remove_html_tags, remove_urls, remove_emojis,
-    truncate, pad_left, pad_right, pad_center, wrap_text, indent_text,
-    to_camel_case, to_pascal_case, to_snake_case, to_kebab_case, to_title_case,
-    replace_all, replace_regex, find_all, find_first,
-    count_words, count_chars, count_lines, word_frequency, char_frequency, readability_score,
-    escape_html, unescape_html, escape_regex, hash_text,
-    levenshtein_distance, similarity_ratio, is_palindrome,
-    is_empty, is_not_empty, reverse_string, repeat_string,
-    generate_random_string, extract_numbers, extract_emails, mask_text
+    TextUtils,
+    TextCase,
+    TextStats,
+    TextAnalysis,
+    WordInfo,
+    # Module-level functions
+    to_case,
+    clean,
+    get_stats,
+    analyze,
+    remove_html,
+    truncate,
+    similarity,
+    levenshtein_distance,
+    extract_words,
+    split_sentences,
+    normalize_whitespace,
+    hash_text,
 )
 
 
-class TestRunner:
-    def __init__(self):
-        self.passed = 0
-        self.failed = 0
+class TestTextCase(unittest.TestCase):
+    """Test case conversion functions."""
     
-    def test(self, name, condition):
-        if condition:
-            self.passed += 1
-            print(f"  ✓ {name}")
-        else:
-            self.failed += 1
-            print(f"  ✗ {name}")
+    def setUp(self):
+        self.utils = TextUtils()
     
-    def report(self):
-        total = self.passed + self.failed
-        print(f"\n{'='*50}")
-        print(f"Tests: {total} | Passed: {self.passed} | Failed: {self.failed}")
-        if self.failed == 0:
-            print("All tests passed!")
-        else:
-            print(f"{self.failed} test(s) failed.")
-        print('='*50)
-        return self.failed == 0
+    def test_to_lower(self):
+        self.assertEqual(self.utils.to_case("Hello World", TextCase.LOWER), "hello world")
+    
+    def test_to_upper(self):
+        self.assertEqual(self.utils.to_case("Hello World", TextCase.UPPER), "HELLO WORLD")
+    
+    def test_to_title(self):
+        self.assertEqual(self.utils.to_case("hello world", TextCase.TITLE), "Hello World")
+    
+    def test_to_sentence_case(self):
+        self.assertEqual(self.utils.to_sentence_case("hello WORLD"), "Hello world")
+        self.assertEqual(self.utils.to_sentence_case("  hello world"), "  Hello world")
+    
+    def test_to_camel_case(self):
+        self.assertEqual(self.utils.to_case("hello world", TextCase.CAMEL), "helloWorld")
+        self.assertEqual(self.utils.to_case("Hello World", TextCase.CAMEL), "helloWorld")
+    
+    def test_to_pascal_case(self):
+        self.assertEqual(self.utils.to_case("hello world", TextCase.PASCAL), "HelloWorld")
+    
+    def test_to_snake_case(self):
+        self.assertEqual(self.utils.to_case("Hello World", TextCase.SNAKE), "hello_world")
+        self.assertEqual(self.utils.to_case("helloWorld", TextCase.SNAKE), "hello_world")
+    
+    def test_to_kebab_case(self):
+        self.assertEqual(self.utils.to_case("Hello World", TextCase.KEBAB), "hello-world")
+    
+    def test_to_constant_case(self):
+        self.assertEqual(self.utils.to_case("Hello World", TextCase.CONSTANT), "HELLO_WORLD")
+    
+    def test_split_into_words(self):
+        words = self.utils.split_into_words("hello-world_test/path")
+        self.assertEqual(words, ['hello', 'world', 'test', 'path'])
+    
+    def test_split_camel_case(self):
+        words = self.utils.split_into_words("helloWorldTest")
+        self.assertIn('hello', words)
+        self.assertIn('World', words)  # Preserves case
+        self.assertIn('Test', words)
+
+
+class TestTextCleaning(unittest.TestCase):
+    """Test text cleaning functions."""
+    
+    def setUp(self):
+        self.utils = TextUtils()
+    
+    def test_clean_extra_spaces(self):
+        text = "  Hello    World!  "
+        cleaned = self.utils.clean(text, remove_extra_spaces=True)
+        self.assertEqual(cleaned, "Hello World!")
+    
+    def test_clean_punctuation(self):
+        text = "Hello, World!"
+        cleaned = self.utils.clean(text, remove_punctuation=True)
+        self.assertEqual(cleaned, "Hello World")
+    
+    def test_clean_digits(self):
+        text = "Test123 with 456 digits"
+        cleaned = self.utils.clean(text, remove_digits=True)
+        self.assertEqual(cleaned, "Test with digits")
+    
+    def test_remove_html(self):
+        html = "<p>Hello <b>World</b>!</p>"
+        text = self.utils.remove_html(html)
+        self.assertEqual(text, "Hello World!")
+    
+    def test_remove_html_entities(self):
+        html = "Price: &pound;10 &amp; &euro;20"
+        # Basic test - entities should be handled
+        text = self.utils.remove_html(html)
+        self.assertNotIn('<', text)
+        self.assertNotIn('>', text)
+    
+    def test_remove_urls(self):
+        text = "Visit https://example.com or http://test.org/page"
+        cleaned = self.utils.remove_urls(text)
+        self.assertNotIn("https://", cleaned)
+        self.assertNotIn("http://", cleaned)
+    
+    def test_remove_emails(self):
+        text = "Contact us at test@example.com or support@company.org"
+        cleaned = self.utils.remove_emails(text)
+        self.assertNotIn("@", cleaned)
+    
+    def test_normalize_whitespace(self):
+        text = "Hello\t\tWorld\n\nTest"
+        normalized = self.utils.normalize_whitespace(text)
+        self.assertEqual(normalized, "Hello World Test")
+    
+    def test_normalize_line_endings_unix(self):
+        text = "Line1\r\nLine2\rLine3\nLine4"
+        normalized = self.utils.normalize_line_endings(text, 'unix')
+        self.assertEqual(normalized, "Line1\nLine2\nLine3\nLine4")
+    
+    def test_normalize_line_endings_windows(self):
+        text = "Line1\nLine2"
+        normalized = self.utils.normalize_line_endings(text, 'windows')
+        self.assertEqual(normalized, "Line1\r\nLine2")
+
+
+class TestTextFormatting(unittest.TestCase):
+    """Test text formatting functions."""
+    
+    def setUp(self):
+        self.utils = TextUtils()
+    
+    def test_pad_left(self):
+        result = self.utils.pad("test", 8, side='left')
+        self.assertEqual(result, "    test")
+    
+    def test_pad_right(self):
+        result = self.utils.pad("test", 8, side='right')
+        self.assertEqual(result, "test    ")
+    
+    def test_pad_center(self):
+        result = self.utils.pad("test", 8, side='center')
+        self.assertEqual(result, "  test  ")
+    
+    def test_pad_custom_char(self):
+        result = self.utils.pad("test", 8, side='left', char='0')
+        self.assertEqual(result, "0000test")
+    
+    def test_pad_truncate(self):
+        result = self.utils.pad("hello world", 5, side='right', truncate=True)
+        self.assertEqual(result, "hello")
+    
+    def test_wrap_text(self):
+        text = "This is a long sentence that should be wrapped."
+        lines = self.utils.wrap(text, width=20)
+        self.assertGreater(len(lines), 1)
+        self.assertTrue(all(len(line) <= 20 for line in lines))
+    
+    def test_wrap_empty(self):
+        lines = self.utils.wrap("", width=20)
+        self.assertEqual(lines, [])
+
+
+class TestTextAnalysis(unittest.TestCase):
+    """Test text analysis functions."""
+    
+    def setUp(self):
+        self.utils = TextUtils()
+    
+    def test_get_stats_basic(self):
+        text = "Hello world. This is a test."
+        stats = self.utils.get_stats(text)
+        
+        self.assertEqual(stats.word_count, 6)
+        self.assertEqual(stats.sentence_count, 2)
+        self.assertGreater(stats.char_count, 0)
+        self.assertGreater(stats.avg_word_length, 0)
+    
+    def test_get_stats_empty(self):
+        stats = self.utils.get_stats("")
+        self.assertEqual(stats.word_count, 0)
+        self.assertEqual(stats.sentence_count, 0)
+    
+    def test_extract_words(self):
+        text = "Hello, World! 123 test."
+        words = self.utils.extract_words(text)
+        self.assertEqual(words, ['Hello', 'World', '123', 'test'])
+    
+    def test_extract_words_min_length(self):
+        text = "I am a test"
+        words = self.utils.extract_words(text, min_length=2)
+        self.assertNotIn('a', words)
+        self.assertIn('test', words)
+    
+    def test_split_sentences(self):
+        text = "Hello world. How are you? I'm fine!"
+        sentences = self.utils.split_sentences(text)
+        self.assertEqual(len(sentences), 3)
+    
+    def test_get_ngrams(self):
+        words = ['hello', 'world', 'test', 'case']
+        bigrams = self.utils.get_ngrams(words, n=2)
+        self.assertEqual(len(bigrams), 3)
+        self.assertEqual(bigrams[0], ('hello', 'world'))
+    
+    def test_analyze_comprehensive(self):
+        text = "The quick brown fox jumps over the lazy dog."
+        analysis = self.utils.analyze(text, top_n=5)
+        
+        self.assertIsInstance(analysis, TextAnalysis)
+        self.assertIsInstance(analysis.stats, TextStats)
+        self.assertTrue(len(analysis.words) > 0)
+        self.assertTrue(len(analysis.sentences) > 0)
+    
+    def test_keyword_density(self):
+        text = "test test test other words here"
+        density = self.utils.keyword_density(text)
+        self.assertGreater(len(density), 0)
+        # 'test' should be the most frequent
+        self.assertEqual(density[0][0], 'test')
+
+
+class TestTextTransformation(unittest.TestCase):
+    """Test text transformation functions."""
+    
+    def setUp(self):
+        self.utils = TextUtils()
+    
+    def test_reverse_chars(self):
+        result = self.utils.reverse("hello")
+        self.assertEqual(result, "olleh")
+    
+    def test_reverse_words(self):
+        result = self.utils.reverse("hello world test", preserve_words=True)
+        self.assertEqual(result, "test world hello")
+    
+    def test_rotate_right(self):
+        result = self.utils.rotate("hello", 2)
+        self.assertEqual(result, "lohel")
+    
+    def test_rotate_left(self):
+        result = self.utils.rotate("hello", -2)
+        self.assertEqual(result, "llohe")
+    
+    def test_alternate_case(self):
+        result = self.utils.alternate_case("hello")
+        self.assertEqual(result, "HeLlO")
+    
+    def test_mirror(self):
+        result = self.utils.mirror("abc")
+        self.assertEqual(result, "abccba")
+    
+    def test_truncate_start(self):
+        result = self.utils.truncate("hello world", 8, suffix='...', align='start')
+        self.assertEqual(result, "hello...")
+    
+    def test_truncate_end(self):
+        result = self.utils.truncate("hello world", 8, suffix='...', align='end')
+        self.assertEqual(result, "...world")
+    
+    def test_truncate_middle(self):
+        result = self.utils.truncate("hello world", 9, suffix='...', align='middle')
+        self.assertTrue('...' in result)
+    
+    def test_truncate_no_change(self):
+        result = self.utils.truncate("short", 10)
+        self.assertEqual(result, "short")
+    
+    def test_abbreviate(self):
+        result = self.utils.abbreviate("Portable Network Graphics", 3)
+        self.assertEqual(result, "PNG")
+
+
+class TestTextSearch(unittest.TestCase):
+    """Test search and replace functions."""
+    
+    def setUp(self):
+        self.utils = TextUtils()
+    
+    def test_find_all(self):
+        text = "test test test"
+        positions = self.utils.find_all(text, "test")
+        self.assertEqual(positions, [0, 5, 10])
+    
+    def test_find_all_case_insensitive(self):
+        text = "Test TEST test"
+        positions = self.utils.find_all(text, "test", case_sensitive=False)
+        self.assertEqual(len(positions), 3)
+    
+    def test_replace_all(self):
+        text = "hello world"
+        result = self.utils.replace_all(text, {"hello": "hi", "world": "earth"})
+        self.assertEqual(result, "hi earth")
+    
+    def test_highlight(self):
+        text = "The quick brown fox"
+        result = self.utils.highlight(text, ["quick", "fox"])
+        self.assertIn("**quick**", result)
+        self.assertIn("**fox**", result)
+
+
+class TestTextComparison(unittest.TestCase):
+    """Test text comparison functions."""
+    
+    def setUp(self):
+        self.utils = TextUtils()
+    
+    def test_similarity_identical(self):
+        sim = self.utils.similarity("hello world", "hello world")
+        self.assertEqual(sim, 1.0)
+    
+    def test_similarity_different(self):
+        sim = self.utils.similarity("hello world", "foo bar")
+        self.assertEqual(sim, 0.0)
+    
+    def test_similarity_partial(self):
+        sim = self.utils.similarity("hello world", "hello there")
+        self.assertGreater(sim, 0.0)
+        self.assertLess(sim, 1.0)
+    
+    def test_contains_all_true(self):
+        text = "The quick brown fox"
+        result = self.utils.contains_all(text, ["quick", "fox"])
+        self.assertTrue(result)
+    
+    def test_contains_all_false(self):
+        text = "The quick brown fox"
+        result = self.utils.contains_all(text, ["quick", "elephant"])
+        self.assertFalse(result)
+    
+    def test_contains_any_true(self):
+        text = "The quick brown fox"
+        result = self.utils.contains_any(text, ["elephant", "fox"])
+        self.assertTrue(result)
+    
+    def test_contains_any_false(self):
+        text = "The quick brown fox"
+        result = self.utils.contains_any(text, ["elephant", "lion"])
+        self.assertFalse(result)
+    
+    def test_levenshtein_identical(self):
+        distance = self.utils.levenshtein_distance("hello", "hello")
+        self.assertEqual(distance, 0)
+    
+    def test_levenshtein_different(self):
+        distance = self.utils.levenshtein_distance("hello", "hallo")
+        self.assertEqual(distance, 1)
+    
+    def test_levenshtein_empty(self):
+        distance = self.utils.levenshtein_distance("", "hello")
+        self.assertEqual(distance, 5)
+
+
+class TestHashing(unittest.TestCase):
+    """Test hashing and encoding functions."""
+    
+    def setUp(self):
+        self.utils = TextUtils()
+    
+    def test_hash_md5(self):
+        result = self.utils.hash_text("hello", 'md5')
+        self.assertEqual(len(result), 32)  # MD5 hex length
+    
+    def test_hash_sha256(self):
+        result = self.utils.hash_text("hello", 'sha256')
+        self.assertEqual(len(result), 64)  # SHA256 hex length
+    
+    def test_hash_consistency(self):
+        result1 = self.utils.hash_text("hello", 'md5')
+        result2 = self.utils.hash_text("hello", 'md5')
+        self.assertEqual(result1, result2)
+    
+    def test_base64_roundtrip(self):
+        original = "Hello World!"
+        encoded = self.utils.to_base64(original)
+        decoded = self.utils.from_base64(encoded)
+        self.assertEqual(decoded, original)
+    
+    def test_invalid_algorithm(self):
+        with self.assertRaises(ValueError):
+            self.utils.hash_text("hello", 'invalid')
+
+
+class TestModuleLevelFunctions(unittest.TestCase):
+    """Test module-level convenience functions."""
+    
+    def test_module_to_case(self):
+        result = to_case("hello world", TextCase.UPPER)
+        self.assertEqual(result, "HELLO WORLD")
+    
+    def test_module_clean(self):
+        result = clean("  hello  world  ", remove_extra_spaces=True)
+        self.assertEqual(result, "hello world")
+    
+    def test_module_get_stats(self):
+        stats = get_stats("Hello world.")
+        self.assertIsInstance(stats, TextStats)
+    
+    def test_module_analyze(self):
+        analysis = analyze("Hello world. Test sentence.")
+        self.assertIsInstance(analysis, TextAnalysis)
+    
+    def test_module_remove_html(self):
+        result = remove_html("<p>Test</p>")
+        self.assertEqual(result, "Test")
+    
+    def test_module_truncate(self):
+        result = truncate("hello world", 8)
+        self.assertEqual(len(result), 8)
+    
+    def test_module_similarity(self):
+        sim = similarity("hello", "hello")
+        self.assertEqual(sim, 1.0)
+    
+    def test_module_levenshtein(self):
+        distance = levenshtein_distance("kitten", "sitting")
+        self.assertEqual(distance, 3)
+    
+    def test_module_extract_words(self):
+        words = extract_words("Hello, World!")
+        self.assertEqual(words, ['Hello', 'World'])
+    
+    def test_module_split_sentences(self):
+        sentences = split_sentences("Hello. World!")
+        self.assertEqual(len(sentences), 2)
+    
+    def test_module_normalize_whitespace(self):
+        result = normalize_whitespace("a  b\t\tc")
+        self.assertEqual(result, "a b c")
+    
+    def test_module_hash(self):
+        result = hash_text("test")
+        self.assertEqual(len(result), 32)
+
+
+class TestEdgeCases(unittest.TestCase):
+    """Test edge cases and boundary conditions."""
+    
+    def setUp(self):
+        self.utils = TextUtils()
+    
+    def test_empty_string(self):
+        stats = self.utils.get_stats("")
+        self.assertEqual(stats.word_count, 0)
+    
+    def test_whitespace_only(self):
+        stats = self.utils.get_stats("   \t\n  ")
+        self.assertEqual(stats.word_count, 0)
+    
+    def test_single_character(self):
+        stats = self.utils.get_stats("a")
+        self.assertEqual(stats.word_count, 1)
+    
+    def test_unicode_text(self):
+        text = "你好世界 Hello 世界"
+        words = self.utils.extract_words(text)
+        self.assertGreater(len(words), 0)
+    
+    def test_very_long_word(self):
+        word = "a" * 10000
+        stats = self.utils.get_stats(word)
+        self.assertEqual(stats.word_count, 1)
+    
+    def test_special_characters(self):
+        text = "!@#$%^&*()_+-=[]{}|;':\",./<>?"
+        cleaned = self.utils.clean(text, remove_punctuation=True)
+        self.assertEqual(cleaned, "")
+    
+    def test_mixed_line_endings(self):
+        text = "Line1\r\nLine2\rLine3\nLine4"
+        normalized = self.utils.normalize_line_endings(text)
+        self.assertNotIn('\r', normalized)
+
+
+class TestCountSyllables(unittest.TestCase):
+    """Test syllable counting."""
+    
+    def setUp(self):
+        self.utils = TextUtils()
+    
+    def test_simple_words(self):
+        self.assertEqual(self.utils.count_syllables("cat"), 1)
+        self.assertEqual(self.utils.count_syllables("dog"), 1)
+    
+    def test_multi_syllable(self):
+        self.assertGreater(self.utils.count_syllables("beautiful"), 1)
+        self.assertGreater(self.utils.count_syllables("elephant"), 1)
+    
+    def test_silent_e(self):
+        # Words ending in silent e
+        self.assertEqual(self.utils.count_syllables("make"), 1)
+        self.assertEqual(self.utils.count_syllables("like"), 1)
+
+
+class TestStopWords(unittest.TestCase):
+    """Test stop words functionality."""
+    
+    def test_custom_stop_words(self):
+        custom_stops = {'custom', 'stop', 'words'}
+        utils = TextUtils(stop_words=custom_stops)
+        
+        text = "This is a custom test with stop words"
+        analysis = utils.analyze(text)
+        
+        # Custom stop words should be filtered from keywords
+        self.assertNotIn('custom', analysis.keywords)
+        self.assertNotIn('stop', analysis.keywords)
+        self.assertNotIn('words', analysis.keywords)
 
 
 def run_tests():
-    runner = TestRunner()
+    """Run all tests and print results."""
+    # Create test suite
+    loader = unittest.TestLoader()
+    suite = unittest.TestSuite()
     
-    # ========================================================================
-    # String Cleaning Tests
-    # ========================================================================
-    print("\nString Cleaning Tests")
-    print("="*50)
+    # Add all test classes
+    test_classes = [
+        TestTextCase,
+        TestTextCleaning,
+        TestTextFormatting,
+        TestTextAnalysis,
+        TestTextTransformation,
+        TestTextSearch,
+        TestTextComparison,
+        TestHashing,
+        TestModuleLevelFunctions,
+        TestEdgeCases,
+        TestCountSyllables,
+        TestStopWords,
+    ]
     
-    runner.test("clean_whitespace removes extra spaces", clean_whitespace("  hello   world  ") == "hello world")
-    runner.test("clean_whitespace handles newlines", clean_whitespace("hello\n\nworld") == "hello world")
-    runner.test("clean_whitespace handles None", clean_whitespace(None) == "")
-    runner.test("clean_whitespace handles empty string", clean_whitespace("") == "")
+    for test_class in test_classes:
+        tests = loader.loadTestsFromTestCase(test_class)
+        suite.addTests(tests)
     
-    runner.test("clean_text removes punctuation", clean_text("Hello, World!", remove_punctuation=True) == "Hello World")
-    runner.test("clean_text removes digits", clean_text("abc123", remove_digits=True) == "abc")
-    runner.test("clean_text converts to lowercase", clean_text("HELLO", lowercase=True) == "hello")
-    runner.test("clean_text strips whitespace", clean_text("  hello  ", strip=True) == "hello")
-    runner.test("clean_text handles None", clean_text(None) == "")
+    # Run tests
+    runner = unittest.TextTestRunner(verbosity=2)
+    result = runner.run(suite)
     
-    runner.test("remove_html_tags removes tags", remove_html_tags("<p>Hello <b>World</b></p>") == "Hello World")
-    runner.test("remove_html_tags handles nested tags", remove_html_tags("<div><span>text</span></div>") == "text")
-    runner.test("remove_html_tags handles None", remove_html_tags(None) == "")
+    # Print summary
+    print("\n" + "=" * 70)
+    print("TEST SUMMARY")
+    print("=" * 70)
+    print(f"Tests run: {result.testsRun}")
+    print(f"Failures: {len(result.failures)}")
+    print(f"Errors: {len(result.errors)}")
+    print(f"Success: {result.wasSuccessful()}")
     
-    runner.test("remove_urls removes http URLs", "example.com" not in remove_urls("Visit https://example.com now"))
-    runner.test("remove_urls removes www URLs", "example.com" not in remove_urls("Check www.example.com"))
-    runner.test("remove_urls handles None", remove_urls(None) == "")
+    if result.failures:
+        print("\nFailures:")
+        for test, traceback in result.failures:
+            print(f"  - {test}")
     
-    runner.test("remove_emojis removes emojis", remove_emojis("Hello 👋 World") == "Hello  World")
-    runner.test("remove_emojis handles None", remove_emojis(None) == "")
+    if result.errors:
+        print("\nErrors:")
+        for test, traceback in result.errors:
+            print(f"  - {test}")
     
-    # ========================================================================
-    # Text Formatting Tests
-    # ========================================================================
-    print("\nText Formatting Tests")
-    print("="*50)
-    
-    runner.test("truncate shortens long text", truncate("Hello World", 8) == "Hello...")
-    runner.test("truncate keeps short text", truncate("Hi", 10) == "Hi")
-    runner.test("truncate uses custom suffix", truncate("Hello", 4, suffix="!") == "Hel!")
-    runner.test("truncate handles None", truncate(None, 10) == "")
-    
-    runner.test("pad_left adds padding", pad_left("42", 5, '0') == "00042")
-    runner.test("pad_left handles None", pad_left(None, 5) == "     ")
-    
-    runner.test("pad_right adds padding", pad_right("Hello", 10) == "Hello     ")
-    runner.test("pad_right handles None", pad_right(None, 5) == "     ")
-    
-    runner.test("pad_center centers text", pad_center("Title", 20, '=') == "=======Title========")
-    runner.test("pad_center handles None", pad_center(None, 5) == "     ")
-    
-    runner.test("wrap_text wraps long lines", '\n' in wrap_text("Hello world this is a long line", width=15))
-    runner.test("wrap_text handles None", wrap_text(None, 80) == "")
-    runner.test("wrap_text handles empty string", wrap_text("", width=80) == "")
-    runner.test("wrap_text handles width 1", wrap_text("abc", width=1) == "a\nb\nc")
-    runner.test("wrap_text breaks long words", "aaaa" in wrap_text("aaaaaaaaaa", width=4))
-    runner.test("wrap_text preserves short lines", wrap_text("hi", width=10) == "hi")
-    runner.test("wrap_text raises on invalid width", 
-                (lambda: wrap_text("test", width=0) and False or True) if True else False)
-    try:
-        wrap_text("test", width=0)
-        runner.test("wrap_text raises ValueError on zero width", False)
-    except ValueError as e:
-        runner.test("wrap_text raises ValueError on zero width", "width must be positive" in str(e))
-    except Exception:
-        runner.test("wrap_text raises ValueError on zero width", False)
-    try:
-        wrap_text("test", width=-1)
-        runner.test("wrap_text raises ValueError on negative width", False)
-    except ValueError as e:
-        runner.test("wrap_text raises ValueError on negative width", "width must be positive" in str(e))
-    except Exception:
-        runner.test("wrap_text raises ValueError on negative width", False)
-    
-    runner.test("indent_text adds indentation", indent_text("line", spaces=2) == "  line")
-    runner.test("indent_text indents multiple lines", indent_text("a\nb", spaces=2) == "  a\n  b")
-    runner.test("indent_text skips first line", indent_text("a\nb", spaces=2, skip_first=True) == "a\n  b")
-    runner.test("indent_text handles None", indent_text(None) == "")
-    
-    # ========================================================================
-    # Case Conversion Tests
-    # ========================================================================
-    print("\nCase Conversion Tests")
-    print("="*50)
-    
-    runner.test("to_camel_case from snake_case", to_camel_case("hello_world") == "helloWorld")
-    runner.test("to_camel_case from space-separated", to_camel_case("Hello World") == "helloWorld")
-    runner.test("to_camel_case handles None", to_camel_case(None) == "")
-    
-    runner.test("to_pascal_case from snake_case", to_pascal_case("hello_world") == "HelloWorld")
-    runner.test("to_pascal_case handles None", to_pascal_case(None) == "")
-    
-    runner.test("to_snake_case from camelCase", to_snake_case("helloWorld") == "hello_world")
-    runner.test("to_snake_case from PascalCase", to_snake_case("HelloWorld") == "hello_world")
-    runner.test("to_snake_case handles None", to_snake_case(None) == "")
-    
-    runner.test("to_kebab_case from camelCase", to_kebab_case("helloWorld") == "hello-world")
-    runner.test("to_kebab_case handles None", to_kebab_case(None) == "")
-    
-    runner.test("to_title_case", to_title_case("hello world") == "Hello World")
-    runner.test("to_title_case handles None", to_title_case(None) == "")
-    
-    # ========================================================================
-    # Search and Replace Tests
-    # ========================================================================
-    print("\nSearch and Replace Tests")
-    print("="*50)
-    
-    runner.test("replace_all single replacement", replace_all("hello", {"hello": "hi"}) == "hi")
-    runner.test("replace_all multiple replacements", replace_all("hello world", {"hello": "hi", "world": "there"}) == "hi there")
-    runner.test("replace_all handles None", replace_all(None, {}) == "")
-    
-    runner.test("replace_regex with pattern", replace_regex("abc123def", r'\d+', 'X') == "abcXdef")
-    runner.test("replace_regex handles None", replace_regex(None, r'\d+', 'X') == "")
-    
-    runner.test("find_all finds all matches", find_all("abc123def456", r'\d+') == ['123', '456'])
-    runner.test("find_all returns empty on no match", find_all("abcdef", r'\d+') == [])
-    runner.test("find_all handles None", find_all(None, r'\d+') == [])
-    
-    runner.test("find_first finds first match", find_first("abc123def456", r'\d+') == '123')
-    runner.test("find_first returns default on no match", find_first("abcdef", r'\d+', default='N/A') == 'N/A')
-    runner.test("find_first handles None", find_first(None, r'\d+') == '')
-    
-    # ========================================================================
-    # Text Analysis Tests
-    # ========================================================================
-    print("\nText Analysis Tests")
-    print("="*50)
-    
-    runner.test("count_words", count_words("Hello world this is a test") == 6)
-    runner.test("count_words empty", count_words("") == 0)
-    runner.test("count_words handles None", count_words(None) == 0)
-    
-    runner.test("count_chars with spaces", count_chars("Hello World") == 11)
-    runner.test("count_chars without spaces", count_chars("Hello World", include_spaces=False) == 10)
-    runner.test("count_chars handles None", count_chars(None) == 0)
-    
-    runner.test("count_lines", count_lines("line1\nline2\nline3") == 3)
-    runner.test("count_lines single line", count_lines("single") == 1)
-    runner.test("count_lines handles None", count_lines(None) == 0)
-    
-    runner.test("word_frequency", word_frequency("hello world hello") == {'hello': 2, 'world': 1})
-    runner.test("word_frequency case insensitive", word_frequency("Hello hello", lowercase=True) == {'hello': 2})
-    runner.test("word_frequency handles None", word_frequency(None) == {})
-    
-    runner.test("char_frequency", char_frequency("hello") == {'h': 1, 'e': 1, 'l': 2, 'o': 1})
-    runner.test("char_frequency handles None", char_frequency(None) == {})
-    
-    runner.test("readability_score returns dict", isinstance(readability_score("Hello world. Test."), dict))
-    runner.test("readability_score has expected keys", 'word_count' in readability_score("Hello world."))
-    runner.test("readability_score handles None", readability_score(None) == {})
-    
-    # ========================================================================
-    # Encoding and Escaping Tests
-    # ========================================================================
-    print("\nEncoding and Escaping Tests")
-    print("="*50)
-    
-    runner.test("escape_html escapes < and >", '&' in escape_html("<script>"))
-    runner.test("escape_html escapes quotes", '&quot;' in escape_html('"hello"'))
-    runner.test("escape_html handles None", escape_html(None) == "")
-    
-    runner.test("unescape_html unescapes entities", unescape_html("&lt;hello&gt;") == "<hello>")
-    runner.test("unescape_html handles None", unescape_html(None) == "")
-    
-    runner.test("escape_regex escapes special chars", '\\' in escape_regex("price: $100"))
-    runner.test("escape_regex handles None", escape_regex(None) == "")
-    
-    runner.test("hash_text md5", hash_text("hello", algorithm='md5') == "5d41402abc4b2a76b9719d911017c592")
-    runner.test("hash_text sha256", len(hash_text("hello", algorithm='sha256')) == 64)
-    runner.test("hash_text handles None", hash_text(None) == "")
-    
-    # ========================================================================
-    # String Comparison Tests
-    # ========================================================================
-    print("\nString Comparison Tests")
-    print("="*50)
-    
-    runner.test("levenshtein_distance identical", levenshtein_distance("hello", "hello") == 0)
-    runner.test("levenshtein_distance different", levenshtein_distance("kitten", "sitting") == 3)
-    runner.test("levenshtein_distance handles None", levenshtein_distance(None, "hello") == 5)
-    
-    runner.test("similarity_ratio identical", similarity_ratio("hello", "hello") == 1.0)
-    runner.test("similarity_ratio similar", 0.7 < similarity_ratio("hello", "hallo") < 1.0)
-    runner.test("similarity_ratio handles None", similarity_ratio(None, None) == 1.0)
-    
-    runner.test("is_palindrome simple", is_palindrome("radar") == True)
-    runner.test("is_palindrome with spaces", is_palindrome("A man a plan a canal Panama") == True)
-    runner.test("is_palindrome negative", is_palindrome("hello") == False)
-    runner.test("is_palindrome handles None", is_palindrome(None) == False)
-    
-    # ========================================================================
-    # Utility Functions Tests
-    # ========================================================================
-    print("\nUtility Functions Tests")
-    print("="*50)
-    
-    runner.test("is_empty with whitespace", is_empty("   ") == True)
-    runner.test("is_empty with content", is_empty("hello") == False)
-    runner.test("is_empty with None", is_empty(None) == True)
-    
-    runner.test("is_not_empty with content", is_not_empty("hello") == True)
-    runner.test("is_not_empty with whitespace", is_not_empty("   ") == False)
-    
-    runner.test("reverse_string", reverse_string("hello") == "olleh")
-    runner.test("reverse_string handles None", reverse_string(None) == "")
-    
-    runner.test("repeat_string", repeat_string("ab", 3) == "ababab")
-    runner.test("repeat_string with separator", repeat_string("ab", 3, separator='-') == "ab-ab-ab")
-    runner.test("repeat_string zero count", repeat_string("ab", 0) == "")
-    runner.test("repeat_string handles None", repeat_string(None, 3) == "")
-    
-    runner.test("generate_random_string length", len(generate_random_string(10)) == 10)
-    runner.test("generate_random_string uses letters and digits", generate_random_string(100, use_letters=True, use_digits=True, use_special=False).isalnum())
-    
-    runner.test("extract_numbers", extract_numbers("I have 3 apples and 5 oranges") == [3, 5])
-    runner.test("extract_numbers no numbers", extract_numbers("no numbers here") == [])
-    runner.test("extract_numbers handles None", extract_numbers(None) == [])
-    
-    runner.test("extract_emails", extract_emails("Contact support@example.com or sales@company.org") == ['support@example.com', 'sales@company.org'])
-    runner.test("extract_emails no emails", extract_emails("no emails here") == [])
-    runner.test("extract_emails handles None", extract_emails(None) == [])
-    
-    runner.test("mask_text end visible", mask_text("1234567890", visible_end=4) == "******7890")
-    runner.test("mask_text start and end visible", mask_text("password", visible_start=2, visible_end=2) == "pa****rd")
-    runner.test("mask_text custom char", mask_text("secret", mask_char='X') == "XXXXXX")
-    runner.test("mask_text handles None", mask_text(None) == "")
-    
-    # ========================================================================
-    # Report Results
-    # ========================================================================
-    return runner.report()
+    return result.wasSuccessful()
 
 
 if __name__ == '__main__':

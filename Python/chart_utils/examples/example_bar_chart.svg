@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <title>季度产品销售</title>
+  <rect x="0" y="0" width="800" height="600" fill="#ffffff" stroke="none" stroke-width="1" rx="0"/>
+  <text x="400.0" y="30" fill="#333333" font-size="16" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="bold">季度产品销售</text>
+  <line x1="80" y1="60.0" x2="740" y2="60.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="60.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">261.0</text>
+  <line x1="80" y1="152.0" x2="740" y2="152.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="152.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">208.8</text>
+  <line x1="80" y1="244.0" x2="740" y2="244.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="244.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">156.6</text>
+  <line x1="80" y1="336.0" x2="740" y2="336.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="336.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">104.4</text>
+  <line x1="80" y1="428.0" x2="740" y2="428.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="428.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">52.2</text>
+  <line x1="80" y1="520.0" x2="740" y2="520.0" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="2,2"/>
+  <text x="70" y="520.0" fill="#333333" font-size="12" font-family="Arial" text-anchor="end" dominant-baseline="middle" font-weight="normal">0.0</text>
+  <rect x="96.5" y="343.7547892720306" width="43.0" height="176.24521072796935" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="261.5" y="255.632183908046" width="43.0" height="264.367816091954" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="426.5" y="167.5095785440613" width="43.0" height="352.4904214559387" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="591.5" y="211.57088122605364" width="43.0" height="308.42911877394636" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="140.5" y="308.50574712643675" width="43.0" height="211.49425287356323" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="305.5" y="220.3831417624521" width="43.0" height="299.6168582375479" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="470.5" y="132.26053639846742" width="43.0" height="387.7394636015326" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="635.5" y="185.13409961685824" width="43.0" height="334.86590038314176" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="184.5" y="273.2567049808429" width="43.0" height="246.74329501915707" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="349.5" y="202.75862068965517" width="43.0" height="317.2413793103448" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="514.5" y="97.01149425287355" width="43.0" height="422.98850574712645" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <rect x="679.5" y="149.88505747126436" width="43.0" height="370.11494252873564" fill="#3498db" stroke="#2979af" stroke-width="1" rx="2"/>
+  <text x="162.5" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">产品 A</text>
+  <text x="327.5" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">产品 B</text>
+  <text x="492.5" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">产品 C</text>
+  <text x="657.5" y="540" fill="#333333" font-size="12" font-family="Arial" text-anchor="middle" dominant-baseline="baseline" font-weight="normal">产品 D</text>
+  <rect x="590" y="62" width="15" height="15" fill="#3498db" stroke="#3498db" stroke-width="1" rx="0"/>
+  <text x="610" y="70" fill="#333333" font-size="12" font-family="Arial" text-anchor="start" dominant-baseline="baseline" font-weight="normal">第一季度</text>
+  <rect x="590" y="82" width="15" height="15" fill="#3498db" stroke="#3498db" stroke-width="1" rx="0"/>
+  <text x="610" y="90" fill="#333333" font-size="12" font-family="Arial" text-anchor="start" dominant-baseline="baseline" font-weight="normal">第二季度</text>
+  <rect x="590" y="102" width="15" height="15" fill="#3498db" stroke="#3498db" stroke-width="1" rx="0"/>
+  <text x="610" y="110" fill="#333333" font-size="12" font-family="Arial" text-anchor="start" dominant-baseline="baseline" font-weight="normal">第三季度</text>
+  <line x1="80" y1="60" x2="80" y2="520" stroke="#333333" stroke-width="2"/>
+  <line x1="80" y1="520" x2="740" y2="520" stroke="#333333" stroke-width="2"/>
+</svg>

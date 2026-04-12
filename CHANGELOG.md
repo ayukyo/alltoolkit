@@ -3,6 +3,39 @@
 ## [2026-04-12]
 
 ### 新增
+- **Python: process_utils (61 测试，完整进程管理工具)** ⚙️
+  - 命令执行（run/run_shell，支持超时控制）
+  - 流式输出（run_streaming，实时捕获 stdout/stderr）
+  - 进程管理（ProcessManager，启动/监控/终止进程）
+  - 环境变量（get_env/set_env/unset_env/get_env_snapshot）
+  - 进程池（WorkerPool，多进程并行执行任务）
+  - 命令检查（exists/which，检查命令是否存在）
+  - 进程信息（get_pid/get_ppid/get_cwd）
+  - 配置系统（ProcessConfig，超时/工作目录/环境变量/优先级）
+  - 状态枚举（ProcessState：running/stopped/completed/failed/timeout）
+  - 优先级枚举（ProcessPriority：VERY_HIGH 到 VERY_LOW）
+  - 结果数据类（ProcessResult：returncode/stdout/stderr/execution_time）
+  - 异步支持（map_async/apply_async，带回调函数）
+  - 上下文管理器（with WorkerPool 自动资源清理）
+  - 零依赖，纯 Python 标准库实现（subprocess/multiprocessing/threading）
+  - 完整示例（14 个使用场景演示）
+  - 边界测试（超时/Unicode/多行输出/并发执行/错误处理）
+
+- **Python: qr_utils (21 测试，完整二维码生成工具)** 📱
+  - QR 码矩阵生成（版本 1-10，自动选择版本）
+  - 多种纠错级别（L/M/Q/H，7%-30% 恢复能力）
+  - ASCII 艺术渲染（终端预览/日志输出）
+  - Emoji 艺术渲染（社交媒体分享）
+  - PNG 图片生成（纯 Python PNG 编码，零依赖）
+  - Data URL 生成（直接嵌入 HTML）
+  - 多种数据编码（URL/vCard/WiFi/Email/SMS/文本）
+  - 批量生成支持（一次性生成多个 QR 码）
+  - 数据验证和统计（格式验证/矩阵分析）
+  - 自定义颜色（支持颜色名和#RRGGBB）
+  - 零依赖，纯 Python 标准库实现
+  - 完整示例（11 个使用场景演示）
+  - 边界测试（超长数据/特殊字符/Unicode/Emoji）
+
 - **Swift: array_utils (47 测试，完整数组/集合工具)** 📦
   - 空值与安全访问（isEmpty/isNotEmpty/firstSafe/lastSafe/safeGet/firstOr）
   - 切片操作（take/skip/takeLast/slice）

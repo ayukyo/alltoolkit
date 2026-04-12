@@ -1,0 +1,44 @@
+{
+  "name": "@alltoolkit/validator-utils",
+  "version": "1.0.0",
+  "description": "Comprehensive data validation utilities for TypeScript with zero dependencies",
+  "type": "module",
+  "main": "validator_utils.ts",
+  "types": "validator_utils.ts",
+  "exports": {
+    ".": "./validator_utils.ts",
+    "./test": "./validator_utils_test.ts"
+  },
+  "scripts": {
+    "test": "deno test validator_utils_test.ts",
+    "test:bun": "bun test validator_utils_test.ts",
+    "test:node": "node --test validator_utils_test.ts",
+    "example": "deno run examples/usage_examples.ts"
+  },
+  "keywords": [
+    "validation",
+    "validator",
+    "email",
+    "phone",
+    "url",
+    "ip",
+    "credit-card",
+    "id-card",
+    "date",
+    "time",
+    "typescript",
+    "alltoolkit"
+  ],
+  "author": "AllToolkit",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alltoolkit/alltoolkit",
+    "directory": "TypeScript/validator_utils"
+  },
+  "engines": {
+    "deno": ">=1.0.0",
+    "node": ">=18.0.0",
+    "bun": ">=1.0.0"
+  }
+}
