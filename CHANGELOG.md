@@ -3,6 +3,22 @@
 ## [2026-04-13]
 
 ### 新增
+- **Python: graph_utils (74 测试，完整图算法工具)** 📊
+  - 图表示（邻接表/邻接矩阵，有向图/无向图）
+  - 图遍历（BFS 广度优先/DFS 深度优先，递归/迭代版本）
+  - 最短路径（Dijkstra/Bellman-Ford/Floyd-Warshall）
+  - 最小生成树（Kruskal/Prim 算法）
+  - 拓扑排序（Kahn 算法/DFS 算法）
+  - 连通分量（无向图连通分量/有向图强连通分量 Kosaraju）
+  - 环检测（环存在检测/环路径查找）
+  - 二分图检测（BFS 着色法）
+  - 欧拉路径（Hierholzer 算法/欧拉路径/欧拉回路）
+  - 图分析（割点 Tarjan/桥检测/孤立顶点）
+  - 图工具（图统计信息/反转图/树检测/最短路径树）
+  - 零依赖，纯 Python 标准库实现
+  - 完整示例（15 个使用场景演示）
+  - 边界测试（空图/单顶点/自环/数字顶点/元组顶点）
+
 - **Python: diff_utils (64 测试，完整文本差异比较工具)** 📝
   - 差异比较（行级/字符级/词级差异分析）
   - 相似度算法（Levenshtein/Jaccard/Cosine/Damerau-Levenshtein）
