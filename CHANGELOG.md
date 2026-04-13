@@ -3,6 +3,20 @@
 ## [2026-04-13]
 
 ### 新增
+- **Python: lexer_utils (78 测试，完整词法分析器工具)** 🔤
+  - Token 类型定义（字符串匹配/正则匹配/优先级设置）
+  - 词法分析器构建（Lexer/LexerBuilder 流畅 API）
+  - 流式处理（迭代器模式/TokenStream 导航）
+  - 位置跟踪（行号/列号/字符索引）
+  - 错误处理（自定义处理器/恢复继续）
+  - Token 类别（LITERAL/KEYWORD/IDENTIFIER/OPERATOR/PUNCTUATION/WHITESPACE/COMMENT/EOF）
+  - 预构建分词器（simple_tokenize/tokenize_code/tokenize_json/tokenize_math）
+  - Token 工具（统计/过滤/序列化/查找/匹配序列）
+  - 回调转换（自动转换 token 值类型）
+  - 零依赖，纯 Python 标准库实现
+  - 完整示例（13 个使用场景演示）
+  - Python 3.6+ 兼容
+
 - **Python: graph_utils (74 测试，完整图算法工具)** 📊
   - 图表示（邻接表/邻接矩阵，有向图/无向图）
   - 图遍历（BFS 广度优先/DFS 深度优先，递归/迭代版本）
