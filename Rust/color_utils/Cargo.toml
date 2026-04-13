@@ -1,0 +1,29 @@
+[package]
+name = "color_utils"
+version = "1.0.0"
+edition = "2021"
+authors = ["AllToolkit"]
+license = "MIT"
+description = "A comprehensive color manipulation library with zero dependencies"
+keywords = ["color", "rgb", "hsl", "hsv", "cmyk"]
+categories = ["graphics", "visualization"]
+
+[dependencies]
+
+[dev-dependencies]
+
+[lib]
+name = "color_utils"
+path = "src/lib.rs"
+
+[[example]]
+name = "basic_usage"
+path = "examples/basic_usage.rs"
+
+[[example]]
+name = "color_schemes"
+path = "examples/color_schemes.rs"
+
+[[example]]
+name = "contrast_checker"
+path = "examples/contrast_checker.rs"
