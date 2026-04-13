@@ -163,6 +163,8 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ### 最近新增测试
 
+- **Rust file_utils**: 新增 40+ 测试用例，覆盖文件读写、存在性检查、错误处理、边界值等 📁
+- **Rust qr_code_utils**: 新增 45+ 测试用例，覆盖 QR 码生成、版本校验、纠错级别、编码模式、容量表验证等 🔲
 - **TypeScript crypto_utils**: 86 个测试用例（新增），覆盖哈希函数（MD5/SHA-1/SHA-256/SHA-384/SHA-512）、HMAC 签名/验证、Base64 编码解码、Hex 编码解码、随机生成（字符串/Hex/UUID）等 🔐
 - **Python text_utils**: 123 个测试用例（新增 9 个），覆盖字符串清理、格式化、分析等，新增 wrap_text 边界值测试（零宽度、负宽度、空字符串、超长单词处理等）📝
 - **Python base64_utils**: 22 个测试用例（新增 7 个），覆盖编码/解码、URL-safe、验证等，新增 is_valid 边界测试（长度校验、填充验证、URL-safe 模式等）🔐
@@ -178,10 +180,23 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 | 模块 | 语言 | 测试数 | 覆盖率 |
 |------|------|--------|--------|
+| file_utils | Rust | 40+ | ✅ 100% |
+| qr_code_utils | Rust | 45+ | ✅ 100% |
+| color_utils | Rust | 30+ | ✅ 100% |
 | crypto_utils | TypeScript | 86 | ✅ 100% |
 | xml_utils | Python | 20 | ✅ 100% |
 | markdown_utils | Python | 108 | ✅ 100% |
 | regex_utils | Python | 34 | ✅ 100% |
+| json_utils | Python | 49 | ✅ 100% |
+| email_utils | Python | 41 | ✅ 100% |
+| hash_utils | Python | 84 | ✅ 100% |
+| geometry_utils | Python | 237 | ✅ 100% |
+| sqlite_utils | Python | 86 | ✅ 100% |
+| color_utils | Python | 111 | ✅ 100% |
+| emoji_utils | Python | 49 | ✅ 100% |
+| password_utils | Python | 52 | ✅ 100% |
+| base64_utils | Python | 22 | ✅ 100% |
+| time_zone_utils | Python | 45 | ✅ 100% |
 | env_utils | Python | 8 大类 | ✅ 100% |
 | shell_utils | Python | 14 | ✅ 100% |
 | phone_utils | Python | 31 | ✅ 100% |
@@ -191,4 +206,4 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ---
 
-**最后更新**: 2026-04-13
+**最后更新**: 2026-04-14

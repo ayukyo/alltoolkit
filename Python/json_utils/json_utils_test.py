@@ -163,4 +163,10 @@ def run_tests():
     cloned = clone(data)
     runner.test("clone creates independent copy", cloned == data)
     cloned['user']['name'] = 'Jane'
-    runner.test("clone is deep copy", data['user']['name'] == 'John
+    runner.test("clone is deep copy", data['user']['name'] == 'John')
+    
+    # Summary
+    runner.report()
+
+if __name__ == "__main__":
+    run_tests()
