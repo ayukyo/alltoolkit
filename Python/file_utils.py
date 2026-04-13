@@ -378,7 +378,8 @@ def delete_file(filepath: PathLike, missing_ok: bool = True) -> bool:
         return False
 
 
-def get_unique_filename(filepath: PathLike, suffix_format: str = '_{}') -> Path:
+def get_unique_filename(filepath: PathLike, suffix_format: str = '_{}', 
+                        max_iterations: int = 10000) -> Path:
     """
     获取唯一文件名
     
@@ -387,13 +388,21 @@ def get_unique_filename(filepath: PathLike, suffix_format: str = '_{}') -> Path:
     Args:
         filepath: 原始文件路径
         suffix_format: 序号格式化字符串，默认为 '_{}'
+        max_iterations: 最大迭代次数，防止意外无限循环，默认为 10000
     
     Returns:
         唯一的文件路径（Path 对象）
     
+    Raises:
+        ValueError: 当达到最大迭代次数仍未找到唯一文件名时
+    
     Examples:
         >>> get_unique_filename('report.pdf')  # 如果存在返回 'report_1.pdf'
         >>> get_unique_filename('data.txt', suffix_format='({})')  # 返回 'data(1).txt'
+    
+    Note:
+        max_iterations 设置为 10000 应覆盖绝大多数实际使用场景。
+        如果遇到超过此限制的情况，建议使用其他命名策略（如时间戳）。
     """
     path = Path(filepath)
     if not path.exists():
@@ -404,9 +413,16 @@ def get_unique_filename(filepath: PathLike, suffix_format: str = '_{}') -> Path:
     suffix = path.suffix
     counter = 1
     
-    while True:
+    # 使用有限循环防止意外无限循环
+    while counter <= max_iterations:
         new_name = f"{stem}{suffix_format.format(counter)}{suffix}"
         new_path = parent / new_name
         if not new_path.exists():
             return new_path
         counter += 1
+    
+    # 达到最大迭代次数，抛出异常提示用户使用其他策略
+    raise ValueError(
+        f"Unable to find unique filename after {max_iterations} iterations. "
+        f"Consider using timestamp-based naming for '{filepath}'"
+    )

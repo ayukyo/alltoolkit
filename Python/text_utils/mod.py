@@ -975,6 +975,9 @@ class TextUtils:
         """
         Calculate Levenshtein distance between two strings.
         
+        Optimized implementation using O(min(m,n)) space instead of O(m*n).
+        Only keeps two rows of the DP matrix in memory.
+        
         Args:
             s1: First string
             s2: Second string
@@ -982,20 +985,31 @@ class TextUtils:
         Returns:
             Edit distance
         """
+        # Ensure s1 is the longer string for memory efficiency
         if len(s1) < len(s2):
             return self.levenshtein_distance(s2, s1)
         
         if len(s2) == 0:
             return len(s1)
         
-        previous_row = range(len(s2) + 1)
+        # Use array module for better performance with large strings
+        # Previous row: distance from empty prefix of s1 to prefixes of s2
+        previous_row = list(range(len(s2) + 1))
+        
         for i, c1 in enumerate(s1):
+            # Current row: distance from prefix s1[:i+1] to prefixes of s2
             current_row = [i + 1]
+            
             for j, c2 in enumerate(s2):
-                insertions = previous_row[j + 1] + 1
-                deletions = current_row[j] + 1
-                substitutions = previous_row[j] + (c1 != c2)
+                # Three possible operations
+                insertions = previous_row[j + 1] + 1     # Insert c2
+                deletions = current_row[j] + 1           # Delete c1
+                substitutions = previous_row[j] + (c1 != c2)  # Substitute
+                
+                # Minimum cost operation
                 current_row.append(min(insertions, deletions, substitutions))
+            
+            # Swap rows (previous_row becomes current_row for next iteration)
             previous_row = current_row
         
         return previous_row[-1]

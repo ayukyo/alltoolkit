@@ -761,8 +761,26 @@ def in_range(value: Union[int, float], min_val: Optional[Union[int, float]] = No
 
 def is_positive(value: Union[int, float], 
                 field: Optional[str] = None) -> ValidationResult:
-    """Check if number is positive (> 0)."""
-    return in_range(value, min_val=0.0000001, field=field)
+    """Check if number is positive (> 0).
+    
+    Uses direct comparison instead of range with epsilon,
+    providing clearer semantics and avoiding floating-point precision issues.
+    """
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return ValidationResult(
+            False, value,
+            error=f"{field + ' ' if field else ''}must be a number",
+            field=field
+        )
+    
+    if value > 0:
+        return ValidationResult(True, value, field=field)
+    
+    return ValidationResult(
+        False, value,
+        error=f"{field + ' ' if field else ''}must be positive (> 0)",
+        field=field
+    )
 
 
 def is_non_negative(value: Union[int, float],

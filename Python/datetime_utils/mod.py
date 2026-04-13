@@ -350,28 +350,44 @@ class DateTimeUtils:
 
     @classmethod
     def relative_time(cls, dt: datetime, now: Optional[datetime] = None) -> str:
-        """获取相对时间描述（如：刚刚、5分钟前、昨天等）"""
+        """获取相对时间描述（如：刚刚、5分钟前、昨天等）
+        
+        优化版：使用预计算阈值和整数运算，减少浮点除法开销。
+        """
         if now is None:
             now = datetime.now()
 
-        seconds = (now - dt).total_seconds()
+        seconds = int((now - dt).total_seconds())
 
+        # 使用预计算阈值（整数秒），避免浮点比较
         if seconds < cls._THRESHOLD_MINUTE:
             return "刚刚"
         elif seconds < cls._THRESHOLD_HOUR:
-            return f"{int(seconds // 60)}分钟前"
+            # 分钟：整除60
+            minutes = seconds // cls._THRESHOLD_MINUTE
+            return f"{minutes}分钟前"
         elif seconds < cls._THRESHOLD_DAY:
-            return f"{int(seconds // 3600)}小时前"
+            # 小时：整除3600
+            hours = seconds // cls._THRESHOLD_HOUR
+            return f"{hours}小时前"
         elif seconds < cls._THRESHOLD_YESTERDAY:
             return "昨天"
         elif seconds < cls._THRESHOLD_WEEK:
-            return f"{int(seconds // 86400)}天前"
+            # 天：整除86400
+            days = seconds // cls._THRESHOLD_DAY
+            return f"{days}天前"
         elif seconds < cls._THRESHOLD_MONTH:
-            return f"{int(seconds // 604800)}周前"
+            # 周：整除604800（7天）
+            weeks = seconds // cls._THRESHOLD_WEEK
+            return f"{weeks}周前"
         elif seconds < cls._THRESHOLD_YEAR:
-            return f"{int(seconds // 2592000)}个月前"
+            # 月：整除2592000（30天）
+            months = seconds // cls._THRESHOLD_MONTH
+            return f"{months}个月前"
         else:
-            return f"{int(seconds // 31536000)}年前"
+            # 年：整除31536000（365天）
+            years = seconds // cls._THRESHOLD_YEAR
+            return f"{years}年前"
 
     @classmethod
     def format_duration(cls, seconds: Union[int, float], level: str = 'auto') -> str:
