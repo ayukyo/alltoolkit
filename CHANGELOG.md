@@ -1,5 +1,24 @@
 # AllToolkit 更新日志
 
+## [2026-04-14]
+
+### 新增
+- **Go: uuid_utils (50+ 测试，完整 UUID 工具)** 🔑
+  - UUID 生成（V3 MD5/V4 随机/V5 SHA-1）
+  - UUID 解析（标准格式/无连字符/带括号/URN 格式）
+  - UUID 属性（版本检测/变体检测/空值检查/有效性验证）
+  - 字符串格式（标准/无连字符/URN/短格式/大小写）
+  - JSON 序列化（MarshalText/UnmarshalText）
+  - 二进制序列化（MarshalBinary/UnmarshalBinary）
+  - UUID 比较（相等判断/字典序比较）
+  - 集合操作（排序/去重/包含/索引/删除/过滤/映射）
+  - 批量生成（GenerateV4Batch）
+  - 带前缀生成器（Generator 类）
+  - UUID 分析（版本分布/变体分布统计）
+  - 零外部依赖，纯 Go 标准库实现
+  - 完整示例（10 个使用场景演示）
+  - 边界测试（空 UUID/无效输入/格式边界）
+
 ## [2026-04-13]
 
 ### 新增
