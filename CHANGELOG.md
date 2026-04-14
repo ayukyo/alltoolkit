@@ -3,6 +3,26 @@
 ## [2026-04-14]
 
 ### 新增
+- **Python: bloom_filter_utils (99 单元测试，完整布隆过滤器工具)** 🔍
+  - 标准布隆过滤器 (BloomFilter) - 高效空间利用，无假阴性
+  - 可扩展布隆过滤器 (ScalableBloomFilter) - 自动扩容，适应未知规模
+  - 计数布隆过滤器 (CountingBloomFilter) - 支持删除操作和计数估计
+  - 多种哈希函数 (MurmurHash3/FNV-1a/DJB2/SHA-256)
+  - 紧凑 BitArray 实现（高效位操作）
+  - 自动计算最优参数（位数组大小/哈希函数数量）
+  - 完整序列化/反序列化（to_bytes/from_bytes）
+  - 文件持久化（save/load）
+  - 过滤器操作（union/intersect）
+  - 统计信息和分析工具
+  - 构建器模式（流畅 API）
+  - 内存使用估算工具
+  - 哈希函数性能对比工具
+  - 14 个完整示例（基础/去重/缓存过滤/爬虫/数据库优化等）
+  - 零外部依赖，纯 Python 标准库实现
+
+## [2026-04-14]
+
+### 新增
 - **Rust: env_utils (11 单元测试，零依赖环境变量工具)** 🌍
   - 从 `.env` 文件加载环境变量
   - 多类型解析：String, i16, i32, i64, u16, u32, u64, usize, f32, f64, bool
