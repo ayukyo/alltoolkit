@@ -1,0 +1,18 @@
+[package]
+name = "temperature_utils"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit"]
+license = "MIT"
+description = "A comprehensive temperature conversion utility library with zero external dependencies"
+keywords = ["temperature", "conversion", "celsius", "fahrenheit", "kelvin"]
+categories = ["science", "utilities"]
+readme = "README.md"
+
+[lib]
+name = "temperature_utils"
+path = "src/lib.rs"
+
+[[example]]
+name = "usage_examples"
+path = "examples/usage_examples.rs"
