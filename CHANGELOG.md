@@ -3,6 +3,22 @@
 ## [2026-04-14]
 
 ### 新增
+- **Rust: env_utils (11 单元测试，零依赖环境变量工具)** 🌍
+  - 从 `.env` 文件加载环境变量
+  - 多类型解析：String, i16, i32, i64, u16, u32, u64, usize, f32, f64, bool
+  - 布尔值智能解析（支持 true/false/1/0/yes/no/on/off）
+  - 默认值支持（get_env_or）
+  - 必需变量验证（require_env, validate_required）
+  - 列表解析（逗号分隔字符串转 Vec）
+  - 键值对映射（解析为 HashMap）
+  - 环境变量设置/删除/检查
+  - 获取所有环境变量
+  - 完整错误处理（EnvError 枚举）
+  - 3 个完整示例（basic/dotenv/validation）
+
+## [2026-04-14]
+
+### 新增
 - **Go: set_utils (30+ 测试，完整泛型集合工具)** 📦
   - 泛型 Set 类型（支持任意可比较类型）
   - 集合创建（空集合/从切片创建）

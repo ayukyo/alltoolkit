@@ -1,0 +1,25 @@
+[package]
+name = "env_utils"
+version = "1.0.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "A zero-dependency Rust library for environment variable management"
+license = "MIT"
+keywords = ["env", "environment", "dotenv", "config", "variables"]
+categories = ["config", "development-tools"]
+
+[lib]
+name = "env_utils"
+path = "mod.rs"
+
+[[example]]
+name = "basic"
+path = "examples/basic.rs"
+
+[[example]]
+name = "dotenv"
+path = "examples/dotenv.rs"
+
+[[example]]
+name = "validation"
+path = "examples/validation.rs"
