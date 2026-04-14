@@ -442,19 +442,18 @@ def is_credit_card(value: str, card_type: Optional[str] = None,
                 field=field
             )
     
-    # Luhn algorithm
+    # Optimized Luhn algorithm - no intermediate lists, single pass
     def luhn_check(num: str) -> bool:
-        digits = [int(d) for d in num]
-        odd_digits = digits[-1::-2]
-        even_digits = digits[-2::-2]
-        
-        total = sum(odd_digits)
-        for d in even_digits:
-            d *= 2
-            if d > 9:
-                d -= 9
-            total += d
-        
+        total = 0
+        # Process from right to left (last digit is check digit)
+        for i, d in enumerate(reversed(num)):
+            digit = int(d)
+            # Every second digit (odd positions from right) gets doubled
+            if i % 2 == 1:
+                digit *= 2
+                if digit > 9:
+                    digit -= 9
+            total += digit
         return total % 10 == 0
     
     if luhn_check(cleaned):

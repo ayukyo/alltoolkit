@@ -163,7 +163,8 @@ def distance_2d(p1: Point2D, p2: Point2D) -> float:
     """
     x1, y1 = _to_float(p1[0]), _to_float(p1[1])
     x2, y2 = _to_float(p2[0]), _to_float(p2[1])
-    return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+    # math.hypot is optimized for numerical stability and performance
+    return math.hypot(x2 - x1, y2 - y1)
 
 
 def distance_3d(p1: Point3D, p2: Point3D) -> float:
@@ -183,7 +184,8 @@ def distance_3d(p1: Point3D, p2: Point3D) -> float:
     """
     x1, y1, z1 = _to_float(p1[0]), _to_float(p1[1]), _to_float(p1[2])
     x2, y2, z2 = _to_float(p2[0]), _to_float(p2[1]), _to_float(p2[2])
-    return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2 + (z2 - z1) ** 2)
+    # For Python < 3.8, use nested hypot which is still optimized
+    return math.hypot(math.hypot(x2 - x1, y2 - y1), z2 - z1)
 
 
 def manhattan_distance_2d(p1: Point2D, p2: Point2D) -> float:
@@ -1119,7 +1121,8 @@ def vector_magnitude_2d(v: Vector2D) -> float:
         >>> vector_magnitude_2d((3, 4))
         5.0
     """
-    return math.sqrt(_to_float(v[0]) ** 2 + _to_float(v[1]) ** 2)
+    # math.hypot is optimized for numerical stability and performance
+    return math.hypot(_to_float(v[0]), _to_float(v[1]))
 
 
 def vector_magnitude_3d(v: Vector3D) -> float:
@@ -1136,7 +1139,8 @@ def vector_magnitude_3d(v: Vector3D) -> float:
         >>> vector_magnitude_3d((1, 2, 2))
         3.0
     """
-    return math.sqrt(_to_float(v[0]) ** 2 + _to_float(v[1]) ** 2 + _to_float(v[2]) ** 2)
+    # For Python < 3.8, use nested hypot which is still optimized for numerical stability
+    return math.hypot(math.hypot(_to_float(v[0]), _to_float(v[1])), _to_float(v[2]))
 
 
 def normalize_vector_2d(v: Vector2D) -> Vector2D:

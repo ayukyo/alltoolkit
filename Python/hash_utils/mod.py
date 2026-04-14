@@ -60,8 +60,10 @@ def md5(data: HashInput, hex_output: bool = True) -> Union[str, bytes]:
     """
     if isinstance(data, str):
         data = data.encode('utf-8')
-    digest = hashlib.md5(data).digest()
-    return digest.hex() if hex_output else digest
+    # Use hexdigest() directly for better performance
+    if hex_output:
+        return hashlib.md5(data).hexdigest()
+    return hashlib.md5(data).digest()
 
 
 def sha1(data: HashInput, hex_output: bool = True) -> Union[str, bytes]:
@@ -81,8 +83,10 @@ def sha1(data: HashInput, hex_output: bool = True) -> Union[str, bytes]:
     """
     if isinstance(data, str):
         data = data.encode('utf-8')
-    digest = hashlib.sha1(data).digest()
-    return digest.hex() if hex_output else digest
+    # Use hexdigest() directly for better performance
+    if hex_output:
+        return hashlib.sha1(data).hexdigest()
+    return hashlib.sha1(data).digest()
 
 
 def sha256(data: HashInput, hex_output: bool = True) -> Union[str, bytes]:
@@ -102,8 +106,10 @@ def sha256(data: HashInput, hex_output: bool = True) -> Union[str, bytes]:
     """
     if isinstance(data, str):
         data = data.encode('utf-8')
-    digest = hashlib.sha256(data).digest()
-    return digest.hex() if hex_output else digest
+    # Use hexdigest() directly for better performance
+    if hex_output:
+        return hashlib.sha256(data).hexdigest()
+    return hashlib.sha256(data).digest()
 
 
 def sha512(data: HashInput, hex_output: bool = True) -> Union[str, bytes]:
@@ -123,8 +129,10 @@ def sha512(data: HashInput, hex_output: bool = True) -> Union[str, bytes]:
     """
     if isinstance(data, str):
         data = data.encode('utf-8')
-    digest = hashlib.sha512(data).digest()
-    return digest.hex() if hex_output else digest
+    # Use hexdigest() directly for better performance
+    if hex_output:
+        return hashlib.sha512(data).hexdigest()
+    return hashlib.sha512(data).digest()
 
 
 def hash(data: HashInput, algorithm: HashAlgorithm = 'sha256', 
@@ -155,8 +163,10 @@ def hash(data: HashInput, algorithm: HashAlgorithm = 'sha256',
     try:
         hasher = hashlib.new(algorithm)
         hasher.update(data)
-        digest = hasher.digest()
-        return digest.hex() if hex_output else digest
+        # Use hexdigest() directly for better performance
+        if hex_output:
+            return hasher.hexdigest()
+        return hasher.digest()
     except ValueError as e:
         raise ValueError(f"Unsupported hash algorithm: {algorithm}. "
                         f"Supported: {', '.join(SUPPORTED_ALGORITHMS)}") from e
@@ -209,8 +219,10 @@ def hmac_hash(data: HashInput, key: HashInput,
     
     try:
         mac = hmac.new(key, data, algorithm)
-        digest = mac.digest()
-        return digest.hex() if hex_output else digest
+        # Use hexdigest() directly for better performance
+        if hex_output:
+            return mac.hexdigest()
+        return mac.digest()
     except ValueError as e:
         raise ValueError(f"Unsupported HMAC algorithm: {algorithm}") from e
 

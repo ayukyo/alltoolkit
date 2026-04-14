@@ -693,9 +693,8 @@ def find_all(obj: Any, key: str) -> List[Any]:
     """
     Find all values with a specific key in a nested structure.
     
-    Uses recursive depth-first traversal to find all matching values.
-    For structures deeper than Python's recursion limit (~1000 levels),
-    consider increasing the limit with sys.setrecursionlimit().
+    Uses iterative breadth-first traversal to find all matching values,
+    avoiding recursion stack overflow for deeply nested structures.
     
     Args:
         obj: The object to search
@@ -711,18 +710,24 @@ def find_all(obj: Any, key: str) -> List[Any]:
     """
     results = []
     
-    if isinstance(obj, dict):
-        for k, v in obj.items():
-            if k == key:
-                results.append(v)
-            # Only recurse into dict/list values (optimization: skip primitives)
-            if isinstance(v, (dict, list)):
-                results.extend(find_all(v, key))
-    elif isinstance(obj, list):
-        for item in obj:
-            # Only recurse into dict/list items (optimization: skip primitives)
-            if isinstance(item, (dict, list)):
-                results.extend(find_all(item, key))
+    # Use iterative approach with a stack to avoid recursion depth limits
+    stack = [obj]
+    
+    while stack:
+        current = stack.pop()
+        
+        if isinstance(current, dict):
+            for k, v in current.items():
+                if k == key:
+                    results.append(v)
+                # Only push dict/list values for further processing
+                if isinstance(v, (dict, list)):
+                    stack.append(v)
+        elif isinstance(current, list):
+            # Iterate in reverse order to maintain original order in results
+            for item in reversed(current):
+                if isinstance(item, (dict, list)):
+                    stack.append(item)
     
     return results
 
