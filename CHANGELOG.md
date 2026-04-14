@@ -3,6 +3,22 @@
 ## [2026-04-14]
 
 ### 新增
+- **Python: priority_queue_utils (48 单元测试，完整优先队列工具)** 📊
+  - PriorityQueue - 基于二叉堆的基本优先队列（最小堆/最大堆）
+  - UpdatablePriorityQueue - 支持高效 O(log n) 优先级更新
+  - ThreadSafePriorityQueue - 线程安全优先队列（生产者-消费者模式）
+  - BoundedPriorityQueue - 有界优先队列（最大容量限制）
+  - TaskScheduler - 任务调度器（动态优先级管理）
+  - 工具函数：merge_sorted_lists（合并有序列表）、top_k（获取前 K 个）
+  - 工厂函数：create_min_heap、create_max_heap
+  - 稳定排序（相同优先级保持插入顺序）
+  - 队列合并、查看堆顶、更新/移除元素
+  - 4 个完整示例（基础使用/任务调度/线程安全/高级功能）
+  - 零外部依赖，纯 Python 标准库实现（heapq、threading）
+
+## [2026-04-14]
+
+### 新增
 - **Go: math_utils (40+ 测试，完整数学统计工具)** 📊
   - 基础统计：Mean（平均值）、Median（中位数）、Mode（众数）、Sum（求和）、Range（极差）
   - 离散程度：Variance（方差）、SampleVariance（样本方差）、StdDev（标准差）、SampleStdDev（样本标准差）、IQR（四分位距）、CoefficientOfVariation（变异系数）
