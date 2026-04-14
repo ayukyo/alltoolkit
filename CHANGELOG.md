@@ -3,6 +3,20 @@
 ## [2026-04-14]
 
 ### 新增
+- **Go: math_utils (40+ 测试，完整数学统计工具)** 📊
+  - 基础统计：Mean（平均值）、Median（中位数）、Mode（众数）、Sum（求和）、Range（极差）
+  - 离散程度：Variance（方差）、SampleVariance（样本方差）、StdDev（标准差）、SampleStdDev（样本标准差）、IQR（四分位距）、CoefficientOfVariation（变异系数）
+  - 位置度量：Percentile（百分位数）、Quartiles（四分位数）、ZScore（标准分数）
+  - 高级均值：GeometricMean（几何平均）、HarmonicMean（调和平均）
+  - 综合统计：Describe（一键获取所有统计量）
+  - Min/Max 函数（带空切片检测）
+  - 零外部依赖，纯 Go 标准库实现（math、sort）
+  - 完整边界情况处理（空切片、单元素、非正值等）
+  - 基准测试（Benchmark）覆盖核心函数
+
+## [2026-04-14]
+
+### 新增
 - **Python: bloom_filter_utils (99 单元测试，完整布隆过滤器工具)** 🔍
   - 标准布隆过滤器 (BloomFilter) - 高效空间利用，无假阴性
   - 可扩展布隆过滤器 (ScalableBloomFilter) - 自动扩容，适应未知规模
