@@ -3,6 +3,23 @@
 ## [2026-04-15]
 
 ### 新增
+- **Go: diff_utils (40+ 测试，完整文本差异比较工具)** 📝
+  - 行级别差异：DiffLines（逐行比较文本）
+  - 字符级别差异：DiffChars（精确字符比较）
+  - 单词级别差异：DiffWords（按词比较）
+  - 统一差异格式：FormatUnified（经典 diff 输出）
+  - 彩色输出：FormatColor（ANSI 彩色终端输出）
+  - HTML 输出：FormatHTML（Web 就绪 HTML 差异）
+  - 相似度计算：Similarity（0-1 相似度评分）
+  - 编辑距离：LevenshteinDistance（最小编辑距离）
+  - 最长公共子序列：LCS（查找公共序列）
+  - 统计信息：Stats（添加/删除/未变行数）
+  - 完整 Unicode 支持（中文、Emoji 等 UTF-8）
+  - 零外部依赖，纯 Go 标准库实现
+  - 完整边界情况处理（空字符串、Unicode、大文件）
+  - 基准测试（Benchmark）覆盖核心函数
+
+### 新增
 - **JavaScript: random_utils (94 单元测试，完整随机数和值生成工具)** 🎲
   - 基础随机数：randomInt、randomFloat、randomBool（范围和概率控制）
   - 随机字符串：randomString（自定义字符集）、randomHex、randomNumeric、randomAlpha、randomPassword（强密码）
