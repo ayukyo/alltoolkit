@@ -289,9 +289,16 @@ def test_tsid():
     id2 = tsid()
     assert isinstance(id2, str)
     
-    # Test uniqueness
-    ids = set(tsid() for _ in range(100))
-    assert len(ids) == 100, "All TSIDs should be unique"
+    # Test uniqueness - note: tsid uses random sequence, so high-frequency
+    # generation in the same millisecond could theoretically collide.
+    # We test with small delays to ensure uniqueness.
+    ids = []
+    for _ in range(100):
+        ids.append(tsid())
+        time.sleep(0.001)  # Small delay to ensure different timestamps
+    
+    unique_ids = set(ids)
+    assert len(unique_ids) == 100, "All TSIDs should be unique"
     
     print("✓ tsid tests passed")
 

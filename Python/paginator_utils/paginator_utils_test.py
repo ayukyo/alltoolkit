@@ -5,6 +5,16 @@ Comprehensive tests for pagination utilities.
 Run with: python paginator_utils_test.py
 """
 
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+try:
+    import pytest
+except ImportError:
+    # Fallback: use unittest-style assertions
+    pytest = None
+
 from typing import List
 from mod import (
     Paginator, CursorPaginator, InfinitePaginator, Chunker,
@@ -638,5 +648,55 @@ class TestPageResultIteration:
         assert len(page) == 5
 
 
+def run_tests():
+    """Run all tests manually without pytest."""
+    import traceback
+    
+    # Find all test classes
+    test_classes = [
+        TestPaginator,
+        TestCursorPaginator,
+        TestInfinitePaginator,
+        TestChunker,
+        TestPageMetadata,
+        TestCursorMetadata,
+        TestPaginatedResponse,
+        TestUtilityFunctions,
+        TestEllipsisPages,
+        TestPageResultIteration,
+    ]
+    
+    total = 0
+    passed = 0
+    failed = 0
+    
+    for test_class in test_classes:
+        instance = test_class()
+        for method_name in dir(instance):
+            if method_name.startswith('test_'):
+                total += 1
+                try:
+                    method = getattr(instance, method_name)
+                    method()
+                    passed += 1
+                    print(f"✓ {test_class.__name__}.{method_name}")
+                except AssertionError as e:
+                    failed += 1
+                    print(f"✗ {test_class.__name__}.{method_name}: {e}")
+                except Exception as e:
+                    failed += 1
+                    print(f"✗ {test_class.__name__}.{method_name}: {type(e).__name__}: {e}")
+    
+    print(f"\n{'='*60}")
+    print(f"Tests: {total} | Passed: {passed} | Failed: {failed}")
+    print(f"{'='*60}")
+    
+    return failed == 0
+
+
 if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+    if pytest:
+        pytest.main([__file__, '-v'])
+    else:
+        success = run_tests()
+        sys.exit(0 if success else 1)
