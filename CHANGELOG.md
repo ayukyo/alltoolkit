@@ -1,5 +1,23 @@
 # AllToolkit 更新日志
 
+## [2026-04-15]
+
+### 新增
+- **JavaScript: random_utils (94 单元测试，完整随机数和值生成工具)** 🎲
+  - 基础随机数：randomInt、randomFloat、randomBool（范围和概率控制）
+  - 随机字符串：randomString（自定义字符集）、randomHex、randomNumeric、randomAlpha、randomPassword（强密码）
+  - 随机颜色：randomHexColor、randomRgbColor/String、randomRgbaColor/String、randomHslColor/String
+  - UUID 生成：uuid（v4）、shortUuid、uuidBatch（批量生成）
+  - 数组操作：randomChoice、randomChoices、randomSample、shuffle、shuffleInPlace
+  - 加权随机：weightedChoice、weightedChoices（按权重概率选择）
+  - 概率分布：uniform、normal（正态/Box-Muller）、exponential、poisson
+  - 随机日期时间：randomDate、randomTime、randomDatetime
+  - 加密安全随机：cryptoRandomInt、cryptoRandomString、cryptoRandomBytes（Node.js crypto）
+  - 其他实用函数：randomEnum、randomIPv4、randomMAC、randomPort、randomUsername、randomEmail、randomUrl、randomChinesePhone、randomDelay
+  - 常量导出：ALPHABET_LOWERCASE、ALPHABET_UPPERCASE、DIGITS、ALPHANUMERIC、SPECIAL_CHARS、HEX_CHARS
+  - 11 个完整示例（基础/字符串/颜色/UUID/数组/加权/分布/日期/加密/实用/综合）
+  - 零外部依赖，纯 JavaScript 标准库实现
+
 ## [2026-04-14]
 
 ### 新增
