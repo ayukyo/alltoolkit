@@ -172,6 +172,23 @@ def _get_timezone_info(tz_name: str) -> Tuple[int, int, bool, float]:
     return TIMEZONE_DATABASE[tz_name]
 
 
+# 预定义的时区分类集合，避免每次调用时创建列表
+_SOUTHERN_HEMISPHERE_TZ = frozenset([
+    "Australia/Sydney", "Australia/Melbourne", "Australia/Adelaide",
+    "Pacific/Auckland", "Pacific/Fiji", "America/Santiago",
+])
+
+_EUROPE_TZ = frozenset([
+    "Europe/London", "Europe/Paris", "Europe/Berlin", "Europe/Rome",
+    "Europe/Madrid", "Europe/Amsterdam", "Europe/Brussels",
+    "Europe/Vienna", "Europe/Stockholm", "Europe/Oslo",
+    "Europe/Copenhagen", "Europe/Warsaw", "Europe/Prague",
+    "Europe/Budapest", "Europe/Athens", "Europe/Helsinki",
+    "Europe/Kiev", "Europe/Bucharest", "Europe/Sofia",
+    "Europe/Dublin",
+])
+
+
 def _is_dst_period(year: int, month: int, tz_name: str) -> bool:
     """
     Check if current date falls within DST period for a timezone.
@@ -180,91 +197,28 @@ def _is_dst_period(year: int, month: int, tz_name: str) -> bool:
     - Northern Hemisphere: DST from second Sunday of March to first Sunday of November
     - Southern Hemisphere: DST from first Sunday of October to first Sunday of April
     - Europe: DST from last Sunday of March to last Sunday of October
+    
+    Note:
+        优化版本：使用 frozenset 进行快速查找，
+        简化 DST 检查逻辑，减少不必要的计算。
     """
     offset_hours, _, has_dst, _ = _get_timezone_info(tz_name)
     
     if not has_dst:
         return False
     
-    # Determine hemisphere based on offset and common knowledge
-    southern_hemisphere_tz = [
-        "Australia/Sydney", "Australia/Melbourne", "Australia/Adelaide",
-        "Pacific/Auckland", "Pacific/Fiji", "America/Santiago",
-    ]
+    # 使用预定义的 frozenset 进行快速查找
+    if tz_name in _SOUTHERN_HEMISPHERE_TZ:
+        # 南半球：10月到次年3月为 DST
+        return month >= 10 or month <= 3
     
-    europe_tz = [
-        "Europe/London", "Europe/Paris", "Europe/Berlin", "Europe/Rome",
-        "Europe/Madrid", "Europe/Amsterdam", "Europe/Brussels",
-        "Europe/Vienna", "Europe/Stockholm", "Europe/Oslo",
-        "Europe/Copenhagen", "Europe/Warsaw", "Europe/Prague",
-        "Europe/Budapest", "Europe/Athens", "Europe/Helsinki",
-        "Europe/Kiev", "Europe/Bucharest", "Europe/Sofia",
-        "Europe/Dublin",
-    ]
-    
-    def get_nth_sunday(year: int, month: int, n: int, last: bool = False) -> int:
-        """Get the day of nth Sunday of a month."""
-        from datetime import date
-        if last:
-            # Last Sunday
-            if month == 12:
-                next_month = date(year + 1, 1, 1)
-            else:
-                next_month = date(year, month + 1, 1)
-            last_day = next_month - timedelta(days=1)
-            day = last_day.day
-            while True:
-                d = date(year, month, day)
-                if d.weekday() == 6:  # Sunday
-                    return day
-                day -= 1
-        else:
-            # Nth Sunday
-            first_day = date(year, month, 1)
-            first_sunday = first_day + timedelta(days=(6 - first_day.weekday()) % 7)
-            return first_sunday.day + (n - 1) * 7
-    
-    if tz_name in southern_hemisphere_tz:
-        # Southern Hemisphere: October to April
-        dst_start_day = get_nth_sunday(year, 10, 1)  # First Sunday of October
-        dst_end_day = get_nth_sunday(year, 4, 1)     # First Sunday of April
-        
-        if month >= 10 or month <= 3:
-            if month >= 10:
-                return month == 10 and datetime(year, month, dst_start_day).day <= datetime(year, month, dst_start_day).day or month > 10
-            else:
-                return month <= 3 and (month < 4 or datetime(year, month, 1).day < dst_end_day)
-        
-        # Simplified: assume DST active from October to March
-        return 10 <= month or month <= 3
-    
-    elif tz_name in europe_tz:
-        # Europe: Last Sunday of March to last Sunday of October
-        dst_start_day = get_nth_sunday(year, 3, 0, last=True)
-        dst_end_day = get_nth_sunday(year, 10, 0, last=True)
-        
-        if month > 3 and month < 10:
-            return True
-        elif month == 3:
-            # Would need to check actual day, simplified
-            return False  # Assume not DST in early March
-        elif month == 10:
-            return False  # Assume not DST after late October
-        return False
+    elif tz_name in _EUROPE_TZ:
+        # 欧洲：3月到10月为 DST（简化判断）
+        return 4 <= month <= 9
     
     else:
-        # Default: Northern Hemisphere (US style)
-        # Second Sunday of March to first Sunday of November
-        dst_start_day = get_nth_sunday(year, 3, 2)
-        dst_end_day = get_nth_sunday(year, 11, 1)
-        
-        if month > 3 and month < 11:
-            return True
-        elif month == 3:
-            return False  # Simplified
-        elif month == 11:
-            return False
-        return False
+        # 北半球（美国风格）：3月到11月为 DST（简化判断）
+        return 4 <= month <= 10
 
 
 def _create_timezone(tz_name: str, dt: Optional[datetime] = None) -> dt_timezone:

@@ -109,6 +109,11 @@ class IPv6Info:
 # IPv4 Utilities
 # ============================================================================
 
+# Pre-compiled regex for IPv4 validation - faster than splitting
+_IPV4_PATTERN = re.compile(
+    r'^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$'
+)
+
 def validate_ipv4(ip: str) -> bool:
     """
     Validate an IPv4 address.
@@ -125,19 +130,16 @@ def validate_ipv4(ip: str) -> bool:
         >>> validate_ipv4('256.1.1.1')
         False
     """
-    parts = ip.split('.')
-    if len(parts) != 4:
+    match = _IPV4_PATTERN.match(ip)
+    if not match:
         return False
     
-    for part in parts:
-        try:
-            num = int(part)
-            if num < 0 or num > 255:
-                return False
-            # Check for leading zeros (except for '0' itself)
-            if part != str(num):
-                return False
-        except ValueError:
+    # Validate each octet range and leading zeros
+    for i in range(1, 5):
+        part = match.group(i)
+        num = int(part)
+        # Range check (0-255) and leading zeros check
+        if num > 255 or (len(part) > 1 and part[0] == '0'):
             return False
     
     return True

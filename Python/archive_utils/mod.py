@@ -128,21 +128,42 @@ class ArchiveUtils:
     archives in various formats. All methods use only Python standard library.
     """
     
+    # 类级别常量，避免每次实例化时创建
+    _SUPPORTED_FORMATS_ORDERED = [
+        # 多部分扩展（按使用频率排序）
+        ('.tar.gz', ArchiveFormat.TAR_GZ),
+        ('.tar.bz2', ArchiveFormat.TAR_BZ2),
+        ('.tar.xz', ArchiveFormat.TAR_XZ),
+        ('.tgz', ArchiveFormat.TAR_GZ),
+        ('.tbz2', ArchiveFormat.TAR_BZ2),
+        ('.txz', ArchiveFormat.TAR_XZ),
+        # 单部分扩展（按使用频率排序）
+        ('.zip', ArchiveFormat.ZIP),
+        ('.tar', ArchiveFormat.TAR),
+        ('.gz', ArchiveFormat.GZ),
+        ('.bz2', ArchiveFormat.BZ2),
+        ('.xz', ArchiveFormat.XZ),
+    ]
+    
+    # 用于快速查找的字典
+    _FORMAT_MAP = {
+        '.zip': ArchiveFormat.ZIP,
+        '.tar': ArchiveFormat.TAR,
+        '.tar.gz': ArchiveFormat.TAR_GZ,
+        '.tgz': ArchiveFormat.TAR_GZ,
+        '.tar.bz2': ArchiveFormat.TAR_BZ2,
+        '.tbz2': ArchiveFormat.TAR_BZ2,
+        '.tar.xz': ArchiveFormat.TAR_XZ,
+        '.txz': ArchiveFormat.TAR_XZ,
+        '.gz': ArchiveFormat.GZ,
+        '.bz2': ArchiveFormat.BZ2,
+        '.xz': ArchiveFormat.XZ,
+    }
+    
     def __init__(self):
         """Initialize archive utilities."""
-        self._supported_formats = {
-            '.zip': ArchiveFormat.ZIP,
-            '.tar': ArchiveFormat.TAR,
-            '.tar.gz': ArchiveFormat.TAR_GZ,
-            '.tgz': ArchiveFormat.TAR_GZ,
-            '.tar.bz2': ArchiveFormat.TAR_BZ2,
-            '.tbz2': ArchiveFormat.TAR_BZ2,
-            '.tar.xz': ArchiveFormat.TAR_XZ,
-            '.txz': ArchiveFormat.TAR_XZ,
-            '.gz': ArchiveFormat.GZ,
-            '.bz2': ArchiveFormat.BZ2,
-            '.xz': ArchiveFormat.XZ,
-        }
+        # 使用类级别常量，无需在实例中创建
+        pass
     
     def detect_format(self, path: str) -> Optional[ArchiveFormat]:
         """
@@ -158,16 +179,15 @@ class ArchiveUtils:
             >>> utils = ArchiveUtils()
             >>> utils.detect_format("archive.zip")
             <ArchiveFormat.ZIP: 'zip'>
+        
+        Note:
+            优化版本：按使用频率排序检查扩展名，
+            使用类级别常量避免重复创建字典。
         """
         path_lower = path.lower()
         
-        # Check multi-part extensions first
-        for ext in ['.tar.gz', '.tar.bz2', '.tar.xz']:
-            if path_lower.endswith(ext):
-                return self._supported_formats.get(ext)
-        
-        # Check single extensions
-        for ext, fmt in self._supported_formats.items():
+        # 按频率顺序检查扩展名（多部分优先）
+        for ext, fmt in self._SUPPORTED_FORMATS_ORDERED:
             if path_lower.endswith(ext):
                 return fmt
         

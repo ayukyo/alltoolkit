@@ -868,14 +868,46 @@ def unique(iterable: Iterable[T], key: Optional[Callable[[T], Any]] = None) -> L
         [1, 2, 3, 4]
         >>> unique(['a', 'A', 'b'], key=str.lower)
         ['a', 'b']
+    
+    Note:
+        优化版本：使用 key 函数优化避免重复调用，
+        对于不可哈希类型自动降级为 O(n²) 算法。
     """
-    seen = set()
-    result = []
+    seen: set = set()
+    result: List[T] = []
+    
+    # 快速路径：无 key 函数时直接处理
+    if key is None:
+        for item in iterable:
+            try:
+                # 尝试哈希，如果成功则使用 set
+                if item not in seen:
+                    seen.add(item)
+                    result.append(item)
+            except TypeError:
+                # 不可哈希类型，降级为线性查找
+                if item not in result:
+                    result.append(item)
+        return result
+    
+    # 带 key 函数的路径
     for item in iterable:
-        comparison_key = key(item) if key else item
-        if comparison_key not in seen:
-            seen.add(comparison_key)
-            result.append(item)
+        try:
+            comparison_key = key(item)
+            if comparison_key not in seen:
+                seen.add(comparison_key)
+                result.append(item)
+        except TypeError:
+            # key 结果不可哈希，降级处理
+            comparison_key = key(item)
+            is_duplicate = False
+            for existing in result:
+                if key(existing) == comparison_key:
+                    is_duplicate = True
+                    break
+            if not is_duplicate:
+                result.append(item)
+    
     return result
 
 

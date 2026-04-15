@@ -17,6 +17,11 @@ import time
 
 # ============ 文件大小格式化 ============
 
+# 预定义的单位列表，避免每次调用时创建
+_BINARY_UNITS = ('B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB')
+_DECIMAL_UNITS = ('B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB')
+
+
 def format_bytes(
     size: Union[int, float],
     precision: int = 2,
@@ -44,33 +49,36 @@ def format_bytes(
         '1.00 KiB'
         >>> format_bytes(1500000)
         '1.50 MB'
+    
+    Note:
+        优化版本：使用预定义常量减少内存分配，
+        使用 math.log 快速计算单位索引。
     """
+    import math
+    
+    # 快速处理特殊情况
     if size == 0:
-        return f"0{' ' if use_space else ''}B" if use_space else "0B"
+        return f"0{' ' if use_space else ''}B"
     
     if size < 0:
         return f"-{format_bytes(abs(size), precision, binary, use_space)}"
     
-    if binary:
-        units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB']
-        base = 1024
-    else:
-        units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
-        base = 1000
+    # 使用预定义的单位列表
+    units = _BINARY_UNITS if binary else _DECIMAL_UNITS
+    base = 1024 if binary else 1000
     
-    # 找到合适的单位
-    unit_index = 0
-    while size >= base and unit_index < len(units) - 1:
-        size /= base
-        unit_index += 1
+    # 使用 log 快速计算单位索引
+    if size < base:
+        return f"{int(size)}{' ' if use_space else ''}B"
+    
+    # 计算单位索引（使用 log 优化）
+    unit_index = min(int(math.log(size, base)), len(units) - 1)
+    size_in_unit = size / (base ** unit_index)
     
     space = ' ' if use_space else ''
     
     # 格式化数字
-    if unit_index == 0:
-        return f"{int(size)}{space}{units[unit_index]}"
-    else:
-        return f"{size:.{precision}f}{space}{units[unit_index]}"
+    return f"{size_in_unit:.{precision}f}{space}{units[unit_index]}"
 
 
 def parse_size(size_str: str) -> int:
