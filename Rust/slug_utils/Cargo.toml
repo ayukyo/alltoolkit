@@ -1,0 +1,19 @@
+[package]
+name = "slug_utils"
+version = "0.1.0"
+edition = "2021"
+description = "A zero-dependency URL slug generator for Rust with Chinese pinyin support"
+license = "MIT"
+authors = ["AllToolkit"]
+keywords = ["slug", "url", "seo", "pinyin", "chinese"]
+categories = ["text-processing", "web-programming"]
+
+[lib]
+name = "slug_utils"
+path = "src/lib.rs"
+
+[features]
+default = []
+
+[dev-dependencies]
+# No external dev dependencies
