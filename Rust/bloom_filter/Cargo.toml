@@ -1,0 +1,13 @@
+[package]
+name = "bloom_filter"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "Bloom filter implementation with zero external dependencies"
+license = "MIT"
+keywords = ["bloom-filter", "data-structure", "probabilistic", "set-membership"]
+categories = ["data-structures", "algorithms"]
+
+[dependencies]
+
+[dev-dependencies]
