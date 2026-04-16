@@ -1,409 +1,328 @@
-# Priority Queue Utils (优先队列工具模块)
+# Priority Queue Utilities
 
-[English](#english) | [中文](#chinese)
+A comprehensive, thread-safe priority queue implementation with advanced features for Python applications. **Zero external dependencies** - uses only Python standard library.
 
----
+## Features
 
-<a name="chinese"></a>
-## 中文文档
+- **Thread-Safe Operations**: Fine-grained locking for concurrent access
+- **Dynamic Priority Updates**: Modify priority of pending tasks
+- **Delayed Execution**: Schedule tasks with configurable delays
+- **Task Cancellation**: Cancel pending tasks before execution
+- **Execution History**: Track completed task results
+- **Multiple Priority Policies**: Highest-first, lowest-first, FIFO
+- **Task Scheduler**: One-time and recurring task scheduling
+- **Double-Ended Priority Queue**: Access both min and max efficiently
+- **Bounded Queue**: Size-limited queue with overflow policies
 
-### 概述
+## Installation
 
-`priority_queue_utils` 是一个完整的优先队列工具模块，提供多种优先队列实现，支持零外部依赖。
-
-### 功能特性
-
-- **PriorityQueue** - 基于二叉堆的基本优先队列
-  - 最小堆/最大堆模式
-  - 查看、更新、移除元素
-  - 队列合并
-  - 稳定排序（相同优先级保持插入顺序）
-
-- **UpdatablePriorityQueue** - 支持高效优先级更新
-  - O(log n) 优先级更新
-  - 自动检测重复元素
-  - 快速查询元素优先级
-
-- **ThreadSafePriorityQueue** - 线程安全优先队列
-  - 多线程生产者-消费者模式
-  - 阻塞等待和非阻塞弹出
-  - 内置锁和条件变量
-
-- **BoundedPriorityQueue** - 有界优先队列
-  - 最大容量限制
-  - 低优先级元素自动拒绝
-  - 高优先级元素替换机制
-
-- **TaskScheduler** - 任务调度器
-  - 任务优先级管理
-  - 动态更新优先级
-  - 任务附加数据存储
-
-- **工具函数**
-  - `merge_sorted_lists()` - 合并有序列表
-  - `top_k()` - 获取前 K 个元素
-  - `create_min_heap()` / `create_max_heap()` - 工厂函数
-
-### 时间复杂度
-
-| 操作 | PriorityQueue | UpdatablePriorityQueue |
-|------|---------------|------------------------|
-| 插入 | O(log n) | O(log n) |
-| 弹出 | O(log n) | O(log n) |
-| 查看堆顶 | O(1) | O(1) |
-| 更新优先级 | O(n) | O(log n) |
-| 检查存在 | O(n) | O(1) |
-
-### 安装
-
-无需安装，直接导入使用：
+No installation required - just copy the `mod.py` file to your project.
 
 ```python
-from priority_queue_utils.mod import PriorityQueue
+from priority_queue_utils import PriorityQueue, TaskScheduler
 ```
 
-### 快速开始
+## Quick Start
 
-#### 基本使用
+### Basic Priority Queue
 
 ```python
-from priority_queue_utils.mod import PriorityQueue
+from mod import PriorityQueue
 
-# 创建最小堆（优先级值越小越优先）
-pq = PriorityQueue[str]()
-pq.push("低优先级任务", 10)
-pq.push("高优先级任务", 1)
-pq.push("中等优先级任务", 5)
+# Create a queue
+queue = PriorityQueue[str]()
 
-# 按优先级弹出
-while pq:
-    print(pq.pop())
-# 输出: 高优先级任务, 中等优先级任务, 低优先级任务
+# Add items with different priorities (lower number = higher priority)
+queue.push("urgent", priority=1)
+queue.push("normal", priority=5)
+queue.push("low", priority=10)
+
+# Pop items - they come out in priority order
+print(queue.pop().data)  # "urgent"
+print(queue.pop().data)  # "normal"
+print(queue.pop().data)  # "low"
 ```
 
-#### 最大堆模式
+### Task Scheduler
 
 ```python
-from priority_queue_utils.mod import PriorityQueue
+from mod import TaskScheduler
+import time
 
-# 创建最大堆（优先级值越大越优先）
-pq = PriorityQueue[int](max_heap=True)
-pq.push(10, 10)
-pq.push(50, 50)
-pq.push(30, 30)
+scheduler = TaskScheduler(num_workers=2)
 
-while pq:
-    print(pq.pop())
-# 输出: 50, 30, 10
+# Schedule one-time task
+scheduler.schedule_once(
+    lambda: print("Hello!"),
+    delay=5  # Run after 5 seconds
+)
+
+# Schedule recurring task
+scheduler.schedule_interval(
+    lambda: print("Ping!"),
+    interval=10  # Run every 10 seconds
+)
+
+# Schedule at specific time
+from datetime import datetime, timedelta
+scheduler.schedule_once(
+    lambda: print("Time's up!"),
+    execute_at=datetime.now() + timedelta(hours=1)
+)
+
+# Start processing
+scheduler.start()
+
+# Later...
+scheduler.stop()
 ```
 
-#### 可更新优先级队列
+### With Task Executor
 
 ```python
-from priority_queue_utils.mod import UpdatablePriorityQueue
+from mod import PriorityQueue, PriorityTaskExecutor
 
-pq = UpdatablePriorityQueue[str]()
-pq.push("任务A", 3)
-pq.push("任务B", 1)
+def process_result(result):
+    print(f"Task completed: {result}")
 
-# 高效更新优先级（O(log n)）
-pq.update_priority("任务A", 0)
+queue = PriorityQueue()
+executor = PriorityTaskExecutor(
+    queue,
+    num_workers=4,
+    default_callback=process_result
+)
 
-print(pq.pop())  # 输出: 任务A（优先级最高）
+# Add tasks
+queue.push(lambda: sum(range(1000)), priority=1)
+queue.push(lambda: "hello world", priority=2)
+
+executor.start()
+# ... tasks are processed automatically
+executor.stop()
 ```
 
-#### 线程安全队列
+## API Reference
+
+### PriorityQueue
+
+The core priority queue implementation.
 
 ```python
-from priority_queue_utils.mod import ThreadSafePriorityQueue
-import threading
-
-queue = ThreadSafePriorityQueue[int]()
-
-# 生产者线程
-def producer():
-    for i in range(10):
-        queue.push(i, i)
-
-# 消费者线程
-def consumer():
-    while True:
-        item = queue.pop(timeout=1.0)
-        if item is None:
-            break
-        print(f"处理: {item}")
-
-# 启动线程
-threading.Thread(target=producer).start()
-threading.Thread(target=consumer).start()
+queue = PriorityQueue[T](
+    policy=PriorityPolicy.HIGHEST_FIRST,  # or LOWEST_FIRST, FIFO
+    maxsize=0,      # 0 = unlimited
+    history_size=100
+)
 ```
 
-#### 有界队列
+#### Methods
+
+| Method | Description |
+|--------|-------------|
+| `push(item, priority=5, callback=None, delay=None)` | Add item, returns task ID |
+| `pop(timeout=None, block=True)` | Remove and return highest priority item |
+| `peek()` | View highest priority item without removing |
+| `update_priority(task_id, new_priority)` | Change priority of pending task |
+| `cancel(task_id)` | Cancel a pending task |
+| `get_task_state(task_id)` | Get state of a task |
+| `size()` | Current queue size |
+| `empty()` | Check if empty |
+| `full()` | Check if at maxsize |
+| `clear()` | Remove all pending items |
+| `close()` | Close queue for new items |
+| `get_history(limit=10)` | Get recent task results |
+
+### PriorityTaskExecutor
+
+Process tasks from a queue with worker threads.
 
 ```python
-from priority_queue_utils.mod import BoundedPriorityQueue
-
-pq = BoundedPriorityQueue[int](max_size=3)
-
-pq.push(1, 1)  # True
-pq.push(2, 2)  # True
-pq.push(3, 3)  # True
-
-# 队列已满，低优先级元素被拒绝
-pq.push(10, 10)  # False
-
-# 高优先级元素会替换低优先级元素
-pq.push(0, 0)  # True（替换了优先级为 3 的元素）
+executor = PriorityTaskExecutor(
+    queue,
+    num_workers=1,
+    default_callback=None  # Called for each result
+)
 ```
 
-#### 任务调度器
+#### Methods
+
+| Method | Description |
+|--------|-------------|
+| `start()` | Start worker threads |
+| `stop(wait=True, timeout=5.0)` | Stop workers |
+| `stats` | Get statistics dict |
+
+### TaskScheduler
+
+High-level scheduling with delays and intervals.
 
 ```python
-from priority_queue_utils.mod import TaskScheduler
+scheduler = TaskScheduler(num_workers=2)
+```
+
+#### Methods
+
+| Method | Description |
+|--------|-------------|
+| `schedule_once(func, args, kwargs, priority, delay, execute_at)` | One-time task |
+| `schedule_interval(func, interval, args, kwargs, priority, initial_delay, max_runs)` | Recurring task |
+| `cancel_task(task_id)` | Cancel a task |
+| `start()` | Start scheduler |
+| `stop(wait=True)` | Stop scheduler |
+
+### PriorityDeque
+
+Double-ended priority queue for accessing both min and max.
+
+```python
+deque = PriorityDeque[int]()
+deque.push(5, priority=5)
+deque.push(1, priority=1)
+deque.push(10, priority=10)
+
+deque.peek_min()  # 1
+deque.peek_max()  # 10
+deque.pop_min()   # 1
+deque.pop_max()   # 10
+```
+
+### BoundedPriorityQueue
+
+Size-limited queue with overflow handling.
+
+```python
+queue = BoundedPriorityQueue[int](
+    maxsize=100,
+    policy=OverflowPolicy.REJECT  # or DROP_LOWEST, DROP_OLDEST
+)
+```
+
+## Utility Functions
+
+```python
+from mod import create_priority_queue, merge_priority_queues, batch_push
+
+# Create from list
+queue = create_priority_queue([
+    ("item1", 1),  # (item, priority)
+    ("item2", 2),
+])
+
+# Merge queues
+merged = merge_priority_queues(q1, q2, q3)
+
+# Batch push
+task_ids = batch_push(queue, [
+    (item1, 1),
+    (item2, 2),
+])
+```
+
+## Examples
+
+### Priority Inversion Handling
+
+```python
+from mod import PriorityQueue
+
+queue = PriorityQueue[str]()
+
+# Add high-priority task
+task_id = queue.push("urgent", priority=1)
+
+# Later, update if needed
+queue.update_priority(task_id, 10)  # Demote to low priority
+```
+
+### Delayed Execution
+
+```python
+from mod import TaskScheduler
 
 scheduler = TaskScheduler()
 
-# 添加带数据的任务
-scheduler.add_task("紧急任务", priority=1, data={"type": "critical"})
-scheduler.add_task("普通任务", priority=5, data={"type": "normal"})
+# Run after 5 minutes
+scheduler.schedule_once(
+    send_email,
+    args=[user, "Welcome!"],
+    delay=300  # seconds
+)
 
-# 动态更新优先级
-scheduler.update_task_priority("普通任务", 2)
-
-# 取消任务
-scheduler.cancel_task("紧急任务")
-
-# 执行任务
-while scheduler:
-    task = scheduler.get_next_task()
-    data = scheduler.get_task_data(task)
-    print(f"执行: {task}, 数据: {data}")
+scheduler.start()
 ```
 
-#### 合并有序列表
+### Task Cancellation
 
 ```python
-from priority_queue_utils.mod import merge_sorted_lists
+queue = PriorityQueue()
 
-list1 = [("a", 1), ("c", 3)]
-list2 = [("b", 2), ("d", 4)]
+# Schedule a task
+task_id = queue.push(long_running_task, priority=1)
 
-merged = merge_sorted_lists([list1, list2])
-print(merged)  # [('a', 1), ('b', 2), ('c', 3), ('d', 4)]
+# Cancel if needed
+if should_cancel:
+    queue.cancel(task_id)
 ```
 
-#### Top K
+### Concurrent Consumers
 
 ```python
-from priority_queue_utils.mod import top_k
+from mod import PriorityQueue, PriorityTaskExecutor
 
-items = [("a", 5), ("b", 3), ("c", 8), ("d", 1), ("e", 6)]
+queue = PriorityQueue()
 
-# 最大的 3 个
-top3 = top_k(items, 3, largest=True)
-print(top3)  # [('c', 8), ('e', 6), ('a', 5)]
+# Multiple workers consuming from same queue
+executor = PriorityTaskExecutor(queue, num_workers=8)
+executor.start()
 
-# 最小的 3 个
-bottom3 = top_k(items, 3, largest=False)
-print(bottom3)  # [('d', 1), ('b', 3), ('a', 5)]
+# Producers can push from anywhere
+for i in range(1000):
+    queue.push(process_item, priority=i % 10)
+
+executor.stop()
 ```
 
-### 使用场景
+## Thread Safety
 
-1. **任务调度系统** - 按优先级执行任务
-2. **事件驱动模拟** - 按时间顺序处理事件
-3. **图算法** - Dijkstra 最短路径、A* 搜索
-4. **数据流处理** - 合并多个有序数据流
-5. **排行榜** - Top K 排名
-6. **消息队列** - 优先级消息处理
-
-### API 文档
-
-#### PriorityQueue
+All operations are thread-safe. The queue uses `threading.RLock` for
+fine-grained locking, and `threading.Condition` for efficient blocking
+operations.
 
 ```python
-class PriorityQueue(Generic[T]):
-    def __init__(self, max_heap: bool = False)
-    def push(self, item: T, priority: float) -> None
-    def pop(self) -> Optional[T]
-    def peek(self) -> Optional[T]
-    def peek_priority(self) -> Optional[float]
-    def update_priority(self, item: T, new_priority: float) -> bool
-    def remove(self, item: T) -> bool
-    def merge(self, other: PriorityQueue) -> None
-    def clear(self) -> None
-    def to_list(self, sorted_: bool = True) -> List[Tuple[T, float]]
-    
-    @classmethod
-    def from_list(cls, items: List[Tuple[T, float]], max_heap: bool = False) -> PriorityQueue
+# Safe for concurrent use
+import threading
+
+queue = PriorityQueue()
+
+def producer():
+    for i in range(100):
+        queue.push(f"item-{i}", priority=i)
+
+def consumer():
+    while True:
+        item = queue.pop(timeout=1.0)
+        if item:
+            process(item)
+
+# Multiple producers and consumers can work simultaneously
 ```
 
-#### UpdatablePriorityQueue
+## Performance
 
-```python
-class UpdatablePriorityQueue(Generic[T]):
-    def __init__(self, max_heap: bool = False)
-    def push(self, item: T, priority: float) -> None
-    def pop(self) -> Optional[T]
-    def peek(self) -> Optional[T]
-    def update_priority(self, item: T, new_priority: float) -> bool
-    def remove(self, item: T) -> bool
-    def contains(self, item: T) -> bool
-    def get_priority(self, item: T) -> Optional[float]
-    def clear(self) -> None
-```
+- **Push**: O(log n)
+- **Pop**: O(log n) amortized
+- **Peek**: O(1)
+- **Update Priority**: O(n) - requires heap reorganization
+- **Memory**: O(n) for n items
 
-#### ThreadSafePriorityQueue
+## Use Cases
 
-```python
-class ThreadSafePriorityQueue(Generic[T]):
-    def __init__(self, max_heap: bool = False)
-    def push(self, item: T, priority: float) -> None
-    def pop(self, timeout: Optional[float] = None) -> Optional[T]
-    def try_pop(self) -> Optional[T]
-    def peek(self) -> Optional[T]
-    def clear(self) -> None
-```
+1. **Job Processing**: Prioritize critical tasks
+2. **Task Scheduling**: Delay and repeat execution
+3. **Event Systems**: Order events by importance
+4. **Request Handling**: Process high-priority requests first
+5. **Resource Allocation**: Manage limited resources by priority
 
-#### BoundedPriorityQueue
+## License
 
-```python
-class BoundedPriorityQueue(Generic[T]):
-    def __init__(self, max_size: int, max_heap: bool = False)
-    def push(self, item: T, priority: float) -> bool
-    def pop(self) -> Optional[T]
-    def peek(self) -> Optional[T]
-    def is_full(self) -> bool
-    def max_size(self) -> int
-```
-
-#### TaskScheduler
-
-```python
-class TaskScheduler:
-    def __init__(self, max_heap: bool = False)
-    def add_task(self, task_id: str, priority: float, data: Optional[Any] = None) -> None
-    def get_next_task(self) -> Optional[str]
-    def update_task_priority(self, task_id: str, new_priority: float) -> bool
-    def cancel_task(self, task_id: str) -> bool
-    def get_task_data(self, task_id: str) -> Optional[Any]
-    def peek_next_task(self) -> Optional[str]
-    def has_task(self, task_id: str) -> bool
-    def clear(self) -> None
-```
-
-### 测试
-
-运行测试：
-
-```bash
-cd Python/priority_queue_utils
-python priority_queue_utils_test.py
-```
-
-### 示例
-
-查看更多示例：
-
-```bash
-cd Python/priority_queue_utils/examples
-python basic_usage.py        # 基本使用
-python task_scheduler.py     # 任务调度器
-python thread_safe.py        # 线程安全队列
-python advanced_features.py  # 高级功能
-```
-
----
-
-<a name="english"></a>
-## English Documentation
-
-### Overview
-
-`priority_queue_utils` is a complete priority queue toolkit providing multiple priority queue implementations with zero external dependencies.
-
-### Features
-
-- **PriorityQueue** - Binary heap-based priority queue
-  - Min heap / Max heap modes
-  - Peek, update, remove elements
-  - Queue merging
-  - Stable sorting (same priority preserves insertion order)
-
-- **UpdatablePriorityQueue** - Efficient priority updates
-  - O(log n) priority updates
-  - Automatic duplicate detection
-  - Quick priority queries
-
-- **ThreadSafePriorityQueue** - Thread-safe priority queue
-  - Multi-threaded producer-consumer pattern
-  - Blocking wait and non-blocking pop
-  - Built-in locks and condition variables
-
-- **BoundedPriorityQueue** - Bounded priority queue
-  - Maximum capacity limit
-  - Auto-reject low priority elements
-  - High priority replacement mechanism
-
-- **TaskScheduler** - Task scheduler
-  - Task priority management
-  - Dynamic priority updates
-  - Task data storage
-
-- **Utility Functions**
-  - `merge_sorted_lists()` - Merge sorted lists
-  - `top_k()` - Get top K elements
-  - `create_min_heap()` / `create_max_heap()` - Factory functions
-
-### Time Complexity
-
-| Operation | PriorityQueue | UpdatablePriorityQueue |
-|-----------|---------------|------------------------|
-| Insert | O(log n) | O(log n) |
-| Pop | O(log n) | O(log n) |
-| Peek | O(1) | O(1) |
-| Update Priority | O(n) | O(log n) |
-| Contains | O(n) | O(1) |
-
-### Quick Start
-
-```python
-from priority_queue_utils.mod import PriorityQueue
-
-# Create min heap (lower priority value = higher priority)
-pq = PriorityQueue[str]()
-pq.push("low priority", 10)
-pq.push("high priority", 1)
-
-while pq:
-    print(pq.pop())
-# Output: high priority, low priority
-```
-
-### Use Cases
-
-1. **Task scheduling systems** - Execute tasks by priority
-2. **Event-driven simulation** - Process events by time
-3. **Graph algorithms** - Dijkstra, A* search
-4. **Data stream processing** - Merge sorted streams
-5. **Rankings** - Top K ranking
-6. **Message queues** - Priority message processing
-
-### Testing
-
-```bash
-cd Python/priority_queue_utils
-python priority_queue_utils_test.py
-```
-
-### License
-
-MIT License
-
-### Author
-
-AllToolkit Automation Assistant
-
-### Created
-
-2026-04-14
+MIT License - Free for personal and commercial use.

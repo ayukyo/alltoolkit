@@ -1,169 +1,263 @@
+#!/usr/bin/env python3
 """
-优先队列基本使用示例
-
-演示 PriorityQueue 的基本操作：
-- 推入元素
-- 弹出元素
-- 最小堆/最大堆模式
-- 查看堆顶元素
+Basic usage examples for Priority Queue Utilities.
 """
 
 import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, '..')
 
-from mod import PriorityQueue, create_min_heap, create_max_heap
-
-
-def basic_usage():
-    """基本使用示例"""
-    print("=" * 50)
-    print("基本优先队列使用（最小堆）")
-    print("=" * 50)
-    
-    pq = create_min_heap()
-    
-    # 推入任务，优先级值越小越优先
-    pq.push("处理紧急 Bug", priority=1)
-    pq.push("编写文档", priority=5)
-    pq.push("代码审查", priority=3)
-    pq.push("回复邮件", priority=4)
-    pq.push("修复小问题", priority=2)
-    
-    print("\n任务队列内容:")
-    print(f"  队列大小: {len(pq)}")
-    print(f"  下一个任务: {pq.peek()}")
-    
-    print("\n按优先级执行任务:")
-    while pq:
-        task = pq.pop()
-        print(f"  - {task}")
-    
-    print()
+import time
+from mod import (
+    PriorityQueue,
+    PriorityTaskExecutor,
+    TaskScheduler,
+    PriorityPolicy,
+)
 
 
-def max_heap_usage():
-    """最大堆使用示例"""
-    print("=" * 50)
-    print("最大堆优先队列（优先级值越大越优先）")
-    print("=" * 50)
+def example_basic_queue():
+    """Basic priority queue usage."""
+    print("\n=== Basic Priority Queue ===")
     
-    pq = create_max_heap()
+    queue = PriorityQueue[str]()
     
-    # 分数排名系统
-    players = [
-        ("Alice", 95),
-        ("Bob", 78),
-        ("Charlie", 92),
-        ("David", 85),
-        ("Eve", 88),
-    ]
+    # Add items with different priorities
+    queue.push("Low priority task", priority=10)
+    queue.push("High priority task", priority=1)
+    queue.push("Medium priority task", priority=5)
     
-    print("\n玩家分数:")
-    for name, score in players:
-        pq.push(name, score)
-        print(f"  {name}: {score} 分")
-    
-    print("\n排行榜（从高到低）:")
-    rank = 1
-    while pq:
-        player = pq.pop()
-        print(f"  第 {rank} 名: {player}")
-        rank += 1
-    
-    print()
+    # Process in priority order
+    while not queue.empty():
+        item = queue.pop()
+        print(f"  Processing: {item.data}")
 
 
-def peek_and_contains():
-    """查看堆顶和包含检查示例"""
-    print("=" * 50)
-    print("查看堆顶和包含检查")
-    print("=" * 50)
+def example_delayed_tasks():
+    """Tasks with execution delays."""
+    print("\n=== Delayed Tasks ===")
     
-    pq = PriorityQueue[str]()
-    pq.push("任务A", 2)
-    pq.push("任务B", 1)
-    pq.push("任务C", 3)
+    queue = PriorityQueue[str]()
     
-    print(f"\n当前队列大小: {len(pq)}")
-    print(f"堆顶元素（不移除）: {pq.peek()}")
-    print(f"堆顶优先级: {pq.peek_priority()}")
+    # Add task with 2 second delay
+    queue.push("Delayed task", priority=1, delay=2)
+    queue.push("Immediate task", priority=1)
     
-    print(f"\n包含 '任务A': {'任务A' in pq}")
-    print(f"包含 '任务D': {'任务D' in pq}")
+    print("  Waiting for delayed task...")
     
-    print(f"\n弹出堆顶后队列大小: {len(pq)} (弹出了 '{pq.pop()}')")
-    print()
+    # Immediate task comes first
+    item = queue.pop(timeout=0.1)
+    if item:
+        print(f"  Got: {item.data}")
+    
+    # Delayed task not ready yet
+    item = queue.pop(timeout=0.1)
+    print(f"  Delayed ready: {item is not None}")
+    
+    # Wait for delay
+    time.sleep(2)
+    item = queue.pop(timeout=0.1)
+    if item:
+        print(f"  Got: {item.data}")
 
 
-def update_and_remove():
-    """更新优先级和移除元素示例"""
-    print("=" * 50)
-    print("更新优先级和移除元素")
-    print("=" * 50)
+def example_priority_update():
+    """Update task priority dynamically."""
+    print("\n=== Priority Update ===")
     
-    pq = PriorityQueue[str]()
-    pq.push("低优先级任务", priority=10)
-    pq.push("中等优先级任务", priority=5)
-    pq.push("高优先级任务", priority=1)
+    queue = PriorityQueue[str]()
     
-    print("\n初始队列:")
-    while pq:
-        print(f"  - {pq.pop()}")
+    task_id = queue.push("Originally low priority", priority=10)
+    print(f"  Added with priority 10")
     
-    # 重新推入
-    pq.push("低优先级任务", priority=10)
-    pq.push("中等优先级任务", priority=5)
-    pq.push("高优先级任务", priority=1)
+    # Update to high priority
+    queue.update_priority(task_id, 1)
+    print(f"  Updated to priority 1")
     
-    # 更新优先级
-    print("\n更新 '低优先级任务' 的优先级为 0（最高）:")
-    pq.update_priority("低优先级任务", 0)
-    while pq:
-        print(f"  - {pq.pop()}")
-    
-    # 演示移除
-    pq.push("任务A", 1)
-    pq.push("任务B", 2)
-    pq.push("任务C", 3)
-    
-    print("\n移除 '任务B' 后:")
-    pq.remove("任务B")
-    while pq:
-        print(f"  - {pq.pop()}")
-    
-    print()
+    item = queue.pop()
+    print(f"  Popped: {item.data}")
 
 
-def merge_queues():
-    """合并队列示例"""
-    print("=" * 50)
-    print("合并两个优先队列")
-    print("=" * 50)
+def example_task_cancellation():
+    """Cancel pending tasks."""
+    print("\n=== Task Cancellation ===")
     
-    pq1 = PriorityQueue[int]()
-    pq1.push(1, 1)
-    pq1.push(3, 3)
+    queue = PriorityQueue[str]()
     
-    pq2 = PriorityQueue[int]()
-    pq2.push(2, 2)
-    pq2.push(4, 4)
+    task_id1 = queue.push("Task 1", priority=1)
+    task_id2 = queue.push("Task 2", priority=2)
     
-    print("\n队列 1: [1(优先级1), 3(优先级3)]")
-    print("队列 2: [2(优先级2), 4(优先级4)]")
+    print(f"  Queue size: {queue.size()}")
     
-    pq1.merge(pq2)
+    # Cancel first task
+    queue.cancel(task_id1)
+    print(f"  Cancelled task 1")
     
-    print("\n合并后按优先级弹出:")
-    while pq1:
-        print(f"  - {pq1.pop()}")
+    # Pop remaining
+    while not queue.empty():
+        item = queue.pop(block=False)
+        if item:
+            print(f"  Got: {item.data}")
     
-    print()
+    print(f"  Queue size after: {queue.size()}")
+
+
+def example_executor():
+    """Using PriorityTaskExecutor."""
+    print("\n=== Task Executor ===")
+    
+    results = []
+    
+    def task(n):
+        result = n * n
+        results.append(result)
+        return result
+    
+    def on_result(result):
+        print(f"  Task completed: {result.result}")
+    
+    queue = PriorityQueue()
+    executor = PriorityTaskExecutor(
+        queue,
+        num_workers=2,
+        default_callback=on_result
+    )
+    
+    # Add tasks
+    for i in range(5):
+        queue.push(lambda n=i: task(n), priority=i)
+    
+    print("  Starting executor...")
+    executor.start()
+    time.sleep(0.5)
+    executor.stop()
+    
+    print(f"  Results: {sorted(results)}")
+    print(f"  Stats: {executor.stats}")
+
+
+def example_scheduler():
+    """Using TaskScheduler."""
+    print("\n=== Task Scheduler ===")
+    
+    results = []
+    
+    scheduler = TaskScheduler(num_workers=1)
+    
+    # One-time task
+    scheduler.schedule_once(
+        lambda: results.append("one-time"),
+        delay=0.1
+    )
+    
+    # Recurring task
+    scheduler.schedule_interval(
+        lambda: results.append("recurring"),
+        interval=0.1,
+        initial_delay=0,
+        max_runs=3
+    )
+    
+    print("  Starting scheduler...")
+    scheduler.start()
+    time.sleep(0.5)
+    scheduler.stop()
+    
+    print(f"  Results: {results}")
+
+
+def example_policy():
+    """Different priority policies."""
+    print("\n=== Priority Policies ===")
+    
+    # HIGHEST_FIRST (default): lower number = higher priority
+    queue_high = PriorityQueue[str](policy=PriorityPolicy.HIGHEST_FIRST)
+    queue_high.push("A", priority=1)
+    queue_high.push("B", priority=5)
+    print(f"  HIGHEST_FIRST: {queue_high.pop().data}")  # A
+    
+    # LOWEST_FIRST: higher number = higher priority
+    queue_low = PriorityQueue[str](policy=PriorityPolicy.LOWEST_FIRST)
+    queue_low.push("A", priority=1)
+    queue_low.push("B", priority=5)
+    print(f"  LOWEST_FIRST: {queue_low.pop().data}")  # B
+    
+    # FIFO: ignore priority
+    queue_fifo = PriorityQueue[str](policy=PriorityPolicy.FIFO)
+    queue_fifo.push("First", priority=10)
+    queue_fifo.push("Second", priority=1)
+    print(f"  FIFO: {queue_fifo.pop().data}")  # First
+
+
+def example_callbacks():
+    """Task callbacks."""
+    print("\n=== Task Callbacks ===")
+    
+    queue = PriorityQueue[str]()
+    
+    def callback(item):
+        print(f"  Callback received: {item}")
+    
+    queue.push("Important task", priority=1, callback=callback)
+    
+    item = queue.pop()
+    if item.callback:
+        item.callback(item.data)
+
+
+def example_thread_safety():
+    """Thread-safe concurrent access."""
+    print("\n=== Thread Safety ===")
+    
+    import threading
+    
+    queue = PriorityQueue[int]()
+    results = []
+    
+    def producer(start, count):
+        for i in range(count):
+            queue.push(start + i, priority=i)
+    
+    def consumer(count):
+        for _ in range(count):
+            item = queue.pop(timeout=1.0)
+            if item:
+                results.append(item.data)
+    
+    # Create producers
+    threads = []
+    for i in range(3):
+        t = threading.Thread(target=producer, args=(i * 100, 100))
+        threads.append(t)
+        t.start()
+    
+    # Wait for producers
+    for t in threads:
+        t.join()
+    
+    print(f"  Queue size: {queue.size()}")
+    
+    # Consume all
+    while not queue.empty():
+        item = queue.pop(timeout=0.1)
+        if item:
+            results.append(item.data)
+    
+    print(f"  Items processed: {len(results)}")
 
 
 if __name__ == "__main__":
-    basic_usage()
-    max_heap_usage()
-    peek_and_contains()
-    update_and_remove()
-    merge_queues()
+    print("Priority Queue Utilities - Examples")
+    print("=" * 40)
+    
+    example_basic_queue()
+    example_delayed_tasks()
+    example_priority_update()
+    example_task_cancellation()
+    example_executor()
+    example_scheduler()
+    example_policy()
+    example_callbacks()
+    example_thread_safety()
+    
+    print("\n" + "=" * 40)
+    print("All examples completed!")

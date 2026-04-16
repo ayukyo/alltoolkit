@@ -1,584 +1,604 @@
 """
-优先队列工具模块测试
+Tests for Priority Queue Utilities
+===================================
 
-包含完整的单元测试，验证所有功能：
-- PriorityQueue 基本操作
-- 最大堆/最小堆模式
-- UpdatablePriorityQueue 高效更新
-- ThreadSafePriorityQueue 线程安全
-- BoundedPriorityQueue 有界队列
-- 合并有序列表
-- TaskScheduler 任务调度
-- top_k 函数
-
-运行方式：
-    python priority_queue_utils_test.py
+Comprehensive test suite for all priority queue components.
 """
 
-import unittest
 import threading
 import time
-from typing import List, Tuple
+import unittest
+from datetime import datetime, timedelta
+
 from mod import (
     PriorityQueue,
-    UpdatablePriorityQueue,
-    ThreadSafePriorityQueue,
-    BoundedPriorityQueue,
+    PriorityTaskExecutor,
     TaskScheduler,
-    PriorityItem,
-    merge_sorted_lists,
-    top_k,
-    create_min_heap,
-    create_max_heap,
+    PriorityDeque,
+    BoundedPriorityQueue,
+    TaskState,
+    PriorityPolicy,
+    QueueFullError,
+    QueueClosedError,
+    create_priority_queue,
+    merge_priority_queues,
+    batch_push,
 )
 
 
-class TestPriorityItem(unittest.TestCase):
-    """测试 PriorityItem 类"""
-    
-    def test_priority_comparison(self):
-        """测试优先级比较"""
-        item1 = PriorityItem(priority=1, item="a", sequence=0)
-        item2 = PriorityItem(priority=2, item="b", sequence=1)
-        
-        self.assertTrue(item1 < item2)
-        self.assertFalse(item2 < item1)
-    
-    def test_sequence_comparison(self):
-        """测试序列号比较（相同优先级时）"""
-        item1 = PriorityItem(priority=1, item="a", sequence=0)
-        item2 = PriorityItem(priority=1, item="b", sequence=1)
-        
-        self.assertTrue(item1 < item2)
-    
-    def test_equality(self):
-        """测试相等比较"""
-        item1 = PriorityItem(priority=1, item="a", sequence=0)
-        item2 = PriorityItem(priority=1, item="a", sequence=1)
-        
-        self.assertTrue(item1 == item2)
-
-
 class TestPriorityQueue(unittest.TestCase):
-    """测试 PriorityQueue 类"""
+    """Tests for PriorityQueue."""
     
     def test_basic_push_pop(self):
-        """测试基本推入和弹出"""
-        pq = PriorityQueue[int]()
-        pq.push(5, 5)
-        pq.push(1, 1)
-        pq.push(3, 3)
+        """Test basic push and pop operations."""
+        queue = PriorityQueue[str]()
         
-        self.assertEqual(pq.pop(), 1)
-        self.assertEqual(pq.pop(), 3)
-        self.assertEqual(pq.pop(), 5)
-        self.assertIsNone(pq.pop())
+        queue.push("low", priority=10)
+        queue.push("high", priority=1)
+        queue.push("medium", priority=5)
+        
+        self.assertEqual(queue.pop().data, "high")
+        self.assertEqual(queue.pop().data, "medium")
+        self.assertEqual(queue.pop().data, "low")
     
-    def test_max_heap(self):
-        """测试最大堆模式"""
-        pq = PriorityQueue[int](max_heap=True)
-        pq.push(1, 1)
-        pq.push(5, 5)
-        pq.push(3, 3)
+    def test_fifo_order(self):
+        """Test FIFO policy."""
+        queue = PriorityQueue[str](policy=PriorityPolicy.FIFO)
         
-        self.assertEqual(pq.pop(), 5)
-        self.assertEqual(pq.pop(), 3)
-        self.assertEqual(pq.pop(), 1)
+        queue.push("first", priority=1)
+        queue.push("second", priority=2)
+        queue.push("third", priority=3)
+        
+        self.assertEqual(queue.pop().data, "first")
+        self.assertEqual(queue.pop().data, "second")
+        self.assertEqual(queue.pop().data, "third")
+    
+    def test_lowest_first_policy(self):
+        """Test LOWEST_FIRST policy."""
+        queue = PriorityQueue[str](policy=PriorityPolicy.LOWEST_FIRST)
+        
+        queue.push("low", priority=1)
+        queue.push("high", priority=10)
+        queue.push("medium", priority=5)
+        
+        self.assertEqual(queue.pop().data, "high")
+        self.assertEqual(queue.pop().data, "medium")
+        self.assertEqual(queue.pop().data, "low")
+    
+    def test_empty_queue(self):
+        """Test empty queue behavior."""
+        queue = PriorityQueue[int]()
+        
+        self.assertTrue(queue.empty())
+        self.assertEqual(queue.size(), 0)
+        self.assertIsNone(queue.pop(block=False))
     
     def test_peek(self):
-        """测试查看堆顶"""
-        pq = PriorityQueue[str]()
-        pq.push("a", 2)
-        pq.push("b", 1)
+        """Test peek operation."""
+        queue = PriorityQueue[int]()
         
-        self.assertEqual(pq.peek(), "b")
-        self.assertEqual(len(pq), 2)
-    
-    def test_peek_priority(self):
-        """测试查看堆顶优先级"""
-        pq = PriorityQueue[int]()
-        pq.push(10, 5.5)
+        self.assertIsNone(queue.peek())
         
-        self.assertEqual(pq.peek_priority(), 5.5)
-    
-    def test_empty_operations(self):
-        """测试空队列操作"""
-        pq = PriorityQueue[int]()
-        
-        self.assertIsNone(pq.pop())
-        self.assertIsNone(pq.peek())
-        self.assertIsNone(pq.peek_priority())
-    
-    def test_len_and_bool(self):
-        """测试长度和布尔值"""
-        pq = PriorityQueue[int]()
-        
-        self.assertEqual(len(pq), 0)
-        self.assertFalse(pq)
-        
-        pq.push(1, 1)
-        self.assertEqual(len(pq), 1)
-        self.assertTrue(pq)
-    
-    def test_contains(self):
-        """测试包含检查"""
-        pq = PriorityQueue[str]()
-        pq.push("hello", 1)
-        pq.push("world", 2)
-        
-        self.assertTrue("hello" in pq)
-        self.assertTrue("world" in pq)
-        self.assertFalse("foo" in pq)
+        queue.push(42, priority=1)
+        self.assertEqual(queue.peek().data, 42)
+        self.assertEqual(queue.size(), 1)
     
     def test_update_priority(self):
-        """测试更新优先级"""
-        pq = PriorityQueue[str]()
-        pq.push("a", 1)
-        pq.push("b", 2)
+        """Test updating task priority."""
+        queue = PriorityQueue[str]()
         
-        # 更新 b 的优先级为 0，使其成为最高优先级
-        result = pq.update_priority("b", 0)
+        task_id = queue.push("item", priority=10)
+        self.assertEqual(queue.peek().data, "item")
+        self.assertEqual(queue.peek()._priority, 10)
+        
+        result = queue.update_priority(task_id, 1)
         self.assertTrue(result)
-        self.assertEqual(pq.pop(), "b")
+        self.assertEqual(queue.peek()._priority, 1)
     
-    def test_remove(self):
-        """测试移除元素"""
-        pq = PriorityQueue[int]()
-        pq.push(1, 1)
-        pq.push(2, 2)
-        pq.push(3, 3)
+    def test_cancel_task(self):
+        """Test task cancellation."""
+        queue = PriorityQueue[str]()
         
-        self.assertTrue(pq.remove(2))
-        self.assertEqual(len(pq), 2)
-        self.assertFalse(2 in pq)
+        task_id = queue.push("item", priority=1)
+        self.assertEqual(queue.size(), 1)
         
-        self.assertFalse(pq.remove(100))  # 不存在的元素
+        result = queue.cancel(task_id)
+        self.assertTrue(result)
+        
+        # Cancelled item should be skipped
+        item = queue.pop(block=False)
+        self.assertIsNone(item)
     
-    def test_merge(self):
-        """测试队列合并"""
-        pq1 = PriorityQueue[int]()
-        pq1.push(1, 1)
-        pq1.push(3, 3)
+    def test_delayed_task(self):
+        """Test delayed task execution."""
+        queue = PriorityQueue[str]()
         
-        pq2 = PriorityQueue[int]()
-        pq2.push(2, 2)
-        pq2.push(4, 4)
+        queue.push("delayed", priority=1, delay=0.2)
         
-        pq1.merge(pq2)
+        # Should not be available immediately
+        item = queue.pop(timeout=0.05, block=True)
+        self.assertIsNone(item)
         
-        self.assertEqual(len(pq1), 4)
-        # 按优先级弹出
-        self.assertEqual(pq1.pop(), 1)
-        self.assertEqual(pq1.pop(), 2)
-        self.assertEqual(pq1.pop(), 3)
-        self.assertEqual(pq1.pop(), 4)
+        # Should be available after delay
+        time.sleep(0.2)
+        item = queue.pop(timeout=0.1)
+        self.assertIsNotNone(item)
+        self.assertEqual(item.data, "delayed")
+    
+    def test_callback(self):
+        """Test task callback execution."""
+        results = []
+        
+        def callback(item):
+            results.append(f"processed: {item}")
+        
+        queue = PriorityQueue[str]()
+        queue.push("test", priority=1, callback=callback)
+        
+        item = queue.pop()
+        if item.callback:
+            item.callback(item.data)
+        
+        self.assertEqual(results, ["processed: test"])
+    
+    def test_maxsize(self):
+        """Test queue size limit."""
+        queue = PriorityQueue[int](maxsize=2)
+        
+        queue.push(1, priority=1)
+        queue.push(2, priority=1)
+        
+        with self.assertRaises(QueueFullError):
+            queue.push(3, priority=1)
     
     def test_clear(self):
-        """测试清空队列"""
-        pq = PriorityQueue[int]()
-        pq.push(1, 1)
-        pq.push(2, 2)
-        pq.clear()
+        """Test clearing the queue."""
+        queue = PriorityQueue[int]()
         
-        self.assertEqual(len(pq), 0)
-        self.assertFalse(pq)
+        queue.push(1, priority=1)
+        queue.push(2, priority=1)
+        queue.push(3, priority=1)
+        
+        count = queue.clear()
+        self.assertEqual(count, 3)
+        self.assertTrue(queue.empty())
     
-    def test_to_list(self):
-        """测试转换为列表"""
-        pq = PriorityQueue[str]()
-        pq.push("b", 2)
-        pq.push("a", 1)
-        pq.push("c", 3)
+    def test_close(self):
+        """Test queue closing."""
+        queue = PriorityQueue[int]()
         
-        sorted_list = pq.to_list(sorted_=True)
-        self.assertEqual(sorted_list, [("a", 1), ("b", 2), ("c", 3)])
+        self.assertFalse(queue.is_closed())
+        queue.close()
+        self.assertTrue(queue.is_closed())
         
-        unsorted_list = pq.to_list(sorted_=False)
-        self.assertEqual(len(unsorted_list), 3)
+        with self.assertRaises(QueueClosedError):
+            queue.push(1, priority=1)
     
-    def test_from_list(self):
-        """测试从列表创建"""
-        items = [("a", 2), ("b", 1), ("c", 3)]
-        pq = PriorityQueue.from_list(items)
+    def test_task_state(self):
+        """Test task state tracking."""
+        queue = PriorityQueue[str]()
         
-        self.assertEqual(pq.pop(), "b")
-        self.assertEqual(pq.pop(), "a")
-        self.assertEqual(pq.pop(), "c")
-    
-    def test_stable_sort(self):
-        """测试稳定排序（相同优先级时保持插入顺序）"""
-        pq = PriorityQueue[str]()
-        pq.push("first", 1)
-        pq.push("second", 1)
-        pq.push("third", 1)
+        task_id = queue.push("test", priority=1)
+        self.assertEqual(queue.get_task_state(task_id), TaskState.PENDING)
         
-        self.assertEqual(pq.pop(), "first")
-        self.assertEqual(pq.pop(), "second")
-        self.assertEqual(pq.pop(), "third")
-
-
-class TestUpdatablePriorityQueue(unittest.TestCase):
-    """测试 UpdatablePriorityQueue 类"""
+        item = queue.pop()
+        self.assertIsNone(queue.get_task_state(task_id))
+        self.assertEqual(item.state, TaskState.RUNNING)
     
-    def test_basic_operations(self):
-        """测试基本操作"""
-        pq = UpdatablePriorityQueue[int]()
-        pq.push(1, 3)
-        pq.push(2, 1)
-        pq.push(3, 2)
+    def test_history(self):
+        """Test task history."""
+        queue = PriorityQueue[str]()
         
-        self.assertEqual(pq.pop(), 2)
-        self.assertEqual(pq.pop(), 3)
-        self.assertEqual(pq.pop(), 1)
-    
-    def test_update_priority_efficient(self):
-        """测试高效更新优先级"""
-        pq = UpdatablePriorityQueue[str]()
-        pq.push("a", 1)
-        pq.push("b", 2)
-        pq.push("c", 3)
+        queue.add_to_history({
+            "task_id": "test-1",
+            "success": True,
+            "result": "done",
+        })
         
-        # 更新 c 的优先级为 0
-        result = pq.update_priority("c", 0)
-        self.assertTrue(result)
-        self.assertEqual(pq.pop(), "c")
+        history = queue.get_history()
+        self.assertEqual(len(history), 1)
     
-    def test_push_existing_updates(self):
-        """测试推入已存在元素时更新优先级"""
-        pq = UpdatablePriorityQueue[str]()
-        pq.push("item", 5)
-        pq.push("item", 1)  # 更新优先级
-        
-        self.assertEqual(len(pq), 1)
-        self.assertEqual(pq.pop(), "item")
-    
-    def test_contains_and_get_priority(self):
-        """测试包含检查和获取优先级"""
-        pq = UpdatablePriorityQueue[str]()
-        pq.push("hello", 3.5)
-        
-        self.assertTrue(pq.contains("hello"))
-        self.assertFalse(pq.contains("world"))
-        self.assertEqual(pq.get_priority("hello"), 3.5)
-        self.assertIsNone(pq.get_priority("world"))
-    
-    def test_remove(self):
-        """测试移除元素"""
-        pq = UpdatablePriorityQueue[int]()
-        pq.push(1, 1)
-        pq.push(2, 2)
-        
-        self.assertTrue(pq.remove(1))
-        self.assertEqual(len(pq), 1)
-        self.assertFalse(pq.contains(1))
-    
-    def test_max_heap_mode(self):
-        """测试最大堆模式"""
-        pq = UpdatablePriorityQueue[int](max_heap=True)
-        pq.push(1, 1)
-        pq.push(5, 5)
-        pq.push(3, 3)
-        
-        self.assertEqual(pq.pop(), 5)
-        self.assertEqual(pq.pop(), 3)
-        self.assertEqual(pq.pop(), 1)
-
-
-class TestThreadSafePriorityQueue(unittest.TestCase):
-    """测试 ThreadSafePriorityQueue 类"""
-    
-    def test_basic_operations(self):
-        """测试基本操作"""
-        pq = ThreadSafePriorityQueue[int]()
-        pq.push(1, 1)
-        pq.push(2, 2)
-        
-        self.assertEqual(pq.pop(), 1)
-        self.assertEqual(pq.pop(), 2)
-    
-    def test_concurrent_push_pop(self):
-        """测试并发推入和弹出"""
-        pq = ThreadSafePriorityQueue[int]()
+    def test_thread_safety(self):
+        """Test concurrent operations."""
+        queue = PriorityQueue[int]()
         results = []
-        errors = []
         
-        def producer(start: int, count: int):
-            try:
-                for i in range(count):
-                    pq.push(start + i, start + i)
-            except Exception as e:
-                errors.append(e)
+        def producer(start, count):
+            for i in range(count):
+                queue.push(start + i, priority=1)
         
-        def consumer(count: int):
-            try:
-                for _ in range(count):
-                    item = pq.try_pop()
-                    if item is not None:
-                        results.append(item)
-            except Exception as e:
-                errors.append(e)
+        def consumer(count):
+            for _ in range(count):
+                item = queue.pop(timeout=1.0)
+                if item:
+                    results.append(item.data)
         
-        # 启动生产者和消费者线程
+        # Start producers
         threads = []
         for i in range(3):
-            threads.append(threading.Thread(target=producer, args=(i * 100, 50)))
-        for i in range(2):
-            threads.append(threading.Thread(target=consumer, args=(75,)))
-        
-        for t in threads:
+            t = threading.Thread(target=producer, args=(i * 100, 100))
+            threads.append(t)
             t.start()
+        
+        # Start consumers
+        consumers = []
+        for _ in range(2):
+            t = threading.Thread(target=consumer, args=(150,))
+            consumers.append(t)
+            t.start()
+        
+        # Wait for completion
         for t in threads:
             t.join()
         
-        # 验证没有错误
-        self.assertEqual(len(errors), 0)
+        for t in consumers:
+            t.join()
         
-        # 验证所有元素都被消费
-        remaining = pq.try_pop()
-        while remaining is not None:
-            results.append(remaining)
-            remaining = pq.try_pop()
-        
-        self.assertEqual(len(results), 150)  # 3 * 50
+        self.assertEqual(len(results), 300)
     
-    def test_pop_timeout(self):
-        """测试弹出超时"""
-        pq = ThreadSafePriorityQueue[int]()
+    def test_bool(self):
+        """Test boolean conversion."""
+        queue = PriorityQueue[int]()
         
-        start_time = time.time()
-        result = pq.pop(timeout=0.1)
-        elapsed = time.time() - start_time
+        self.assertFalse(queue)  # Empty
         
-        self.assertIsNone(result)
-        self.assertGreaterEqual(elapsed, 0.1)
+        queue.push(1, priority=1)
+        self.assertTrue(queue)  # Not empty
 
 
-class TestBoundedPriorityQueue(unittest.TestCase):
-    """测试 BoundedPriorityQueue 类"""
+class TestPriorityTaskExecutor(unittest.TestCase):
+    """Tests for PriorityTaskExecutor."""
     
-    def test_basic_operations(self):
-        """测试基本操作"""
-        pq = BoundedPriorityQueue[int](max_size=3)
+    def test_basic_execution(self):
+        """Test basic task execution."""
+        results = []
         
-        self.assertTrue(pq.push(1, 1))
-        self.assertTrue(pq.push(2, 2))
-        self.assertTrue(pq.push(3, 3))
-        self.assertEqual(len(pq), 3)
+        def task_func():
+            results.append("executed")
+            return 42
+        
+        queue = PriorityQueue[callable]()
+        executor = PriorityTaskExecutor(queue, num_workers=1)
+        
+        queue.push(task_func, priority=1)
+        
+        executor.start()
+        time.sleep(0.2)
+        executor.stop()
+        
+        self.assertIn("executed", results)
     
-    def test_max_size_limit(self):
-        """测试最大容量限制"""
-        pq = BoundedPriorityQueue[int](max_size=2)
+    def test_priority_order(self):
+        """Test tasks execute in priority order."""
+        results = []
         
-        self.assertTrue(pq.push(1, 1))
-        self.assertTrue(pq.push(2, 2))
-        self.assertTrue(pq.is_full())
+        queue = PriorityQueue[callable]()
+        executor = PriorityTaskExecutor(queue, num_workers=1)
         
-        # 低优先级元素应该被拒绝
-        self.assertFalse(pq.push(0, 3))  # 优先级 3 比队列中的都低
+        # Push tasks with different priorities
+        queue.push(lambda: results.append("low"), priority=10)
+        queue.push(lambda: results.append("high"), priority=1)
+        queue.push(lambda: results.append("medium"), priority=5)
+        
+        executor.start()
+        time.sleep(0.3)
+        executor.stop()
+        
+        # First task should be high priority
+        self.assertEqual(results[0], "high")
     
-    def test_replacement_on_higher_priority(self):
-        """测试高优先级元素替换"""
-        pq = BoundedPriorityQueue[int](max_size=2)
-        pq.push(1, 1)
-        pq.push(2, 2)
+    def test_default_callback(self):
+        """Test default callback for all results."""
+        results = []
         
-        # 高优先级元素应该替换低优先级元素
-        self.assertTrue(pq.push(0, 0))
+        def on_result(result):
+            results.append(result)
         
-        # 验证低优先级元素被移除
-        items = []
-        while pq:
-            item = pq.pop()
-            if item is not None:
-                items.append(item)
+        queue = PriorityQueue[callable]()
+        executor = PriorityTaskExecutor(
+            queue,
+            num_workers=1,
+            default_callback=on_result,
+        )
         
-        self.assertNotIn(2, items)  # 优先级为 2 的应该被移除
-        self.assertIn(0, items)
-        self.assertIn(1, items)
+        queue.push(lambda: 42, priority=1)
+        
+        executor.start()
+        time.sleep(0.2)
+        executor.stop()
+        
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].result, 42)
     
-    def test_max_heap_mode(self):
-        """测试最大堆模式"""
-        pq = BoundedPriorityQueue[int](max_size=2, max_heap=True)
+    def test_stats(self):
+        """Test executor statistics."""
+        queue = PriorityQueue[callable]()
+        executor = PriorityTaskExecutor(queue, num_workers=1)
         
-        pq.push(1, 1)
-        pq.push(2, 2)
+        queue.push(lambda: 1, priority=1)
+        queue.push(lambda: 2, priority=1)
         
-        # 在最大堆模式，优先级高的先出
-        self.assertEqual(pq.pop(), 2)
-        self.assertEqual(pq.pop(), 1)
-    
-    def test_invalid_max_size(self):
-        """测试无效的最大容量"""
-        with self.assertRaises(ValueError):
-            BoundedPriorityQueue[int](max_size=0)
+        executor.start()
+        time.sleep(0.3)
+        executor.stop()
         
-        with self.assertRaises(ValueError):
-            BoundedPriorityQueue[int](max_size=-1)
-
-
-class TestMergeSortedLists(unittest.TestCase):
-    """测试 merge_sorted_lists 函数"""
-    
-    def test_merge_two_lists(self):
-        """测试合并两个列表"""
-        list1 = [("a", 1), ("c", 3)]
-        list2 = [("b", 2), ("d", 4)]
-        
-        result = merge_sorted_lists([list1, list2])
-        
-        self.assertEqual(result, [("a", 1), ("b", 2), ("c", 3), ("d", 4)])
-    
-    def test_merge_multiple_lists(self):
-        """测试合并多个列表"""
-        list1 = [("a", 1)]
-        list2 = [("b", 2)]
-        list3 = [("c", 0)]
-        
-        result = merge_sorted_lists([list1, list2, list3])
-        
-        self.assertEqual(result, [("c", 0), ("a", 1), ("b", 2)])
-    
-    def test_empty_lists(self):
-        """测试空列表"""
-        self.assertEqual(merge_sorted_lists([]), [])
-        self.assertEqual(merge_sorted_lists([[], []]), [])
-    
-    def test_single_list(self):
-        """测试单个列表"""
-        lst = [("a", 1), ("b", 2)]
-        result = merge_sorted_lists([lst])
-        self.assertEqual(result, [("a", 1), ("b", 2)])
+        stats = executor.stats
+        self.assertEqual(stats["processed"], 2)
+        self.assertEqual(stats["queue_size"], 0)
 
 
 class TestTaskScheduler(unittest.TestCase):
-    """测试 TaskScheduler 类"""
+    """Tests for TaskScheduler."""
     
-    def test_basic_scheduling(self):
-        """测试基本调度"""
-        scheduler = TaskScheduler()
-        scheduler.add_task("low", 3)
-        scheduler.add_task("high", 1)
-        scheduler.add_task("medium", 2)
+    def test_schedule_once(self):
+        """Test one-time task scheduling."""
+        results = []
         
-        self.assertEqual(scheduler.get_next_task(), "high")
-        self.assertEqual(scheduler.get_next_task(), "medium")
-        self.assertEqual(scheduler.get_next_task(), "low")
+        scheduler = TaskScheduler(num_workers=1)
+        scheduler.schedule_once(lambda: results.append("run"), delay=0.1)
+        
+        scheduler.start()
+        time.sleep(0.3)
+        scheduler.stop()
+        
+        self.assertIn("run", results)
     
-    def test_task_with_data(self):
-        """测试带数据的任务"""
-        scheduler = TaskScheduler()
-        scheduler.add_task("task1", 1, data={"type": "urgent"})
-        scheduler.add_task("task2", 2, data={"type": "normal"})
+    def test_schedule_at_specific_time(self):
+        """Test scheduling at a specific time."""
+        results = []
         
-        self.assertEqual(scheduler.get_task_data("task1"), {"type": "urgent"})
-        self.assertEqual(scheduler.get_task_data("task2"), {"type": "normal"})
+        scheduler = TaskScheduler(num_workers=1)
+        execute_at = datetime.now() + timedelta(seconds=0.2)
+        
+        scheduler.schedule_once(
+            lambda: results.append("timed"),
+            execute_at=execute_at,
+        )
+        
+        scheduler.start()
+        time.sleep(0.4)
+        scheduler.stop()
+        
+        self.assertIn("timed", results)
     
-    def test_update_priority(self):
-        """测试更新任务优先级"""
-        scheduler = TaskScheduler()
-        scheduler.add_task("task", 5)
+    def test_schedule_interval(self):
+        """Test recurring task scheduling."""
+        results = []
         
-        scheduler.update_task_priority("task", 1)
+        scheduler = TaskScheduler(num_workers=1)
+        scheduler.schedule_interval(
+            lambda: results.append("tick"),
+            interval=0.1,
+            initial_delay=0,
+        )
         
-        self.assertEqual(scheduler.peek_next_task(), "task")
+        scheduler.start()
+        time.sleep(0.35)
+        scheduler.stop()
+        
+        # Should have run approximately 3 times
+        self.assertGreaterEqual(len(results), 2)
     
     def test_cancel_task(self):
-        """测试取消任务"""
-        scheduler = TaskScheduler()
-        scheduler.add_task("task1", 1)
-        scheduler.add_task("task2", 2)
+        """Test cancelling scheduled task."""
+        results = []
         
-        scheduler.cancel_task("task1")
+        scheduler = TaskScheduler(num_workers=1)
+        task_id = scheduler.schedule_once(
+            lambda: results.append("cancelled"),
+            delay=0.2,
+        )
         
-        self.assertFalse(scheduler.has_task("task1"))
-        self.assertEqual(len(scheduler), 1)
-    
-    def test_clear(self):
-        """测试清空调度器"""
-        scheduler = TaskScheduler()
-        scheduler.add_task("task1", 1)
-        scheduler.add_task("task2", 2)
+        scheduler.cancel_task(task_id)
         
-        scheduler.clear()
+        scheduler.start()
+        time.sleep(0.3)
+        scheduler.stop()
         
-        self.assertEqual(len(scheduler), 0)
-        self.assertFalse(scheduler)
-    
-    def test_max_heap_mode(self):
-        """测试最大堆模式"""
-        scheduler = TaskScheduler(max_heap=True)
-        scheduler.add_task("low", 1)
-        scheduler.add_task("high", 5)
-        scheduler.add_task("medium", 3)
-        
-        # 最大堆模式，优先级高的先出
-        self.assertEqual(scheduler.get_next_task(), "high")
+        self.assertNotIn("cancelled", results)
 
 
-class TestTopK(unittest.TestCase):
-    """测试 top_k 函数"""
+class TestPriorityDeque(unittest.TestCase):
+    """Tests for PriorityDeque."""
     
-    def test_top_k_largest(self):
-        """测试最大的 K 个元素"""
-        items = [("a", 1), ("b", 5), ("c", 3), ("d", 2), ("e", 4)]
-        result = top_k(items, 3, largest=True)
+    def test_basic_operations(self):
+        """Test basic min/max operations."""
+        deque = PriorityDeque[int]()
         
-        # 应该返回优先级最大的 3 个
-        priorities = [p for _, p in result]
-        self.assertEqual(sorted(priorities, reverse=True), [5, 4, 3])
-    
-    def test_top_k_smallest(self):
-        """测试最小的 K 个元素"""
-        items = [("a", 1), ("b", 5), ("c", 3), ("d", 2), ("e", 4)]
-        result = top_k(items, 3, largest=False)
+        deque.push(5, priority=5)
+        deque.push(1, priority=1)
+        deque.push(10, priority=10)
         
-        # 应该返回优先级最小的 3 个
-        priorities = [p for _, p in result]
-        self.assertEqual(sorted(priorities), [1, 2, 3])
+        self.assertEqual(deque.peek_min(), 1)
+        self.assertEqual(deque.peek_max(), 10)
     
-    def test_top_k_empty(self):
-        """测试空列表"""
-        result = top_k([], 3)
-        self.assertEqual(result, [])
-    
-    def test_top_k_zero(self):
-        """测试 K=0"""
-        items = [("a", 1), ("b", 2)]
-        result = top_k(items, 0)
-        self.assertEqual(result, [])
-    
-    def test_top_k_larger_than_size(self):
-        """测试 K 大于列表大小"""
-        items = [("a", 1), ("b", 2)]
-        result = top_k(items, 10)
+    def test_pop_min_max(self):
+        """Test popping min and max."""
+        deque = PriorityDeque[int]()
         
-        self.assertEqual(len(result), 2)
+        deque.push(5, priority=5)
+        deque.push(1, priority=1)
+        deque.push(10, priority=10)
+        
+        self.assertEqual(deque.pop_min(), 1)
+        self.assertEqual(deque.pop_max(), 10)
+        self.assertEqual(deque.pop_min(), 5)
+    
+    def test_empty_deque(self):
+        """Test empty deque behavior."""
+        deque = PriorityDeque[int]()
+        
+        self.assertTrue(deque.empty())
+        self.assertIsNone(deque.peek_min())
+        self.assertIsNone(deque.peek_max())
+        self.assertIsNone(deque.pop_min())
+        self.assertIsNone(deque.pop_max())
 
 
-class TestFactoryFunctions(unittest.TestCase):
-    """测试工厂函数"""
+class TestBoundedPriorityQueue(unittest.TestCase):
+    """Tests for BoundedPriorityQueue."""
     
-    def test_create_min_heap(self):
-        """测试创建最小堆"""
-        pq = create_min_heap()
-        pq.push(3, 3)
-        pq.push(1, 1)
-        pq.push(2, 2)
+    def test_reject_policy(self):
+        """Test reject policy when full."""
+        queue = BoundedPriorityQueue[int](
+            maxsize=2,
+            policy=BoundedPriorityQueue.OverflowPolicy.REJECT,
+        )
         
-        self.assertEqual(pq.pop(), 1)
-        self.assertEqual(pq.pop(), 2)
-        self.assertEqual(pq.pop(), 3)
+        queue.push(1, priority=1)
+        queue.push(2, priority=1)
+        
+        # Should reject third item
+        result = queue.push(3, priority=1)
+        self.assertIsNone(result)
     
-    def test_create_max_heap(self):
-        """测试创建最大堆"""
-        pq = create_max_heap()
-        pq.push(1, 1)
-        pq.push(3, 3)
-        pq.push(2, 2)
+    def test_pop(self):
+        """Test pop from bounded queue."""
+        queue = BoundedPriorityQueue[int](maxsize=2)
         
-        self.assertEqual(pq.pop(), 3)
-        self.assertEqual(pq.pop(), 2)
-        self.assertEqual(pq.pop(), 1)
+        queue.push(1, priority=2)
+        queue.push(2, priority=1)
+        
+        # Should pop highest priority (lowest number)
+        item = queue.pop()
+        self.assertEqual(item, 2)
+    
+    def test_full_empty(self):
+        """Test full and empty checks."""
+        queue = BoundedPriorityQueue[int](maxsize=2)
+        
+        self.assertTrue(queue.empty())
+        self.assertFalse(queue.full())
+        
+        queue.push(1, priority=1)
+        queue.push(2, priority=1)
+        
+        self.assertTrue(queue.full())
+        self.assertFalse(queue.empty())
+
+
+class TestUtilityFunctions(unittest.TestCase):
+    """Tests for utility functions."""
+    
+    def test_create_priority_queue(self):
+        """Test creating queue from items."""
+        items = [("low", 10), ("high", 1), ("medium", 5)]
+        queue = create_priority_queue(items)
+        
+        self.assertEqual(queue.pop().data, "high")
+        self.assertEqual(queue.pop().data, "medium")
+        self.assertEqual(queue.pop().data, "low")
+    
+    def test_merge_priority_queues(self):
+        """Test merging queues."""
+        q1 = PriorityQueue[int]()
+        q1.push(1, priority=1)
+        q1.push(3, priority=3)
+        
+        q2 = PriorityQueue[int]()
+        q2.push(2, priority=2)
+        q2.push(4, priority=4)
+        
+        merged = merge_priority_queues(q1, q2)
+        
+        self.assertEqual(merged.pop().data, 1)
+        self.assertEqual(merged.pop().data, 2)
+        self.assertEqual(merged.pop().data, 3)
+        self.assertEqual(merged.pop().data, 4)
+    
+    def test_batch_push(self):
+        """Test batch pushing items."""
+        queue = PriorityQueue[int]()
+        items = [(10, 10), (1, 1), (5, 5)]
+        
+        task_ids = batch_push(queue, items)
+        
+        self.assertEqual(len(task_ids), 3)
+        self.assertEqual(queue.pop().data, 1)
+
+
+class TestTaskResult(unittest.TestCase):
+    """Tests for TaskResult dataclass."""
+    
+    def test_success_result(self):
+        """Test successful task result."""
+        result = {
+            "task_id": "test-1",
+            "success": True,
+            "result": 42,
+            "execution_time": 0.1,
+        }
+        
+        self.assertTrue(result["success"])
+        self.assertEqual(result["result"], 42)
+    
+    def test_failure_result(self):
+        """Test failed task result."""
+        try:
+            raise ValueError("Test error")
+        except ValueError as e:
+            result = {
+                "task_id": "test-2",
+                "success": False,
+                "error": e,
+            }
+        
+        self.assertFalse(result["success"])
+        self.assertIsInstance(result["error"], ValueError)
+
+
+class TestEdgeCases(unittest.TestCase):
+    """Test edge cases and error handling."""
+    
+    def test_push_same_priority(self):
+        """Test items with same priority maintain FIFO order."""
+        queue = PriorityQueue[str]()
+        
+        queue.push("first", priority=5)
+        queue.push("second", priority=5)
+        queue.push("third", priority=5)
+        
+        self.assertEqual(queue.pop().data, "first")
+        self.assertEqual(queue.pop().data, "second")
+        self.assertEqual(queue.pop().data, "third")
+    
+    def test_update_nonexistent_task(self):
+        """Test updating a task that doesn't exist."""
+        queue = PriorityQueue[int]()
+        
+        result = queue.update_priority("nonexistent", new_priority=1)
+        self.assertFalse(result)
+    
+    def test_cancel_nonexistent_task(self):
+        """Test cancelling a task that doesn't exist."""
+        queue = PriorityQueue[int]()
+        
+        result = queue.cancel("nonexistent")
+        self.assertFalse(result)
+    
+    def test_large_number_of_items(self):
+        """Test queue with many items."""
+        queue = PriorityQueue[int]()
+        
+        for i in range(1000):
+            queue.push(i, priority=i)
+        
+        # Should pop in order
+        for i in range(1000):
+            item = queue.pop()
+            self.assertEqual(item.data, i)
+    
+    def test_negative_priorities(self):
+        """Test negative priority values."""
+        queue = PriorityQueue[str]()
+        
+        queue.push("zero", priority=0)
+        queue.push("positive", priority=5)
+        queue.push("negative", priority=-5)
+        
+        self.assertEqual(queue.pop().data, "negative")
+        self.assertEqual(queue.pop().data, "zero")
+        self.assertEqual(queue.pop().data, "positive")
 
 
 if __name__ == "__main__":

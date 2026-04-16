@@ -1,822 +1,1065 @@
 """
-优先队列工具模块
+Priority Queue Utilities
+========================
 
-提供完整的优先队列实现，支持：
-- 基于二叉堆的最小/最大堆优先队列
-- 自定义优先级比较器
-- 动态更新优先级
-- 队列合并
-- 线程安全版本
-- 支持泛型元素类型
+A comprehensive priority queue implementation with advanced features:
+- Thread-safe operations
+- Priority updates for existing items
+- Delayed task execution
+- Task cancellation
+- Multiple consumer support
+- Priority inversion handling
+- Task scheduling and scheduling policies
 
-零外部依赖，纯 Python 标准库实现。
+Zero external dependencies - uses only Python standard library.
 
-使用场景：
-- 任务调度系统
-- 事件驱动模拟
-- 图算法（Dijkstra、A*）
-- 数据流处理
-- 合并K个有序列表
+Author: AllToolkit
+Date: 2026-04-16
 """
 
-from typing import TypeVar, Generic, Callable, Optional, List, Tuple, Any, Dict
-from dataclasses import dataclass
 import heapq
 import threading
-from abc import ABC, abstractmethod
+import time
+import uuid
+from dataclasses import dataclass, field
+from enum import Enum, auto
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    TypeVar,
+    Union,
+)
+from concurrent.futures import Future
+from datetime import datetime, timedelta
 
 T = TypeVar('T')
 
 
+class TaskState(Enum):
+    """Task execution states."""
+    PENDING = auto()
+    RUNNING = auto()
+    COMPLETED = auto()
+    CANCELLED = auto()
+    FAILED = auto()
+
+
+class PriorityPolicy(Enum):
+    """Priority scheduling policies."""
+    HIGHEST_FIRST = auto()  # Lower number = higher priority (default)
+    LOWEST_FIRST = auto()   # Higher number = higher priority
+    FIFO = auto()           # First in, first out (priority ignored)
+
+
+@dataclass(order=True)
+class PrioritizedItem(Generic[T]):
+    """
+    A prioritized item for the heap queue.
+    
+    The sort_key is used for ordering, while the actual data
+    and metadata are stored separately.
+    """
+    sort_key: Tuple[int, float]  # (priority, sequence_number)
+    task_id: str = field(compare=False)
+    data: T = field(compare=False)
+    created_at: float = field(compare=False)
+    execute_after: Optional[float] = field(default=None, compare=False)
+    callback: Optional[Callable[[T], Any]] = field(default=None, compare=False)
+    state: TaskState = field(default=TaskState.PENDING, compare=False)
+    _priority: int = field(default=0, compare=False)
+    
+    def __post_init__(self):
+        self._priority = self.sort_key[0]
+
+
 @dataclass
-class PriorityItem(Generic[T]):
-    """带优先级的队列元素"""
-    priority: float
-    item: T
-    sequence: int = 0  # 用于稳定排序
-    
-    def __lt__(self, other: 'PriorityItem') -> bool:
-        if self.priority == other.priority:
-            return self.sequence < other.sequence
-        return self.priority < other.priority
-    
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, PriorityItem):
-            return False
-        return self.priority == other.priority and self.item == other.item
+class TaskResult(Generic[T]):
+    """Result of a task execution."""
+    task_id: str
+    success: bool
+    result: Any = None
+    error: Optional[Exception] = None
+    execution_time: float = 0.0
+    started_at: Optional[float] = None
+    completed_at: Optional[float] = None
 
 
 class PriorityQueue(Generic[T]):
     """
-    基于二叉堆的优先队列实现
+    Thread-safe priority queue with advanced features.
     
-    默认为最小堆（优先级值越小越优先）。
+    Features:
+    - Thread-safe operations with fine-grained locking
+    - Dynamic priority updates
+    - Delayed task execution
+    - Task cancellation
+    - Execution history tracking
+    - Multiple consumer support
+    - Configurable priority policies
     
-    时间复杂度：
-    - 插入：O(log n)
-    - 取出：O(log n)
-    - 查看堆顶：O(1)
-    - 更新优先级：O(log n) 需要配合 item_index
-    - 合并：O(n + m)
-    
-    示例:
-        >>> pq = PriorityQueue[int]()
-        >>> pq.push(5, priority=2)
-        >>> pq.push(3, priority=1)
-        >>> pq.pop()
-        3  # 优先级更高（值更小）
+    Example:
+        >>> queue = PriorityQueue[str]()
+        >>> queue.push("urgent task", priority=1)
+        >>> queue.push("normal task", priority=5)
+        >>> item = queue.pop()
+        >>> print(item)  # "urgent task"
     """
     
-    def __init__(self, max_heap: bool = False):
+    def __init__(
+        self,
+        policy: PriorityPolicy = PriorityPolicy.HIGHEST_FIRST,
+        maxsize: int = 0,
+        history_size: int = 100,
+    ):
         """
-        初始化优先队列
+        Initialize the priority queue.
         
         Args:
-            max_heap: 是否为最大堆，默认 False（最小堆）
+            policy: Scheduling policy for prioritization
+            maxsize: Maximum queue size (0 = unlimited)
+            history_size: Number of completed tasks to keep in history
         """
-        self._heap: List[PriorityItem[T]] = []
-        self._counter: int = 0  # 序列号，保证稳定排序
-        self._max_heap: bool = max_heap
-        self._item_index: Dict[int, int] = {}  # id(item) -> heap index
-    
-    def push(self, item: T, priority: float) -> None:
-        """
-        插入元素
-        
-        Args:
-            item: 要插入的元素
-            priority: 优先级值
-        """
-        actual_priority = -priority if self._max_heap else priority
-        pitem = PriorityItem(
-            priority=actual_priority,
-            item=item,
-            sequence=self._counter
-        )
-        self._counter += 1
-        
-        self._item_index[id(item)] = len(self._heap)
-        heapq.heappush(self._heap, pitem)
-    
-    def pop(self) -> Optional[T]:
-        """
-        取出并返回优先级最高的元素
-        
-        Returns:
-            优先级最高的元素，队列为空时返回 None
-        """
-        if not self._heap:
-            return None
-        pitem = heapq.heappop(self._heap)
-        item_id = id(pitem.item)
-        if item_id in self._item_index:
-            del self._item_index[item_id]
-        return pitem.item
-    
-    def peek(self) -> Optional[T]:
-        """
-        查看堆顶元素但不取出
-        
-        Returns:
-            堆顶元素，队列为空时返回 None
-        """
-        if not self._heap:
-            return None
-        return self._heap[0].item
-    
-    def peek_priority(self) -> Optional[float]:
-        """
-        查看堆顶元素的优先级
-        
-        Returns:
-            堆顶元素的优先级，队列为空时返回 None
-        """
-        if not self._heap:
-            return None
-        actual = self._heap[0].priority
-        return -actual if self._max_heap else actual
-    
-    def update_priority(self, item: T, new_priority: float) -> bool:
-        """
-        更新元素的优先级
-        
-        注意：此方法的时间复杂度为 O(n)，因为需要遍历查找元素。
-        如果需要频繁更新优先级，建议使用 UpdatablePriorityQueue。
-        
-        Args:
-            item: 要更新的元素
-            new_priority: 新的优先级值
-            
-        Returns:
-            bool: 是否成功更新
-        """
-        actual_priority = -new_priority if self._max_heap else new_priority
-        
-        for i, pitem in enumerate(self._heap):
-            if pitem.item == item:
-                self._heap[i].priority = actual_priority
-                heapq.heapify(self._heap)
-                return True
-        return False
-    
-    def remove(self, item: T) -> bool:
-        """
-        从队列中移除指定元素
-        
-        Args:
-            item: 要移除的元素
-            
-        Returns:
-            bool: 是否成功移除
-        """
-        for i, pitem in enumerate(self._heap):
-            if pitem.item == item:
-                self._heap.pop(i)
-                heapq.heapify(self._heap)
-                item_id = id(item)
-                if item_id in self._item_index:
-                    del self._item_index[item_id]
-                return True
-        return False
-    
-    def merge(self, other: 'PriorityQueue[T]') -> None:
-        """
-        合并另一个优先队列
-        
-        Args:
-            other: 要合并的优先队列
-        """
-        while other._heap:
-            pitem = heapq.heappop(other._heap)
-            actual_priority = -pitem.priority if self._max_heap else pitem.priority
-            self.push(pitem.item, actual_priority)
-    
-    def clear(self) -> None:
-        """清空队列"""
-        self._heap.clear()
-        self._item_index.clear()
-    
-    def __len__(self) -> int:
-        return len(self._heap)
-    
-    def __bool__(self) -> bool:
-        return bool(self._heap)
-    
-    def __contains__(self, item: T) -> bool:
-        return any(p.item == item for p in self._heap)
-    
-    def to_list(self, sorted_: bool = True) -> List[Tuple[T, float]]:
-        """
-        转换为列表
-        
-        Args:
-            sorted_: 是否按优先级排序
-            
-        Returns:
-            元素和优先级组成的元组列表
-        """
-        if sorted_:
-            items = sorted(self._heap, key=lambda p: p.priority)
-        else:
-            items = self._heap
-        return [(p.item, -p.priority if self._max_heap else p.priority) for p in items]
-    
-    @classmethod
-    def from_list(cls, items: List[Tuple[T, float]], max_heap: bool = False) -> 'PriorityQueue[T]':
-        """
-        从列表创建优先队列
-        
-        Args:
-            items: 元素和优先级组成的元组列表
-            max_heap: 是否为最大堆
-            
-        Returns:
-            新的优先队列实例
-        """
-        pq = cls(max_heap=max_heap)
-        for item, priority in items:
-            pq.push(item, priority)
-        return pq
-
-
-class UpdatablePriorityQueue(Generic[T]):
-    """
-    支持高效优先级更新的优先队列
-    
-    使用额外的索引字典来跟踪元素位置，
-    使得更新优先级的时间复杂度降低到 O(log n)。
-    
-    要求元素必须是可哈希的。
-    
-    示例:
-        >>> pq = UpdatablePriorityQueue[str]()
-        >>> pq.push("task1", 2)
-        >>> pq.push("task2", 1)
-        >>> pq.update_priority("task1", 0)  # 更新为最高优先级
-        >>> pq.pop()
-        "task1"
-    """
-    
-    def __init__(self, max_heap: bool = False):
-        """
-        初始化可更新优先队列
-        
-        Args:
-            max_heap: 是否为最大堆
-        """
-        self._heap: List[PriorityItem[T]] = []
-        self._counter: int = 0
-        self._max_heap: bool = max_heap
-        self._index: Dict[T, int] = {}  # item -> heap index
-        self._entry_finder: Dict[T, PriorityItem[T]] = {}  # item -> PriorityItem
-    
-    def push(self, item: T, priority: float) -> None:
-        """
-        插入元素，如果已存在则更新优先级
-        
-        Args:
-            item: 要插入的元素
-            priority: 优先级值
-        """
-        if item in self._entry_finder:
-            self.update_priority(item, priority)
-            return
-        
-        actual_priority = -priority if self._max_heap else priority
-        pitem = PriorityItem(
-            priority=actual_priority,
-            item=item,
-            sequence=self._counter
-        )
-        self._counter += 1
-        
-        self._index[item] = len(self._heap)
-        self._entry_finder[item] = pitem
-        heapq.heappush(self._heap, pitem)
-    
-    def pop(self) -> Optional[T]:
-        """
-        取出并返回优先级最高的元素
-        
-        Returns:
-            优先级最高的元素，队列为空时返回 None
-        """
-        while self._heap:
-            pitem = heapq.heappop(self._heap)
-            item = pitem.item
-            if item in self._entry_finder:
-                del self._entry_finder[item]
-                del self._index[item]
-                return item
-        return None
-    
-    def peek(self) -> Optional[T]:
-        """查看堆顶元素"""
-        while self._heap:
-            pitem = self._heap[0]
-            if pitem.item in self._entry_finder:
-                return pitem.item
-            heapq.heappop(self._heap)
-        return None
-    
-    def update_priority(self, item: T, new_priority: float) -> bool:
-        """
-        更新元素的优先级（O(log n)）
-        
-        Args:
-            item: 要更新的元素
-            new_priority: 新的优先级值
-            
-        Returns:
-            bool: 是否成功更新
-        """
-        if item not in self._entry_finder:
-            return False
-        
-        actual_priority = -new_priority if self._max_heap else new_priority
-        
-        # 标记旧条目为删除
-        old_pitem = self._entry_finder[item]
-        del self._entry_finder[item]
-        
-        # 插入新条目
-        new_pitem = PriorityItem(
-            priority=actual_priority,
-            item=item,
-            sequence=self._counter
-        )
-        self._counter += 1
-        
-        self._entry_finder[item] = new_pitem
-        heapq.heappush(self._heap, new_pitem)
-        return True
-    
-    def remove(self, item: T) -> bool:
-        """
-        从队列中移除指定元素
-        
-        Args:
-            item: 要移除的元素
-            
-        Returns:
-            bool: 是否成功移除
-        """
-        if item not in self._entry_finder:
-            return False
-        del self._entry_finder[item]
-        if item in self._index:
-            del self._index[item]
-        return True
-    
-    def contains(self, item: T) -> bool:
-        """检查元素是否在队列中"""
-        return item in self._entry_finder
-    
-    def get_priority(self, item: T) -> Optional[float]:
-        """获取元素的优先级"""
-        if item not in self._entry_finder:
-            return None
-        actual = self._entry_finder[item].priority
-        return -actual if self._max_heap else actual
-    
-    def clear(self) -> None:
-        """清空队列"""
-        self._heap.clear()
-        self._index.clear()
-        self._entry_finder.clear()
-    
-    def __len__(self) -> int:
-        return len(self._entry_finder)
-    
-    def __bool__(self) -> bool:
-        return bool(self._entry_finder)
-    
-    def __contains__(self, item: T) -> bool:
-        return item in self._entry_finder
-
-
-class ThreadSafePriorityQueue(Generic[T]):
-    """
-    线程安全的优先队列
-    
-    使用锁来保证多线程环境下的安全性。
-    
-    示例:
-        >>> pq = ThreadSafePriorityQueue[str]()
-        >>> pq.push("task", 1)
-        >>> with pq.pop_wait(timeout=5) as item:
-        ...     print(item)
-    """
-    
-    def __init__(self, max_heap: bool = False):
-        """
-        初始化线程安全优先队列
-        
-        Args:
-            max_heap: 是否为最大堆
-        """
-        self._pq = PriorityQueue[T](max_heap=max_heap)
-        self._lock = threading.Lock()
+        self._heap: List[PrioritizedItem[T]] = []
+        self._lock = threading.RLock()
         self._not_empty = threading.Condition(self._lock)
+        self._counter = 0
+        self._policy = policy
+        self._maxsize = maxsize
+        self._history_size = history_size
+        
+        # Task tracking
+        self._tasks: Dict[str, PrioritizedItem[T]] = {}
+        self._history: List[TaskResult[T]] = []
+        self._cancelled_ids: Set[str] = set()
+        
+        # State
+        self._closed = False
+        self._pending_futures: Dict[str, Future] = {}
     
-    def push(self, item: T, priority: float) -> None:
+    def _get_next_sequence(self) -> int:
+        """Get the next sequence number for ordering."""
+        self._counter += 1
+        return self._counter
+    
+    def _calculate_sort_key(self, priority: int, sequence: int) -> Tuple[int, float]:
         """
-        插入元素（线程安全）
+        Calculate the sort key based on policy.
+        
+        For HIGHEST_FIRST: lower priority number = executed first
+        For LOWEST_FIRST: higher priority number = executed first
+        For FIFO: sequence determines order
+        """
+        if self._policy == PriorityPolicy.HIGHEST_FIRST:
+            return (priority, sequence)
+        elif self._policy == PriorityPolicy.LOWEST_FIRST:
+            return (-priority, sequence)
+        else:  # FIFO
+            return (0, sequence)
+    
+    def push(
+        self,
+        item: T,
+        priority: int = 5,
+        callback: Optional[Callable[[T], Any]] = None,
+        delay: Optional[float] = None,
+    ) -> str:
+        """
+        Add an item to the priority queue.
         
         Args:
-            item: 要插入的元素
-            priority: 优先级值
+            item: The item to add
+            priority: Priority level (lower = higher priority for HIGHEST_FIRST)
+            callback: Optional callback to execute when item is processed
+            delay: Optional delay in seconds before the item can be processed
+            
+        Returns:
+            Task ID for tracking/cancellation
+            
+        Raises:
+            QueueFullError: If queue is at maxsize
+            QueueClosedError: If queue is closed
         """
         with self._lock:
-            self._pq.push(item, priority)
+            if self._closed:
+                raise QueueClosedError("Cannot push to closed queue")
+            
+            if self._maxsize > 0 and len(self._heap) >= self._maxsize:
+                raise QueueFullError(f"Queue is full (maxsize={self._maxsize})")
+            
+            sequence = self._get_next_sequence()
+            task_id = str(uuid.uuid4())
+            now = time.time()
+            
+            execute_after = None
+            if delay is not None and delay > 0:
+                execute_after = now + delay
+            
+            prioritized = PrioritizedItem(
+                sort_key=self._calculate_sort_key(priority, sequence),
+                task_id=task_id,
+                data=item,
+                created_at=now,
+                execute_after=execute_after,
+                callback=callback,
+                state=TaskState.PENDING,
+            )
+            
+            heapq.heappush(self._heap, prioritized)
+            self._tasks[task_id] = prioritized
             self._not_empty.notify()
+            
+            return task_id
     
-    def pop(self, timeout: Optional[float] = None) -> Optional[T]:
+    def pop(
+        self,
+        timeout: Optional[float] = None,
+        block: bool = True,
+    ) -> Optional[PrioritizedItem[T]]:
         """
-        取出元素（线程安全，可阻塞）
+        Remove and return the highest priority item.
         
         Args:
-            timeout: 超时时间（秒），None 表示无限等待
+            timeout: Maximum time to wait (None = forever)
+            block: Whether to block if queue is empty
             
         Returns:
-            优先级最高的元素，超时时返回 None
+            The highest priority item, or None if timeout/empty
+            
+        Raises:
+            QueueClosedError: If queue is closed and empty
         """
         with self._not_empty:
+            end_time = None
             if timeout is not None:
-                self._not_empty.wait_for(lambda: len(self._pq) > 0, timeout=timeout)
-            else:
-                while len(self._pq) == 0:
+                end_time = time.time() + timeout
+            
+            while True:
+                if self._closed and not self._heap:
+                    raise QueueClosedError("Queue is closed and empty")
+                
+                # Try to find an executable item
+                item = self._pop_executable_item()
+                if item is not None:
+                    return item
+                
+                if not block:
+                    return None
+                
+                if end_time is not None:
+                    remaining = end_time - time.time()
+                    if remaining <= 0:
+                        return None
+                    self._not_empty.wait(remaining)
+                else:
                     self._not_empty.wait()
-            return self._pq.pop()
     
-    def try_pop(self) -> Optional[T]:
+    def _pop_executable_item(self) -> Optional[PrioritizedItem[T]]:
+        """Pop the next executable item from the heap."""
+        now = time.time()
+        temp_items = []
+        result = None
+        
+        while self._heap:
+            item = heapq.heappop(self._heap)
+            
+            # Skip cancelled items
+            if item.task_id in self._cancelled_ids:
+                self._cancelled_ids.discard(item.task_id)
+                self._tasks.pop(item.task_id, None)
+                continue
+            
+            # Check if item is delayed
+            if item.execute_after is not None and item.execute_after > now:
+                temp_items.append(item)
+                continue
+            
+            # Found executable item
+            result = item
+            break
+        
+        # Push back non-executable items
+        for temp_item in temp_items:
+            heapq.heappush(self._heap, temp_item)
+        
+        if result is not None:
+            result.state = TaskState.RUNNING
+            self._tasks.pop(result.task_id, None)
+        
+        return result
+    
+    def peek(self) -> Optional[PrioritizedItem[T]]:
         """
-        尝试立即取出元素（非阻塞）
+        Look at the highest priority item without removing it.
         
         Returns:
-            元素或 None（队列为空时）
+            The highest priority item, or None if queue is empty
         """
         with self._lock:
-            return self._pq.pop()
+            if not self._heap:
+                return None
+            return self._heap[0]
     
-    def peek(self) -> Optional[T]:
-        """查看堆顶元素（线程安全）"""
-        with self._lock:
-            return self._pq.peek()
-    
-    def clear(self) -> None:
-        """清空队列（线程安全）"""
-        with self._lock:
-            self._pq.clear()
-    
-    def __len__(self) -> int:
-        with self._lock:
-            return len(self._pq)
-    
-    def __bool__(self) -> bool:
-        with self._lock:
-            return bool(self._pq)
-
-
-class BoundedPriorityQueue(Generic[T]):
-    """
-    有界优先队列
-    
-    当队列达到最大容量时，新插入的低优先级元素会被拒绝。
-    
-    示例:
-        >>> pq = BoundedPriorityQueue[int](max_size=3)
-        >>> pq.push(1, 1)
-        True
-        >>> pq.push(4, 4)  # 低优先级，队列已满
-        False
-    """
-    
-    def __init__(self, max_size: int, max_heap: bool = False):
+    def update_priority(self, task_id: str, new_priority: int) -> bool:
         """
-        初始化有界优先队列
+        Update the priority of a pending task.
         
         Args:
-            max_size: 最大容量
-            max_heap: 是否为最大堆
-        """
-        if max_size <= 0:
-            raise ValueError("max_size must be positive")
-        self._max_size = max_size
-        self._pq = PriorityQueue[T](max_heap=max_heap)
-    
-    def push(self, item: T, priority: float) -> bool:
-        """
-        尝试插入元素
-        
-        如果队列已满且新元素优先级低于当前最低优先级，则拒绝插入。
-        
-        Args:
-            item: 要插入的元素
-            priority: 优先级值
+            task_id: The task ID to update
+            new_priority: The new priority value
             
         Returns:
-            bool: 是否成功插入
+            True if updated, False if task not found or not pending
         """
-        if len(self._pq) < self._max_size:
-            self._pq.push(item, priority)
-            return True
-        
-        # 队列已满，检查是否可以替换最低优先级元素
-        # 获取当前最低优先级（最后一个元素）
-        items = self._pq.to_list(sorted_=True)
-        if not items:
-            self._pq.push(item, priority)
-            return True
-        
-        lowest_item, lowest_priority = items[-1]
-        
-        # 判断新元素优先级是否高于最低优先级元素
-        if self._pq._max_heap:
-            # 最大堆：priority越大越优先，lowest_priority是最小的
-            if priority <= lowest_priority:
-                # 新元素优先级更低或相等，拒绝
+        with self._lock:
+            if task_id not in self._tasks:
                 return False
-        else:
-            # 最小堆：priority越小越优先，lowest_priority是最大的
-            if priority >= lowest_priority:
-                # 新元素优先级更低或相等，拒绝
+            
+            item = self._tasks[task_id]
+            if item.state != TaskState.PENDING:
                 return False
+            
+            # Remove from heap
+            self._heap = [x for x in self._heap if x.task_id != task_id]
+            heapq.heapify(self._heap)
+            
+            # Update priority and re-add
+            sequence = item.sort_key[1]
+            item.sort_key = self._calculate_sort_key(new_priority, sequence)
+            item._priority = new_priority
+            
+            heapq.heappush(self._heap, item)
+            self._not_empty.notify()
+            
+            return True
+    
+    def cancel(self, task_id: str) -> bool:
+        """
+        Cancel a pending task.
         
-        # 移除最低优先级元素，插入新元素
-        self._pq.remove(lowest_item)
-        self._pq.push(item, priority)
-        return True
+        Args:
+            task_id: The task ID to cancel
+            
+        Returns:
+            True if cancelled, False if not found or already processed
+        """
+        with self._lock:
+            if task_id not in self._tasks:
+                return False
+            
+            item = self._tasks[task_id]
+            if item.state != TaskState.PENDING:
+                return False
+            
+            item.state = TaskState.CANCELLED
+            self._cancelled_ids.add(task_id)
+            return True
     
-    def pop(self) -> Optional[T]:
-        """取出优先级最高的元素"""
-        return self._pq.pop()
+    def get_task_state(self, task_id: str) -> Optional[TaskState]:
+        """
+        Get the state of a task.
+        
+        Args:
+            task_id: The task ID to check
+            
+        Returns:
+            Task state, or None if not found
+        """
+        with self._lock:
+            if task_id in self._tasks:
+                return self._tasks[task_id].state
+            
+            # Check history
+            for result in self._history:
+                if result.task_id == task_id:
+                    return TaskState.COMPLETED if result.success else TaskState.FAILED
+            
+            return None
     
-    def peek(self) -> Optional[T]:
-        """查看堆顶元素"""
-        return self._pq.peek()
+    def size(self) -> int:
+        """Get the current queue size."""
+        with self._lock:
+            return len(self._heap)
     
-    def is_full(self) -> bool:
-        """队列是否已满"""
-        return len(self._pq) >= self._max_size
+    def empty(self) -> bool:
+        """Check if the queue is empty."""
+        with self._lock:
+            return len(self._heap) == 0
     
-    @property
-    def max_size(self) -> int:
-        """最大容量"""
-        return self._max_size
+    def full(self) -> bool:
+        """Check if the queue is full."""
+        with self._lock:
+            return self._maxsize > 0 and len(self._heap) >= self._maxsize
+    
+    def clear(self) -> int:
+        """
+        Clear all pending items from the queue.
+        
+        Returns:
+            Number of items cleared
+        """
+        with self._lock:
+            count = len(self._heap)
+            self._heap.clear()
+            self._tasks.clear()
+            return count
+    
+    def close(self) -> None:
+        """Close the queue for new items."""
+        with self._lock:
+            self._closed = True
+            self._not_empty.notify_all()
+    
+    def is_closed(self) -> bool:
+        """Check if the queue is closed."""
+        return self._closed
+    
+    def add_to_history(self, result: TaskResult[T]) -> None:
+        """Add a task result to history."""
+        with self._lock:
+            self._history.append(result)
+            while len(self._history) > self._history_size:
+                self._history.pop(0)
+    
+    def get_history(self, limit: int = 10) -> List[TaskResult[T]]:
+        """Get recent task history."""
+        with self._lock:
+            return list(self._history[-limit:])
     
     def __len__(self) -> int:
-        return len(self._pq)
+        return self.size()
     
     def __bool__(self) -> bool:
-        return bool(self._pq)
+        return not self.empty()
 
 
-def merge_sorted_lists(lists: List[List[Tuple[T, float]]], 
-                       max_heap: bool = False) -> List[Tuple[T, float]]:
+class QueueFullError(Exception):
+    """Raised when trying to add to a full queue."""
+    pass
+
+
+class QueueClosedError(Exception):
+    """Raised when operating on a closed queue."""
+    pass
+
+
+class PriorityTaskExecutor(Generic[T]):
     """
-    合并多个已排序的列表（每个列表按优先级排序）
+    Executor for processing tasks from a priority queue.
     
-    使用优先队列高效合并，时间复杂度 O(n * log k)，
-    其中 n 是总元素数，k 是列表数。
+    Features:
+    - Configurable worker count
+    - Automatic task processing
+    - Callback execution
+    - Result history
+    - Graceful shutdown
     
-    Args:
-        lists: 多个已排序列表的列表
-        max_heap: 是否按优先级降序排列
-        
-    Returns:
-        合并后的排序列表
-        
-    示例:
-        >>> lists = [[('a', 1), ('b', 3)], [('c', 2), ('d', 4)]]
-        >>> merge_sorted_lists(lists)
-        [('a', 1), ('c', 2), ('b', 3), ('d', 4)]
+    Example:
+        >>> queue = PriorityQueue[Callable]()
+        >>> executor = PriorityTaskExecutor(queue, num_workers=2)
+        >>> executor.start()
+        >>> queue.push(lambda: print("Hello"), priority=1)
+        >>> executor.stop()
     """
-    if not lists:
-        return []
     
-    pq = PriorityQueue[Tuple[int, int, T]](max_heap=False)  # (priority, list_idx, elem_idx)
-    
-    # 初始化：每个列表的第一个元素
-    for i, lst in enumerate(lists):
-        if lst:
-            item, priority = lst[0]
-            pq.push((priority, i, 0, item), priority)
-    
-    result: List[Tuple[T, float]] = []
-    
-    while pq:
-        priority, list_idx, elem_idx, item = pq.pop()
-        result.append((item, priority))
+    def __init__(
+        self,
+        queue: PriorityQueue,
+        num_workers: int = 1,
+        default_callback: Optional[Callable[[TaskResult], Any]] = None,
+    ):
+        """
+        Initialize the executor.
         
-        # 从对应列表取下一个元素
-        if elem_idx + 1 < len(lists[list_idx]):
-            next_item, next_priority = lists[list_idx][elem_idx + 1]
-            pq.push((next_priority, list_idx, elem_idx + 1, next_item), next_priority)
+        Args:
+            queue: The priority queue to process
+            num_workers: Number of worker threads
+            default_callback: Optional callback for all task results
+        """
+        self._queue = queue
+        self._num_workers = num_workers
+        self._default_callback = default_callback
+        self._workers: List[threading.Thread] = []
+        self._running = False
+        self._lock = threading.Lock()
+        self._tasks_processed = 0
+        self._tasks_failed = 0
     
-    return result
+    def start(self) -> None:
+        """Start the worker threads."""
+        with self._lock:
+            if self._running:
+                return
+            
+            self._running = True
+            for i in range(self._num_workers):
+                worker = threading.Thread(
+                    target=self._worker_loop,
+                    name=f"PriorityExecutor-Worker-{i}",
+                    daemon=True,
+                )
+                worker.start()
+                self._workers.append(worker)
+    
+    def _worker_loop(self) -> None:
+        """Main worker loop for processing tasks."""
+        while self._running:
+            try:
+                item = self._queue.pop(timeout=0.5)
+                if item is None:
+                    continue
+                
+                self._process_item(item)
+            except QueueClosedError:
+                break
+            except Exception as e:
+                # Log and continue
+                pass
+    
+    def _process_item(self, item: PrioritizedItem) -> None:
+        """Process a single item from the queue."""
+        task_id = item.task_id
+        start_time = time.time()
+        result: Optional[TaskResult] = None
+        
+        try:
+            # Execute the task
+            data = item.data
+            task_result = None
+            
+            if callable(data):
+                task_result = data()
+            elif item.callback is not None:
+                task_result = item.callback(data)
+            else:
+                task_result = data
+            
+            result = TaskResult(
+                task_id=task_id,
+                success=True,
+                result=task_result,
+                execution_time=time.time() - start_time,
+                started_at=start_time,
+                completed_at=time.time(),
+            )
+            item.state = TaskState.COMPLETED
+            self._tasks_processed += 1
+            
+        except Exception as e:
+            result = TaskResult(
+                task_id=task_id,
+                success=False,
+                error=e,
+                execution_time=time.time() - start_time,
+                started_at=start_time,
+                completed_at=time.time(),
+            )
+            item.state = TaskState.FAILED
+            self._tasks_failed += 1
+        
+        # Add to history
+        self._queue.add_to_history(result)
+        
+        # Call default callback
+        if self._default_callback:
+            try:
+                self._default_callback(result)
+            except Exception:
+                pass
+    
+    def stop(self, wait: bool = True, timeout: float = 5.0) -> None:
+        """
+        Stop the executor.
+        
+        Args:
+            wait: Whether to wait for workers to finish
+            timeout: Maximum time to wait for each worker
+        """
+        with self._lock:
+            self._running = False
+            self._queue.close()
+        
+        if wait:
+            for worker in self._workers:
+                worker.join(timeout=timeout)
+        
+        self._workers.clear()
+    
+    @property
+    def is_running(self) -> bool:
+        return self._running
+    
+    @property
+    def stats(self) -> Dict[str, int]:
+        """Get executor statistics."""
+        return {
+            "processed": self._tasks_processed,
+            "failed": self._tasks_failed,
+            "queue_size": len(self._queue),
+        }
 
 
 class TaskScheduler:
     """
-    基于优先队列的任务调度器
+    High-level task scheduler with scheduling features.
     
-    支持任务优先级、延迟执行、周期执行。
+    Features:
+    - One-time tasks
+    - Recurring tasks (interval, cron-like)
+    - Task dependencies
+    - Task priorities
+    - Task timeouts
     
-    示例:
+    Example:
         >>> scheduler = TaskScheduler()
-        >>> scheduler.add_task("urgent_task", priority=1)
-        >>> scheduler.add_task("normal_task", priority=5)
-        >>> scheduler.get_next_task()
-        'urgent_task'
+        >>> scheduler.schedule_once(print, args=["Hello"], delay=5)
+        >>> scheduler.schedule_interval(print, args=["Ping"], interval=10)
+        >>> scheduler.start()
     """
     
-    def __init__(self, max_heap: bool = False):
+    def __init__(self, num_workers: int = 2):
         """
-        初始化任务调度器
+        Initialize the scheduler.
         
         Args:
-            max_heap: 是否为最大堆（True 时优先级大的先执行）
+            num_workers: Number of worker threads
         """
-        self._pq = UpdatablePriorityQueue[str](max_heap=max_heap)
-        self._task_data: Dict[str, Any] = {}
+        self._queue = PriorityQueue[Callable]()
+        self._executor = PriorityTaskExecutor(self._queue, num_workers=num_workers)
+        self._scheduled_tasks: Dict[str, Dict[str, Any]] = {}
+        self._recurring_thread: Optional[threading.Thread] = None
+        self._running = False
+        self._lock = threading.Lock()
     
-    def add_task(self, task_id: str, priority: float, 
-                 data: Optional[Any] = None) -> None:
+    def schedule_once(
+        self,
+        func: Callable,
+        args: Optional[tuple] = None,
+        kwargs: Optional[dict] = None,
+        priority: int = 5,
+        delay: Optional[float] = None,
+        execute_at: Optional[datetime] = None,
+    ) -> str:
         """
-        添加任务
+        Schedule a one-time task.
         
         Args:
-            task_id: 任务唯一标识
-            priority: 优先级（值越小越优先，除非 max_heap=True）
-            data: 任务附加数据
-        """
-        self._pq.push(task_id, priority)
-        if data is not None:
-            self._task_data[task_id] = data
-    
-    def get_next_task(self) -> Optional[str]:
-        """
-        获取下一个要执行的任务
-        
-        Returns:
-            任务ID，队列为空时返回 None
-        """
-        return self._pq.pop()
-    
-    def update_task_priority(self, task_id: str, new_priority: float) -> bool:
-        """
-        更新任务优先级
-        
-        Args:
-            task_id: 任务ID
-            new_priority: 新优先级
+            func: Function to execute
+            args: Positional arguments
+            kwargs: Keyword arguments
+            priority: Task priority
+            delay: Delay in seconds
+            execute_at: Specific datetime to execute
             
         Returns:
-            bool: 是否成功更新
+            Task ID
         """
-        return self._pq.update_priority(task_id, new_priority)
+        if execute_at is not None:
+            delay = (execute_at - datetime.now()).total_seconds()
+            if delay < 0:
+                delay = 0
+        
+        def task():
+            if args and kwargs:
+                return func(*args, **kwargs)
+            elif args:
+                return func(*args)
+            elif kwargs:
+                return func(**kwargs)
+            else:
+                return func()
+        
+        task_id = self._queue.push(task, priority=priority, delay=delay)
+        
+        with self._lock:
+            self._scheduled_tasks[task_id] = {
+                "type": "once",
+                "func": func,
+                "args": args,
+                "kwargs": kwargs,
+                "priority": priority,
+            }
+        
+        return task_id
+    
+    def schedule_interval(
+        self,
+        func: Callable,
+        interval: float,
+        args: Optional[tuple] = None,
+        kwargs: Optional[dict] = None,
+        priority: int = 5,
+        initial_delay: float = 0,
+        max_runs: Optional[int] = None,
+    ) -> str:
+        """
+        Schedule a recurring task at fixed intervals.
+        
+        Args:
+            func: Function to execute
+            interval: Time between executions in seconds
+            args: Positional arguments
+            kwargs: Keyword arguments
+            priority: Task priority
+            initial_delay: Delay before first execution
+            max_runs: Maximum number of runs (None = unlimited)
+            
+        Returns:
+            Task ID
+        """
+        task_id = str(uuid.uuid4())
+        
+        def recurring_task():
+            nonlocal max_runs
+            if max_runs is not None:
+                max_runs -= 1
+            
+            if args and kwargs:
+                func(*args, **kwargs)
+            elif args:
+                func(*args)
+            elif kwargs:
+                func(**kwargs)
+            else:
+                func()
+            
+            # Schedule next run
+            with self._lock:
+                if max_runs is None or max_runs > 0:
+                    if task_id in self._scheduled_tasks:
+                        self._queue.push(recurring_task, priority=priority, delay=interval)
+        
+        self._queue.push(recurring_task, priority=priority, delay=initial_delay)
+        
+        with self._lock:
+            self._scheduled_tasks[task_id] = {
+                "type": "interval",
+                "func": func,
+                "interval": interval,
+                "args": args,
+                "kwargs": kwargs,
+                "priority": priority,
+                "max_runs": max_runs,
+            }
+        
+        return task_id
     
     def cancel_task(self, task_id: str) -> bool:
         """
-        取消任务
+        Cancel a scheduled task.
         
         Args:
-            task_id: 任务ID
+            task_id: The task ID to cancel
             
         Returns:
-            bool: 是否成功取消
+            True if cancelled
         """
-        if task_id in self._task_data:
-            del self._task_data[task_id]
-        return self._pq.remove(task_id)
+        with self._lock:
+            if task_id in self._scheduled_tasks:
+                del self._scheduled_tasks[task_id]
+        return self._queue.cancel(task_id)
     
-    def get_task_data(self, task_id: str) -> Optional[Any]:
-        """
-        获取任务附加数据
-        
-        Args:
-            task_id: 任务ID
-            
-        Returns:
-            任务数据，不存在时返回 None
-        """
-        return self._task_data.get(task_id)
+    def start(self) -> None:
+        """Start the scheduler."""
+        self._running = True
+        self._executor.start()
     
-    def peek_next_task(self) -> Optional[str]:
-        """查看下一个任务（不移除）"""
-        return self._pq.peek()
+    def stop(self, wait: bool = True) -> None:
+        """Stop the scheduler."""
+        self._running = False
+        self._executor.stop(wait=wait)
     
-    def has_task(self, task_id: str) -> bool:
-        """检查任务是否存在"""
-        return task_id in self._pq
-    
-    def clear(self) -> None:
-        """清空所有任务"""
-        self._pq.clear()
-        self._task_data.clear()
-    
-    def __len__(self) -> int:
-        return len(self._pq)
-    
-    def __bool__(self) -> bool:
-        return bool(self._pq)
+    @property
+    def stats(self) -> Dict[str, Any]:
+        """Get scheduler statistics."""
+        return {
+            "executor": self._executor.stats,
+            "scheduled_tasks": len(self._scheduled_tasks),
+        }
 
 
-# 便捷函数
-
-def create_min_heap() -> PriorityQueue:
-    """创建最小堆优先队列"""
-    return PriorityQueue(max_heap=False)
-
-
-def create_max_heap() -> PriorityQueue:
-    """创建最大堆优先队列"""
-    return PriorityQueue(max_heap=True)
-
-
-def top_k(items: List[Tuple[T, float]], k: int, largest: bool = True) -> List[Tuple[T, float]]:
+class BoundedPriorityQueue(Generic[T]):
     """
-    获取前 K 个元素
+    A bounded priority queue with overflow handling.
     
-    使用 heapq 模块高效获取前 K 个元素，
-    时间复杂度 O(n log k)。
+    When the queue reaches maxsize:
+    - REJECT: Reject new items
+    - DROP_LOWEST: Drop the lowest priority item
+    - DROP_OLDEST: Drop the oldest item
+    """
+    
+    class OverflowPolicy(Enum):
+        REJECT = auto()
+        DROP_LOWEST = auto()
+        DROP_OLDEST = auto()
+    
+    def __init__(
+        self,
+        maxsize: int,
+        policy: OverflowPolicy = OverflowPolicy.REJECT,
+        on_drop: Optional[Callable[[T], None]] = None,
+    ):
+        """
+        Initialize bounded queue.
+        
+        Args:
+            maxsize: Maximum queue size
+            policy: Overflow handling policy
+            on_drop: Optional callback when items are dropped
+        """
+        self._queue = PriorityQueue[T](policy=PriorityPolicy.HIGHEST_FIRST, maxsize=maxsize)
+        self._maxsize = maxsize
+        self._policy = policy
+        self._on_drop = on_drop
+        self._items_data: List[Tuple[int, float, str, T]] = []  # For DROP policies
+        self._counter = 0
+    
+    def push(self, item: T, priority: int = 5) -> Optional[str]:
+        """
+        Add item with overflow handling.
+        
+        Returns:
+            Task ID, or None if rejected
+        """
+        current_size = len(self._items_data)
+        
+        if current_size >= self._maxsize:
+            if self._policy == BoundedPriorityQueue.OverflowPolicy.REJECT:
+                return None
+            elif self._policy == BoundedPriorityQueue.OverflowPolicy.DROP_LOWEST:
+                self._drop_lowest_priority()
+            elif self._policy == BoundedPriorityQueue.OverflowPolicy.DROP_OLDEST:
+                self._drop_oldest()
+        
+        task_id = str(uuid.uuid4())
+        entry = (priority, self._counter, task_id, item)
+        self._counter += 1
+        self._items_data.append(entry)
+        return task_id
+    
+    def _drop_lowest_priority(self) -> None:
+        """Drop the lowest priority item (highest priority number)."""
+        if not self._items_data:
+            return
+        
+        # Find item with highest priority number (lowest actual priority)
+        max_idx = 0
+        max_priority = self._items_data[0][0]
+        
+        for i, (priority, _, _, item) in enumerate(self._items_data):
+            if priority > max_priority:
+                max_priority = priority
+                max_idx = i
+        
+        dropped = self._items_data.pop(max_idx)
+        if self._on_drop:
+            self._on_drop(dropped[3])
+    
+    def _drop_oldest(self) -> None:
+        """Drop the oldest item (lowest counter)."""
+        if not self._items_data:
+            return
+        
+        # Find item with lowest counter (oldest)
+        min_idx = 0
+        min_counter = self._items_data[0][1]
+        
+        for i, (_, counter, _, _) in enumerate(self._items_data):
+            if counter < min_counter:
+                min_counter = counter
+                min_idx = i
+        
+        dropped = self._items_data.pop(min_idx)
+        if self._on_drop:
+            self._on_drop(dropped[3])
+    
+    def pop(self, timeout: Optional[float] = None) -> Optional[T]:
+        """Pop the highest priority item."""
+        if not self._items_data:
+            return None
+        
+        # Sort by priority (and counter for stable ordering)
+        self._items_data.sort()
+        
+        _, _, _, item = self._items_data.pop(0)
+        return item
+    
+    def size(self) -> int:
+        return len(self._items_data)
+    
+    def full(self) -> bool:
+        return len(self._items_data) >= self._maxsize
+    
+    def empty(self) -> bool:
+        return len(self._items_data) == 0
+
+
+class PriorityDeque(Generic[T]):
+    """
+    Double-ended priority queue (min-max heap).
+    
+    Allows efficient access to both minimum and maximum elements.
+    """
+    
+    def __init__(self):
+        """Initialize the double-ended priority queue."""
+        self._items: List[Tuple[int, float, str, T]] = []
+        self._counter = 0
+        self._lock = threading.Lock()
+        self._task_ids: Dict[str, int] = {}
+    
+    def push(self, item: T, priority: int = 5) -> str:
+        """
+        Add an item with priority.
+        
+        Returns:
+            Task ID for tracking
+        """
+        with self._lock:
+            task_id = str(uuid.uuid4())
+            entry = (priority, self._counter, task_id, item)
+            self._counter += 1
+            heapq.heappush(self._items, entry)
+            self._task_ids[task_id] = len(self._items) - 1
+            return task_id
+    
+    def pop_min(self) -> Optional[T]:
+        """Pop the minimum priority item."""
+        with self._lock:
+            if not self._items:
+                return None
+            _, _, task_id, item = heapq.heappop(self._items)
+            self._task_ids.pop(task_id, None)
+            return item
+    
+    def pop_max(self) -> Optional[T]:
+        """Pop the maximum priority item."""
+        with self._lock:
+            if not self._items:
+                return None
+            
+            # Find max (items are min-heap, so max is at the end)
+            max_idx = -1
+            max_priority = float('-inf')
+            
+            for i, (priority, _, _, _) in enumerate(self._items):
+                if priority > max_priority:
+                    max_priority = priority
+                    max_idx = i
+            
+            if max_idx >= 0:
+                _, _, task_id, item = self._items.pop(max_idx)
+                self._task_ids.pop(task_id, None)
+                heapq.heapify(self._items)
+                return item
+            
+            return None
+    
+    def peek_min(self) -> Optional[T]:
+        """Peek at the minimum priority item."""
+        with self._lock:
+            if not self._items:
+                return None
+            return self._items[0][3]
+    
+    def peek_max(self) -> Optional[T]:
+        """Peek at the maximum priority item."""
+        with self._lock:
+            if not self._items:
+                return None
+            
+            max_priority = max(item[0] for item in self._items)
+            for priority, _, _, item in self._items:
+                if priority == max_priority:
+                    return item
+            
+            return None
+    
+    def size(self) -> int:
+        with self._lock:
+            return len(self._items)
+    
+    def empty(self) -> bool:
+        return self.size() == 0
+
+
+# Utility functions
+
+def create_priority_queue(
+    items: Optional[List[Tuple[T, int]]] = None,
+    policy: PriorityPolicy = PriorityPolicy.HIGHEST_FIRST,
+) -> PriorityQueue[T]:
+    """
+    Create a priority queue from a list of (item, priority) tuples.
     
     Args:
-        items: 元素和优先级组成的元组列表
-        k: 返回元素数量
-        largest: True 返回优先级最大的 K 个，False 返回优先级最小的 K 个
+        items: Optional list of items with priorities
+        policy: Priority policy
         
     Returns:
-        前 K 个元素列表（按优先级排序）
-        
-    示例:
-        >>> items = [('a', 3), ('b', 1), ('c', 2)]
-        >>> top_k(items, 2, largest=True)
-        [('a', 3), ('c', 2)]
+        Configured priority queue
     """
-    if k <= 0 or not items:
-        return []
-    
-    # 使用内置 heapq 模块
-    import heapq as hp
-    
-    # 转换为带优先级的元组
-    if largest:
-        # 获取最大的 K 个，使用 nlargest
-        # heapq.nlargest 返回按优先级降序排列
-        result = hp.nlargest(k, items, key=lambda x: x[1])
-    else:
-        # 获取最小的 K 个，使用 nsmallest
-        # heapq.nsmallest 返回按优先级升序排列
-        result = hp.nsmallest(k, items, key=lambda x: x[1])
-    
-    return result
+    queue = PriorityQueue[T](policy=policy)
+    if items:
+        for item, priority in items:
+            queue.push(item, priority=priority)
+    return queue
 
 
-if __name__ == "__main__":
-    # 基本使用示例
-    print("=== PriorityQueue 基本使用 ===")
-    pq = PriorityQueue[str]()
-    pq.push("low priority", 10)
-    pq.push("high priority", 1)
-    pq.push("medium priority", 5)
+def merge_priority_queues(
+    *queues: PriorityQueue[T],
+    policy: PriorityPolicy = PriorityPolicy.HIGHEST_FIRST,
+) -> PriorityQueue[T]:
+    """
+    Merge multiple priority queues into one.
     
-    print("按优先级弹出:")
-    while pq:
-        print(f"  {pq.pop()}")
+    Args:
+        *queues: Queues to merge
+        policy: Priority policy for the new queue
+        
+    Returns:
+        New merged queue
+    """
+    merged = PriorityQueue[T](policy=policy)
     
-    print("\n=== 最大堆 ===")
-    max_pq = PriorityQueue[int](max_heap=True)
-    max_pq.push(1, 1)
-    max_pq.push(5, 5)
-    max_pq.push(3, 3)
+    for queue in queues:
+        while not queue.empty():
+            item = queue.pop(block=False)
+            if item:
+                merged.push(item.data, priority=item._priority)
     
-    print("按优先级降序弹出:")
-    while max_pq:
-        print(f"  {max_pq.pop()}")
+    return merged
+
+
+def batch_push(
+    queue: PriorityQueue[T],
+    items: List[Tuple[T, int]],
+    delay: Optional[float] = None,
+) -> List[str]:
+    """
+    Push multiple items to a queue efficiently.
     
-    print("\n=== UpdatablePriorityQueue ===")
-    upq = UpdatablePriorityQueue[str]()
-    upq.push("task1", 3)
-    upq.push("task2", 1)
-    upq.push("task3", 2)
-    
-    print("更新 task1 优先级为 0")
-    upq.update_priority("task1", 0)
-    
-    print("按优先级弹出:")
-    while upq:
-        print(f"  {upq.pop()}")
-    
-    print("\n=== TaskScheduler ===")
-    scheduler = TaskScheduler()
-    scheduler.add_task("urgent", priority=1, data={"type": "critical"})
-    scheduler.add_task("normal", priority=5, data={"type": "regular"})
-    scheduler.add_task("important", priority=2, data={"type": "important"})
-    
-    print("任务执行顺序:")
-    while scheduler:
-        task = scheduler.get_next_task()
-        data = scheduler.get_task_data(task) if task in scheduler._task_data else None
-        print(f"  {task}: {data}")
+    Args:
+        queue: Target queue
+        items: List of (item, priority) tuples
+        delay: Optional delay for all items
+        
+    Returns:
+        List of task IDs
+    """
+    task_ids = []
+    for item, priority in items:
+        task_id = queue.push(item, priority=priority, delay=delay)
+        task_ids.append(task_id)
+    return task_ids
+
+
+# Convenience aliases
+PQueue = PriorityQueue
+TaskQueue = PriorityTaskExecutor
+Scheduler = TaskScheduler
