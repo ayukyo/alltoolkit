@@ -946,17 +946,39 @@ class Database:
         
         Returns:
             QueryResult object
+        
+        Note:
+            优化版本：改进参数处理逻辑，
+            增强边界检查和错误处理。
         """
         import time
         start_time = time.time()
         
+        # 边界处理：空SQL
+        if not sql or not isinstance(sql, str):
+            return QueryResult(
+                rows=[],
+                columns=[],
+                row_count=0,
+                execution_time=0.0
+            )
+        
         conn = self._get_connection()
         try:
-            # Handle params correctly - if single tuple/list, use it directly
-            if len(params) == 1 and isinstance(params[0], (tuple, list)):
-                query_params = params[0]
+            # 改进参数处理逻辑：
+            # 1. 单个tuple/list参数 -> 直接使用
+            # 2. 多个参数 -> 组合成tuple
+            # 3. 无参数 -> 空tuple
+            if len(params) == 0:
+                query_params = ()
+            elif len(params) == 1:
+                p = params[0]
+                if isinstance(p, (tuple, list)):
+                    query_params = tuple(p)  # 确保是tuple
+                else:
+                    query_params = (p,)
             else:
-                query_params = params
+                query_params = tuple(params)
             
             cursor = conn.execute(sql, query_params)
             rows = cursor.fetchall()

@@ -129,7 +129,19 @@ def validate_ipv4(ip: str) -> bool:
         True
         >>> validate_ipv4('256.1.1.1')
         False
+        >>> validate_ipv4('')
+        False
+        >>> validate_ipv4(None)
+        False
     """
+    # 边界处理：空值和非字符串类型
+    if ip is None or not isinstance(ip, str):
+        return False
+    
+    # 快速检查：空字符串或过长
+    if not ip or len(ip) > 15:  # 最长IP: '255.255.255.255' = 15字符
+        return False
+    
     match = _IPV4_PATTERN.match(ip)
     if not match:
         return False
@@ -137,6 +149,9 @@ def validate_ipv4(ip: str) -> bool:
     # Validate each octet range and leading zeros
     for i in range(1, 5):
         part = match.group(i)
+        # 防止非ASCII字符干扰
+        if not part.isdigit():
+            return False
         num = int(part)
         # Range check (0-255) and leading zeros check
         if num > 255 or (len(part) > 1 and part[0] == '0'):

@@ -64,48 +64,70 @@ def parse_xml_file(file_path: str) -> ET.Element:
     return tree.getroot()
 
 
-def xml_to_dict(element: ET.Element, include_attributes: bool = True) -> Dict[str, Any]:
+def xml_to_dict(element: ET.Element, include_attributes: bool = True, max_depth: int = 100) -> Dict[str, Any]:
     """
     将 XML Element 转换为字典
     
     Args:
         element: XML Element
         include_attributes: 是否包含属性
+        max_depth: 最大递归深度（防止无限递归）
     
     Returns:
         嵌套字典结构
+    
+    Note:
+        优化版本：添加深度限制防止栈溢出，
+        改进空元素和纯文本元素的边界处理。
     """
-    result = {}
+    # 边界处理：空元素或超过最大深度
+    if element is None:
+        return {}
     
-    # 处理文本内容
-    text = (element.text or '').strip()
-    if text:
-        result['_text'] = text
-    
-    # 处理属性
-    if include_attributes and element.attrib:
-        result['_attributes'] = dict(element.attrib)
-    
-    # 处理子元素
-    children = {}
-    for child in element:
-        child_dict = xml_to_dict(child, include_attributes)
+    def _convert(elem: ET.Element, depth: int) -> Union[Dict[str, Any], str]:
+        # 深度限制保护
+        if depth > max_depth:
+            return {'_error': 'max_depth_exceeded', '_tag': elem.tag}
         
-        if child.tag in children:
-            # 如果已存在，转换为列表
-            if not isinstance(children[child.tag], list):
-                children[child.tag] = [children[child.tag]]
-            children[child.tag].append(child_dict)
-        else:
-            children[child.tag] = child_dict
+        result = {}
+        
+        # 处理文本内容
+        text = (elem.text or '').strip()
+        if text:
+            result['_text'] = text
+        
+        # 处理属性
+        if include_attributes and elem.attrib:
+            result['_attributes'] = dict(elem.attrib)
+        
+        # 处理子元素
+        children = {}
+        child_count = 0
+        for child in elem:
+            child_count += 1
+            child_dict = _convert(child, depth + 1)
+            
+            if child.tag in children:
+                # 如果已存在，转换为列表
+                if not isinstance(children[child.tag], list):
+                    children[child.tag] = [children[child.tag]]
+                children[child.tag].append(child_dict)
+            else:
+                children[child.tag] = child_dict
+        
+        result.update(children)
+        
+        # 优化：如果没有子元素和属性，直接返回文本
+        if len(result) == 1 and '_text' in result:
+            return result['_text']
+        
+        # 边界处理：空元素返回空字典而非 None
+        if not result:
+            return {}
+        
+        return result
     
-    result.update(children)
-    
-    # 如果没有子元素和属性，直接返回文本
-    if len(result) == 1 and '_text' in result:
-        return result['_text']
-    
-    return result
+    return _convert(element, 0)
 
 
 def dict_to_xml(data: Dict[str, Any], root_tag: str = 'root') -> ET.Element:

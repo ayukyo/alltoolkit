@@ -872,40 +872,62 @@ def unique(iterable: Iterable[T], key: Optional[Callable[[T], Any]] = None) -> L
     Note:
         优化版本：使用 key 函数优化避免重复调用，
         对于不可哈希类型自动降级为 O(n²) 算法。
+        边界处理：空输入返回空列表，None key 按值去重。
     """
+    # 边界处理：空输入快速返回
+    if iterable is None:
+        return []
+    
     seen: set = set()
     result: List[T] = []
+    
+    # 预先缓存 key 结果，避免重复调用 key 函数
+    key_cache: Dict[int, Any] = {}
     
     # 快速路径：无 key 函数时直接处理
     if key is None:
         for item in iterable:
+            item_id = id(item)
             try:
                 # 尝试哈希，如果成功则使用 set
-                if item not in seen:
-                    seen.add(item)
+                # 对于基本类型，直接哈希更高效
+                hash_key = item
+                if hash_key not in seen:
+                    seen.add(hash_key)
                     result.append(item)
             except TypeError:
-                # 不可哈希类型，降级为线性查找
-                if item not in result:
+                # 不可哈希类型，使用 id 作为哈希键
+                # 这样可以正确处理不可哈希但不同的对象
+                if item_id not in seen:
+                    seen.add(item_id)
                     result.append(item)
         return result
     
-    # 带 key 函数的路径
+    # 带 key 函数的路径 - 优化：只调用一次 key 函数
     for item in iterable:
+        item_id = id(item)
+        
+        # 如果已经缓存了此 item 的 key，直接使用
+        if item_id in key_cache:
+            comparison_key = key_cache[item_id]
+        else:
+            try:
+                comparison_key = key(item)
+                key_cache[item_id] = comparison_key
+            except Exception:
+                # key 函数可能抛出异常，使用 item 本身
+                comparison_key = item
+                key_cache[item_id] = comparison_key
+        
         try:
-            comparison_key = key(item)
             if comparison_key not in seen:
                 seen.add(comparison_key)
                 result.append(item)
         except TypeError:
-            # key 结果不可哈希，降级处理
-            comparison_key = key(item)
-            is_duplicate = False
-            for existing in result:
-                if key(existing) == comparison_key:
-                    is_duplicate = True
-                    break
-            if not is_duplicate:
+            # key 结果不可哈希，使用 id 存储 key 结果
+            key_id = id(comparison_key)
+            if key_id not in seen:
+                seen.add(key_id)
                 result.append(item)
     
     return result

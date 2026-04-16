@@ -655,11 +655,34 @@ def extract_tables(markdown: MarkdownText) -> List[TableInfo]:
 
 
 def _generate_anchor(text: str) -> str:
-    """Generate a URL-safe anchor from heading text."""
+    """
+    Generate a URL-safe anchor from heading text.
+    
+    边界处理：
+    - 空文本返回空锚点
+    - None 输入返回空字符串
+    - Unicode字符正确处理（保留字母数字）
+    - 限制锚点长度避免过长URL
+    """
+    # 边界处理
+    if text is None or not isinstance(text, str):
+        return ''
+    
+    text = text.strip()
+    if not text:
+        return ''
+    
     anchor = text.lower()
-    anchor = re.sub(r'[^\w\s-]', '', anchor)
+    # 移除所有非字母数字和非连字符的字符（包括Unicode）
+    anchor = re.sub(r'[^\w\s-]', '', anchor, flags=re.UNICODE)
+    # 将空格和多个连字符替换为单个连字符
     anchor = re.sub(r'[-\s]+', '-', anchor)
+    # 移除开头和结尾的连字符
     anchor = anchor.strip('-')
+    # 限制最大长度（一般锚点不超过100字符）
+    if len(anchor) > 100:
+        anchor = anchor[:100].rstrip('-')
+    
     return anchor
 
 
