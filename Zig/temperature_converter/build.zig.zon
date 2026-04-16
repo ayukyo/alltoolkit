@@ -1,0 +1,10 @@
+.{
+    .name = "temperature_converter",
+    .version = "0.1.0",
+    .paths = .{
+        "src/temperature_converter.zig",
+        "examples/basic_usage.zig",
+        "README.md",
+    },
+    .dependencies = .{},
+}
