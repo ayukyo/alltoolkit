@@ -315,5 +315,160 @@ class TestFormatJson(unittest.TestCase):
         self.assertIn("张三", result)
 
 
+# =============================================================================
+# 边界值测试（新增）- 2026-04-17
+# =============================================================================
+
+class TestFormatBytesEdgeCases(unittest.TestCase):
+    """字节格式化边界值测试"""
+    
+    def test_zero_precision(self):
+        """测试精度为 0"""
+        self.assertEqual(format_bytes(1500, precision=0), "2 KB")
+    
+    def test_high_precision(self):
+        """测试高精度"""
+        self.assertEqual(format_bytes(1500, precision=4), "1.5000 KB")
+    
+    def test_very_large_size(self):
+        """测试极大数值"""
+        # TB级别
+        result = format_bytes(1000000000000)
+        self.assertEqual(result, "1.00 TB")
+    
+    def test_negative_binary(self):
+        """测试负数二进制单位"""
+        self.assertEqual(format_bytes(-1024, binary=True), "-1.00 KiB")
+    
+    def test_float_input(self):
+        """测试浮点数输入"""
+        result = format_bytes(1024.5)
+        self.assertIn("KB", result)
+
+
+class TestParseSizeEdgeCases(unittest.TestCase):
+    """大小解析边界值测试"""
+    
+    def test_whitespace_handling(self):
+        """测试空格处理"""
+        self.assertEqual(parse_size("  1KB  "), 1000)
+    
+    def test_lowercase_units(self):
+        """测试小写单位"""
+        self.assertEqual(parse_size("1kb"), 1000)
+        self.assertEqual(parse_size("1mb"), 1000000)
+    
+    def test_with_spaces(self):
+        """测试带空格的大小字符串"""
+        self.assertEqual(parse_size("1 KB"), 1000)
+    
+    def test_large_units(self):
+        """测试大单位"""
+        self.assertEqual(parse_size("1TB"), 1000000000000)
+        self.assertEqual(parse_size("1PB"), 1000000000000000)
+    
+    def test_decimal_values(self):
+        """测试小数值"""
+        self.assertEqual(parse_size("0.5KB"), 500)
+
+
+class TestFormatNumberEdgeCases(unittest.TestCase):
+    """数字格式化边界值测试"""
+    
+    def test_zero(self):
+        """测试零"""
+        self.assertEqual(format_number(0), "0")
+    
+    def test_negative_numbers(self):
+        """测试负数"""
+        self.assertEqual(format_number(-1000), "-1.0K")
+        self.assertEqual(format_number(-1500000), "-1.5M")
+    
+    def test_chinese_trillion(self):
+        """测试中文万亿单位"""
+        result = format_number(1000000000000, use_chinese=True)
+        self.assertEqual(result, "1.0万亿")
+    
+    def test_very_large_number(self):
+        """测试极大数值"""
+        result = format_number(1000000000000000)
+        self.assertEqual(result, "1.0Q")
+
+
+class TestFormatListEdgeCases(unittest.TestCase):
+    """列表格式化边界值测试"""
+    
+    def test_many_items(self):
+        """测试大量项"""
+        items = [str(i) for i in range(10)]
+        result = format_list(items, limit=5)
+        self.assertIn("等", result)
+    
+    def test_custom_limit_text(self):
+        """测试自定义限制文本"""
+        items = ["a", "b", "c", "d"]
+        result = format_list(items, limit=2, limit_text="还有 {remaining} 个")
+        self.assertEqual(result, "a、b 还有 2 个")
+    
+    def test_all_chinese_items(self):
+        """测试全中文项"""
+        items = ["苹果", "香蕉", "橘子"]
+        result = format_list(items)
+        self.assertEqual(result, "苹果、香蕉 和 橘子")
+
+
+class TestTruncateTextEdgeCases(unittest.TestCase):
+    """文本截断边界值测试"""
+    
+    def test_empty_text(self):
+        """测试空文本"""
+        self.assertEqual(truncate_text("", max_length=10), "")
+    
+    def test_max_length_equals_text_length(self):
+        """测试最大长度等于文本长度"""
+        text = "测试文本"
+        self.assertEqual(truncate_text(text, max_length=len(text)), text)
+    
+    def test_max_length_less_than_suffix(self):
+        """测试最大长度小于后缀"""
+        text = "测试文本"
+        result = truncate_text(text, max_length=2, suffix="...")
+        self.assertEqual(result, "...")
+    
+    def test_no_word_boundary_space(self):
+        """测试无空格时的单词边界截断"""
+        text = "测试文本无空格"
+        result = truncate_text(text, max_length=8, word_boundary=True)
+        # 无空格时，应该在指定长度截断
+        self.assertTrue(len(result) <= 8)
+        self.assertTrue("..." in result or len(result) == len(text))
+
+
+class TestFormatDurationEdgeCases(unittest.TestCase):
+    """持续时间边界值测试"""
+    
+    def test_zero_seconds(self):
+        """测试零秒"""
+        self.assertEqual(format_duration(0, format_type="compact"), "0s")
+        self.assertEqual(format_duration(0, format_type="full"), "00:00:00")
+    
+    def test_only_seconds(self):
+        """测试仅秒"""
+        self.assertEqual(format_duration(30, format_type="compact"), "30s")
+    
+    def test_only_minutes(self):
+        """测试仅分钟"""
+        self.assertEqual(format_duration(60, format_type="compact"), "1m")
+    
+    def test_only_hours(self):
+        """测试仅小时"""
+        self.assertEqual(format_duration(3600, format_type="compact"), "1h")
+    
+    def test_very_long_duration(self):
+        """测试很长持续时间"""
+        result = format_duration(100000, format_type="compact")
+        self.assertIn("h", result)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

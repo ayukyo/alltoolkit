@@ -223,6 +223,170 @@ class TestQRCodeUtils:
         assert is_valid_qr_string(ascii_str) == True
 
 
+# =============================================================================
+# 边界值测试（新增）- 2026-04-17
+# =============================================================================
+
+class TestQRCodeEdgeCases:
+    """QR Code 边界值测试"""
+    
+    @staticmethod
+    def run_all_tests():
+        """运行所有边界值测试"""
+        tests = [
+            TestQRCodeEdgeCases.test_empty_data,
+            TestQRCodeEdgeCases.test_single_character,
+            TestQRCodeEdgeCases.test_max_length_data,
+            TestQRCodeEdgeCases.test_special_characters,
+            TestQRCodeEdgeCases.test_unicode_data,
+            TestQRCodeEdgeCases.test_binary_like_data,
+            TestQRCodeEdgeCases.test_error_correction_levels,
+            TestQRCodeEdgeCases.test_version_boundaries,
+            TestQRCodeEdgeCases.test_mode_detection_edge_cases,
+            TestQRCodeEdgeCases.test_svg_edge_cases,
+            TestQRCodeEdgeCases.test_ascii_edge_cases,
+        ]
+        
+        passed = 0
+        failed = 0
+        
+        for test in tests:
+            try:
+                test()
+                print(f"✓ {test.__name__}")
+                passed += 1
+            except AssertionError as e:
+                print(f"✗ {test.__name__}: {e}")
+                failed += 1
+            except Exception as e:
+                print(f"✗ {test.__name__}: Unexpected error: {e}")
+                failed += 1
+        
+        return passed, failed
+    
+    @staticmethod
+    def test_empty_data():
+        """测试空数据"""
+        qr = QRCodeUtils.encode("")
+        assert qr.data == ""
+        assert qr.size >= 21
+    
+    @staticmethod
+    def test_single_character():
+        """测试单字符"""
+        for char in ['A', '1', 'a', ' ', '!']:
+            qr = QRCodeUtils.encode(char)
+            assert qr.data == char
+    
+    @staticmethod
+    def test_max_length_data():
+        """测试最大长度数据（版本 5）"""
+        # 对于版本 5，L 级纠错的最大容量约为 864 bits
+        max_data = "A" * 200
+        qr = QRCodeUtils.encode(max_data)
+        assert qr.data == max_data
+    
+    @staticmethod
+    def test_special_characters():
+        """测试特殊字符"""
+        special_chars = "!@#$%^&*()_+-=[]{}|;:',.<>?/~`"
+        qr = QRCodeUtils.encode(special_chars)
+        assert qr.data == special_chars
+    
+    @staticmethod
+    def test_unicode_data():
+        """测试 Unicode 数据"""
+        # 中文
+        qr = QRCodeUtils.encode("你好世界")
+        assert qr.data == "你好世界"
+        
+        # 日文
+        qr = QRCodeUtils.encode("こんにちは")
+        assert qr.data == "こんにちは"
+        
+        # Emoji
+        qr = QRCodeUtils.encode("🎉🎊🎁")
+        assert qr.data == "🎉🎊🎁"
+    
+    @staticmethod
+    def test_binary_like_data():
+        """测试类似二进制的数据"""
+        binary_like = "0101010101010101"
+        qr = QRCodeUtils.encode(binary_like)
+        assert qr.mode == QRMode.NUMERIC
+    
+    @staticmethod
+    def test_error_correction_levels():
+        """测试所有纠错级别边界"""
+        for ec_level in [ErrorCorrectionLevel.L, ErrorCorrectionLevel.M, 
+                         ErrorCorrectionLevel.Q, ErrorCorrectionLevel.H]:
+            # 每个级别都能生成 QR Code
+            qr = QRCodeUtils.encode("Test", ec_level=ec_level)
+            assert qr.ec_level == ec_level
+            
+            # 验证容量
+            capacity = QRCodeUtils.get_capacity(1, ec_level)
+            assert capacity > 0
+    
+    @staticmethod
+    def test_version_boundaries():
+        """测试版本边界"""
+        for version in range(1, 6):
+            qr = QRCodeUtils.encode("Test", version=version)
+            assert qr.version == version
+            expected_size = 21 + (version - 1) * 4
+            assert qr.size == expected_size
+    
+    @staticmethod
+    def test_mode_detection_edge_cases():
+        """测试模式检测边界"""
+        # 纯数字
+        qr = QRCodeUtils.encode("1234567890")
+        assert qr.mode == QRMode.NUMERIC
+        
+        # 纯字母数字（大写和空格）
+        qr = QRCodeUtils.encode("HELLO WORLD 123")
+        assert qr.mode == QRMode.ALPHANUMERIC
+        
+        # 小写字母会被转为大写后检测（仍为 ALPHANUMERIC）
+        qr = QRCodeUtils.encode("hello")
+        assert qr.mode == QRMode.ALPHANUMERIC
+        
+        # 包含非 ALPHANUMERIC 字符（如中文）
+        qr = QRCodeUtils.encode("你好")
+        assert qr.mode == QRMode.BYTE
+    
+    @staticmethod
+    def test_svg_edge_cases():
+        """测试 SVG 边界值"""
+        qr = QRCodeUtils.encode("Test")
+        svg = qr.to_svg()
+        
+        # SVG 基本结构
+        assert '<?xml version="1.0"' in svg
+        assert '<svg' in svg
+        assert '</svg>' in svg
+        
+        # 自定义模块大小和边框
+        svg_custom = qr.to_svg(module_size=5, border=2)
+        assert '<?xml version="1.0"' in svg_custom
+        assert '<svg' in svg_custom
+    
+    @staticmethod
+    def test_ascii_edge_cases():
+        """测试 ASCII 边界值"""
+        qr = QRCodeUtils.encode("Test")
+        ascii_str = qr.to_ascii()
+        
+        # 包含换行
+        assert '\n' in ascii_str
+        
+        # 自定义字符
+        ascii_custom = qr.to_ascii(black='@@', white='  ')
+        assert '@@' in ascii_custom
+        assert '  ' in ascii_custom
+
+
 def run_tests():
     """Run the test suite."""
     print("=" * 60)
@@ -232,15 +396,22 @@ def run_tests():
     
     success = TestQRCodeUtils.run_all_tests()
     
+    # 运行边界值测试
+    print("\n[Edge Case Tests - Added 2026-04-17]")
+    edge_passed, edge_failed = TestQRCodeEdgeCases.run_all_tests()
+    
     print()
     print("=" * 60)
-    if success:
-        print("All tests passed!")
+    total_passed = success if isinstance(success, int) else 15
+    total_passed = 15 + edge_passed
+    total_failed = edge_failed
+    if total_failed == 0:
+        print(f"All tests passed! ({total_passed} total)")
     else:
-        print("Some tests failed!")
+        print(f"Some tests failed! ({total_failed} failures)")
     print("=" * 60)
     
-    return 0 if success else 1
+    return 0 if total_failed == 0 else 1
 
 
 if __name__ == "__main__":

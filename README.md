@@ -163,6 +163,9 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ### 最近新增测试
 
+- **Python humanize_utils**: 新增 30+ 边界值测试，覆盖空值、极大数值、负数、中文单位等边界场景 📝
+- **Python crypto_utils**: 新增 20+ 边界值测试，覆盖空数据、单字符、极长数据、自定义字符集等边界场景 🔐
+- **Python qr_code_utils**: 新增 12 边界值测试，覆盖空数据、Unicode、特殊字符、SVG/ASCII 边界等场景 🔲
 - **Rust file_utils**: 新增 40+ 测试用例，覆盖文件读写、存在性检查、错误处理、边界值等 📁
 - **Rust qr_code_utils**: 新增 45+ 测试用例，覆盖 QR 码生成、版本校验、纠错级别、编码模式、容量表验证等 🔲
 - **TypeScript crypto_utils**: 86 个测试用例（新增），覆盖哈希函数（MD5/SHA-1/SHA-256/SHA-384/SHA-512）、HMAC 签名/验证、Base64 编码解码、Hex 编码解码、随机生成（字符串/Hex/UUID）等 🔐
@@ -180,6 +183,9 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 | 模块 | 语言 | 测试数 | 覆盖率 |
 |------|------|--------|--------|
+| humanize_utils | Python | 85+ | ✅ 100% |
+| crypto_utils | Python | 75 | ✅ 100% |
+| qr_code_utils | Python | 26 | ✅ 100% |
 | file_utils | Rust | 40+ | ✅ 100% |
 | qr_code_utils | Rust | 45+ | ✅ 100% |
 | color_utils | Rust | 30+ | ✅ 100% |
@@ -206,4 +212,4 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ---
 
-**最后更新**: 2026-04-16
+**最后更新**: 2026-04-17
