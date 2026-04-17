@@ -367,6 +367,8 @@ def flatten(obj: Dict[str, Any], separator: str = '.', parent_key: str = '') -> 
     """
     Flatten a nested dictionary into a single-level dictionary.
     
+    Uses iterative approach to avoid recursion stack overflow for deeply nested structures.
+    
     Args:
         obj: The dictionary to flatten
         separator: The separator for nested keys (default: '.')
@@ -381,12 +383,23 @@ def flatten(obj: Dict[str, Any], separator: str = '.', parent_key: str = '') -> 
         {'user.name': 'John', 'user.address.city': 'NYC'}
     """
     items: Dict[str, Any] = {}
-    for key, value in obj.items():
-        new_key = f"{parent_key}{separator}{key}" if parent_key else key
-        if isinstance(value, dict):
-            items.update(flatten(value, separator, new_key))
-        else:
-            items[new_key] = value
+    
+    # Use iterative approach with a stack to avoid recursion depth limits
+    # Stack items: (current_dict, current_prefix)
+    stack = [(obj, parent_key)]
+    
+    while stack:
+        current_dict, current_prefix = stack.pop()
+        
+        for key, value in current_dict.items():
+            new_key = f"{current_prefix}{separator}{key}" if current_prefix else key
+            
+            if isinstance(value, dict):
+                # Push nested dict to stack for later processing
+                stack.append((value, new_key))
+            else:
+                items[new_key] = value
+    
     return items
 
 

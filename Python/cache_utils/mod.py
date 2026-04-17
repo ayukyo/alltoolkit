@@ -328,29 +328,29 @@ class Cache(Generic[T]):
     def keys(self) -> List[str]:
         """Get all non-expired keys."""
         with self._lock:
-            result = []
-            for key, entry in self._cache.items():
-                if not entry.is_expired():
-                    result.append(key)
-            return result
+            current_time = time.time()
+            return [
+                key for key, entry in self._cache.items()
+                if entry.expires_at is None or current_time <= entry.expires_at
+            ]
     
     def values(self) -> List[T]:
         """Get all non-expired values."""
         with self._lock:
-            result = []
-            for key, entry in self._cache.items():
-                if not entry.is_expired():
-                    result.append(entry.value)
-            return result
+            current_time = time.time()
+            return [
+                entry.value for key, entry in self._cache.items()
+                if entry.expires_at is None or current_time <= entry.expires_at
+            ]
     
     def items(self) -> List[Tuple[str, T]]:
         """Get all non-expired key-value pairs."""
         with self._lock:
-            result = []
-            for key, entry in self._cache.items():
-                if not entry.is_expired():
-                    result.append((key, entry.value))
-            return result
+            current_time = time.time()
+            return [
+                (key, entry.value) for key, entry in self._cache.items()
+                if entry.expires_at is None or current_time <= entry.expires_at
+            ]
     
     def get_many(self, keys: List[str]) -> Dict[str, T]:
         """
@@ -417,15 +417,19 @@ class Cache(Generic[T]):
         """
         Remove all expired entries.
         
+        Optimized to use list comprehension and avoid multiple iterations.
         Returns:
             Number of entries removed
         """
         with self._lock:
-            expired_keys = []
-            for key, entry in self._cache.items():
-                if entry.is_expired():
-                    expired_keys.append(key)
+            current_time = time.time()
+            # 使用列表推导一次性收集所有过期键
+            expired_keys = [
+                key for key, entry in self._cache.items()
+                if entry.expires_at is not None and current_time > entry.expires_at
+            ]
             
+            # 批量删除
             for key in expired_keys:
                 self._delete_internal(key)
                 if self._stats:

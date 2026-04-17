@@ -143,6 +143,8 @@ class BusinessDayCalculator:
         """
         计算两个日期之间的工作日数量
         注意：不包含起始日期和结束日期
+        
+        优化：使用数学计算减少逐日迭代次数
         """
         if start_date > end_date:
             start_date, end_date = end_date, start_date
@@ -150,19 +152,66 @@ class BusinessDayCalculator:
         else:
             negate = False
         
-        count = 0
-        current = start_date + timedelta(days=1)
+        # 计算总天数（不含首尾）
+        total_days = (end_date - start_date).days - 1
+        if total_days <= 0:
+            return 0
         
-        while current < end_date:
-            if self.is_business_day(current):
-                count += 1
+        # 计算完整周数和剩余天数
+        full_weeks = total_days // 7
+        remaining_days = total_days % 7
+        
+        # 计算每个工作日在一周中出现的次数（用于快速估算）
+        workdays_per_week = len(self.config.workdays)
+        
+        # 基础工作日数 = 完整周数 × 每周工作日数
+        base_count = full_weeks * workdays_per_week
+        
+        # 处理剩余天数（逐日检查）
+        current = start_date + timedelta(days=1 + full_weeks * 7)
+        remaining_count = 0
+        
+        for _ in range(remaining_days):
+            # 先检查是否为周末（快速判断）
+            if current.weekday() in self.config.weekends:
+                # 检查是否为调休工作日
+                if self.is_adjusted_workday(current):
+                    remaining_count += 1
+            elif current.weekday() in self.config.workdays:
+                # 检查是否为节假日
+                is_hol, _ = self.is_holiday(current)
+                if not is_hol:
+                    remaining_count += 1
             current += timedelta(days=1)
         
+        # 处理完整周期内的节假日和调休工作日
+        # 需要检查完整周期内的特殊日期
+        check_start = start_date + timedelta(days=1)
+        check_end = start_date + timedelta(days=full_weeks * 7)
+        
+        adjustment = 0
+        current_check = check_start
+        while current_check <= check_end:
+            weekday = current_check.weekday()
+            if weekday in self.config.weekends:
+                # 周末调休上班
+                if self.is_adjusted_workday(current_check):
+                    adjustment += 1
+            elif weekday in self.config.workdays:
+                # 工作日放假
+                is_hol, _ = self.is_holiday(current_check)
+                if is_hol:
+                    adjustment -= 1
+            current_check += timedelta(days=1)
+        
+        count = base_count + remaining_count + adjustment
         return -count if negate else count
     
     def business_days_inclusive(self, start_date: date, end_date: date) -> int:
         """
         计算两个日期之间的工作日数量（包含起始和结束日期）
+        
+        优化：使用数学计算减少逐日迭代次数
         """
         if start_date > end_date:
             start_date, end_date = end_date, start_date
@@ -170,14 +219,54 @@ class BusinessDayCalculator:
         else:
             negate = False
         
-        count = 0
-        current = start_date
+        # 计算总天数（含首尾）
+        total_days = (end_date - start_date).days + 1
+        if total_days <= 0:
+            return 0
         
-        while current <= end_date:
-            if self.is_business_day(current):
-                count += 1
+        # 计算完整周数和剩余天数
+        full_weeks = total_days // 7
+        remaining_days = total_days % 7
+        
+        # 计算每个工作日在一周中出现的次数
+        workdays_per_week = len(self.config.workdays)
+        
+        # 基础工作日数
+        base_count = full_weeks * workdays_per_week
+        
+        # 处理剩余天数
+        current = start_date + timedelta(days=full_weeks * 7)
+        remaining_count = 0
+        
+        for _ in range(remaining_days):
+            weekday = current.weekday()
+            if weekday in self.config.weekends:
+                if self.is_adjusted_workday(current):
+                    remaining_count += 1
+            elif weekday in self.config.workdays:
+                is_hol, _ = self.is_holiday(current)
+                if not is_hol:
+                    remaining_count += 1
             current += timedelta(days=1)
         
+        # 处理完整周期内的节假日和调休工作日
+        check_start = start_date
+        check_end = start_date + timedelta(days=full_weeks * 7 - 1)
+        
+        adjustment = 0
+        current_check = check_start
+        while current_check <= check_end:
+            weekday = current_check.weekday()
+            if weekday in self.config.weekends:
+                if self.is_adjusted_workday(current_check):
+                    adjustment += 1
+            elif weekday in self.config.workdays:
+                is_hol, _ = self.is_holiday(current_check)
+                if is_hol:
+                    adjustment -= 1
+            current_check += timedelta(days=1)
+        
+        count = base_count + remaining_count + adjustment
         return -count if negate else count
     
     def next_business_day(self, from_date: date) -> date:
