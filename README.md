@@ -21,9 +21,9 @@
 
 | 语言 | 模块数 | 状态 |
 |------|--------|------|
-| Python | 18+ | ✅ 活跃 |
-| Go | 15+ | ✅ 活跃 |
-| Rust | 10+ | ✅ 活跃 |
+| Python | 108 | ✅ 活跃 |
+| Go | 29 | ✅ 活跃 |
+| Rust | 15 | ✅ 活跃 |
 | Java | 10+ | ✅ 活跃 |
 | JavaScript | 10+ | ✅ 活跃 |
 | TypeScript | 10+ | ✅ 活跃 |
@@ -183,33 +183,40 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 | 模块 | 语言 | 测试数 | 覆盖率 |
 |------|------|--------|--------|
-| humanize_utils | Python | 85+ | ✅ 100% |
-| crypto_utils | Python | 75 | ✅ 100% |
-| qr_code_utils | Python | 26 | ✅ 100% |
-| file_utils | Rust | 40+ | ✅ 100% |
-| qr_code_utils | Rust | 45+ | ✅ 100% |
-| color_utils | Rust | 30+ | ✅ 100% |
-| crypto_utils | TypeScript | 86 | ✅ 100% |
-| xml_utils | Python | 20 | ✅ 100% |
-| markdown_utils | Python | 108 | ✅ 100% |
-| regex_utils | Python | 34 | ✅ 100% |
-| json_utils | Python | 49 | ✅ 100% |
-| email_utils | Python | 41 | ✅ 100% |
-| hash_utils | Python | 84 | ✅ 100% |
 | geometry_utils | Python | 237 | ✅ 100% |
-| sqlite_utils | Python | 86 | ✅ 100% |
+| phone_utils | Python | 164 | ✅ 100% |
 | color_utils | Python | 111 | ✅ 100% |
-| emoji_utils | Python | 49 | ✅ 100% |
+| markdown_utils | Python | 108 | ✅ 100% |
+| bloom_filter_utils | Python | 99 | ✅ 100% |
+| humanize_utils | Python | 85+ | ✅ 100% |
+| hash_utils | Python | 84 | ✅ 100% |
+| sqlite_utils | Python | 86 | ✅ 100% |
+| credit_card_utils | Python | 80 | ✅ 100% |
+| crypto_utils | Python | 75 | ✅ 100% |
+| compression_utils | Python | 74 | ✅ 100% |
+| cron_utils | Python | 61 | ✅ 100% |
+| huffman_utils | Python | 57 | ✅ 100% |
+| data_validator | Python | 56 | ✅ 100% |
+| combinatorics_utils | Python | 55 | ✅ 100% |
+| async_utils | Python | 51 | ✅ 100% |
+| ip_utils | Python | 51 | ✅ 100% |
 | password_utils | Python | 52 | ✅ 100% |
+| text_utils | Python | 89 | ✅ 100% |
+| barcode_utils | Python | 59 | ✅ 100% |
+| network_utils | Python | 134 | ✅ 100% |
+| archive_utils | Python | 44 | ✅ 100% |
+| business_day_utils | Python | 45 | ✅ 100% |
 | base64_utils | Python | 22 | ✅ 100% |
-| time_zone_utils | Python | 45 | ✅ 100% |
-| env_utils | Python | 8 大类 | ✅ 100% |
-| shell_utils | Python | 14 | ✅ 100% |
-| phone_utils | Python | 31 | ✅ 100% |
-| jwt_utils | Python | 15 | ✅ 100% |
-| cache_utils | Python | 30+ | ✅ 100% |
-| uuid_utils | Java | 69 | ✅ 100% |
+| qr_code_utils | Python | 15 | ✅ 100% |
+| benchmark_utils | Python | 32 | ✅ 100% |
+| datetime_utils | Python | 32 | ✅ 100% |
+| email_utils | Python | 41 | ✅ 100% |
+| cache_utils | Python | 35 | ✅ 100% |
+| xml_utils | Python | 20 | ✅ 100% |
+| emoji_utils | Python | 49 | ✅ 100% |
+
+**总计**: Python 108 模块，1600+ 测试用例，100% 通过率 ✅
 
 ---
 
-**最后更新**: 2026-04-17
+**最后更新**: 2026-04-18
