@@ -1,205 +1,196 @@
 """
-AllToolkit - Cache Utils Basic Usage Examples
+cache_utils 基本用法示例
 
-Simple examples demonstrating common cache operations.
+演示：
+- 基本的缓存读写操作
+- TTL 过期机制
+- LRU 淘汰策略
+- 缓存统计
 """
 
-import sys
-import os
 import time
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from mod import (
-    Cache, cached, get_default_cache,
-    cache_get, cache_set, cache_delete, cache_clear,
-)
+from mod import MemoryCache, create_cache
 
 
-def main():
-    print("=" * 60)
-    print("AllToolkit - Cache Utils Basic Examples")
-    print("=" * 60)
+def basic_operations():
+    """基本操作示例"""
+    print("=== 基本操作 ===\n")
+    
+    cache = MemoryCache()
+    
+    # 设置值
+    cache.set('name', 'Alice')
+    cache.set('age', 30)
+    cache.set('active', True)
+    
+    # 获取值
+    print(f"name: {cache.get('name')}")
+    print(f"age: {cache.get('age')}")
+    print(f"active: {cache.get('active')}")
+    
+    # 不存在的键
+    print(f"missing: {cache.get('missing', '默认值')}")
+    
+    # 删除
+    cache.delete('active')
+    print(f"删除后 active: {cache.get('active')}")
+    
+    # 字典接口
+    cache['city'] = 'Beijing'
+    print(f"city: {cache['city']}")
+    print(f"是否包含 name: {'name' in cache}")
+    
     print()
+
+
+def ttl_example():
+    """TTL 过期示例"""
+    print("=== TTL 过期示例 ===\n")
     
-    # 1. Basic Cache Operations
-    print("1. Basic Cache Operations")
-    print("-" * 40)
-    cache = Cache()
+    cache = MemoryCache(default_ttl=2)  # 默认2秒过期
     
-    # Set values
-    cache.set("name", "Alice")
-    cache.set("age", 30)
-    cache.set("city", "Shanghai")
+    cache.set('temp', '临时数据')
+    cache.set('permanent', '永久数据', ttl=None)
+    cache.set('short', '短数据', ttl=1)
     
-    # Get values
-    print(f"  Name: {cache.get('name')}")
-    print(f"  Age: {cache.get('age')}")
-    print(f"  City: {cache.get('city')}")
+    print("初始状态:")
+    print(f"  temp: {cache.get('temp')}")
+    print(f"  permanent: {cache.get('permanent')}")
+    print(f"  short: {cache.get('short')}")
     
-    # Get with default
-    country = cache.get("country", "China")
-    print(f"  Country (default): {country}")
-    
-    # Check existence
-    print(f"  'name' in cache: {'name' in cache}")
-    print(f"  'email' in cache: {'email' in cache}")
-    print()
-    
-    # 2. TTL (Time To Live)
-    print("2. TTL Expiration")
-    print("-" * 40)
-    cache_ttl = Cache(default_ttl=2.0)
-    
-    cache_ttl.set("temporary", "This will expire", ttl=1.0)
-    print(f"  Before expiration: {cache_ttl.get('temporary')}")
-    
-    print("  Waiting 1.5 seconds...")
+    print("\n等待 1.5 秒...")
     time.sleep(1.5)
     
-    result = cache_ttl.get("temporary")
-    print(f"  After expiration: {result}")
+    print("1.5秒后:")
+    print(f"  temp: {cache.get('temp')}")
+    print(f"  permanent: {cache.get('permanent')}")
+    print(f"  short: {cache.get('short')}")  # 已过期
+    
+    print("\n等待 1 秒...")
+    time.sleep(1)
+    
+    print("2.5秒后:")
+    print(f"  temp: {cache.get('temp')}")  # 已过期
+    print(f"  permanent: {cache.get('permanent')}")
+    
     print()
-    
-    # 3. LRU Eviction
-    print("3. LRU Eviction (max_size=3)")
-    print("-" * 40)
-    cache_lru = Cache(max_size=3)
-    
-    cache_lru.set("first", "1")
-    cache_lru.set("second", "2")
-    cache_lru.set("third", "3")
-    print(f"  Initial keys: {cache_lru.keys()}")
-    
-    # This will evict "first" (least recently used)
-    cache_lru.set("fourth", "4")
-    print(f"  After adding 'fourth': {cache_lru.keys()}")
-    print(f"  'first' evicted: {'first' not in cache_lru}")
-    print()
-    
-    # 4. Cache Statistics
-    print("4. Cache Statistics")
-    print("-" * 40)
-    cache_stats = Cache(enable_stats=True)
-    
-    cache_stats.set("a", "1")
-    cache_stats.set("b", "2")
-    
-    cache_stats.get("a")  # Hit
-    cache_stats.get("a")  # Hit
-    cache_stats.get("b")  # Hit
-    cache_stats.get("c")  # Miss
-    
-    stats = cache_stats.stats
-    print(f"  Hits: {stats.hits}")
-    print(f"  Misses: {stats.misses}")
-    print(f"  Hit Rate: {stats.hit_rate:.2%}")
-    print(f"  Total Requests: {stats.hits + stats.misses}")
-    print()
-    
-    # 5. Bulk Operations
-    print("5. Bulk Operations")
-    print("-" * 40)
-    cache_bulk = Cache()
-    
-    # Set many
-    cache_bulk.set_many({
-        "user1": "Alice",
-        "user2": "Bob",
-        "user3": "Charlie",
-    })
-    print(f"  Set 3 users")
-    
-    # Get many
-    result = cache_bulk.get_many(["user1", "user2", "user4"])
-    print(f"  Get many result: {result}")
-    
-    # Delete many
-    deleted = cache_bulk.delete_many(["user1", "user3"])
-    print(f"  Deleted {deleted} keys")
-    print(f"  Remaining keys: {cache_bulk.keys()}")
-    print()
-    
-    # 6. Atomic Increment/Decrement
-    print("6. Atomic Increment/Decrement")
-    print("-" * 40)
-    cache_counter = Cache()
-    
-    cache_counter.set("visits", 100)
-    print(f"  Initial visits: {cache_counter.get('visits')}")
-    
-    new_value = cache_counter.increment("visits", 5)
-    print(f"  After +5: {new_value}")
-    
-    new_value = cache_counter.decrement("visits", 3)
-    print(f"  After -3: {new_value}")
-    print()
-    
-    # 7. Get or Set (Lazy Loading)
-    print("7. Get or Set (Lazy Loading)")
-    print("-" * 40)
-    cache_lazy = Cache()
-    
-    call_count = [0]
-    
-    def expensive_computation():
-        call_count[0] += 1
-        print("    [Computing value...]")
-        return f"Computed result (call #{call_count[0]})"
-    
-    print("  First call:")
-    result1 = cache_lazy.get_or_set("expensive", expensive_computation, ttl=5.0)
-    print(f"    Result: {result1}")
-    
-    print("  Second call (cached):")
-    result2 = cache_lazy.get_or_set("expensive", expensive_computation, ttl=5.0)
-    print(f"    Result: {result2}")
-    print()
-    
-    # 8. Module-level Convenience Functions
-    print("8. Module-level Convenience Functions")
-    print("-" * 40)
-    
-    cache_set("global_key", "global_value")
-    print(f"  Set via cache_set: global_key = {cache_get('global_key')}")
-    
-    cache_delete("global_key")
-    print(f"  After delete: {cache_get('global_key')}")
-    print()
-    
-    # 9. Dictionary-style Access
-    print("9. Dictionary-style Access")
-    print("-" * 40)
-    cache_dict = Cache()
-    
-    cache_dict["key1"] = "value1"
-    cache_dict["key2"] = "value2"
-    
-    print(f"  cache_dict['key1'] = {cache_dict['key1']}")
-    print(f"  len(cache_dict) = {len(cache_dict)}")
-    
-    del cache_dict["key1"]
-    print(f"  After del: keys = {cache_dict.keys()}")
-    print()
-    
-    # 10. Cache Export
-    print("10. Cache Export")
-    print("-" * 40)
-    cache_export = Cache(enable_stats=True)
-    cache_export.set("item1", "value1", ttl=10.0)
-    cache_export.set("item2", "value2")
-    
-    export = cache_export.to_dict()
-    print(f"  Size: {export['size']}")
-    print(f"  Max Size: {export['max_size']}")
-    print(f"  Items: {list(export['items'].keys())}")
-    print(f"  Stats: hits={export['stats']['hits']}, sets={export['stats']['sets']}")
-    print()
-    
-    print("=" * 60)
-    print("Examples completed!")
-    print("=" * 60)
 
 
-if __name__ == "__main__":
-    main()
+def lru_example():
+    """LRU 淘汰示例"""
+    print("=== LRU 淘汰示例 ===\n")
+    
+    cache = MemoryCache(max_size=3)
+    
+    print("添加 a, b, c:")
+    cache.set('a', 1)
+    cache.set('b', 2)
+    cache.set('c', 3)
+    print(f"  缓存: {cache.get_all_keys()}")
+    
+    print("\n访问 'a' 使其成为最近使用:")
+    cache.get('a')
+    print(f"  缓存: {cache.get_all_keys()}")
+    
+    print("\n添加 'd'，应淘汰最久未使用的 'b':")
+    cache.set('d', 4)
+    print(f"  缓存: {cache.get_all_keys()}")
+    print(f"  'a' 存在: {cache.exists('a')}")
+    print(f"  'b' 存在: {cache.exists('b')}")
+    
+    stats = cache.get_stats()
+    print(f"\n淘汰次数: {stats.evictions}")
+    
+    print()
+
+
+def stats_example():
+    """统计信息示例"""
+    print("=== 统计信息示例 ===\n")
+    
+    cache = create_cache(max_size=10, ttl=60)
+    
+    cache.set('key1', 'value1')
+    cache.set('key2', 'value2')
+    
+    # 命中
+    cache.get('key1')
+    cache.get('key1')
+    cache.get('key2')
+    
+    # 未命中
+    cache.get('missing1')
+    cache.get('missing2')
+    
+    stats = cache.get_stats()
+    print(f"命中次数: {stats.hits}")
+    print(f"未命中次数: {stats.misses}")
+    print(f"总请求: {stats.total_requests}")
+    print(f"命中率: {stats.hit_rate:.2%}")
+    print(f"\n完整统计: {stats.to_dict()}")
+    
+    # 重置
+    stats.reset()
+    print(f"\n重置后命中次数: {stats.hits}")
+    
+    print()
+
+
+def get_or_set_example():
+    """get_or_set 示例"""
+    print("=== get_or_set 示例 ===\n")
+    
+    cache = MemoryCache(ttl=30)
+    call_count = 0
+    
+    def fetch_data(key):
+        nonlocal call_count
+        call_count += 1
+        print(f"  [模拟数据库查询] key={key}, 调用次数={call_count}")
+        return f"data_for_{key}"
+    
+    print("第一次获取 'user:1':")
+    result1 = cache.get_or_set('user:1', lambda: fetch_data('user:1'))
+    print(f"  结果: {result1}")
+    
+    print("\n第二次获取 'user:1' (应该命中缓存):")
+    result2 = cache.get_or_set('user:1', lambda: fetch_data('user:1'))
+    print(f"  结果: {result2}")
+    print(f"  总查询次数: {call_count}")
+    
+    print()
+
+
+def entries_info_example():
+    """条目详情示例"""
+    print("=== 条目详情示例 ===\n")
+    
+    cache = MemoryCache(ttl=60)
+    
+    cache.set('user:1', {'name': 'Alice'})
+    cache.set('user:2', {'name': 'Bob'})
+    
+    # 访问一次
+    cache.get('user:1')
+    
+    info = cache.get_entries_info()
+    for entry in info:
+        print(f"键: {entry['key']}")
+        print(f"  创建时间: {entry['created_at']:.2f}")
+        print(f"  最后访问: {entry['last_access']:.2f}")
+        print(f"  访问次数: {entry['access_count']}")
+        print(f"  剩余TTL: {entry['remaining_ttl']:.2f}s")
+        print()
+    
+    print()
+
+
+if __name__ == '__main__':
+    basic_operations()
+    ttl_example()
+    lru_example()
+    stats_example()
+    get_or_set_example()
+    entries_info_example()
+    
+    print("示例完成！")
