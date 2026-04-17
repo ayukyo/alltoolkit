@@ -1,0 +1,13 @@
+[package]
+name = "rate_limiter"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "Rate limiting algorithms with zero external dependencies"
+license = "MIT"
+
+[lib]
+name = "rate_limiter"
+path = "mod.rs"
+
+[dev-dependencies]
