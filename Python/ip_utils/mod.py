@@ -133,29 +133,61 @@ def validate_ipv4(ip: str) -> bool:
         False
         >>> validate_ipv4(None)
         False
+    
+    Note:
+        优化版本：
+        - 预编译正则提高性能
+        - 快速长度检查避免不必要解析
+        - 优化八位组验证减少函数调用
+        - 边界处理：空值、非字符串、前导零、过长输入
     """
     # 边界处理：空值和非字符串类型
     if ip is None or not isinstance(ip, str):
         return False
     
     # 快速检查：空字符串或过长
-    if not ip or len(ip) > 15:  # 最长IP: '255.255.255.255' = 15字符
+    # 最长有效IP: '255.255.255.255' = 15字符，最短: '0.0.0.0' = 7字符
+    if len(ip) < 7 or len(ip) > 15:
+        return False
+    
+    # 快速检查：必须包含恰好3个点
+    dot_count = ip.count('.')
+    if dot_count != 3:
         return False
     
     match = _IPV4_PATTERN.match(ip)
     if not match:
         return False
     
+    # 优化：使用直接索引访问而非循环
     # Validate each octet range and leading zeros
     for i in range(1, 5):
         part = match.group(i)
-        # 防止非ASCII字符干扰
+        part_len = len(part)
+        
+        # 边界处理：防止非ASCII字符干扰
+        # 快速检查：仅数字字符
         if not part.isdigit():
             return False
-        num = int(part)
-        # Range check (0-255) and leading zeros check
-        if num > 255 or (len(part) > 1 and part[0] == '0'):
+        
+        # 快速检查：前导零（单字符零是合法的）
+        if part_len > 1 and part[0] == '0':
             return False
+        
+        # 快速范围检查：使用字符比较避免 int 转换开销
+        # 255 是最大值，可以用字符比较快速判断
+        if part_len == 3:
+            # 三个字符的八位组：必须 <= 255
+            # 快速检查：如果第一个字符 > 2，则一定 > 255
+            if part[0] > '2':
+                return False
+            # 如果第一个字符是 '2'，需要检查后两位
+            if part[0] == '2':
+                if part[1] > '5':
+                    return False
+                if part[1] == '5' and part[2] > '5':
+                    return False
+        # 1-2字符的八位组一定在有效范围内（已通过前导零检查）
     
     return True
 

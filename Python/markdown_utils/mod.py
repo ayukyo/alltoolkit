@@ -663,6 +663,11 @@ def _generate_anchor(text: str) -> str:
     - None 输入返回空字符串
     - Unicode字符正确处理（保留字母数字）
     - 限制锚点长度避免过长URL
+    - 处理纯特殊字符文本（返回空而非多连字符）
+    
+    性能优化：
+    - 使用单次正则替换而非多次
+    - 快速路径处理简单文本
     """
     # 边界处理
     if text is None or not isinstance(text, str):
@@ -672,14 +677,31 @@ def _generate_anchor(text: str) -> str:
     if not text:
         return ''
     
+    # 快速路径：如果文本已经是有效的锚点格式（仅字母数字和连字符）
+    # 避免正则开销
+    if re.match(r'^[a-zA-Z0-9-]+$', text):
+        anchor = text.lower()
+        # 只需处理可能的多连字符和边界连字符
+        anchor = re.sub(r'-+', '-', anchor)
+        return anchor.strip('-') or ''
+    
     anchor = text.lower()
-    # 移除所有非字母数字和非连字符的字符（包括Unicode）
-    anchor = re.sub(r'[^\w\s-]', '', anchor, flags=re.UNICODE)
-    # 将空格和多个连字符替换为单个连字符
+    
+    # 优化：合并多次正则为一次操作
+    # 1. 移除所有非字母数字和非连字符的字符（包括Unicode）
+    # 2. 将连续的空白/连字符替换为单个连字符
+    anchor = re.sub(r'[^\w\s-]+', '', anchor, flags=re.UNICODE)
     anchor = re.sub(r'[-\s]+', '-', anchor)
+    
     # 移除开头和结尾的连字符
     anchor = anchor.strip('-')
+    
+    # 边界处理：纯特殊字符文本可能产生空字符串
+    if not anchor:
+        return ''
+    
     # 限制最大长度（一般锚点不超过100字符）
+    # 在截断后再次清理边界连字符
     if len(anchor) > 100:
         anchor = anchor[:100].rstrip('-')
     

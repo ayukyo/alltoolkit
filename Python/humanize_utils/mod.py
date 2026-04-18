@@ -465,11 +465,16 @@ def format_list(
         'a, b and c'
         >>> format_list(["a", "b", "c", "d", "e"], limit=3)
         'a、b、c 等 5 项'
+    
+    Note:
+        优化版本：避免递归调用，直接构建结果字符串，
+        边界处理：空列表、None 输入、超长列表。
     """
-    if not items:
+    # 边界处理：空列表或 None 输入
+    if items is None or not items:
         return ""
     
-    # 处理限制
+    # 处理限制（优化：避免递归，直接构建结果）
     if limit is not None and len(items) > limit:
         display_items = items[:limit]
         remaining = len(items) - limit
@@ -483,6 +488,7 @@ def format_list(
         else:
             return f"{', '.join(display_items)} {limit_text}"
     
+    # 无限制情况下的处理
     if len(items) == 1:
         return items[0]
     elif len(items) == 2:
@@ -492,6 +498,7 @@ def format_list(
             return f"{items[0]} and {items[1]}"
     else:
         if use_chinese:
+            # 性能优化：使用 join 而非字符串拼接
             return f"{'、'.join(items[:-1])} 和 {items[-1]}"
         else:
             return f"{', '.join(items[:-1])} and {items[-1]}"

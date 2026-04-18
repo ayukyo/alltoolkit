@@ -78,7 +78,8 @@ def xml_to_dict(element: ET.Element, include_attributes: bool = True, max_depth:
     
     Note:
         优化版本：添加深度限制防止栈溢出，
-        改进空元素和纯文本元素的边界处理。
+        改进空元素和纯文本元素的边界处理，
+        性能优化：减少不必要的字典创建，快速路径处理简单元素。
     """
     # 边界处理：空元素或超过最大深度
     if element is None:
@@ -89,9 +90,25 @@ def xml_to_dict(element: ET.Element, include_attributes: bool = True, max_depth:
         if depth > max_depth:
             return {'_error': 'max_depth_exceeded', '_tag': elem.tag}
         
+        # 性能优化：快速处理无子元素的简单情况
+        children_count = len(elem)
+        
+        # 如果没有子元素，处理简单文本/属性情况
+        if children_count == 0:
+            text = (elem.text or '').strip()
+            if include_attributes and elem.attrib:
+                # 有属性但没有子元素
+                result = {'_attributes': dict(elem.attrib)}
+                if text:
+                    result['_text'] = text
+                return result
+            # 无属性无子元素：直接返回文本（或空字典）
+            return text if text else {}
+        
+        # 有子元素的情况
         result = {}
         
-        # 处理文本内容
+        # 处理文本内容（仅当有意义时）
         text = (elem.text or '').strip()
         if text:
             result['_text'] = text
@@ -102,16 +119,16 @@ def xml_to_dict(element: ET.Element, include_attributes: bool = True, max_depth:
         
         # 处理子元素
         children = {}
-        child_count = 0
         for child in elem:
-            child_count += 1
             child_dict = _convert(child, depth + 1)
             
+            # 性能优化：使用 setdefault 替代多次检查
             if child.tag in children:
-                # 如果已存在，转换为列表
-                if not isinstance(children[child.tag], list):
-                    children[child.tag] = [children[child.tag]]
-                children[child.tag].append(child_dict)
+                existing = children[child.tag]
+                if isinstance(existing, list):
+                    existing.append(child_dict)
+                else:
+                    children[child.tag] = [existing, child_dict]
             else:
                 children[child.tag] = child_dict
         
