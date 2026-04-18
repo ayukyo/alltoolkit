@@ -1,0 +1,11 @@
+.{
+    .name = "ring-buffer",
+    .version = "0.1.0",
+    .dependencies = .{
+        .@"data-structures" = .{ .path = "../data-structures" },
+    },
+    .paths = .{
+        "src",
+        "build.zig",
+    },
+}
