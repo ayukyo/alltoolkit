@@ -3,6 +3,25 @@
 ## [2026-04-18]
 
 ### 新增
+- **SQL: pagination_utils (100 单元测试，完整分页工具)** 📄
+  - 基础分页：LIMIT/OFFSET 模式（MySQL/PostgreSQL/SQLite/SQL Server）
+  - Keyset/Cursor 分页：高效大数据集分页（WHERE id > cursor）
+  - ROW_NUMBER 分页：窗口函数分页（MySQL 8.0+/PostgreSQL/SQL Server/SQLite 3.25+）
+  - RANK/DENSE_RANK 分页：处理排名相同情况
+  - 分页元数据计算：总页数、总记录数、has_more 指示器
+  - 深分页优化：JOIN 优化、Keyset 替代 OFFSET
+  - Seek 方法分页：双向导航（上一页/下一页）
+  - 多列排序分页：复合键 Keyset 分页
+  - 无限滚动：has_more 检测
+  - 过滤条件分页：带 WHERE 条件分页
+  - 搜索结果分页：全文检索 + 分页
+  - 存储过程示例：MySQL/PostgreSQL/SQL Server 动态分页
+  - 性能优化建议：索引策略、覆盖索引、估算计数
+  - 20 个完整示例（基础/Keyset/ROW_NUMBER/搜索/无限滚动/元数据/深分页等）
+  - 零外部依赖，纯 SQL 实现
+  - 支持四种主流数据库（MySQL/PostgreSQL/SQL Server/SQLite）
+
+### 新增
 - **Zig: ring-buffer (17 单元测试，完整环形缓冲区工具)** 🔁
   - RingBuffer：固定容量环形缓冲区（O(1) 推入/弹出）
   - pushOverwrite：覆盖模式（满时覆盖最旧元素）
