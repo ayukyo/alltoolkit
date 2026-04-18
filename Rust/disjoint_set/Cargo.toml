@@ -1,0 +1,15 @@
+[package]
+name = "disjoint_set"
+version = "0.1.0"
+edition = "2021"
+description = "Disjoint Set (Union-Find) data structure with path compression and union by rank/size optimizations"
+authors = ["AllToolkit"]
+license = "MIT"
+
+[lib]
+name = "disjoint_set"
+path = "src/lib.rs"
+
+[[example]]
+name = "basic"
+path = "examples/basic.rs"

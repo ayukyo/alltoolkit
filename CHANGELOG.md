@@ -3,6 +3,22 @@
 ## [2026-04-19]
 
 ### 新增
+- **Rust: disjoint_set (70 单元测试，完整并查集/Union-Find 工具)** 🔗
+  - 路径压缩优化：近 O(α(n)) 摊还时间复杂度
+  - Union 策略：ByRank（按树高）和 BySize（按元素数）
+  - 连通分量追踪：自动跟踪集合数量
+  - 集合大小查询：高效获取任意集合大小
+  - 元素迭代：获取集合内所有元素
+  - 标签版本：LabeledDisjointSet 支持任意类型（字符串等）
+  - 批量操作：batch_union 高效批量合并
+  - 边列表创建：from_edges 直接从图边创建
+  - 分量创建：from_components 从分量组创建
+  - 边界情况处理：空集、越界检测、无效索引忽略
+  - 8 个完整示例（基础操作/连通分量/Kruskal MST/策略对比/标签/社交网络/图像区域/批量操作）
+  - 零外部依赖，纯 Rust 标准库实现
+  - 测试覆盖：70 测试（22 单元 + 33 集成 + 15 文档）
+
+### 新增
 - **Go: trie_utils (25+ 单元测试，完整前缀树工具)** 🌳
   - 基础操作：Insert、Search、Delete
   - 值存储：Insert with value、SearchWithValue
