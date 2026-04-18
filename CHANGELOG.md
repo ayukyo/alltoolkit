@@ -1,5 +1,25 @@
 # AllToolkit 更新日志
 
+## [2026-04-19]
+
+### 新增
+- **Go: trie_utils (25+ 单元测试，完整前缀树工具)** 🌳
+  - 基础操作：Insert、Search、Delete
+  - 值存储：Insert with value、SearchWithValue
+  - 前缀查询：StartsWith、WordsWithPrefix、WordsWithPrefixLimit
+  - 自动补全：AutoComplete（带限制的前缀搜索）
+  - 模式匹配：PatternMatch（支持 ? 和 * 通配符）
+  - 频率追踪：GetCount、GetWordsByFrequency
+  - 最长前缀：LongestCommonPrefix、LongestPrefixOf
+  - 前缀检测：ContainsAnyPrefixOf
+  - 批量操作：BatchInsert、BatchInsertWithValues
+  - 导出功能：ToMap、AllWords
+  - 并发安全：sync.RWMutex 保护
+  - Unicode 支持：中文、日文、韩文、Emoji
+  - 7 个完整示例（基础操作/自动补全/拼写检查/词频统计/模式匹配/URL路由/Unicode）
+  - 零外部依赖，纯 Go 标准库实现
+  - 基准测试：BenchmarkInsert、BenchmarkSearch、BenchmarkWordsWithPrefix
+
 ## [2026-04-18]
 
 ### 新增
