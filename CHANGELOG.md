@@ -1,5 +1,23 @@
 # AllToolkit 更新日志
 
+## [2026-04-18]
+
+### 新增
+- **Zig: ring-buffer (17 单元测试，完整环形缓冲区工具)** 🔁
+  - RingBuffer：固定容量环形缓冲区（O(1) 推入/弹出）
+  - pushOverwrite：覆盖模式（满时覆盖最旧元素）
+  - peek/peekBack/peekAt：查看操作（不移除）
+  - pushSlice/popSlice：批量操作
+  - contains/indexOf：元素查找
+  - removeAt：按索引删除
+  - iterator：迭代器支持
+  - toSlice：转换为切片
+  - asSlices：零拷贝切片访问
+  - BoundedRingBuffer：可自动扩容的环形缓冲区
+  - AtomicRingBuffer：线程安全环形缓冲区（Mutex）
+  - 7 个完整示例（日志缓冲/生产者-消费者/滑动窗口/可扩展/线程安全/命令历史/零拷贝）
+  - 零外部依赖，纯 Zig 标准库实现
+
 ## [2026-04-15]
 
 ### 新增
