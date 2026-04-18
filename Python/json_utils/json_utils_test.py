@@ -165,6 +165,110 @@ def run_tests():
     cloned['user']['name'] = 'Jane'
     runner.test("clone is deep copy", data['user']['name'] == 'John')
     
+    print("\nComparison and Utility Tests")
+    print("="*50)
+    obj1 = {'a': 1, 'b': {'c': 2}}
+    obj2 = {'a': 1, 'b': {'c': 2}}
+    obj3 = {'a': 1, 'b': {'c': 3}}
+    runner.test("equals returns True for identical objects", equals(obj1, obj2) == True)
+    runner.test("equals returns False for different objects", equals(obj1, obj3) == False)
+    
+    runner.test("hash_code generates consistent hash", hash_code({'a': 1}) == hash_code({'a': 1}))
+    runner.test("hash_code differs for different objects", hash_code({'a': 1}) != hash_code({'a': 2}))
+    
+    runner.test("size returns correct dict size", size({'a': 1, 'b': 2, 'c': 3}) == 3)
+    runner.test("size returns correct list size", size([1, 2, 3, 4, 5]) == 5)
+    runner.test("size returns 0 for non-container", size(42) == 0)
+    
+    data = {'z': 1, 'a': 2, 'm': 3}
+    sorted_data = sort_keys(data)
+    runner.test("sort_keys sorts keys alphabetically", list(sorted_data.keys()) == ['a', 'm', 'z'])
+    runner.test("sort_keys preserves values", sorted_data['a'] == 2)
+    
+    nested = {'z': {'y': 1, 'x': 2}, 'a': {'b': 3, 'a': 4}}
+    sorted_nested = sort_keys(nested, recursive=True)
+    runner.test("sort_keys recursive sorts nested", list(sorted_nested['a'].keys()) == ['a', 'b'])
+    
+    print("\nAdvanced Query Tests")
+    print("="*50)
+    data = {'users': [{'name': 'John', 'age': 30}, {'name': 'Jane', 'age': 25}]}
+    names = find_all(data, 'name')
+    runner.test("find_all finds all matching values", names == ['John', 'Jane'])
+    ages = find_all(data, 'age')
+    runner.test("find_all finds nested values", ages == [30, 25])
+    
+    runner.test("find_first returns first match", find_first(data, 'name') == 'John')
+    runner.test("find_first returns default for missing", find_first(data, 'phone', 'N/A') == 'N/A')
+    
+    data = {'a': 1, 'b': 2, 'c': 3}
+    doubled = map_values(data, lambda x: x * 2)
+    runner.test("map_values transforms values", doubled == {'a': 2, 'b': 4, 'c': 6})
+    
+    data = {'a': 1, 'b': 2}
+    upper = map_keys(data, lambda k: k.upper())
+    runner.test("map_keys transforms keys", upper == {'A': 1, 'B': 2})
+    
+    print("\nEdge Cases Tests - Added 2026-04-19")
+    print("="*50)
+    
+    # Empty and null inputs
+    runner.test("safe_loads handles empty string", safe_loads('', default={'default': True}) == {'default': True})
+    runner.test("safe_loads handles whitespace only", safe_loads('   ', default=None) == None)
+    runner.test("get_path handles empty path", get_path({'a': 1}, '', 'default') == 'default')
+    runner.test("get_path handles None object", get_path(None, 'a.b', 'default') == 'default')
+    runner.test("set_path handles empty path", set_path({}, '', 'value') == False)
+    runner.test("flatten handles empty dict", flatten({}) == {})
+    runner.test("unflatten handles empty dict", unflatten({}) == {})
+    
+    # Deep nesting
+    deeply_nested = {'l1': {'l2': {'l3': {'l4': {'l5': {'value': 'deep'}}}}}}
+    runner.test("get_path handles deep nesting", get_path(deeply_nested, 'l1.l2.l3.l4.l5.value') == 'deep')
+    flat_deep = flatten(deeply_nested)
+    runner.test("flatten handles deep nesting", 'l1.l2.l3.l4.l5.value' in flat_deep)
+    
+    # Large data
+    large_dict = {f'key_{i}': f'value_{i}' for i in range(1000)}
+    runner.test("size handles large dict", size(large_dict) == 1000)
+    runner.test("dumps_compact handles large dict", len(dumps_compact(large_dict)) > 1000)
+    
+    # Special characters in keys - separator splits the path
+    special_keys = {'key.with.dots': 'value', 'key-with-dash': 'value2'}
+    # When separator is '.', 'key.with.dots' is split into ['key', 'with', 'dots']
+    # which doesn't match the key 'key.with.dots' directly
+    runner.test("get_path returns default for keys with separator chars", get_path(special_keys, 'key.with.dots', 'default') == 'default')
+    
+    # Unicode handling
+    unicode_data = {'中文': '值', 'emoji': '🎉', 'mixed': 'Hello世界'}
+    runner.test("safe_loads handles unicode JSON", safe_loads('{"中文": "值"}') == {'中文': '值'})
+    runner.test("dumps_compact preserves unicode", '中文' in dumps_compact(unicode_data))
+    runner.test("flatten handles unicode keys", '中文' in flatten(unicode_data))
+    
+    # Array edge cases
+    array_data = {'items': []}
+    runner.test("get_path handles empty array", get_path(array_data, 'items.0', 'default') == 'default')
+    runner.test("find_all handles empty array", find_all(array_data, 'name') == [])
+    
+    large_array = {'items': list(range(100))}
+    runner.test("get_path handles large array index", get_path(large_array, 'items.50') == 50)
+    runner.test("get_path returns default for out of bounds", get_path(large_array, 'items.200', 'default') == 'default')
+    
+    # Circular reference protection (clone should handle non-circular)
+    nested_ref = {'a': {'b': {'c': 1}}}
+    cloned = clone(nested_ref)
+    runner.test("clone handles nested dicts", cloned == nested_ref)
+    runner.test("clone creates independent copy", cloned is not nested_ref and cloned['a'] is not nested_ref['a'])
+    
+    # Diff edge cases
+    runner.test("diff handles identical objects", diff({'a': 1}, {'a': 1}) == {'added': {}, 'removed': {}, 'changed': {}})
+    runner.test("diff handles empty objects", diff({}, {}) == {'added': {}, 'removed': {}, 'changed': {}})
+    runner.test("diff handles completely different objects", diff({'a': 1}, {'b': 2})['added'] == {'b': 2} and diff({'a': 1}, {'b': 2})['removed'] == {'a': 1})
+    
+    # Pick/omit edge cases
+    runner.test("pick handles missing keys", pick({'a': 1}, ['b']) == {})
+    runner.test("pick handles empty key list", pick({'a': 1}, []) == {})
+    runner.test("omit handles empty key list", omit({'a': 1}, []) == {'a': 1})
+    runner.test("omit handles missing keys", omit({'a': 1}, ['b']) == {'a': 1})
+    
     # Summary
     runner.report()
 

@@ -163,26 +163,34 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ### 最近新增测试
 
+- **Python json_utils**: 新增 93 个测试用例，覆盖安全解析、序列化、路径查询、合并、扁平化、过滤、类型检查、深度比较等，新增 30+ 边界值测试（空值、深层嵌套、大数据、Unicode、数组边界等）📝
 - **Python humanize_utils**: 新增 30+ 边界值测试，覆盖空值、极大数值、负数、中文单位等边界场景 📝
 - **Python crypto_utils**: 新增 20+ 边界值测试，覆盖空数据、单字符、极长数据、自定义字符集等边界场景 🔐
-- **Python qr_code_utils**: 新增 12 边界值测试，覆盖空数据、Unicode、特殊字符、SVG/ASCII 边界等场景 🔲
+- **Python qr_code_utils**: 新增 26 边界值测试，覆盖空数据、Unicode、特殊字符、SVG/ASCII 边界等场景 🔲
+- **Python tarot_utils**: 36 个测试用例，覆盖塔罗牌牌组、抽取、解读（单牌/三牌/凯尔特十字）、是非问题等 🎴
+- **Python time_zone_utils**: 45 个测试用例，覆盖时区转换、DST、会议时间查找、边界值（跨日期/年份、半小时偏移）等 🌍
+- **Python mask_utils**: 41 个测试用例，覆盖邮箱/手机/身份证/银行卡/信用卡/姓名/地址/IP/密码/URL 掩码等 🔒
+- **Python nanoid_utils**: 40 个测试用例，覆盖 ID 生成、自定义长度/字符集、唯一性验证等 🆔
+- **Python isbn_utils**: 43 个测试用例，覆盖 ISBN-10/13 验证、转换、格式化等 📚
+- **Python mime_utils**: 45 个测试用例，覆盖 MIME 类型检测、文件扩展名映射等 📄
 - **Rust file_utils**: 新增 40+ 测试用例，覆盖文件读写、存在性检查、错误处理、边界值等 📁
 - **Rust qr_code_utils**: 新增 45+ 测试用例，覆盖 QR 码生成、版本校验、纠错级别、编码模式、容量表验证等 🔲
 - **TypeScript crypto_utils**: 86 个测试用例（新增），覆盖哈希函数（MD5/SHA-1/SHA-256/SHA-384/SHA-512）、HMAC 签名/验证、Base64 编码解码、Hex 编码解码、随机生成（字符串/Hex/UUID）等 🔐
-- **Python text_utils**: 123 个测试用例（新增 9 个），覆盖字符串清理、格式化、分析等，新增 wrap_text 边界值测试（零宽度、负宽度、空字符串、超长单词处理等）📝
-- **Python base64_utils**: 22 个测试用例（新增 7 个），覆盖编码/解码、URL-safe、验证等，新增 is_valid 边界测试（长度校验、填充验证、URL-safe 模式等）🔐
+- **Python text_utils**: 89 个测试用例，覆盖字符串清理、格式化、分析等，新增 wrap_text 边界值测试（零宽度、负宽度、空字符串、超长单词处理等）📝
+- **Python base64_utils**: 22 个测试用例，覆盖编码/解码、URL-safe、验证等，新增 is_valid 边界测试（长度校验、填充验证、URL-safe 模式等）🔐
 - **Go csv_utils**: 新增 SortByWithOptions 测试（降序排序、非数字回退、缺失列处理等）📊
 - **Go log_utils**: 新增 formatText 测试（无调用者、多字段格式化等）📝
 - **JavaScript string_utils**: 93 个测试用例（新增 10 个），覆盖字符串操作，新增 randomPassword 边界测试（最小/最大长度、字符类型检查、随机性验证等）和 truncate 边界测试 🔤
 - **Python email_utils**: 41 个测试用例，覆盖验证、解析、规范化、一次性邮箱检测、批量处理等 📧
 - **Kotlin zip_utils**: 15 个测试用例，覆盖文件压缩、解压、目录处理、排除模式等
 - **Perl csv_utils**: 30+ 测试用例，覆盖 CSV 解析、生成、过滤、排序等
-- **Python network_utils**: 70+ 测试用例，覆盖 URL/IP/MAC/端口/HTTP 等
+- **Python network_utils**: 134 个测试用例，覆盖 URL/IP/MAC/端口/HTTP 等
 
 ### 测试覆盖详情
 
 | 模块 | 语言 | 测试数 | 覆盖率 |
 |------|------|--------|--------|
+| json_utils | Python | 93 | ✅ 100% |
 | geometry_utils | Python | 237 | ✅ 100% |
 | phone_utils | Python | 164 | ✅ 100% |
 | color_utils | Python | 111 | ✅ 100% |
@@ -215,8 +223,8 @@ perl Perl/csv_utils/csv_utils_test.pl
 | xml_utils | Python | 20 | ✅ 100% |
 | emoji_utils | Python | 49 | ✅ 100% |
 
-**总计**: Python 108 模块，1600+ 测试用例，100% 通过率 ✅
+**总计**: Python 108 模块，1700+ 测试用例，100% 通过率 ✅
 
 ---
 
-**最后更新**: 2026-04-18
+**最后更新**: 2026-04-19
