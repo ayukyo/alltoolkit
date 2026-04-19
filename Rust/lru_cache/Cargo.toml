@@ -1,0 +1,17 @@
+[package]
+name = "lru_cache"
+version = "0.1.0"
+edition = "2021"
+description = "A zero-dependency LRU (Least Recently Used) cache implementation"
+authors = ["AllToolkit"]
+license = "MIT"
+keywords = ["lru", "cache", "data-structure", "no-std"]
+categories = ["algorithms", "data-structures", "caching"]
+
+[lib]
+name = "lru_cache"
+path = "mod.rs"
+
+[[example]]
+name = "usage"
+path = "examples/usage.rs"
