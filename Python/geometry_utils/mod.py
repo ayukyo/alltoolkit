@@ -181,11 +181,21 @@ def distance_3d(p1: Point3D, p2: Point3D) -> float:
     Example:
         >>> distance_3d((0, 0, 0), (1, 2, 2))
         3.0
+    
+    Note:
+        优化版本：Python 3.8+ 支持多参数 hypot，
+        数值稳定性更好且性能更高。自动适配旧版本。
     """
     x1, y1, z1 = _to_float(p1[0]), _to_float(p1[1]), _to_float(p1[2])
     x2, y2, z2 = _to_float(p2[0]), _to_float(p2[1]), _to_float(p2[2])
-    # For Python < 3.8, use nested hypot which is still optimized
-    return math.hypot(math.hypot(x2 - x1, y2 - y1), z2 - z1)
+    
+    # Python 3.8+ 支持多参数 hypot，数值稳定性更好
+    # 尝试使用多参数版本，失败则回退到嵌套版本
+    try:
+        return math.hypot(x2 - x1, y2 - y1, z2 - z1)
+    except TypeError:
+        # Python < 3.8 回退方案
+        return math.hypot(math.hypot(x2 - x1, y2 - y1), z2 - z1)
 
 
 def manhattan_distance_2d(p1: Point2D, p2: Point2D) -> float:

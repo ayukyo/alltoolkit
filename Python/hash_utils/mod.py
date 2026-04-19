@@ -360,35 +360,54 @@ def hash_directory(dirpath: Union[str, Path], algorithm: HashAlgorithm = 'sha256
         >>> # This would hash all files in a directory
         >>> # hashes = hash_directory("/path/to/dir")
         >>> # print(hashes)  # {'file1.txt': 'abc123...', 'subdir/file2.txt': 'def456...'}
+    
+    Note:
+        优化版本：
+        - 提前验证算法避免在文件处理时重复检查
+        - 使用 fnmatch 替代简单的模式匹配，支持更复杂的模式
+        - 边界处理：空目录、无权限文件
     """
+    import fnmatch
+    
     dirpath = Path(dirpath)
+    
+    # 边界处理：提前验证路径
     if not dirpath.exists():
         raise FileNotFoundError(f"Directory not found: {dirpath}")
     if not dirpath.is_dir():
         raise NotADirectoryError(f"Not a directory: {dirpath}")
     
+    # 提前验证算法有效性，避免在文件处理时重复检查
+    try:
+        hashlib.new(algorithm)
+    except ValueError as e:
+        raise ValueError(f"Unsupported hash algorithm '{algorithm}'. "
+                        f"Supported: {', '.join(SUPPORTED_ALGORITHMS)}") from e
+    
     ignore_patterns = ignore_patterns or []
     result = {}
     
+    # 优化：使用 fnmatch 支持更灵活的模式匹配
     def should_ignore(name: str) -> bool:
         for pattern in ignore_patterns:
-            if pattern.startswith('*') and name.endswith(pattern[1:]):
-                return True
-            if name == pattern:
+            if fnmatch.fnmatch(name, pattern):
                 return True
         return False
     
+    # 使用适当的迭代器
     if recursive:
         files = dirpath.rglob('*')
     else:
         files = dirpath.glob('*')
     
+    # 批量处理文件
     for filepath in files:
         if filepath.is_file() and not should_ignore(filepath.name):
             rel_path = str(filepath.relative_to(dirpath))
             try:
                 result[rel_path] = hash_file(filepath, algorithm)
             except (IOError, PermissionError):
+                # 边界处理：记录错误而非跳过
                 result[rel_path] = f"<error: cannot read file>"
     
     return result
