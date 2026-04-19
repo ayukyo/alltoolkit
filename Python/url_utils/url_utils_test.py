@@ -1,571 +1,701 @@
 """
-AllToolkit - Python URL Utilities Test Suite
-
-Comprehensive tests for URL parsing, validation, and manipulation.
+URL Utilities 测试套件
+全面的单元测试覆盖所有功能
 """
 
-import sys
 import unittest
-from typing import List, Tuple
-
-# Import module under test
 from mod import (
-    URL, URLConfig, URLError, URLValidationError, URLParseError, URLShortener,
-    parse_url, validate_url, is_valid_url, normalize_url,
-    extract_domain, extract_path, extract_query_params,
-    build_url, join_url, sanitize_url, get_url_info
+    URLParser, URLBuilder, URLEncoder, URLNormalizer, URLValidator, URLUtils,
+    QueryStringParser,
+    parse_url, build_url, encode_url, decode_url, normalize_url,
+    validate_url, is_safe_url, clean_url, get_domain, get_query_params,
+    set_query_param, remove_query_param, URLInfo
 )
 
 
-class TestURLParsing(unittest.TestCase):
-    """Test URL parsing functionality."""
+class TestURLParser(unittest.TestCase):
+    """URLParser 测试"""
     
-    def test_parse_simple_url(self):
-        """Test parsing a simple HTTPS URL."""
-        url = URL("https://example.com")
-        self.assertEqual(url.scheme, "https")
-        self.assertEqual(url.host, "example.com")
-        self.assertEqual(url.path, "/")
-        self.assertIsNone(url.port)
+    def test_parse_basic_url(self):
+        """测试基础 URL 解析"""
+        url = "https://example.com/path"
+        info = URLParser.parse(url)
+        self.assertEqual(info.scheme, "https")
+        self.assertEqual(info.hostname, "example.com")
+        self.assertEqual(info.path, "/path")
     
-    def test_parse_url_with_port(self):
-        """Test parsing URL with explicit port."""
-        url = URL("https://example.com:8080/path")
-        self.assertEqual(url.port, 8080)
-        self.assertEqual(url.path, "/path")
+    def test_parse_full_url(self):
+        """测试完整 URL 解析"""
+        url = "https://user:pass@example.com:8080/path?query=value#fragment"
+        info = URLParser.parse(url)
+        self.assertEqual(info.scheme, "https")
+        self.assertEqual(info.hostname, "example.com")
+        self.assertEqual(info.port, 8080)
+        self.assertEqual(info.username, "user")
+        self.assertEqual(info.password, "pass")
+        self.assertEqual(info.path, "/path")
+        self.assertEqual(info.query, "query=value")
+        self.assertEqual(info.fragment, "fragment")
     
-    def test_parse_url_with_query(self):
-        """Test parsing URL with query parameters."""
-        url = URL("https://example.com/search?q=test&page=1")
-        self.assertEqual(url.query.get("q"), "test")
-        self.assertEqual(url.query.get("page"), "1")
+    def test_parse_ipv4(self):
+        """测试 IPv4 地址"""
+        url = "http://192.168.1.1:8080"
+        info = URLParser.parse(url)
+        self.assertEqual(info.hostname, "192.168.1.1")
+        self.assertEqual(info.port, 8080)
     
-    def test_parse_url_with_fragment(self):
-        """Test parsing URL with fragment."""
-        url = URL("https://example.com/page#section1")
-        self.assertEqual(url.fragment, "section1")
+    def test_parse_ipv6(self):
+        """测试 IPv6 地址"""
+        url = "http://[::1]:8080/path"
+        info = URLParser.parse(url)
+        self.assertEqual(info.hostname, "::1")
+        self.assertEqual(info.port, 8080)
     
-    def test_parse_url_with_auth(self):
-        """Test parsing URL with authentication."""
-        url = URL("https://user:pass@example.com/path")
-        self.assertEqual(url.username, "user")
-        self.assertEqual(url.password, "pass")
+    def test_parse_no_path(self):
+        """测试无路径 URL"""
+        url = "https://example.com"
+        info = URLParser.parse(url)
+        self.assertEqual(info.hostname, "example.com")
+        self.assertEqual(info.path, "")
     
-    def test_parse_url_with_multiple_query_values(self):
-        """Test parsing URL with multiple values for same param."""
-        url = URL("https://example.com/search?tag=python&tag=programming")
-        self.assertIsInstance(url.query.get("tag"), list)
-        self.assertEqual(len(url.query.get("tag")), 2)
-    
-    def test_parse_invalid_scheme(self):
-        """Test that invalid scheme raises error."""
-        with self.assertRaises(URLValidationError):
-            URL("invalid://example.com")
-    
-    def test_parse_url_too_long(self):
-        """Test that overly long URLs raise error."""
-        long_url = "https://example.com/" + "a" * 3000
-        with self.assertRaises(URLParseError):
-            URL(long_url)
-
-
-class TestURLValidation(unittest.TestCase):
-    """Test URL validation functionality."""
-    
-    def test_valid_domains(self):
-        """Test validation of valid domain names."""
-        valid_domains = [
+    def test_is_valid_url_valid(self):
+        """测试有效 URL"""
+        valid_urls = [
             "https://example.com",
-            "https://sub.example.com",
-            "https://example.co.uk",
-            "https://my-app.example.io",
+            "http://localhost:3000",
+            "ftp://ftp.example.com/files",
+            "https://user:pass@example.com:8080/path?q=1#frag"
         ]
-        for url_str in valid_domains:
-            with self.subTest(url=url_str):
-                url = URL(url_str)
-                self.assertTrue(url.is_absolute())
+        for url in valid_urls:
+            self.assertTrue(URLParser.is_valid_url(url), f"Should be valid: {url}")
     
-    def test_valid_ipv4(self):
-        """Test validation of IPv4 addresses."""
-        url = URL("https://192.168.1.1:8080/path")
-        self.assertEqual(url.host, "192.168.1.1")
-        self.assertEqual(url.port, 8080)
+    def test_is_valid_url_invalid(self):
+        """测试无效 URL"""
+        invalid_urls = [
+            "not a url",
+            "://missing-scheme.com",
+            "http://",
+            "ftp://",  # 没有 netloc
+        ]
+        for url in invalid_urls:
+            self.assertFalse(URLParser.is_valid_url(url), f"Should be invalid: {url}")
     
-    def test_valid_ipv6(self):
-        """Test validation of IPv6 addresses."""
-        url = URL("https://[::1]:8080/path")
-        self.assertEqual(url.host, "::1")  # urlparse strips brackets
+    def test_is_valid_scheme(self):
+        """测试 scheme 验证"""
+        self.assertTrue(URLParser.is_valid_scheme("https"))
+        self.assertTrue(URLParser.is_valid_scheme("http"))
+        self.assertTrue(URLParser.is_valid_scheme("ws+ssl"))
+        self.assertFalse(URLParser.is_valid_scheme("123http"))
+        self.assertFalse(URLParser.is_valid_scheme(""))
     
-    def test_invalid_port(self):
-        """Test that invalid port raises error."""
-        with self.assertRaises(URLValidationError):
-            URL("https://example.com:99999")
+    def test_get_default_port(self):
+        """测试默认端口"""
+        self.assertEqual(URLParser.get_default_port("http"), 80)
+        self.assertEqual(URLParser.get_default_port("https"), 443)
+        self.assertEqual(URLParser.get_default_port("ftp"), 21)
+        self.assertIsNone(URLParser.get_default_port("unknown"))
     
-    def test_validate_url_function(self):
-        """Test validate_url convenience function."""
-        valid, error = validate_url("https://example.com")
-        self.assertTrue(valid)
-        self.assertIsNone(error)
-        
-        valid, error = validate_url("invalid://url")
-        self.assertFalse(valid)
-        self.assertIsNotNone(error)
+    def test_is_default_port(self):
+        """测试默认端口检查"""
+        self.assertTrue(URLParser.is_default_port("http", 80))
+        self.assertTrue(URLParser.is_default_port("https", 443))
+        self.assertFalse(URLParser.is_default_port("http", 8080))
     
-    def test_is_valid_url_function(self):
-        """Test is_valid_url convenience function."""
-        self.assertTrue(is_valid_url("https://example.com"))
-        self.assertFalse(is_valid_url("not-a-url"))
+    def test_urlinfo_to_dict(self):
+        """测试 URLInfo 字典转换"""
+        url = "https://user:pass@example.com:8080/path?q=1#frag"
+        info = URLParser.parse(url)
+        d = info.to_dict()
+        self.assertEqual(d['scheme'], 'https')
+        self.assertEqual(d['hostname'], 'example.com')
+        self.assertEqual(d['port'], 8080)
+        self.assertEqual(d['username'], 'user')
+        self.assertEqual(d['password'], 'pass')
 
 
-class TestURLNormalization(unittest.TestCase):
-    """Test URL normalization functionality."""
+class TestURLBuilder(unittest.TestCase):
+    """URLBuilder 测试"""
     
-    def test_normalize_scheme_case(self):
-        """Test that scheme is lowercased."""
-        url = URL("HTTPS://EXAMPLE.COM")
-        normalized = url.normalize()
-        self.assertEqual(normalized.scheme, "https")
+    def test_build_simple_url(self):
+        """测试构建简单 URL"""
+        url = (URLBuilder()
+               .scheme("https")
+               .host("example.com")
+               .path("/api/users")
+               .build())
+        self.assertEqual(url, "https://example.com/api/users")
     
-    def test_normalize_host_case(self):
-        """Test that host is lowercased."""
-        url = URL("https://EXAMPLE.COM")
-        normalized = url.normalize()
-        self.assertEqual(normalized.host, "example.com")
+    def test_build_with_port(self):
+        """测试构建带端口的 URL"""
+        url = (URLBuilder()
+               .scheme("http")
+               .host("localhost")
+               .port(8080)
+               .path("/api")
+               .build())
+        self.assertEqual(url, "http://localhost:8080/api")
     
-    def test_normalize_remove_default_port(self):
-        """Test that default ports are removed."""
-        url = URL("https://example.com:443/path")
-        normalized = url.normalize()
-        self.assertIsNone(normalized.port)
+    def test_build_with_query(self):
+        """测试构建带查询参数的 URL"""
+        url = (URLBuilder()
+               .scheme("https")
+               .host("api.example.com")
+               .path("/search")
+               .query_param("q", "python")
+               .query_param("page", "1")
+               .build())
+        self.assertIn("q=python", url)
+        self.assertIn("page=1", url)
     
-    def test_normalize_path_trailing_slash(self):
-        """Test that trailing slashes are removed from non-root paths."""
-        url = URL("https://example.com/path/to/page/")
-        normalized = url.normalize()
-        self.assertEqual(normalized.path, "/path/to/page")
+    def test_build_with_fragment(self):
+        """测试构建带片段的 URL"""
+        url = (URLBuilder()
+               .scheme("https")
+               .host("example.com")
+               .path("/docs")
+               .fragment("section")
+               .build())
+        self.assertEqual(url, "https://example.com/docs#section")
     
-    def test_normalize_path_resolve_dots(self):
-        """Test that . and .. are resolved in paths."""
-        url = URL("https://example.com/a/b/../c/./d")
-        normalized = url.normalize()
-        self.assertEqual(normalized.path, "/a/c/d")
+    def test_build_with_auth(self):
+        """测试构建带认证的 URL"""
+        url = (URLBuilder()
+               .scheme("https")
+               .host("api.example.com")
+               .user("admin", "secret")
+               .path("/api")
+               .build())
+        self.assertIn("admin:secret@", url)
     
-    def test_normalize_sort_query_params(self):
-        """Test that query params are sorted."""
-        url = URL("https://example.com?z=1&a=2&m=3")
-        normalized = url.normalize()
-        keys = list(normalized.query.keys())
-        self.assertEqual(keys, ["a", "m", "z"])
+    def test_build_from_base(self):
+        """测试从基础 URL 构建"""
+        builder = URLBuilder("https://example.com/path?existing=param")
+        url = builder.query_param("new", "value").build()
+        self.assertIn("existing=param", url)
+        self.assertIn("new=value", url)
     
-    def test_normalize_url_function(self):
-        """Test normalize_url convenience function."""
-        normalized = normalize_url("HTTPS://EXAMPLE.COM:443/Path/")
-        self.assertEqual(normalized, "https://example.com/Path")
+    def test_build_with_multiple_query_values(self):
+        """测试多值查询参数"""
+        url = (URLBuilder()
+               .scheme("https")
+               .host("example.com")
+               .query_param("tag", ["python", "web", "api"])
+               .build())
+        self.assertIn("tag=python", url)
+        self.assertIn("tag=web", url)
+        self.assertIn("tag=api", url)
+    
+    def test_build_with_query_params_dict(self):
+        """测试批量设置查询参数"""
+        url = (URLBuilder()
+               .scheme("https")
+               .host("example.com")
+               .query_params({"a": "1", "b": "2", "c": ["x", "y"]})
+               .build())
+        self.assertIn("a=1", url)
+        self.assertIn("b=2", url)
+        self.assertIn("c=x", url)
 
 
-class TestURLStringConversion(unittest.TestCase):
-    """Test URL to string conversion."""
+class TestURLEncoder(unittest.TestCase):
+    """URLEncoder 测试"""
     
-    def test_to_string_basic(self):
-        """Test basic URL string conversion."""
-        url = URL("https://example.com/path")
-        self.assertEqual(url.to_string(), "https://example.com/path")
+    def test_encode_basic(self):
+        """测试基础编码"""
+        self.assertEqual(encode_url("hello world"), "hello%20world")
+        self.assertEqual(encode_url("a+b=c"), "a%2Bb%3Dc")
     
-    def test_to_string_with_query(self):
-        """Test URL string conversion with query params."""
-        url = URL(scheme="https", host="example.com", path="/search", query={"q": "test"})
-        url_str = url.to_string()
-        self.assertIn("q=test", url_str)
+    def test_decode_basic(self):
+        """测试基础解码"""
+        self.assertEqual(decode_url("hello%20world"), "hello world")
+        self.assertEqual(decode_url("a%2Bb%3Dc"), "a+b=c")
     
-    def test_to_string_with_fragment(self):
-        """Test URL string conversion with fragment."""
-        url = URL("https://example.com/page#section")
-        self.assertIn("#section", url.to_string())
+    def test_encode_decode_roundtrip(self):
+        """测试编解码往返"""
+        original = "hello world!@#$%^&*()"
+        encoded = URLEncoder.encode(original)
+        decoded = URLEncoder.decode(encoded)
+        self.assertEqual(decoded, original)
     
-    def test_to_string_exclude_auth(self):
-        """Test that auth is excluded by default."""
-        url = URL("https://user:pass@example.com/path")
-        url_str = url.to_string()
-        self.assertNotIn("user", url_str)
-        self.assertNotIn("pass", url_str)
+    def test_encode_path(self):
+        """测试路径编码"""
+        path = "/path with spaces/file.txt"
+        encoded = URLEncoder.encode_path(path)
+        self.assertIn("/path%20with%20spaces", encoded)
+        self.assertIn("/", encoded)  # 斜杠不应编码
     
-    def test_to_string_include_auth(self):
-        """Test that auth can be included."""
-        url = URL("https://user:pass@example.com/path")
-        url_str = url.to_string(include_auth=True)
-        self.assertIn("user:pass@", url_str)
+    def test_encode_query(self):
+        """测试查询参数编码"""
+        value = "a=1&b=2"
+        encoded = URLEncoder.encode_query(value)
+        self.assertEqual(encoded, "a%3D1%26b%3D2")
     
-    def test_str_repr(self):
-        """Test __str__ and __repr__ methods."""
-        url = URL("https://example.com")
-        self.assertEqual(str(url), "https://example.com/")
-        self.assertIn("example.com", repr(url))
+    def test_encode_component(self):
+        """测试组件编码"""
+        self.assertEqual(
+            URLEncoder.encode_component("hello world"),
+            "hello%20world"
+        )
+    
+    def test_decode_component(self):
+        """测试组件解码"""
+        self.assertEqual(
+            URLEncoder.decode_component("hello%20world"),
+            "hello world"
+        )
+    
+    def test_unicode_encoding(self):
+        """测试 Unicode 编码"""
+        encoded = URLEncoder.encode("你好世界")
+        decoded = URLEncoder.decode(encoded)
+        self.assertEqual(decoded, "你好世界")
 
 
-class TestURLQueryMethods(unittest.TestCase):
-    """Test URL query parameter methods."""
+class TestQueryStringParser(unittest.TestCase):
+    """QueryStringParser 测试"""
     
-    def setUp(self):
-        self.url = URL("https://example.com/search?q=test&page=1")
+    def test_parse_simple(self):
+        """测试简单查询字符串解析"""
+        params = QueryStringParser.parse("a=1&b=2")
+        self.assertEqual(params["a"], ["1"])
+        self.assertEqual(params["b"], ["2"])
+    
+    def test_parse_multiple_values(self):
+        """测试多值参数"""
+        params = QueryStringParser.parse("tag=a&tag=b&tag=c")
+        self.assertEqual(params["tag"], ["a", "b", "c"])
+    
+    def test_parse_to_list(self):
+        """测试解析为列表"""
+        params = QueryStringParser.parse_to_list("a=1&b=2&c=3")
+        self.assertEqual(len(params), 3)
+        self.assertIn(("a", "1"), params)
+    
+    def test_build(self):
+        """测试构建查询字符串"""
+        params = {"a": ["1"], "b": ["2"]}
+        query = QueryStringParser.build(params)
+        self.assertIn("a=1", query)
+        self.assertIn("b=2", query)
     
     def test_get_param(self):
-        """Test getting query parameters."""
-        self.assertEqual(self.url.get_param("q"), "test")
-        self.assertEqual(self.url.get_param("page"), "1")
-        self.assertEqual(self.url.get_param("missing", "default"), "default")
-    
-    def test_set_param(self):
-        """Test setting query parameters."""
-        self.url.set_param("sort", "asc")
-        self.assertEqual(self.url.get_param("sort"), "asc")
-    
-    def test_remove_param(self):
-        """Test removing query parameters."""
-        self.url.remove_param("q")
-        self.assertFalse(self.url.has_param("q"))
-    
-    def test_has_param(self):
-        """Test checking parameter existence."""
-        self.assertTrue(self.url.has_param("q"))
-        self.assertFalse(self.url.has_param("missing"))
+        """测试获取单个参数"""
+        self.assertEqual(
+            QueryStringParser.get_param("a=1&b=2", "a"),
+            "1"
+        )
+        self.assertIsNone(QueryStringParser.get_param("a=1", "c"))
+        self.assertEqual(
+            QueryStringParser.get_param("a=1", "c", "default"),
+            "default"
+        )
     
     def test_get_params(self):
-        """Test getting all parameters."""
-        params = self.url.get_params()
-        self.assertIn("q", params)
-        self.assertIn("page", params)
+        """测试获取多值参数"""
+        params = QueryStringParser.get_params("tag=a&tag=b&tag=c", "tag")
+        self.assertEqual(params, ["a", "b", "c"])
+    
+    def test_set_param(self):
+        """测试设置参数"""
+        query = QueryStringParser.set_param("a=1", "b", "2")
+        self.assertIn("a=1", query)
+        self.assertIn("b=2", query)
+    
+    def test_remove_param(self):
+        """测试移除参数"""
+        query = QueryStringParser.remove_param("a=1&b=2&c=3", "b")
+        self.assertIn("a=1", query)
+        self.assertIn("c=3", query)
+        self.assertNotIn("b=2", query)
+    
+    def test_has_param(self):
+        """测试参数存在检查"""
+        self.assertTrue(QueryStringParser.has_param("a=1&b=2", "a"))
+        self.assertFalse(QueryStringParser.has_param("a=1&b=2", "c"))
+    
+    def test_empty_query(self):
+        """测试空查询字符串"""
+        params = QueryStringParser.parse("")
+        self.assertEqual(params, {})
 
 
-class TestURLPathMethods(unittest.TestCase):
-    """Test URL path manipulation methods."""
+class TestURLNormalizer(unittest.TestCase):
+    """URLNormalizer 测试"""
     
-    def test_get_path_segments(self):
-        """Test getting path segments."""
-        url = URL("https://example.com/a/b/c")
-        self.assertEqual(url.get_path_segments(), ["a", "b", "c"])
+    def test_normalize_scheme(self):
+        """测试 scheme 规范化"""
+        url = "HTTPS://EXAMPLE.COM"
+        normalized = URLNormalizer.normalize(url)
+        self.assertTrue(normalized.startswith("https://example.com"))
     
-    def test_set_path(self):
-        """Test setting path."""
-        url = URL("https://example.com/old")
-        url.set_path("/new")
-        self.assertEqual(url.path, "/new")
+    def test_normalize_default_port(self):
+        """测试默认端口移除"""
+        url = "https://example.com:443/path"
+        normalized = URLNormalizer.normalize(url, remove_default_port=True)
+        self.assertNotIn(":443", normalized)
     
-    def test_append_path(self):
-        """Test appending to path."""
-        url = URL("https://example.com/base")
-        url.append_path("sub")
-        self.assertEqual(url.path, "/base/sub")
+    def test_normalize_keep_custom_port(self):
+        """测试保留自定义端口"""
+        url = "https://example.com:8443/path"
+        normalized = URLNormalizer.normalize(url)
+        self.assertIn(":8443", normalized)
     
-    def test_get_parent_path(self):
-        """Test getting parent path."""
-        url = URL("https://example.com/a/b/c")
-        self.assertEqual(url.get_parent_path(), "/a/b")
-        
-        url_root = URL("https://example.com/")
-        self.assertEqual(url_root.get_parent_path(), "/")
+    def test_normalize_remove_fragment(self):
+        """测试移除片段"""
+        url = "https://example.com/path#section"
+        normalized = URLNormalizer.normalize(url, remove_fragment=True)
+        self.assertNotIn("#section", normalized)
     
-    def test_origin_and_base(self):
-        """Test origin and base URL methods."""
-        url = URL("https://example.com:8080/path?query=1#frag")
-        self.assertEqual(url.get_origin(), "https://example.com:8080")
-        self.assertEqual(url.get_base_url(), "https://example.com:8080/path")
+    def test_normalize_sort_query(self):
+        """测试排序查询参数"""
+        url = "https://example.com?b=2&a=1&c=3"
+        normalized = URLNormalizer.normalize(url, sort_query=True)
+        self.assertTrue(normalized.index("a=1") < normalized.index("b=2"))
+        self.assertTrue(normalized.index("b=2") < normalized.index("c=3"))
+    
+    def test_normalize_path(self):
+        """测试路径规范化"""
+        url = "https://example.com//path///to//page"
+        normalized = URLNormalizer.normalize(url)
+        self.assertIn("/path/to/page", normalized)
+    
+    def test_canonical(self):
+        """测试规范化 URL"""
+        url = "HTTPS://Example.COM:443/Path/?b=2&a=1&utm_source=google#section"
+        canonical = URLNormalizer.canonical(url)
+        self.assertTrue(canonical.startswith("https://example.com"))
+        self.assertIn("a=1", canonical)
+        self.assertIn("b=2", canonical)
+        self.assertNotIn(":443", canonical)
+        self.assertNotIn("#section", canonical)
+        self.assertNotIn("utm_source", canonical)
+    
+    def test_resolve_relative(self):
+        """测试相对 URL 解析"""
+        base = "https://example.com/path/page.html"
+        self.assertEqual(
+            URLNormalizer.resolve(base, "other.html"),
+            "https://example.com/path/other.html"
+        )
+        self.assertEqual(
+            URLNormalizer.resolve(base, "/absolute"),
+            "https://example.com/absolute"
+        )
+        self.assertEqual(
+            URLNormalizer.resolve(base, "https://other.com"),
+            "https://other.com"
+        )
+    
+    def test_remove_tracking_params(self):
+        """测试移除追踪参数"""
+        url = "https://example.com/page?utm_source=google&utm_medium=cpc&id=123&fbclid=xyz"
+        clean = URLNormalizer.remove_tracking_params(url)
+        self.assertNotIn("utm_source", clean)
+        self.assertNotIn("utm_medium", clean)
+        self.assertNotIn("fbclid", clean)
+        self.assertIn("id=123", clean)
 
 
-class TestURLComparison(unittest.TestCase):
-    """Test URL comparison methods."""
+class TestURLValidator(unittest.TestCase):
+    """URLValidator 测试"""
     
-    def test_same_origin(self):
-        """Test same origin comparison."""
-        url1 = URL("https://example.com/path1")
-        url2 = URL("https://example.com/path2")
-        url3 = URL("http://example.com/path1")
-        
-        self.assertTrue(url1.same_origin(url2))
-        self.assertFalse(url1.same_origin(url3))
+    def test_validate_valid_urls(self):
+        """测试有效 URL 验证"""
+        urls = [
+            "https://example.com",
+            "http://localhost:3000",
+            "ftp://ftp.example.com/files",
+            "https://user:pass@example.com:8080/path"
+        ]
+        for url in urls:
+            valid, errors = URLValidator.validate(url)
+            self.assertTrue(valid, f"Should be valid: {url}, errors: {errors}")
     
-    def test_equals(self):
-        """Test URL equality."""
-        url1 = URL("https://example.com/path?q=1#frag")
-        url2 = URL("https://example.com/path?q=1#frag")
-        url3 = URL("https://example.com/path?q=2#frag")
-        
-        self.assertTrue(url1.equals(url2))
-        self.assertFalse(url1.equals(url3))
-        self.assertTrue(url1.equals(url3, ignore_query=True))
+    def test_validate_invalid_urls(self):
+        """测试无效 URL 验证"""
+        urls = [
+            "not a url",
+            "://missing-scheme.com",
+            "http://",
+            "ftp://",
+        ]
+        for url in urls:
+            valid, errors = URLValidator.validate(url)
+            self.assertFalse(valid, f"Should be invalid: {url}")
+            self.assertTrue(len(errors) > 0)
     
-    def test_copy(self):
-        """Test URL copying."""
-        url1 = URL("https://example.com/path")
-        url2 = url1.copy()
+    def test_validate_dangerous_scheme(self):
+        """测试危险 scheme"""
+        valid, errors = URLValidator.validate("javascript:alert('xss')")
+        self.assertFalse(valid)
+        self.assertTrue(any("dangerous" in e.lower() or "javascript" in e.lower() for e in errors))
+    
+    def test_validate_invalid_port(self):
+        """测试无效端口"""
+        valid, errors = URLValidator.validate("http://example.com:99999")
+        self.assertFalse(valid)
+        self.assertTrue(any("port" in e.lower() for e in errors))
+    
+    def test_is_safe_url(self):
+        """测试安全 URL 检查"""
+        self.assertTrue(URLValidator.is_safe_url("https://example.com"))
+        self.assertFalse(URLValidator.is_safe_url("javascript:alert(1)"))
+        self.assertFalse(URLValidator.is_safe_url("https://user:pass@example.com"))
+    
+    def test_is_safe_url_private_ip(self):
+        """测试私有 IP 检查"""
+        self.assertFalse(URLValidator.is_safe_url("http://192.168.1.1"))
+        self.assertFalse(URLValidator.is_safe_url("http://10.0.0.1"))
+        self.assertFalse(URLValidator.is_safe_url("http://127.0.0.1"))
         
-        self.assertEqual(url1.to_string(), url2.to_string())
-        self.assertIsNot(url1, url2)
+        # 允许私有 IP
+        self.assertTrue(URLValidator.is_safe_url("http://192.168.1.1", allow_private_ip=True))
+    
+    def test_is_same_origin(self):
+        """测试同源检查"""
+        self.assertTrue(URLValidator.is_same_origin(
+            "https://example.com/a",
+            "https://example.com/b"
+        ))
+        self.assertFalse(URLValidator.is_same_origin(
+            "https://example.com",
+            "https://other.com"
+        ))
+        self.assertFalse(URLValidator.is_same_origin(
+            "https://example.com",
+            "http://example.com"  # 不同协议
+        ))
+    
+    def test_is_valid_hostname(self):
+        """测试主机名验证"""
+        self.assertTrue(URLValidator._is_valid_hostname("example.com"))
+        self.assertTrue(URLValidator._is_valid_hostname("sub.example.com"))
+        self.assertTrue(URLValidator._is_valid_hostname("a-b.c-d.com"))
+        self.assertFalse(URLValidator._is_valid_hostname(""))
+        self.assertFalse(URLValidator._is_valid_hostname("-invalid.com"))
+        self.assertFalse(URLValidator._is_valid_hostname("a" * 64 + ".com"))  # 标签太长
 
 
-class TestURLChecks(unittest.TestCase):
-    """Test URL property checks."""
+class TestURLUtils(unittest.TestCase):
+    """URLUtils 测试"""
     
-    def test_is_secure(self):
-        """Test secure URL check."""
-        secure = URL("https://example.com")
-        insecure = URL("http://example.com")
-        
-        self.assertTrue(secure.is_secure())
-        self.assertFalse(insecure.is_secure())
+    def test_extract_domain(self):
+        """测试提取域名"""
+        self.assertEqual(
+            URLUtils.extract_domain("https://www.example.com/path"),
+            "www.example.com"
+        )
+        self.assertEqual(
+            URLUtils.extract_domain("https://user@example.com"),
+            "example.com"
+        )
     
-    def test_is_absolute(self):
-        """Test absolute URL check."""
-        absolute = URL("https://example.com")
-        # Relative URLs would need different construction
-        self.assertTrue(absolute.is_absolute())
+    def test_extract_root_domain(self):
+        """测试提取根域名"""
+        self.assertEqual(
+            URLUtils.extract_root_domain("https://www.blog.example.com/path"),
+            "example.com"
+        )
+        self.assertEqual(
+            URLUtils.extract_root_domain("https://example.co.uk/path"),
+            "example.co.uk"
+        )
     
-    def test_has_query(self):
-        """Test query presence check."""
-        with_query = URL("https://example.com?q=1")
-        without_query = URL("https://example.com")
-        
-        self.assertTrue(with_query.has_query())
-        self.assertFalse(without_query.has_query())
+    def test_extract_tld(self):
+        """测试提取顶级域名"""
+        self.assertEqual(URLUtils.extract_tld("https://example.com"), "com")
+        self.assertEqual(URLUtils.extract_tld("https://example.co.uk"), "uk")
+        self.assertIsNone(URLUtils.extract_tld("http://192.168.1.1"))
     
-    def test_has_fragment(self):
-        """Test fragment presence check."""
-        with_frag = URL("https://example.com#section")
-        without_frag = URL("https://example.com")
-        
-        self.assertTrue(with_frag.has_fragment())
-        self.assertFalse(without_frag.has_fragment())
+    def test_extract_path(self):
+        """测试提取路径"""
+        self.assertEqual(
+            URLUtils.extract_path("https://example.com/path/to/page"),
+            "/path/to/page"
+        )
+        self.assertEqual(URLUtils.extract_path("https://example.com"), "")
     
-    def test_has_auth(self):
-        """Test auth presence check."""
-        with_auth = URL("https://user@example.com")
-        without_auth = URL("https://example.com")
-        
-        self.assertTrue(with_auth.has_auth())
-        self.assertFalse(without_auth.has_auth())
+    def test_extract_filename(self):
+        """测试提取文件名"""
+        self.assertEqual(
+            URLUtils.extract_filename("https://example.com/path/file.html"),
+            "file.html"
+        )
+        self.assertIsNone(URLUtils.extract_filename("https://example.com/path/"))
+    
+    def test_extract_extension(self):
+        """测试提取扩展名"""
+        self.assertEqual(
+            URLUtils.extract_extension("https://example.com/file.tar.gz"),
+            "gz"
+        )
+        self.assertEqual(
+            URLUtils.extract_extension("https://example.com/image.PNG"),
+            "png"
+        )
+        self.assertIsNone(URLUtils.extract_extension("https://example.com/path/"))
+    
+    def test_change_scheme(self):
+        """测试更改 scheme"""
+        self.assertEqual(
+            URLUtils.change_scheme("http://example.com", "https"),
+            "https://example.com"
+        )
+        self.assertEqual(
+            URLUtils.change_scheme("https://example.com:443/path", "http"),
+            "http://example.com:443/path"
+        )
+    
+    def test_ensure_scheme(self):
+        """测试确保 scheme"""
+        self.assertEqual(
+            URLUtils.ensure_scheme("example.com/path"),
+            "https://example.com/path"
+        )
+        self.assertEqual(
+            URLUtils.ensure_scheme("example.com/path", "http"),
+            "http://example.com/path"
+        )
+        self.assertEqual(
+            URLUtils.ensure_scheme("https://example.com"),
+            "https://example.com"
+        )
+    
+    def test_is_absolute_relative(self):
+        """测试绝对/相对 URL 检查"""
+        self.assertTrue(URLUtils.is_absolute("https://example.com"))
+        self.assertTrue(URLUtils.is_absolute("http://localhost"))
+        self.assertFalse(URLUtils.is_absolute("/path/to/page"))
+        self.assertFalse(URLUtils.is_relative("https://example.com"))
+        self.assertTrue(URLUtils.is_relative("/path/to/page"))
+    
+    def test_join(self):
+        """测试 URL 连接"""
+        self.assertEqual(
+            URLUtils.join("https://example.com/path/", "page.html"),
+            "https://example.com/path/page.html"
+        )
+        self.assertEqual(
+            URLUtils.join("https://example.com/path/page.html", "/other"),
+            "https://example.com/other"
+        )
+    
+    def test_get_base_url(self):
+        """测试获取基础 URL"""
+        self.assertEqual(
+            URLUtils.get_base_url("https://example.com:8080/path?q=1#frag"),
+            "https://example.com:8080"
+        )
+    
+    def test_split_url(self):
+        """测试分割 URL"""
+        url = "https://example.com/path?q=1#frag"
+        scheme, netloc, path, query, fragment = URLUtils.split_url(url)
+        self.assertEqual(scheme, "https")
+        self.assertEqual(netloc, "example.com")
+        self.assertEqual(path, "/path")
+        self.assertEqual(query, "q=1")
+        self.assertEqual(fragment, "frag")
+    
+    def test_unsplit(self):
+        """测试从部分构建 URL"""
+        parts = ("https", "example.com", "/path", "q=1", "frag")
+        url = URLUtils.unsplit(parts)
+        self.assertEqual(url, "https://example.com/path?q=1#frag")
+    
+    def test_get_url_depth(self):
+        """测试 URL 深度"""
+        self.assertEqual(URLUtils.get_url_depth("https://example.com"), 0)
+        self.assertEqual(URLUtils.get_url_depth("https://example.com/"), 0)
+        self.assertEqual(URLUtils.get_url_depth("https://example.com/a"), 1)
+        self.assertEqual(URLUtils.get_url_depth("https://example.com/a/b/c"), 3)
+    
+    def test_is_subdomain(self):
+        """测试子域名检查"""
+        self.assertTrue(URLUtils.is_subdomain("https://blog.example.com", "example.com"))
+        self.assertTrue(URLUtils.is_subdomain("https://example.com", "example.com"))
+        self.assertFalse(URLUtils.is_subdomain("https://other.com", "example.com"))
+    
+    def test_batch_resolve(self):
+        """测试批量解析"""
+        base = "https://example.com/path/"
+        urls = ["page1.html", "page2.html", "/absolute"]
+        result = URLUtils.batch_resolve(urls, base)
+        self.assertEqual(result["page1.html"], "https://example.com/path/page1.html")
+        self.assertEqual(result["page2.html"], "https://example.com/path/page2.html")
+        self.assertEqual(result["/absolute"], "https://example.com/absolute")
 
 
 class TestConvenienceFunctions(unittest.TestCase):
-    """Test convenience functions."""
+    """便捷函数测试"""
     
     def test_parse_url(self):
-        """Test parse_url function."""
-        url = parse_url("https://example.com/path")
-        self.assertIsInstance(url, URL)
-        self.assertEqual(url.host, "example.com")
-    
-    def test_extract_domain(self):
-        """Test extract_domain function."""
-        domain = extract_domain("https://sub.example.com/path?q=1")
-        self.assertEqual(domain, "sub.example.com")
-    
-    def test_extract_path(self):
-        """Test extract_path function."""
-        path = extract_path("https://example.com/a/b/c")
-        self.assertEqual(path, "/a/b/c")
-    
-    def test_extract_query_params(self):
-        """Test extract_query_params function."""
-        params = extract_query_params("https://example.com?a=1&b=2")
-        self.assertEqual(params.get("a"), "1")
-        self.assertEqual(params.get("b"), "2")
+        """测试 parse_url 函数"""
+        info = parse_url("https://example.com:8080/path")
+        self.assertEqual(info.scheme, "https")
+        self.assertEqual(info.hostname, "example.com")
+        self.assertEqual(info.port, 8080)
     
     def test_build_url(self):
-        """Test build_url function."""
-        url = build_url(
-            scheme="https",
-            host="example.com",
-            path="/search",
-            query={"q": "test"}
-        )
-        self.assertIn("https://example.com/search", url)
-        self.assertIn("q=test", url)
+        """测试 build_url 函数"""
+        builder = build_url("https://example.com")
+        self.assertIsInstance(builder, URLBuilder)
     
-    def test_join_url(self):
-        """Test join_url function."""
-        result = join_url("https://example.com/a/b", "c")
-        self.assertEqual(result, "https://example.com/a/b/c")
-        
-        result_abs = join_url("https://example.com/a/b", "/c")
-        self.assertEqual(result_abs, "https://example.com/c")
+    def test_encode_decode_url(self):
+        """测试 encode_url 和 decode_url"""
+        original = "hello world"
+        encoded = encode_url(original)
+        decoded = decode_url(encoded)
+        self.assertEqual(decoded, original)
     
-    def test_sanitize_url(self):
-        """Test sanitize_url function."""
-        safe = sanitize_url("https://example.com/path")
-        self.assertTrue(safe.startswith("https://"))
-        
-        with self.assertRaises(URLValidationError):
-            sanitize_url("javascript:alert(1)")
+    def test_normalize_url(self):
+        """测试 normalize_url 函数"""
+        url = "HTTPS://EXAMPLE.COM/path"
+        normalized = normalize_url(url)
+        self.assertTrue(normalized.startswith("https://example.com"))
     
-    def test_get_url_info(self):
-        """Test get_url_info function."""
-        info = get_url_info("https://example.com:8080/path?q=1#frag")
-        
-        self.assertEqual(info['scheme'], "https")
-        self.assertEqual(info['host'], "example.com")
-        self.assertEqual(info['port'], 8080)
-        self.assertEqual(info['path'], "/path")
-        self.assertTrue(info['is_secure'])
-        self.assertTrue(info['is_absolute'])
-
-
-class TestURLShortener(unittest.TestCase):
-    """Test URL shortener functionality."""
+    def test_validate_url(self):
+        """测试 validate_url 函数"""
+        valid, errors = validate_url("https://example.com")
+        self.assertTrue(valid)
+        valid, errors = validate_url("not a url")
+        self.assertFalse(valid)
     
-    def test_shorten_and_expand(self):
-        """Test shortening and expanding URLs."""
-        shortener = URLShortener()
-        original = "https://example.com/very/long/path/that/needs/shortening"
-        
-        short = shortener.shorten(original)
-        self.assertTrue(short.startswith("https://short.url/"))
-        
-        expanded = shortener.expand(short)
-        self.assertEqual(expanded, original)
+    def test_is_safe_url(self):
+        """测试 is_safe_url 函数"""
+        self.assertTrue(is_safe_url("https://example.com"))
+        self.assertFalse(is_safe_url("javascript:alert(1)"))
     
-    def test_same_url_same_short(self):
-        """Test that same URL returns same short URL."""
-        shortener = URLShortener()
-        url = "https://example.com/test"
-        
-        short1 = shortener.shorten(url)
-        short2 = shortener.shorten(url)
-        
-        self.assertEqual(short1, short2)
+    def test_clean_url(self):
+        """测试 clean_url 函数"""
+        url = "https://example.com?utm_source=google&id=123"
+        clean = clean_url(url)
+        self.assertNotIn("utm_source", clean)
+        self.assertIn("id=123", clean)
     
-    def test_invalid_url_shorten(self):
-        """Test that invalid URLs raise error on shorten."""
-        shortener = URLShortener()
-        
-        with self.assertRaises(URLValidationError):
-            shortener.shorten("not-a-valid-url")
+    def test_get_domain(self):
+        """测试 get_domain 函数"""
+        self.assertEqual(get_domain("https://www.example.com/path"), "www.example.com")
     
-    def test_expand_nonexistent(self):
-        """Test expanding non-existent short URL."""
-        shortener = URLShortener()
-        
-        with self.assertRaises(URLError):
-            shortener.expand("https://short.url/xyz")
-
-
-class TestEdgeCases(unittest.TestCase):
-    """Test edge cases and boundary conditions."""
+    def test_get_query_params(self):
+        """测试 get_query_params 函数"""
+        params = get_query_params("https://example.com?a=1&b=2")
+        self.assertEqual(params["a"], ["1"])
+        self.assertEqual(params["b"], ["2"])
     
-    def test_empty_query_values(self):
-        """Test handling of empty query values."""
-        url = URL("https://example.com?empty=&filled=value")
-        self.assertEqual(url.get_param("empty"), "")
-        self.assertEqual(url.get_param("filled"), "value")
+    def test_set_query_param(self):
+        """测试 set_query_param 函数"""
+        url = set_query_param("https://example.com?a=1", "b", "2")
+        self.assertIn("a=1", url)
+        self.assertIn("b=2", url)
     
-    def test_unicode_in_url(self):
-        """Test handling of Unicode characters."""
-        url = URL("https://example.com/path/中文")
-        self.assertIn("中文", url.path)
-    
-    def test_special_characters_in_query(self):
-        """Test handling of special characters in query."""
-        url = URL("https://example.com?email=test@example.com&url=https://other.com")
-        self.assertEqual(url.get_param("email"), "test@example.com")
-    
-    def test_very_long_path(self):
-        """Test handling of long paths."""
-        long_path = "/" + "/".join(["segment"] * 100)
-        url = URL(f"https://example.com{long_path}")
-        self.assertEqual(len(url.get_path_segments()), 100)
-    
-    def test_multiple_subdomains(self):
-        """Test handling of multiple subdomains."""
-        url = URL("https://a.b.c.d.example.com/path")
-        self.assertEqual(url.host, "a.b.c.d.example.com")
-    
-    def test_port_boundary(self):
-        """Test port boundary values."""
-        url_min = URL("https://example.com:1/path")
-        url_max = URL("https://example.com:65535/path")
-        
-        self.assertEqual(url_min.port, 1)
-        self.assertEqual(url_max.port, 65535)
-        
-        with self.assertRaises(URLValidationError):
-            URL("https://example.com:0/path")
-        
-        with self.assertRaises(URLValidationError):
-            URL("https://example.com:65536/path")
-
-
-class TestURLChaining(unittest.TestCase):
-    """Test method chaining."""
-    
-    def test_query_chaining(self):
-        """Test query parameter chaining."""
-        url = URL("https://example.com")
-        result = (url
-            .set_param("a", "1")
-            .set_param("b", "2")
-            .remove_param("a")
-            .set_param("c", "3"))
-        
-        self.assertIs(result, url)
-        self.assertFalse(url.has_param("a"))
-        self.assertTrue(url.has_param("b"))
-        self.assertTrue(url.has_param("c"))
-    
-    def test_path_chaining(self):
-        """Test path manipulation chaining."""
-        url = URL("https://example.com/base")
-        result = (url
-            .append_path("sub1")
-            .append_path("sub2")
-            .set_path("/new"))
-        
-        self.assertIs(result, url)
-        self.assertEqual(url.path, "/new")
-
-
-def run_tests():
-    """Run all tests and return results."""
-    loader = unittest.TestLoader()
-    suite = unittest.TestSuite()
-    
-    # Add all test classes
-    test_classes = [
-        TestURLParsing,
-        TestURLValidation,
-        TestURLNormalization,
-        TestURLStringConversion,
-        TestURLQueryMethods,
-        TestURLPathMethods,
-        TestURLComparison,
-        TestURLChecks,
-        TestConvenienceFunctions,
-        TestURLShortener,
-        TestEdgeCases,
-        TestURLChaining,
-    ]
-    
-    for test_class in test_classes:
-        tests = loader.loadTestsFromTestCase(test_class)
-        suite.addTests(tests)
-    
-    runner = unittest.TextTestRunner(verbosity=2)
-    result = runner.run(suite)
-    
-    return result
+    def test_remove_query_param(self):
+        """测试 remove_query_param 函数"""
+        url = remove_query_param("https://example.com?a=1&b=2", "a")
+        self.assertNotIn("a=1", url)
+        self.assertIn("b=2", url)
 
 
 if __name__ == "__main__":
-    print("=" * 70)
-    print("AllToolkit - Python URL Utilities Test Suite")
-    print("=" * 70)
-    print()
-    
-    result = run_tests()
-    
-    print()
-    print("=" * 70)
-    print(f"Tests run: {result.testsRun}")
-    print(f"Failures: {len(result.failures)}")
-    print(f"Errors: {len(result.errors)}")
-    print(f"Success: {result.wasSuccessful()}")
-    print("=" * 70)
-    
-    sys.exit(0 if result.wasSuccessful() else 1)
+    # 运行测试
+    unittest.main(verbosity=2)
