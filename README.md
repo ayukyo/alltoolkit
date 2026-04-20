@@ -163,6 +163,10 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ### 最近新增测试
 
+- **Python otp_utils**: 新增 35+ 边界值测试，覆盖 TOTP/HOTP 生成、Base32 编解码、URI 构建、恢复码、空数据、极端参数等 🔐
+- **Python fractions_utils**: 143 个测试用例，覆盖分数运算、类型转换、GCD/LCM、序列生成、边界值（零、负数、大数）等 📊
+- **Python env_utils**: 65 个测试用例，覆盖环境变量操作、.env 文件、验证、快照、敏感数据脱敏等 ⚙️
+- **Python memory_profile_utils**: 32 个测试用例，覆盖内存监控、对象分析、泄漏检测、优化建议等 📈
 - **Python json_utils**: 新增 93 个测试用例，覆盖安全解析、序列化、路径查询、合并、扁平化、过滤、类型检查、深度比较等，新增 30+ 边界值测试（空值、深层嵌套、大数据、Unicode、数组边界等）📝
 - **Python humanize_utils**: 新增 30+ 边界值测试，覆盖空值、极大数值、负数、中文单位等边界场景 📝
 - **Python crypto_utils**: 新增 20+ 边界值测试，覆盖空数据、单字符、极长数据、自定义字符集等边界场景 🔐
@@ -222,9 +226,13 @@ perl Perl/csv_utils/csv_utils_test.pl
 | cache_utils | Python | 35 | ✅ 100% |
 | xml_utils | Python | 20 | ✅ 100% |
 | emoji_utils | Python | 49 | ✅ 100% |
+| otp_utils | Python | 45 | ✅ 100% |
+| fractions_utils | Python | 143 | ✅ 100% |
+| env_utils | Python | 65 | ✅ 100% |
+| memory_profile_utils | Python | 32 | ✅ 100% |
 
-**总计**: Python 108 模块，1700+ 测试用例，100% 通过率 ✅
+**总计**: Python 108 模块，1800+ 测试用例，100% 通过率 ✅
 
 ---
 
-**最后更新**: 2026-04-19
+**最后更新**: 2026-04-21

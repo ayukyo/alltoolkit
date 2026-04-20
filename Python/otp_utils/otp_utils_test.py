@@ -374,6 +374,155 @@ def test_error_handling():
     print("  ✓ Error handling passed")
 
 
+def test_edge_cases():
+    """Test edge cases and boundary values."""
+    print("Testing edge cases and boundary values...")
+    
+    # Base32 edge cases
+    # Empty data
+    empty_encoded = encode_base32(b'')
+    assert decode_base32(empty_encoded) == b''
+    
+    # Single byte
+    single_encoded = encode_base32(b'A')
+    assert decode_base32(single_encoded) == b'A'
+    
+    # Very long data
+    long_data = b'X' * 1000
+    long_encoded = encode_base32(long_data)
+    assert decode_base32(long_encoded) == long_data
+    
+    # Binary data with all byte values
+    all_bytes = bytes(range(256))
+    all_encoded = encode_base32(all_bytes)
+    assert decode_base32(all_encoded) == all_bytes
+    
+    # Base32 with lowercase input (should work)
+    assert decode_base32('jbswy3dp') == b'Hello'
+    
+    # HOTP edge cases
+    secret = generate_secret(20)
+    
+    # Counter = 0
+    code = generate_hotp(secret, 0)
+    assert len(code) == 6
+    
+    # Very large counter
+    code = generate_hotp(secret, 999999999)
+    assert len(code) == 6
+    
+    # All digit lengths
+    for digits in SUPPORTED_DIGITS:
+        code = generate_hotp(secret, 0, digits=digits)
+        assert len(code) == digits
+    
+    # All algorithms
+    for algo in SUPPORTED_ALGORITHMS:
+        code = generate_hotp(secret, 0, algorithm=algo)
+        assert len(code) == 6
+    
+    # TOTP edge cases
+    # Timestamp = 0
+    code = generate_totp(secret, timestamp=0)
+    assert len(code) == 6
+    
+    # Very large timestamp
+    code = generate_totp(secret, timestamp=9999999999)
+    assert len(code) == 6
+    
+    # Different periods
+    for period in [30, 60, 90]:
+        code = generate_totp(secret, period=period)
+        assert len(code) == 6
+    
+    # Recovery codes edge cases
+    # Generate with count = 1
+    codes = generate_recovery_codes(1, 8)
+    assert len(codes) == 1
+    
+    # Generate with very short length
+    codes = generate_recovery_codes(5, 4)
+    for code in codes:
+        # 4 chars without dash (length < 6)
+        assert len(code) == 4
+    
+    # Generate with longer length
+    codes = generate_recovery_codes(5, 16)
+    for code in codes:
+        # 16 chars = 8 chars + dash + 8 chars
+        parts = code.split('-')
+        assert len(parts[0]) == 8 and len(parts[1]) == 8
+    
+    # Validate recovery code with different separators
+    codes = generate_recovery_codes(1, 8)
+    original = codes[0]
+    # Test with spaces instead of dash
+    with_spaces = original.replace('-', ' ')
+    is_valid, _ = validate_recovery_code(codes, with_spaces)
+    assert is_valid
+    
+    # Test case insensitivity
+    codes = ['ABCD-EFGH']
+    is_valid, _ = validate_recovery_code(codes, 'abcd-efgh')
+    assert is_valid
+    
+    # format_code edge cases
+    # Single digit
+    assert format_code('1') == '1'
+    
+    # Empty string
+    assert format_code('') == ''
+    
+    # Non-standard length
+    assert format_code('12345') == '123 45'
+    
+    # Time utilities edge cases
+    # Period = 1 second
+    remaining = get_remaining_seconds(period=1, timestamp=0)
+    assert remaining == 1
+    
+    # Timestamp at exact period boundary
+    remaining = get_remaining_seconds(period=30, timestamp=30)
+    assert remaining == 30
+    
+    # URI edge cases
+    # Account with special characters
+    special_account = 'user+test@example.com'
+    uri = build_totp_uri(secret, special_account, 'TestApp')
+    assert 'otpauth://totp/' in uri
+    
+    # Issuer with spaces
+    issuer_with_space = 'My Test App'
+    uri = build_totp_uri(secret, 'user@test.com', issuer_with_space)
+    assert 'otpauth://totp/' in uri
+    
+    # Parse URI with minimal parameters
+    minimal_uri = 'otpauth://totp/MyApp:user?secret=JBSWY3DPEHPK3PXP'
+    parsed = parse_otp_uri(minimal_uri)
+    assert parsed['secret'] == 'JBSWY3DPEHPK3PXP'
+    
+    # TOTP/HOTP class edge cases
+    # TOTP with all custom parameters
+    custom_totp = TOTP(secret, digits=8, period=60, algorithm='SHA512')
+    code = custom_totp.generate(timestamp=1234567890)
+    assert len(code) == 8
+    
+    # HOTP counter operations
+    hotp = HOTP(secret)
+    hotp.reset_counter(0)
+    assert hotp.counter == 0
+    
+    # Generate without incrementing counter
+    code0 = hotp.generate(0)
+    assert hotp.counter == 0
+    
+    # Generate with auto-increment
+    code_auto = hotp.generate()  # Should increment
+    assert hotp.counter == 1
+    
+    print("  ✓ Edge cases passed")
+
+
 def run_tests():
     """Run all tests."""
     print("=" * 50)
@@ -389,6 +538,7 @@ def run_tests():
     test_totp_class()
     test_hotp_class()
     test_error_handling()
+    test_edge_cases()
     
     print("=" * 50)
     print("✅ All tests passed!")
