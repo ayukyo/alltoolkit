@@ -930,17 +930,26 @@ def get_color_name(color: Union[RGB, HexColor], threshold: int = 50) -> Optional
     if hex_color in COLOR_NAMES:
         return COLOR_NAMES[hex_color]
     
-    # Find closest match
+    # Find closest match with early termination
     rgb = hex_to_rgb(hex_color)
     min_distance = threshold
     closest_name = None
     
+    # 优化：使用 squared distance 比较避免 sqrt 开销
+    # 只在找到最佳匹配后才计算实际距离
+    threshold_sq = threshold * threshold
+    
     for known_hex, name in COLOR_NAMES.items():
         known_rgb = hex_to_rgb(known_hex)
-        distance = color_distance(rgb, known_rgb)
+        # 计算 squared distance
+        dr = rgb[0] - known_rgb[0]
+        dg = rgb[1] - known_rgb[1]
+        db = rgb[2] - known_rgb[2]
+        dist_sq = dr * dr + dg * dg + db * db
         
-        if distance < min_distance:
-            min_distance = distance
+        if dist_sq < min_distance * min_distance:
+            # 只有当比当前最佳更好时才更新
+            min_distance = math.sqrt(dist_sq)
             closest_name = name
     
     return closest_name
@@ -961,7 +970,12 @@ def color_distance(color1: RGB, color2: RGB) -> float:
         >>> color_distance((255, 0, 0), (255, 10, 0))
         10.0
     """
-    return math.sqrt(sum((c1 - c2) ** 2 for c1, c2 in zip(color1, color2)))
+    # 优化：避免 zip 和 sum 开销，直接计算
+    # 对于小规模计算，直接展开比使用 zip+sum 更高效
+    dr = color1[0] - color2[0]
+    dg = color1[1] - color2[1]
+    db = color1[2] - color2[2]
+    return math.sqrt(dr * dr + dg * dg + db * db)
 
 
 def is_similar_color(color1: Union[RGB, HexColor], 

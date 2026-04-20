@@ -291,10 +291,10 @@ def hash_file(filepath: Union[str, Path], algorithm: HashAlgorithm = 'sha256',
     
     Note:
         Optimized version:
-        - Uses try/except.new() once for algorithm validation
-        - Ensures minimum chunk_size for I/O efficiency
-        - Uses readinto() for zero-copy when available (Python 3.8+)
-        - Better error messages with file size info
+        - Single-pass algorithm validation using hashlib.new()
+        - Adaptive chunk size based on file size for optimal I/O
+        - Direct read for small files (< chunk_size)
+        - Better error messages with file info
     """
     filepath = Path(filepath)
     
@@ -304,41 +304,52 @@ def hash_file(filepath: Union[str, Path], algorithm: HashAlgorithm = 'sha256',
     if not filepath.is_file():
         raise ValueError(f"Path is not a file: {filepath}")
     
-    # 优化：提前验证算法，避免在文件打开后才发现算法无效
+    # 获取文件大小用于优化决策
+    try:
+        file_size = filepath.stat().st_size
+    except OSError as e:
+        raise PermissionError(f"Cannot access file stats: {filepath}") from e
+    
+    # 优化：单次算法验证，避免重复调用 hashlib.new()
     try:
         hasher = hashlib.new(algorithm)
     except ValueError as e:
         raise ValueError(f"Unsupported hash algorithm '{algorithm}'. "
                         f"Supported: {', '.join(SUPPORTED_ALGORITHMS)}") from e
     
-    # 优化：确保 chunk_size 合理，太小会降低 I/O 效率
-    # 使用更大的 chunk_size 对大文件更高效（避免频繁 I/O）
-    chunk_size = max(512, chunk_size)
-    
-    # 获取文件大小用于优化决策
-    file_size = filepath.stat().st_size
-    
-    # 对于小文件（< chunk_size），直接读取，避免多次 I/O
-    if file_size > 0 and file_size <= chunk_size:
+    # 优化：自适应 chunk size
+    # 小文件直接读取，避免多次 I/O
+    # 中等文件使用默认 chunk size
+    # 大文件使用更大的 chunk size 提升效率
+    if file_size <= 0:
+        # 空文件直接返回空数据的哈希
+        pass
+    elif file_size <= chunk_size:
+        # 小文件：直接读取，单次 I/O
         try:
             content = filepath.read_bytes()
             hasher.update(content)
         except PermissionError as e:
             raise PermissionError(f"Permission denied reading file: {filepath}") from e
     else:
-        # 对于大文件，使用分块读取
+        # 大文件：分块读取
+        # 对于大文件（>1MB），使用更大的 chunk size
+        actual_chunk_size = chunk_size
+        if file_size > 1024 * 1024:  # > 1MB
+            actual_chunk_size = max(chunk_size, 64 * 1024)  # 至少 64KB
+        
         try:
             with open(filepath, 'rb') as f:
                 while True:
-                    chunk = f.read(chunk_size)
+                    chunk = f.read(actual_chunk_size)
                     if not chunk:
                         break
                     hasher.update(chunk)
         except PermissionError as e:
             raise PermissionError(f"Permission denied reading file: {filepath}") from e
     
-    digest = hasher.digest()
-    return digest.hex() if hex_output else digest
+    # 优化：直接调用 hexdigest() 或 digest()，避免中间变量
+    return hasher.hexdigest() if hex_output else hasher.digest()
 
 
 def hash_directory(dirpath: Union[str, Path], algorithm: HashAlgorithm = 'sha256',

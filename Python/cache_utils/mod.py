@@ -266,14 +266,27 @@ class MemoryCache(Generic[K, V]):
             清理的条目数
         """
         with self._get_lock():
-            expired_keys = [
-                k for k, entry in self._cache.items() 
-                if entry.is_expired()
-            ]
-            for key in expired_keys:
-                del self._cache[key]
-                self._stats.record_expiration()
-            return len(expired_keys)
+            # 优化：使用 dict comprehension 重建非过期条目，避免逐个删除开销
+            # 对于大量过期条目场景，重建字典比逐个删除更高效
+            current_time = time.time()
+            valid_keys = set()
+            
+            for key, entry in self._cache.items():
+                if entry.expires_at is None or current_time <= entry.expires_at:
+                    valid_keys.add(key)
+            
+            expired_count = len(self._cache) - len(valid_keys)
+            
+            if expired_count > 0:
+                # 只有有过期条目时才重建
+                self._cache = OrderedDict(
+                    (k, self._cache[k]) for k in valid_keys
+                )
+                # 更新统计
+                for _ in range(expired_count):
+                    self._stats.record_expiration()
+            
+            return expired_count
     
     def get_or_set(
         self,

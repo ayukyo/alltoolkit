@@ -1051,7 +1051,18 @@ def minmax(iterable: Iterable[T], key: Optional[Callable[[T], Any]] = None) -> T
         raise ValueError("minmax() called on empty iterable")
     
     current_min = current_max = first
-    key_func = key if key else lambda x: x
+    # 优化：避免每次调用 lambda，使用 identity 函数替代
+    # 对于无 key 参数的情况，直接比较元素本身
+    if key is None:
+        for item in it:
+            if item < current_min:
+                current_min = item
+            elif item > current_max:
+                current_max = item
+        return current_min, current_max
+    
+    # 有 key 函数时，缓存 key 结果以减少重复调用
+    key_func = key
     current_min_key = current_max_key = key_func(first)
     
     for item in it:
@@ -1059,7 +1070,7 @@ def minmax(iterable: Iterable[T], key: Optional[Callable[[T], Any]] = None) -> T
         if k < current_min_key:
             current_min = item
             current_min_key = k
-        if k > current_max_key:
+        elif k > current_max_key:
             current_max = item
             current_max_key = k
     

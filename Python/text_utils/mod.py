@@ -340,17 +340,26 @@ class TextUtils:
         Returns:
             Cleaned text
         """
-        result = text
-        
+        # 优化：按操作顺序组织，减少不必要的字符串操作
+        # Unicode normalization 应首先进行，因为它可能改变字符
         if normalize_unicode:
-            result = unicodedata.normalize('NFKC', result)
+            result = unicodedata.normalize('NFKC', text)
+        else:
+            result = text
         
-        if remove_punctuation:
-            result = ''.join(c for c in result if c not in PUNCTUATION_ALL)
+        # 优化：合并删除操作为单次遍历，避免多次字符串重建
+        if remove_punctuation or remove_digits:
+            # 构建需要删除的字符集合
+            chars_to_remove = set()
+            if remove_punctuation:
+                chars_to_remove.update(PUNCTUATION_ALL)
+            if remove_digits:
+                chars_to_remove.update('0123456789')
+            
+            # 单次遍历删除所有目标字符
+            result = ''.join(c for c in result if c not in chars_to_remove)
         
-        if remove_digits:
-            result = ''.join(c for c in result if not c.isdigit())
-        
+        # 空格处理
         if remove_extra_spaces:
             result = re.sub(r'\s+', ' ', result)
         
