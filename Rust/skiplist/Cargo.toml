@@ -1,0 +1,38 @@
+[package]
+name = "skiplist"
+version = "0.1.0"
+edition = "2021"
+description = "A complete skip list implementation with ordered map, concurrent support, and range queries"
+license = "MIT"
+
+[dependencies]
+
+[dev-dependencies]
+
+[[example]]
+name = "basic_operations"
+path = "examples/basic_operations.rs"
+
+[[example]]
+name = "ordered_map"
+path = "examples/ordered_map.rs"
+
+[[example]]
+name = "range_queries"
+path = "examples/range_queries.rs"
+
+[[example]]
+name = "rank_queries"
+path = "examples/rank_queries.rs"
+
+[[example]]
+name = "concurrent"
+path = "examples/concurrent.rs"
+
+[[example]]
+name = "performance"
+path = "examples/performance.rs"
+
+[[example]]
+name = "leaderboard"
+path = "examples/leaderboard.rs"

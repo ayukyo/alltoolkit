@@ -1,5 +1,20 @@
 # AllToolkit 更新日志
 
+## [2026-04-21]
+
+### 新增
+- **Rust: skiplist (16 单元测试，完整跳跃表工具)** 📊
+  - SkipList：有序键值映射，O(log n) 平均时间复杂度
+  - IndexedSkipList：支持排名查询（get_by_rank, rank_of）
+  - ConcurrentSkipList：线程安全版本（RwLock 包装）
+  - 范围查询：高效迭代键范围
+  - 配置化：可调概率和最大层数
+  - 迭代器：keys(), values(), iter() 支持
+  - Clone/Extend/FromIterator trait 实现
+  - 6 个示例文件（基础操作/范围查询/排名查询/并发/性能/排行榜）
+  - 零外部依赖，纯 Rust 标准库实现
+  - 测试覆盖：16 测试全部通过
+
 ## [2026-04-19]
 
 ### 新增
