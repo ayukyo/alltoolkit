@@ -8,6 +8,7 @@ AllToolkit 的 C# 实现，提供零依赖的生产级工具函数。
 |------|------|------|
 | string_utils | `string_utils/StringUtils.cs` | 字符串处理工具 |
 | http_utils | `http_utils/` | HTTP 请求工具 |
+| trie_utils | `trie_utils/TrieUtils.cs` | Trie 前缀树数据结构 |
 
 ## 快速开始
 
