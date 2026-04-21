@@ -52,7 +52,6 @@ def _run_subprocess(cmd, input_data=None, capture=True, timeout_sec=5.0):
     Returns:
         tuple: (returncode, stdout, stderr)
     """
-    import time
     try:
         kwargs = {
             'universal_newlines': True
@@ -65,16 +64,18 @@ def _run_subprocess(cmd, input_data=None, capture=True, timeout_sec=5.0):
         
         proc = subprocess.Popen(cmd, **kwargs)
         
-        # Python 3.6 compatibility: use a simple timeout mechanism
-        start_time = time.time()
-        while proc.poll() is None:
-            if time.time() - start_time > timeout_sec:
-                proc.terminate()
-                return -1, None, "Timeout"
-            time.sleep(0.01)
-        
-        stdout, stderr = proc.communicate(input=input_data)
-        return proc.returncode, stdout, stderr
+        # 优化：使用 communicate 的超时参数（Python 3.6+）
+        # 这比手动轮询 poll() 更高效，减少系统调用次数
+        try:
+            stdout, stderr = proc.communicate(input=input_data, timeout=timeout_sec)
+            return proc.returncode, stdout, stderr
+        except subprocess.TimeoutExpired:
+            # 超时后终止进程
+            proc.kill()
+            # 等待进程结束，防止僵尸进程
+            proc.communicate()
+            return -1, None, "Timeout"
+            
     except FileNotFoundError:
         return -2, None, "Command not found"
     except OSError as e:

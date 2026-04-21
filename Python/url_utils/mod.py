@@ -469,20 +469,28 @@ class URLNormalizer:
     @staticmethod
     def remove_tracking_params(url: str) -> str:
         """移除常见的追踪参数"""
-        # 常见追踪参数
-        tracking_params = {
+        # 常见追踪参数（使用 frozenset 提高查找性能）
+        tracking_params = frozenset({
             'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
             'fbclid', 'gclid', 'msclkid', 'ref', 'source', '_ga', 'mc_eid',
             'mc_cid', 'mkt_tok', 'zanpid', 'yclid', 'fb_source', 'fb_ref'
-        }
+        })
         
         parsed = urlparse(url)
         if not parsed.query:
             return url
         
-        params = parse_qs(parsed.query)
-        # 移除追踪参数
-        cleaned_params = {k: v for k, v in params.items() if k.lower() not in tracking_params}
+        # 优化：使用 dict comprehension 和 generator
+        # 避免 parse_qs 创建中间字典后再删除键
+        params = parse_qsl(parsed.query)
+        cleaned_params = {}
+        
+        for key, value in params:
+            if key.lower() not in tracking_params:
+                if key in cleaned_params:
+                    cleaned_params[key].append(value)
+                else:
+                    cleaned_params[key] = [value]
         
         query = urlencode(cleaned_params, doseq=True) if cleaned_params else ""
         return urlunparse((

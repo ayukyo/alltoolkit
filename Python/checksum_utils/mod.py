@@ -224,21 +224,23 @@ class Fletcher:
         if isinstance(data, str):
             data = data.encode('utf-8')
         
-        # 处理为 16 位字
-        words = []
-        for i in range(0, len(data), 2):
-            if i + 1 < len(data):
-                words.append((data[i + 1] << 8) | data[i])
-            else:
-                words.append(data[i])
-        
+        # 优化：单遍扫描，避免创建中间 words 列表
+        # 直接在遍历字节时计算 16 位字
         sum1 = 0
         sum2 = 0
         mod = 65535
+        length = len(data)
         
-        for word in words:
+        # 使用索引遍历，每 2 字节组成一个 16 位字
+        i = 0
+        while i < length:
+            if i + 1 < length:
+                word = (data[i + 1] << 8) | data[i]
+            else:
+                word = data[i]
             sum1 = (sum1 + word) % mod
             sum2 = (sum2 + sum1) % mod
+            i += 2
         
         return (sum2 << 16) | sum1
     
@@ -256,22 +258,30 @@ class Fletcher:
         if isinstance(data, str):
             data = data.encode('utf-8')
         
-        # 处理为 32 位字
-        words = []
-        for i in range(0, len(data), 4):
-            word = 0
-            for j in range(4):
-                if i + j < len(data):
-                    word |= data[i + j] << (j * 8)
-            words.append(word)
-        
+        # 优化：单遍扫描，避免创建中间 words 列表
+        # 直接在遍历字节时计算 32 位字
         sum1 = 0
         sum2 = 0
         mod = 0xFFFFFFFF
+        length = len(data)
         
-        for word in words:
+        # 使用索引遍历，每 4 字节组成一个 32 位字
+        i = 0
+        while i < length:
+            word = 0
+            # 内联计算 32 位字，避免额外循环
+            if i < length:
+                word |= data[i]
+            if i + 1 < length:
+                word |= data[i + 1] << 8
+            if i + 2 < length:
+                word |= data[i + 2] << 16
+            if i + 3 < length:
+                word |= data[i + 3] << 24
+            
             sum1 = (sum1 + word) % mod
             sum2 = (sum2 + sum1) % mod
+            i += 4
         
         return (sum2 << 32) | sum1
 
@@ -303,9 +313,12 @@ class InternetChecksum:
             word = (data[i] << 8) | data[i + 1]
             total += word
         
-        # 折叠进位
-        while total >> 16:
-            total = (total & 0xFFFF) + (total >> 16)
+        # 优化：折叠进位使用位运算，减少循环次数
+        # 对于 32 位累加结果，最多需要 2 次折叠
+        # 将高 16 位加到低 16 位
+        total = (total & 0xFFFF) + (total >> 16)
+        # 处理可能的溢出（最多再加一次）
+        total = (total & 0xFFFF) + (total >> 16)
         
         return ~total & 0xFFFF
     

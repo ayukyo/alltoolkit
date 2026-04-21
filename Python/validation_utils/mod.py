@@ -384,12 +384,23 @@ def is_chinese_id(value: str, field: Optional[str] = None) -> ValidationResult:
             field=field
         )
     
+    # 优化：使用预定义的权重和校验码数组，避免每次调用时创建
     # Validate check digit
-    weights = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2]
-    check_codes = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2']
+    weights = (7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2)
+    check_codes = ('1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2')
     
-    total = sum(int(value[i]) * weights[i] for i in range(17))
-    check_digit = check_codes[total % 11]
+    # 优化：使用内置 sum 函数和 zip，更高效
+    # 一次性将前 17 位转换为整数并计算权重总和
+    try:
+        digits = [int(value[i]) for i in range(17)]
+        total = sum(d * w for d, w in zip(digits, weights))
+        check_digit = check_codes[total % 11]
+    except ValueError:
+        return ValidationResult(
+            False, value,
+            error=f"{field + ' ' if field else ''}contains invalid digit",
+            field=field
+        )
     
     if value[17] == check_digit:
         return ValidationResult(True, value, field=field)
