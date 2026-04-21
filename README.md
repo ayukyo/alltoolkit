@@ -172,6 +172,10 @@ perl Perl/csv_utils/csv_utils_test.pl
 - **Python crypto_utils**: 新增 20+ 边界值测试，覆盖空数据、单字符、极长数据、自定义字符集等边界场景 🔐
 - **Python qr_code_utils**: 新增 26 边界值测试，覆盖空数据、Unicode、特殊字符、SVG/ASCII 边界等场景 🔲
 - **Python tarot_utils**: 36 个测试用例，覆盖塔罗牌牌组、抽取、解读（单牌/三牌/凯尔特十字）、是非问题等 🎴
+- **Python sparkline_utils**: 70 个测试用例，覆盖迷你图生成、Braille 模式、柱状图、趋势指示器、仪表盘、胜负图、直方图等 📊
+- **Python solar_utils**: 52 个测试用例，覆盖日出日落计算、太阳位置、曙暮光时间、白昼时长、黄金时刻、季节判断等 ☀️
+- **Python boyer_moore_utils**: 25+ 测试用例，覆盖字符串搜索、中文文本、特殊字符、性能比较等 🔍
+- **Python chess_utils**: 30+ 测试用例，覆盖棋盘、棋子、移动、FEN/PGN 格式、特殊局面、完整对局等 ♟️
 - **Python time_zone_utils**: 45 个测试用例，覆盖时区转换、DST、会议时间查找、边界值（跨日期/年份、半小时偏移）等 🌍
 - **Python mask_utils**: 41 个测试用例，覆盖邮箱/手机/身份证/银行卡/信用卡/姓名/地址/IP/密码/URL 掩码等 🔒
 - **Python nanoid_utils**: 40 个测试用例，覆盖 ID 生成、自定义长度/字符集、唯一性验证等 🆔
@@ -230,9 +234,14 @@ perl Perl/csv_utils/csv_utils_test.pl
 | fractions_utils | Python | 143 | ✅ 100% |
 | env_utils | Python | 65 | ✅ 100% |
 | memory_profile_utils | Python | 32 | ✅ 100% |
+| sparkline_utils | Python | 70 | ✅ 100% |
+| solar_utils | Python | 52 | ✅ 100% |
+| tarot_utils | Python | 36 | ✅ 100% |
+| boyer_moore_utils | Python | 25+ | ✅ 100% |
+| chess_utils | Python | 30+ | ✅ 100% |
 
-**总计**: Python 108 模块，1800+ 测试用例，100% 通过率 ✅
+**总计**: Python 108 模块，2000+ 测试用例，100% 通过率 ✅
 
 ---
 
-**最后更新**: 2026-04-21
+**最后更新**: 2026-04-22
