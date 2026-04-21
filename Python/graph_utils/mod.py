@@ -1,329 +1,233 @@
 """
-Graph Utils - 图算法工具集
+Graph Utils - 图论算法工具包
 
-提供完整的图数据结构和算法实现，包括：
-- 图表示（邻接表/邻接矩阵）
-- 图遍历（BFS/DFS）
-- 最短路径（Dijkstra/Bellman-Ford/Floyd-Warshall）
-- 最小生成树（Kruskal/Prim）
+提供完整的图论算法实现，零外部依赖，仅使用 Python 标准库。
+
+功能:
+- 图的表示和操作（邻接表/邻接矩阵）
+- 遍历算法（BFS/DFS）
+- 最短路径算法（Dijkstra/Bellman-Ford/Floyd-Warshall）
+- 最小生成树（Prim/Kruskal）
 - 拓扑排序
 - 连通分量
 - 环检测
 - 二分图检测
-- 欧拉路径
-- 图工具函数
+- 其他实用算法
 
-零依赖，纯 Python 标准库实现。
+作者: AllToolkit
+日期: 2026-04-21
 """
 
-from typing import (
-    Dict, List, Set, Tuple, Optional, Callable, Any, Union,
-    Iterator, TypeVar, Generic, Deque
-)
 from collections import deque, defaultdict
-from dataclasses import dataclass, field
-from enum import Enum
+from typing import (
+    Any, Callable, Dict, Generic, Hashable, List, Optional, 
+    Set, Tuple, TypeVar, Union
+)
 from heapq import heappush, heappop
-import math
+import copy
 
-T = TypeVar('T')
+T = TypeVar('T', bound=Hashable)
 Weight = Union[int, float]
-
-
-class GraphType(Enum):
-    """图类型枚举"""
-    UNDIRECTED = "undirected"
-    DIRECTED = "directed"
-
-
-@dataclass
-class Edge(Generic[T]):
-    """边数据结构"""
-    source: T
-    target: T
-    weight: Weight = 1.0
-    
-    def __hash__(self):
-        return hash((self.source, self.target))
-    
-    def __eq__(self, other):
-        if not isinstance(other, Edge):
-            return False
-        return self.source == other.source and self.target == other.target
-
-
-@dataclass
-class PathResult(Generic[T]):
-    """路径结果"""
-    path: List[T]
-    distance: Weight
-    found: bool
-    
-    def __len__(self) -> int:
-        return len(self.path)
-
-
-@dataclass
-class MSTResult(Generic[T]):
-    """最小生成树结果"""
-    edges: List[Edge[T]]
-    total_weight: Weight
-    vertices: Set[T]
-
-
-@dataclass
-class ComponentResult(Generic[T]):
-    """连通分量结果"""
-    components: List[Set[T]]
-    count: int
-    is_connected: bool
 
 
 class Graph(Generic[T]):
     """
-    通用图数据结构
+    通用图数据结构，支持有向/无向、带权/无权图。
     
-    支持邻接表和邻接矩阵两种表示方式，支持有向图和无向图。
+    内部使用邻接表表示，支持任意可哈希的节点类型。
+    
+    示例:
+        >>> g = Graph[str]()
+        >>> g.add_edge("A", "B", weight=5)
+        >>> g.add_edge("B", "C")
+        >>> g.neighbors("A")
+        [('B', 5)]
     """
     
-    def __init__(
-        self, 
-        graph_type: GraphType = GraphType.UNDIRECTED,
-        representation: str = "adjacency_list"
-    ):
+    def __init__(self, directed: bool = False):
         """
-        初始化图
+        初始化图。
         
         Args:
-            graph_type: 图类型（有向/无向）
-            representation: 表示方式（adjacency_list/adjacency_matrix）
+            directed: 是否为有向图，默认 False（无向图）
         """
-        self.graph_type = graph_type
-        self.representation = representation
-        self._vertices: Set[T] = set()
-        
-        if representation == "adjacency_list":
-            self._adj: Dict[T, Dict[T, Weight]] = defaultdict(dict)
-        else:
-            self._adj: Dict[T, Dict[T, Weight]] = {}
+        self.directed = directed
+        self._adj: Dict[T, List[Tuple[T, Weight]]] = defaultdict(list)
+        self._nodes: Set[T] = set()
     
-    @property
-    def vertices(self) -> Set[T]:
-        """获取所有顶点"""
-        return self._vertices.copy()
+    def add_node(self, node: T) -> None:
+        """添加节点。"""
+        self._nodes.add(node)
     
-    @property
-    def edges(self) -> List[Edge[T]]:
-        """获取所有边"""
-        edge_set = set()
-        for u in self._adj:
-            for v, w in self._adj[u].items():
-                edge_set.add(Edge(u, v, w))
-                if self.graph_type == GraphType.UNDIRECTED:
-                    edge_set.add(Edge(v, u, w))
-        return list(edge_set)
-    
-    @property
-    def vertex_count(self) -> int:
-        """顶点数量"""
-        return len(self._vertices)
-    
-    @property
-    def edge_count(self) -> int:
-        """边数量"""
-        count = sum(len(neighbors) for neighbors in self._adj.values())
-        if self.graph_type == GraphType.UNDIRECTED:
-            count //= 2
-        return count
-    
-    @property
-    def is_directed(self) -> bool:
-        """是否为有向图"""
-        return self.graph_type == GraphType.DIRECTED
-    
-    def add_vertex(self, vertex: T) -> 'Graph[T]':
-        """添加顶点"""
-        self._vertices.add(vertex)
-        if vertex not in self._adj:
-            self._adj[vertex] = {}
-        return self
-    
-    def add_edge(
-        self, 
-        source: T, 
-        target: T, 
-        weight: Weight = 1.0
-    ) -> 'Graph[T]':
+    def add_edge(self, u: T, v: T, weight: Weight = 1) -> None:
         """
-        添加边
+        添加边。
         
         Args:
-            source: 起点
-            target: 终点
-            weight: 权重
+            u: 起点
+            v: 终点
+            weight: 边权重，默认为 1
         """
-        self._vertices.add(source)
-        self._vertices.add(target)
+        self._nodes.add(u)
+        self._nodes.add(v)
+        self._adj[u].append((v, weight))
         
-        if source not in self._adj:
-            self._adj[source] = {}
-        self._adj[source][target] = weight
-        
-        if self.graph_type == GraphType.UNDIRECTED:
-            if target not in self._adj:
-                self._adj[target] = {}
-            self._adj[target][source] = weight
-        
-        return self
+        if not self.directed:
+            self._adj[v].append((u, weight))
     
-    def remove_edge(self, source: T, target: T) -> bool:
-        """删除边"""
-        if source in self._adj and target in self._adj[source]:
-            del self._adj[source][target]
-            if self.graph_type == GraphType.UNDIRECTED:
-                if target in self._adj and source in self._adj[target]:
-                    del self._adj[target][source]
-            return True
-        return False
+    def remove_edge(self, u: T, v: T) -> bool:
+        """
+        移除边。
+        
+        Returns:
+            是否成功移除
+        """
+        removed = False
+        self._adj[u] = [(n, w) for n, w in self._adj[u] if n != v]
+        removed = len(self._adj[u]) < len([n for n, w in self._adj.get(u, []) if n == v]) + len(self._adj[u])
+        
+        if not self.directed and u in self._adj:
+            original_len = len(self._adj.get(v, []))
+            self._adj[v] = [(n, w) for n, w in self._adj.get(v, []) if n != u]
+            removed = original_len > len(self._adj.get(v, []))
+        
+        return removed
     
-    def remove_vertex(self, vertex: T) -> bool:
-        """删除顶点及其所有边"""
-        if vertex not in self._vertices:
+    def remove_node(self, node: T) -> bool:
+        """
+        移除节点及其所有关联边。
+        
+        Returns:
+            是否成功移除
+        """
+        if node not in self._nodes:
             return False
         
-        self._vertices.discard(vertex)
+        self._nodes.discard(node)
+        del self._adj[node]
         
-        # 删除所有出边
-        if vertex in self._adj:
-            del self._adj[vertex]
-        
-        # 删除所有入边
+        # 移除所有指向该节点的边
         for u in self._adj:
-            if vertex in self._adj[u]:
-                del self._adj[u][vertex]
+            self._adj[u] = [(v, w) for v, w in self._adj[u] if v != node]
         
         return True
     
-    def has_vertex(self, vertex: T) -> bool:
-        """检查顶点是否存在"""
-        return vertex in self._vertices
+    def neighbors(self, node: T) -> List[Tuple[T, Weight]]:
+        """获取节点的邻居及边权重。"""
+        return self._adj.get(node, [])
     
-    def has_edge(self, source: T, target: T) -> bool:
-        """检查边是否存在"""
-        return source in self._adj and target in self._adj[source]
+    def get_nodes(self) -> Set[T]:
+        """获取所有节点。"""
+        return self._nodes.copy()
     
-    def get_edge_weight(self, source: T, target: T) -> Optional[Weight]:
-        """获取边权重"""
-        if self.has_edge(source, target):
-            return self._adj[source][target]
-        return None
+    def get_edges(self) -> List[Tuple[T, T, Weight]]:
+        """获取所有边（起点，终点，权重）。"""
+        edges = []
+        seen = set()
+        
+        for u in self._adj:
+            for v, w in self._adj[u]:
+                if self.directed:
+                    edges.append((u, v, w))
+                else:
+                    edge_key = (min(u, v), max(u, v))
+                    if edge_key not in seen:
+                        edges.append((u, v, w))
+                        seen.add(edge_key)
+        
+        return edges
     
-    def get_neighbors(self, vertex: T) -> Dict[T, Weight]:
-        """获取邻居节点及其权重"""
-        if vertex not in self._adj:
-            return {}
-        return self._adj[vertex].copy()
+    def has_node(self, node: T) -> bool:
+        """检查节点是否存在。"""
+        return node in self._nodes
     
-    def get_degree(self, vertex: T) -> int:
-        """获取顶点度数"""
-        if self.is_directed:
-            out_degree = len(self._adj.get(vertex, {}))
-            in_degree = sum(1 for u in self._adj if vertex in self._adj[u])
-            return in_degree + out_degree
-        return len(self._adj.get(vertex, {}))
+    def has_edge(self, u: T, v: T) -> bool:
+        """检查边是否存在。"""
+        return any(n == v for n, _ in self._adj.get(u, []))
     
-    def get_in_degree(self, vertex: T) -> int:
-        """获取入度（有向图）"""
-        return sum(1 for u in self._adj if vertex in self._adj[u])
+    def degree(self, node: T) -> int:
+        """获取节点的度。"""
+        return len(self._adj.get(node, []))
     
-    def get_out_degree(self, vertex: T) -> int:
-        """获取出度（有向图）"""
-        return len(self._adj.get(vertex, {}))
+    def node_count(self) -> int:
+        """获取节点数量。"""
+        return len(self._nodes)
+    
+    def edge_count(self) -> int:
+        """获取边数量。"""
+        if self.directed:
+            return sum(len(adj) for adj in self._adj.values())
+        return len(self.get_edges())
     
     def copy(self) -> 'Graph[T]':
-        """复制图"""
-        new_graph = Graph(self.graph_type, self.representation)
-        new_graph._vertices = self._vertices.copy()
-        new_graph._adj = {u: v.copy() for u, v in self._adj.items()}
+        """创建图的深拷贝。"""
+        new_graph = Graph[T](directed=self.directed)
+        new_graph._nodes = self._nodes.copy()
+        new_graph._adj = defaultdict(list)
+        for u in self._adj:
+            new_graph._adj[u] = self._adj[u].copy()
         return new_graph
     
     def to_adjacency_matrix(self) -> Tuple[List[T], List[List[Weight]]]:
         """
-        转换为邻接矩阵表示
+        转换为邻接矩阵表示。
         
         Returns:
-            (顶点列表, 邻接矩阵)
+            (节点列表, 邻接矩阵)
         """
-        vertices = sorted(self._vertices, key=str)
-        n = len(vertices)
-        vertex_index = {v: i for i, v in enumerate(vertices)}
+        nodes = sorted(self._nodes, key=lambda x: (str(type(x)), str(x)))
+        n = len(nodes)
+        node_index = {node: i for i, node in enumerate(nodes)}
         
-        # 初始化矩阵（无穷大表示不可达）
+        # 使用无穷大表示无连接
         matrix = [[float('inf')] * n for _ in range(n)]
-        
-        # 对角线为0
         for i in range(n):
-            matrix[i][i] = 0
+            matrix[i][i] = 0  # 对角线为0
         
-        # 填充边
         for u in self._adj:
-            for v, w in self._adj[u].items():
-                i, j = vertex_index[u], vertex_index[v]
+            for v, w in self._adj[u]:
+                i, j = node_index[u], node_index[v]
                 matrix[i][j] = w
         
-        return vertices, matrix
+        return nodes, matrix
     
     @classmethod
-    def from_edges(
-        cls,
-        edges: List[Tuple[T, T, Weight]],
-        graph_type: GraphType = GraphType.UNDIRECTED
-    ) -> 'Graph[T]':
-        """从边列表创建图"""
-        graph = cls(graph_type)
+    def from_edges(cls, edges: List[Tuple[T, T]], directed: bool = False) -> 'Graph[T]':
+        """
+        从边列表创建图。
+        
+        Args:
+            edges: 边列表，每条边为 (u, v) 或 (u, v, weight)
+            directed: 是否为有向图
+        
+        Returns:
+            新建的图
+        """
+        graph = cls[T](directed=directed)
         for edge in edges:
             if len(edge) == 2:
                 graph.add_edge(edge[0], edge[1])
             else:
                 graph.add_edge(edge[0], edge[1], edge[2])
         return graph
-    
-    @classmethod
-    def from_adjacency_list(
-        cls,
-        adj_list: Dict[T, List[Union[T, Tuple[T, Weight]]]],
-        graph_type: GraphType = GraphType.UNDIRECTED
-    ) -> 'Graph[T]':
-        """从邻接表创建图"""
-        graph = cls(graph_type)
-        for u, neighbors in adj_list.items():
-            for neighbor in neighbors:
-                if isinstance(neighbor, tuple):
-                    graph.add_edge(u, neighbor[0], neighbor[1])
-                else:
-                    graph.add_edge(u, neighbor)
-        return graph
 
 
-# ==================== 图遍历算法 ====================
+# ============================================================================
+# 遍历算法
+# ============================================================================
 
-def bfs(
-    graph: Graph[T], 
-    start: T,
-    visit: Optional[Callable[[T], None]] = None
-) -> List[T]:
+def bfs(g: Graph[T], start: T) -> List[T]:
     """
-    广度优先搜索
+    广度优先搜索遍历。
     
     Args:
-        graph: 图对象
-        start: 起始顶点
-        visit: 访问回调函数
+        g: 图
+        start: 起始节点
     
     Returns:
-        BFS 遍历顺序
+        遍历顺序节点列表
     """
-    if start not in graph.vertices:
+    if start not in g.get_nodes():
         return []
     
     visited = set()
@@ -332,13 +236,10 @@ def bfs(
     visited.add(start)
     
     while queue:
-        vertex = queue.popleft()
-        result.append(vertex)
+        node = queue.popleft()
+        result.append(node)
         
-        if visit:
-            visit(vertex)
-        
-        for neighbor in graph.get_neighbors(vertex):
+        for neighbor, _ in g.neighbors(node):
             if neighbor not in visited:
                 visited.add(neighbor)
                 queue.append(neighbor)
@@ -346,254 +247,336 @@ def bfs(
     return result
 
 
-def dfs(
-    graph: Graph[T], 
-    start: T,
-    visit: Optional[Callable[[T], None]] = None
-) -> List[T]:
+def dfs(g: Graph[T], start: T, recursive: bool = True) -> List[T]:
     """
-    深度优先搜索
+    深度优先搜索遍历。
     
     Args:
-        graph: 图对象
-        start: 起始顶点
-        visit: 访问回调函数
+        g: 图
+        start: 起始节点
+        recursive: 是否使用递归实现，默认 True
     
     Returns:
-        DFS 遍历顺序
+        遍历顺序节点列表
     """
-    if start not in graph.vertices:
+    if start not in g.get_nodes():
+        return []
+    
+    if recursive:
+        visited = set()
+        result = []
+        
+        def _dfs(node: T) -> None:
+            visited.add(node)
+            result.append(node)
+            for neighbor, _ in g.neighbors(node):
+                if neighbor not in visited:
+                    _dfs(neighbor)
+        
+        _dfs(start)
+        return result
+    else:
+        # 迭代实现
+        visited = set()
+        result = []
+        stack = [start]
+        
+        while stack:
+            node = stack.pop()
+            if node not in visited:
+                visited.add(node)
+                result.append(node)
+                # 逆序入栈以保持正确顺序
+                for neighbor, _ in reversed(g.neighbors(node)):
+                    if neighbor not in visited:
+                        stack.append(neighbor)
+        
+        return result
+
+
+def dfs_postorder(g: Graph[T], start: T) -> List[T]:
+    """
+    后序深度优先遍历（先访问子节点再访问当前节点）。
+    
+    用于拓扑排序等场景。
+    """
+    if start not in g.get_nodes():
         return []
     
     visited = set()
     result = []
     
-    def _dfs(vertex: T):
-        visited.add(vertex)
-        result.append(vertex)
-        
-        if visit:
-            visit(vertex)
-        
-        for neighbor in graph.get_neighbors(vertex):
+    def _postorder(node: T) -> None:
+        visited.add(node)
+        for neighbor, _ in g.neighbors(node):
             if neighbor not in visited:
-                _dfs(neighbor)
+                _postorder(neighbor)
+        result.append(node)
     
-    _dfs(start)
+    _postorder(start)
     return result
 
 
-def dfs_iterative(
-    graph: Graph[T], 
-    start: T,
-    visit: Optional[Callable[[T], None]] = None
-) -> List[T]:
+# ============================================================================
+# 最短路径算法
+# ============================================================================
+
+def dijkstra(g: Graph[T], start: T, end: Optional[T] = None) -> Dict[T, Tuple[Weight, Optional[T]]]:
     """
-    深度优先搜索（迭代版本）
+    Dijkstra 最短路径算法。
+    
+    时间复杂度: O((V + E) log V)
     
     Args:
-        graph: 图对象
-        start: 起始顶点
-        visit: 访问回调函数
-    
-    Returns:
-        DFS 遍历顺序
-    """
-    if start not in graph.vertices:
-        return []
-    
-    visited = set()
-    result = []
-    stack = [start]
-    
-    while stack:
-        vertex = stack.pop()
-        
-        if vertex in visited:
-            continue
-        
-        visited.add(vertex)
-        result.append(vertex)
-        
-        if visit:
-            visit(vertex)
-        
-        for neighbor in graph.get_neighbors(vertex):
-            if neighbor not in visited:
-                stack.append(neighbor)
-    
-    return result
-
-
-# ==================== 最短路径算法 ====================
-
-def dijkstra(
-    graph: Graph[T], 
-    start: T, 
-    end: Optional[T] = None
-) -> Union[PathResult[T], Dict[T, PathResult[T]]]:
-    """
-    Dijkstra 最短路径算法
-    
-    Args:
-        graph: 图对象
+        g: 图（边权重必须非负）
         start: 起点
-        end: 终点（可选，不提供则返回到所有点的最短路径）
+        end: 可选终点，若指定则提前终止
     
     Returns:
-        单点路径结果或所有点路径结果字典
+        字典: {节点: (最短距离, 前驱节点)}
+    
+    Raises:
+        ValueError: 存在负权边
     """
-    if start not in graph.vertices:
-        if end:
-            return PathResult([], float('inf'), False)
+    # 检查负权边
+    for u, v, w in g.get_edges():
+        if w < 0:
+            raise ValueError("Dijkstra 算法不支持负权边")
+    
+    if start not in g.get_nodes():
         return {}
     
-    distances: Dict[T, Weight] = {start: 0}
-    previous: Dict[T, Optional[T]] = {start: None}
-    visited = set()
+    # 初始化
+    distances: Dict[T, Weight] = {node: float('inf') for node in g.get_nodes()}
+    distances[start] = 0
+    predecessors: Dict[T, Optional[T]] = {node: None for node in g.get_nodes()}
+    visited: Set[T] = set()
+    
+    # 优先队列: (距离, 节点)
     heap = [(0, start)]
     
     while heap:
-        dist, vertex = heappop(heap)
+        dist, node = heappop(heap)
         
-        if vertex in visited:
+        if node in visited:
             continue
-        visited.add(vertex)
+        visited.add(node)
         
-        if end and vertex == end:
+        # 提前终止
+        if end is not None and node == end:
             break
         
-        for neighbor, weight in graph.get_neighbors(vertex).items():
+        for neighbor, weight in g.neighbors(node):
+            if neighbor in visited:
+                continue
+            
             new_dist = dist + weight
-            if neighbor not in distances or new_dist < distances[neighbor]:
+            if new_dist < distances[neighbor]:
                 distances[neighbor] = new_dist
-                previous[neighbor] = vertex
+                predecessors[neighbor] = node
                 heappush(heap, (new_dist, neighbor))
     
-    def build_path(target: T) -> PathResult[T]:
-        if target not in distances:
-            return PathResult([], float('inf'), False)
-        
-        path = []
-        current: Optional[T] = target
-        while current is not None:
-            path.append(current)
-            current = previous[current]
-        path.reverse()
-        
-        return PathResult(path, distances[target], True)
-    
-    if end:
-        return build_path(end)
-    
-    return {v: build_path(v) for v in graph.vertices if v in distances}
+    return {node: (distances[node], predecessors[node]) for node in g.get_nodes()}
 
 
-def bellman_ford(
-    graph: Graph[T], 
-    start: T
-) -> Tuple[Dict[T, Weight], Dict[T, Optional[T]], bool]:
+def bellman_ford(g: Graph[T], start: T) -> Tuple[Dict[T, Tuple[Weight, Optional[T]]], bool]:
     """
-    Bellman-Ford 最短路径算法（支持负权边）
+    Bellman-Ford 最短路径算法。
+    
+    支持负权边，可检测负环。
+    
+    时间复杂度: O(V * E)
     
     Args:
-        graph: 图对象
+        g: 图
         start: 起点
     
     Returns:
-        (距离字典, 前驱字典, 是否存在负环)
+        (结果字典, 是否存在负环)
+        结果字典: {节点: (最短距离, 前驱节点)}
     """
-    if start not in graph.vertices:
-        return {}, {}, False
+    if start not in g.get_nodes():
+        return {}, False
     
-    distances: Dict[T, Weight] = {v: float('inf') for v in graph.vertices}
+    nodes = g.get_nodes()
+    distances: Dict[T, Weight] = {node: float('inf') for node in nodes}
     distances[start] = 0
-    previous: Dict[T, Optional[T]] = {v: None for v in graph.vertices}
+    predecessors: Dict[T, Optional[T]] = {node: None for node in nodes}
     
-    # 松弛操作
-    for _ in range(len(graph.vertices) - 1):
-        for edge in graph.edges:
-            if distances[edge.source] != float('inf'):
-                new_dist = distances[edge.source] + edge.weight
-                if new_dist < distances[edge.target]:
-                    distances[edge.target] = new_dist
-                    previous[edge.target] = edge.source
+    edges = g.get_edges()
+    
+    # 松弛 V-1 次
+    for _ in range(len(nodes) - 1):
+        updated = False
+        for u, v, w in edges:
+            if distances[u] != float('inf') and distances[u] + w < distances[v]:
+                distances[v] = distances[u] + w
+                predecessors[v] = u
+                updated = True
+        if not updated:
+            break
     
     # 检测负环
     has_negative_cycle = False
-    for edge in graph.edges:
-        if distances[edge.source] != float('inf'):
-            if distances[edge.source] + edge.weight < distances[edge.target]:
-                has_negative_cycle = True
-                break
+    for u, v, w in edges:
+        if distances[u] != float('inf') and distances[u] + w < distances[v]:
+            has_negative_cycle = True
+            break
     
-    return distances, previous, has_negative_cycle
+    return {node: (distances[node], predecessors[node]) for node in nodes}, has_negative_cycle
 
 
-def floyd_warshall(graph: Graph[T]) -> Tuple[Dict[T, Dict[T, Weight]], Dict[T, Dict[T, Optional[T]]]]:
+def floyd_warshall(g: Graph[T]) -> Tuple[Dict[T, Dict[T, Weight]], Dict[T, Dict[T, Optional[T]]]]:
     """
-    Floyd-Warshall 全源最短路径算法
+    Floyd-Warshall 全源最短路径算法。
+    
+    时间复杂度: O(V^3)
     
     Args:
-        graph: 图对象
+        g: 图
     
     Returns:
         (距离矩阵, 前驱矩阵)
+        距离矩阵: dist[u][v] = u到v的最短距离
+        前驱矩阵: pred[u][v] = u到v路径上v的前驱节点
     """
-    vertices = list(graph.vertices)
-    n = len(vertices)
-    vertex_index = {v: i for i, v in enumerate(vertices)}
+    nodes = list(g.get_nodes())
+    n = len(nodes)
     
-    # 初始化距离和前驱矩阵
-    dist = {u: {v: float('inf') for v in vertices} for u in vertices}
-    prev = {u: {v: None for v in vertices} for u in vertices}
+    # 初始化距离矩阵
+    dist: Dict[T, Dict[T, Weight]] = {u: {v: float('inf') for v in nodes} for u in nodes}
+    pred: Dict[T, Dict[T, Optional[T]]] = {u: {v: None for v in nodes} for u in nodes}
     
-    for v in vertices:
-        dist[v][v] = 0
+    for u in nodes:
+        dist[u][u] = 0
     
-    for edge in graph.edges:
-        dist[edge.source][edge.target] = edge.weight
-        prev[edge.source][edge.target] = edge.source
+    for u, v, w in g.get_edges():
+        dist[u][v] = w
+        pred[u][v] = u
     
     # 动态规划
-    for k in vertices:
-        for i in vertices:
-            for j in vertices:
+    for k in nodes:
+        for i in nodes:
+            for j in nodes:
                 if dist[i][k] + dist[k][j] < dist[i][j]:
                     dist[i][j] = dist[i][k] + dist[k][j]
-                    prev[i][j] = prev[k][j]
+                    pred[i][j] = pred[k][j]
     
-    return dist, prev
+    return dist, pred
 
 
-# ==================== 最小生成树算法 ====================
-
-def kruskal(graph: Graph[T]) -> MSTResult[T]:
+def get_path(predecessors: Dict[T, Optional[T]], start: T, end: T) -> List[T]:
     """
-    Kruskal 最小生成树算法
+    从前驱字典重构路径。
     
     Args:
-        graph: 图对象
+        predecessors: 前驱节点字典
+        start: 起点
+        end: 终点
     
     Returns:
-        最小生成树结果
+        路径节点列表，若不存在路径则返回空列表
     """
-    if graph.is_directed:
+    if end not in predecessors:
+        return []
+    
+    path = []
+    current: Optional[T] = end
+    
+    while current is not None:
+        path.append(current)
+        current = predecessors.get(current)
+    
+    path.reverse()
+    
+    # 验证路径起点
+    if path and path[0] == start:
+        return path
+    return []
+
+
+# ============================================================================
+# 最小生成树算法
+# ============================================================================
+
+def prim(g: Graph[T], start: Optional[T] = None) -> List[Tuple[T, T, Weight]]:
+    """
+    Prim 最小生成树算法。
+    
+    适用于连通无向图。
+    
+    时间复杂度: O((V + E) log V)
+    
+    Args:
+        g: 无向连通图
+        start: 可选起始节点
+    
+    Returns:
+        最小生成树的边列表 [(u, v, weight), ...]
+    """
+    if g.directed:
+        raise ValueError("Prim 算法仅适用于无向图")
+    
+    nodes = g.get_nodes()
+    if not nodes:
+        return []
+    
+    if start is None:
+        start = next(iter(nodes))
+    
+    if start not in nodes:
+        return []
+    
+    mst_edges: List[Tuple[T, T, Weight]] = []
+    visited: Set[T] = set()
+    
+    # 优先队列: (权重, 节点, 前驱节点)
+    heap = [(0, start, None)]
+    
+    while heap and len(visited) < len(nodes):
+        weight, node, pred = heappop(heap)
+        
+        if node in visited:
+            continue
+        visited.add(node)
+        
+        if pred is not None:
+            mst_edges.append((pred, node, weight))
+        
+        for neighbor, w in g.neighbors(node):
+            if neighbor not in visited:
+                heappush(heap, (w, neighbor, node))
+    
+    return mst_edges
+
+
+def kruskal(g: Graph[T]) -> List[Tuple[T, T, Weight]]:
+    """
+    Kruskal 最小生成树算法。
+    
+    适用于无向图，可处理非连通图（返回最小生成森林）。
+    
+    时间复杂度: O(E log E)
+    
+    Args:
+        g: 无向图
+    
+    Returns:
+        最小生成树/森林的边列表
+    """
+    if g.directed:
         raise ValueError("Kruskal 算法仅适用于无向图")
     
-    if not graph.vertices:
-        return MSTResult([], 0, set())
-    
     # 并查集
-    parent = {}
-    rank = {}
+    parent: Dict[T, T] = {}
+    rank: Dict[T, int] = {}
     
-    def find(x):
+    def find(x: T) -> T:
         if parent[x] != x:
             parent[x] = find(parent[x])
         return parent[x]
     
-    def union(x, y):
+    def union(x: T, y: T) -> bool:
         px, py = find(x), find(y)
         if px == py:
             return False
@@ -605,874 +588,814 @@ def kruskal(graph: Graph[T]) -> MSTResult[T]:
         return True
     
     # 初始化并查集
-    for v in graph.vertices:
-        parent[v] = v
-        rank[v] = 0
+    for node in g.get_nodes():
+        parent[node] = node
+        rank[node] = 0
     
     # 按权重排序边
-    edges = sorted(graph.edges, key=lambda e: e.weight)
+    edges = sorted(g.get_edges(), key=lambda e: e[2])
     
-    mst_edges = []
-    total_weight = 0
+    mst_edges: List[Tuple[T, T, Weight]] = []
     
-    for edge in edges:
-        if union(edge.source, edge.target):
-            mst_edges.append(edge)
-            total_weight += edge.weight
-            
-            # MST 有 n-1 条边
-            if len(mst_edges) == len(graph.vertices) - 1:
-                break
+    for u, v, w in edges:
+        if union(u, v):
+            mst_edges.append((u, v, w))
     
-    return MSTResult(mst_edges, total_weight, graph.vertices.copy())
+    return mst_edges
 
 
-def prim(graph: Graph[T], start: Optional[T] = None) -> MSTResult[T]:
+# ============================================================================
+# 拓扑排序
+# ============================================================================
+
+def topological_sort(g: Graph[T]) -> Optional[List[T]]:
     """
-    Prim 最小生成树算法
+    拓扑排序（Kahn 算法）。
+    
+    仅适用于有向无环图（DAG）。
+    
+    时间复杂度: O(V + E)
     
     Args:
-        graph: 图对象
-        start: 起始顶点（可选）
+        g: 有向图
     
     Returns:
-        最小生成树结果
+        拓扑序列，若存在环则返回 None
     """
-    if graph.is_directed:
-        raise ValueError("Prim 算法仅适用于无向图")
-    
-    if not graph.vertices:
-        return MSTResult([], 0, set())
-    
-    if start is None:
-        start = next(iter(graph.vertices))
-    
-    if start not in graph.vertices:
-        return MSTResult([], 0, set())
-    
-    in_mst = set()
-    mst_edges = []
-    total_weight = 0
-    heap = [(0, start, None)]  # (weight, vertex, parent)
-    
-    while heap and len(in_mst) < len(graph.vertices):
-        weight, vertex, parent = heappop(heap)
-        
-        if vertex in in_mst:
-            continue
-        
-        in_mst.add(vertex)
-        
-        if parent is not None:
-            mst_edges.append(Edge(parent, vertex, weight))
-            total_weight += weight
-        
-        for neighbor, edge_weight in graph.get_neighbors(vertex).items():
-            if neighbor not in in_mst:
-                heappush(heap, (edge_weight, neighbor, vertex))
-    
-    return MSTResult(mst_edges, total_weight, graph.vertices.copy())
-
-
-# ==================== 拓扑排序 ====================
-
-def topological_sort(graph: Graph[T]) -> Optional[List[T]]:
-    """
-    拓扑排序（Kahn 算法）
-    
-    Args:
-        graph: 图对象
-    
-    Returns:
-        拓扑排序结果，如果存在环则返回 None
-    """
-    if not graph.is_directed:
+    if not g.directed:
         raise ValueError("拓扑排序仅适用于有向图")
     
+    nodes = g.get_nodes()
+    if not nodes:
+        return []
+    
     # 计算入度
-    in_degree = {v: 0 for v in graph.vertices}
-    for u in graph._adj:
-        for v in graph._adj[u]:
+    in_degree: Dict[T, int] = {node: 0 for node in nodes}
+    for u in g._adj:
+        for v, _ in g.neighbors(u):
             in_degree[v] = in_degree.get(v, 0) + 1
     
-    # 将入度为0的顶点加入队列
-    queue = deque([v for v in graph.vertices if in_degree[v] == 0])
-    result = []
+    # 初始化队列（入度为0的节点）
+    queue = deque([node for node in nodes if in_degree[node] == 0])
+    result: List[T] = []
     
     while queue:
-        vertex = queue.popleft()
-        result.append(vertex)
+        node = queue.popleft()
+        result.append(node)
         
-        for neighbor in graph.get_neighbors(vertex):
+        for neighbor, _ in g.neighbors(node):
             in_degree[neighbor] -= 1
             if in_degree[neighbor] == 0:
                 queue.append(neighbor)
     
-    # 如果结果长度小于顶点数，说明存在环
-    if len(result) != len(graph.vertices):
-        return None
+    # 检测环
+    if len(result) != len(nodes):
+        return None  # 存在环
     
     return result
 
 
-def topological_sort_dfs(graph: Graph[T]) -> Optional[List[T]]:
+def topological_sort_dfs(g: Graph[T]) -> Optional[List[T]]:
     """
-    拓扑排序（DFS 版本）
+    使用 DFS 实现的拓扑排序。
     
     Args:
-        graph: 图对象
+        g: 有向图
     
     Returns:
-        拓扑排序结果，如果存在环则返回 None
+        拓扑序列，若存在环则返回 None
     """
-    if not graph.is_directed:
+    if not g.directed:
         raise ValueError("拓扑排序仅适用于有向图")
     
-    WHITE, GRAY, BLACK = 0, 1, 2
-    color = {v: WHITE for v in graph.vertices}
-    result = []
-    has_cycle = False
+    nodes = g.get_nodes()
+    visited: Set[T] = set()
+    temp_visited: Set[T] = set()
+    result: List[T] = []
     
-    def dfs_visit(v: T) -> bool:
-        nonlocal has_cycle
-        color[v] = GRAY
+    def dfs(node: T) -> bool:
+        if node in temp_visited:
+            return False  # 存在环
+        if node in visited:
+            return True
         
-        for neighbor in graph.get_neighbors(v):
-            if color[neighbor] == GRAY:
-                has_cycle = True
+        temp_visited.add(node)
+        
+        for neighbor, _ in g.neighbors(node):
+            if not dfs(neighbor):
                 return False
-            if color[neighbor] == WHITE:
-                if not dfs_visit(neighbor):
-                    return False
         
-        color[v] = BLACK
-        result.append(v)
+        temp_visited.remove(node)
+        visited.add(node)
+        result.append(node)
         return True
     
-    for v in graph.vertices:
-        if color[v] == WHITE:
-            if not dfs_visit(v):
-                break
-    
-    if has_cycle:
-        return None
+    for node in nodes:
+        if node not in visited:
+            if not dfs(node):
+                return None
     
     result.reverse()
     return result
 
 
-# ==================== 连通分量 ====================
+# ============================================================================
+# 连通性算法
+# ============================================================================
 
-def connected_components(graph: Graph[T]) -> ComponentResult[T]:
+def connected_components(g: Graph[T]) -> List[Set[T]]:
     """
-    查找连通分量（无向图）
+    查找无向图的连通分量。
     
     Args:
-        graph: 图对象
+        g: 无向图
     
     Returns:
-        连通分量结果
+        连通分量列表，每个分量是节点集合
     """
-    if graph.is_directed:
-        raise ValueError("请使用 strongly_connected_components 处理有向图")
+    if g.directed:
+        raise ValueError("connected_components 适用于无向图，请使用 strongly_connected_components 处理有向图")
     
-    visited = set()
-    components = []
+    nodes = g.get_nodes()
+    visited: Set[T] = set()
+    components: List[Set[T]] = []
     
-    for vertex in graph.vertices:
-        if vertex not in visited:
-            component = set()
-            queue = deque([vertex])
-            visited.add(vertex)
+    for node in nodes:
+        if node not in visited:
+            component: Set[T] = set()
+            queue = deque([node])
+            visited.add(node)
             
             while queue:
-                v = queue.popleft()
-                component.add(v)
+                current = queue.popleft()
+                component.add(current)
                 
-                for neighbor in graph.get_neighbors(v):
+                for neighbor, _ in g.neighbors(current):
                     if neighbor not in visited:
                         visited.add(neighbor)
                         queue.append(neighbor)
             
             components.append(component)
     
-    return ComponentResult(
-        components=components,
-        count=len(components),
-        is_connected=len(components) == 1
-    )
+    return components
 
 
-def strongly_connected_components(graph: Graph[T]) -> ComponentResult[T]:
+def is_connected(g: Graph[T]) -> bool:
     """
-    查找强连通分量（有向图，Kosaraju 算法）
+    检查无向图是否连通。
+    """
+    if g.directed:
+        raise ValueError("is_connected 适用于无向图")
+    
+    nodes = g.get_nodes()
+    if not nodes:
+        return True
+    
+    # 从任意节点开始 BFS
+    start = next(iter(nodes))
+    visited = set(bfs(g, start))
+    
+    return visited == nodes
+
+
+def strongly_connected_components(g: Graph[T]) -> List[Set[T]]:
+    """
+    查找有向图的强连通分量（Kosaraju 算法）。
+    
+    时间复杂度: O(V + E)
     
     Args:
-        graph: 图对象
+        g: 有向图
     
     Returns:
-        强连通分量结果
+        强连通分量列表
     """
-    if not graph.is_directed:
-        raise ValueError("强连通分量仅适用于有向图")
+    if not g.directed:
+        raise ValueError("strongly_connected_components 适用于有向图")
     
-    visited = set()
-    finish_order = []
+    nodes = g.get_nodes()
+    visited: Set[T] = set()
+    finish_order: List[T] = []
     
     # 第一次 DFS，记录完成顺序
-    def dfs1(v: T):
-        visited.add(v)
-        for neighbor in graph.get_neighbors(v):
+    def dfs1(node: T) -> None:
+        visited.add(node)
+        for neighbor, _ in g.neighbors(node):
             if neighbor not in visited:
                 dfs1(neighbor)
-        finish_order.append(v)
+        finish_order.append(node)
     
-    for v in graph.vertices:
-        if v not in visited:
-            dfs1(v)
+    for node in nodes:
+        if node not in visited:
+            dfs1(node)
     
     # 构建反向图
-    reversed_graph = Graph(GraphType.DIRECTED)
-    for edge in graph.edges:
-        reversed_graph.add_edge(edge.target, edge.source, edge.weight)
+    reversed_graph = Graph[T](directed=True)
+    for node in nodes:
+        reversed_graph.add_node(node)
+    for u, v, w in g.get_edges():
+        reversed_graph.add_edge(v, u, w)
     
-    # 第二次 DFS，按逆序处理
+    # 第二次 DFS，按完成时间的逆序
     visited.clear()
-    components = []
+    components: List[Set[T]] = []
     
-    for v in reversed(finish_order):
-        if v not in visited:
-            component = set()
-            
-            def dfs2(vertex: T):
-                visited.add(vertex)
-                component.add(vertex)
-                for neighbor in reversed_graph.get_neighbors(vertex):
-                    if neighbor not in visited:
-                        dfs2(neighbor)
-            
-            dfs2(v)
+    def dfs2(node: T, component: Set[T]) -> None:
+        visited.add(node)
+        component.add(node)
+        for neighbor, _ in reversed_graph.neighbors(node):
+            if neighbor not in visited:
+                dfs2(neighbor, component)
+    
+    for node in reversed(finish_order):
+        if node not in visited:
+            component: Set[T] = set()
+            dfs2(node, component)
             components.append(component)
     
-    return ComponentResult(
-        components=components,
-        count=len(components),
-        is_connected=len(components) == 1
-    )
+    return components
 
 
-# ==================== 环检测 ====================
+# ============================================================================
+# 环检测
+# ============================================================================
 
-def has_cycle(graph: Graph[T]) -> bool:
+def has_cycle(g: Graph[T]) -> bool:
     """
-    检测图中是否存在环
+    检测图中是否存在环。
     
-    Args:
-        graph: 图对象
-    
-    Returns:
-        是否存在环
+    适用于有向图和无向图。
     """
-    if graph.is_directed:
-        return _has_cycle_directed(graph)
-    return _has_cycle_undirected(graph)
+    if g.directed:
+        return _has_cycle_directed(g)
+    else:
+        return _has_cycle_undirected(g)
 
 
-def _has_cycle_directed(graph: Graph[T]) -> bool:
-    """有向图环检测"""
-    WHITE, GRAY, BLACK = 0, 1, 2
-    color = {v: WHITE for v in graph.vertices}
+def _has_cycle_directed(g: Graph[T]) -> bool:
+    """检测有向图中的环。"""
+    nodes = g.get_nodes()
+    visited: Set[T] = set()
+    rec_stack: Set[T] = set()
     
-    def dfs(v: T) -> bool:
-        color[v] = GRAY
-        for neighbor in graph.get_neighbors(v):
-            if color[neighbor] == GRAY:
+    def dfs(node: T) -> bool:
+        visited.add(node)
+        rec_stack.add(node)
+        
+        for neighbor, _ in g.neighbors(node):
+            if neighbor not in visited:
+                if dfs(neighbor):
+                    return True
+            elif neighbor in rec_stack:
                 return True
-            if color[neighbor] == WHITE and dfs(neighbor):
-                return True
-        color[v] = BLACK
+        
+        rec_stack.remove(node)
         return False
     
-    for v in graph.vertices:
-        if color[v] == WHITE:
-            if dfs(v):
+    for node in nodes:
+        if node not in visited:
+            if dfs(node):
                 return True
+    
     return False
 
 
-def _has_cycle_undirected(graph: Graph[T]) -> bool:
-    """无向图环检测"""
-    visited = set()
+def _has_cycle_undirected(g: Graph[T]) -> bool:
+    """检测无向图中的环。"""
+    nodes = g.get_nodes()
+    visited: Set[T] = set()
     
-    def dfs(v: T, parent: Optional[T]) -> bool:
-        visited.add(v)
-        for neighbor in graph.get_neighbors(v):
+    def dfs(node: T, parent: Optional[T]) -> bool:
+        visited.add(node)
+        
+        for neighbor, _ in g.neighbors(node):
             if neighbor not in visited:
-                if dfs(neighbor, v):
+                if dfs(neighbor, node):
                     return True
             elif neighbor != parent:
                 return True
+        
         return False
     
-    for v in graph.vertices:
-        if v not in visited:
-            if dfs(v, None):
+    for node in nodes:
+        if node not in visited:
+            if dfs(node, None):
                 return True
+    
     return False
 
 
-def find_cycle(graph: Graph[T]) -> Optional[List[T]]:
+def find_cycle(g: Graph[T]) -> Optional[List[T]]:
     """
-    查找图中的一个环
-    
-    Args:
-        graph: 图对象
+    查找图中的一个环。
     
     Returns:
-        环路径，不存在则返回 None
+        环路径，若无环则返回 None
     """
-    if graph.is_directed:
-        return _find_cycle_directed(graph)
-    return _find_cycle_undirected(graph)
+    if g.directed:
+        return _find_cycle_directed(g)
+    else:
+        return _find_cycle_undirected(g)
 
 
-def _find_cycle_directed(graph: Graph[T]) -> Optional[List[T]]:
-    """有向图查找环"""
-    WHITE, GRAY, BLACK = 0, 1, 2
-    color = {v: WHITE for v in graph.vertices}
-    parent = {v: None for v in graph.vertices}
-    cycle_start = None
-    cycle_end = None
+def _find_cycle_directed(g: Graph[T]) -> Optional[List[T]]:
+    """查找有向图中的环。"""
+    nodes = g.get_nodes()
+    visited: Set[T] = set()
+    rec_stack: Set[T] = set()
+    path: List[T] = []
     
-    def dfs(v: T) -> bool:
-        nonlocal cycle_start, cycle_end
-        color[v] = GRAY
+    def dfs(node: T) -> Optional[List[T]]:
+        visited.add(node)
+        rec_stack.add(node)
+        path.append(node)
         
-        for neighbor in graph.get_neighbors(v):
-            if color[neighbor] == GRAY:
-                cycle_start = neighbor
-                cycle_end = v
-                return True
-            if color[neighbor] == WHITE:
-                parent[neighbor] = v
-                if dfs(neighbor):
-                    return True
-        
-        color[v] = BLACK
-        return False
-    
-    for v in graph.vertices:
-        if color[v] == WHITE:
-            if dfs(v):
-                # 重构环路径
-                cycle = [cycle_start]
-                current = cycle_end
-                while current != cycle_start:
-                    cycle.append(current)
-                    current = parent[current]
-                cycle.append(cycle_start)
-                cycle.reverse()
-                return cycle
-    
-    return None
-
-
-def _find_cycle_undirected(graph: Graph[T]) -> Optional[List[T]]:
-    """无向图查找环"""
-    visited = set()
-    parent = {v: None for v in graph.vertices}
-    cycle_end = None
-    cycle_start = None
-    
-    def dfs(v: T, p: Optional[T]) -> bool:
-        nonlocal cycle_start, cycle_end
-        visited.add(v)
-        
-        for neighbor in graph.get_neighbors(v):
+        for neighbor, _ in g.neighbors(node):
             if neighbor not in visited:
-                parent[neighbor] = v
-                if dfs(neighbor, v):
-                    return True
-            elif neighbor != p:
-                cycle_start = v
-                cycle_end = neighbor
-                return True
+                result = dfs(neighbor)
+                if result:
+                    return result
+            elif neighbor in rec_stack:
+                # 找到环，重构环路径
+                cycle_start = path.index(neighbor)
+                return path[cycle_start:] + [neighbor]
         
-        return False
+        path.pop()
+        rec_stack.remove(node)
+        return None
     
-    for v in graph.vertices:
-        if v not in visited:
-            if dfs(v, None):
-                # 重构环路径
-                cycle = []
-                current = cycle_start
-                while current != cycle_end:
-                    cycle.append(current)
-                    current = parent[current]
-                cycle.append(cycle_end)
-                cycle.append(cycle_start)
-                return cycle
+    for node in nodes:
+        if node not in visited:
+            result = dfs(node)
+            if result:
+                return result
     
     return None
 
 
-# ==================== 二分图检测 ====================
+def _find_cycle_undirected(g: Graph[T]) -> Optional[List[T]]:
+    """查找无向图中的环。"""
+    nodes = g.get_nodes()
+    visited: Set[T] = set()
+    parent: Dict[T, Optional[T]] = {}
+    
+    def dfs(node: T, par: Optional[T]) -> Optional[List[T]]:
+        visited.add(node)
+        parent[node] = par
+        
+        for neighbor, _ in g.neighbors(node):
+            if neighbor not in visited:
+                parent[neighbor] = node
+                result = dfs(neighbor, node)
+                if result:
+                    return result
+            elif neighbor != par:
+                # 找到环
+                cycle = [neighbor, node]
+                current = node
+                while parent.get(current) != neighbor and parent.get(current) is not None:
+                    current = parent[current]
+                    cycle.insert(1, current)
+                return cycle
+        
+        return None
+    
+    for node in nodes:
+        if node not in visited:
+            result = dfs(node, None)
+            if result:
+                return result
+    
+    return None
 
-def is_bipartite(graph: Graph[T]) -> Tuple[bool, Optional[Dict[T, int]]]:
+
+# ============================================================================
+# 二分图检测
+# ============================================================================
+
+def is_bipartite(g: Graph[T]) -> Tuple[bool, Optional[Tuple[Set[T], Set[T]]]]:
     """
-    检测是否为二分图
+    检测图是否为二分图。
+    
+    二分图可以将节点分为两个集合，使得所有边都连接两个不同集合的节点。
     
     Args:
-        graph: 图对象
+        g: 无向图
     
     Returns:
-        (是否为二分图, 着色结果)
+        (是否为二分图, (集合A, 集合B) 或 None)
     """
-    if graph.is_directed:
-        raise ValueError("二分图检测仅适用于无向图")
+    if g.directed:
+        raise ValueError("is_bipartite 适用于无向图")
     
-    color = {}
+    nodes = g.get_nodes()
+    color: Dict[T, int] = {}  # 0 或 1
     
-    for start in graph.vertices:
-        if start in color:
-            continue
-        
+    def bfs_color(start: T) -> bool:
         queue = deque([start])
         color[start] = 0
         
         while queue:
-            v = queue.popleft()
-            
-            for neighbor in graph.get_neighbors(v):
+            node = queue.popleft()
+            for neighbor, _ in g.neighbors(node):
                 if neighbor not in color:
-                    color[neighbor] = 1 - color[v]
+                    color[neighbor] = 1 - color[node]
                     queue.append(neighbor)
-                elif color[neighbor] == color[v]:
-                    return False, None
-    
-    return True, color
-
-
-# ==================== 欧拉路径 ====================
-
-def find_eulerian_path(graph: Graph[T]) -> Optional[List[T]]:
-    """
-    查找欧拉路径（Hierholzer 算法）
-    
-    Args:
-        graph: 图对象
-    
-    Returns:
-        欧拉路径，不存在则返回 None
-    """
-    if not has_eulerian_path(graph):
-        return None
-    
-    # 找到起点
-    start = None
-    if graph.is_directed:
-        for v in graph.vertices:
-            if graph.get_out_degree(v) - graph.get_in_degree(v) == 1:
-                start = v
-                break
-        if start is None:
-            start = next(iter(graph.vertices)) if graph.vertices else None
-    else:
-        for v in graph.vertices:
-            if graph.get_degree(v) % 2 == 1:
-                start = v
-                break
-        if start is None:
-            start = next(iter(graph.vertices)) if graph.vertices else None
-    
-    if start is None:
-        return []
-    
-    # Hierholzer 算法
-    graph_copy = graph.copy()
-    stack = [start]
-    path = []
-    
-    while stack:
-        v = stack[-1]
-        neighbors = list(graph_copy.get_neighbors(v).keys())
-        
-        if neighbors:
-            u = neighbors[0]
-            graph_copy.remove_edge(v, u)
-            stack.append(u)
-        else:
-            path.append(stack.pop())
-    
-    path.reverse()
-    return path
-
-
-def has_eulerian_path(graph: Graph[T]) -> bool:
-    """
-    检测是否存在欧拉路径
-    
-    Args:
-        graph: 图对象
-    
-    Returns:
-        是否存在欧拉路径
-    """
-    if graph.is_directed:
-        return _has_eulerian_path_directed(graph)
-    return _has_eulerian_path_undirected(graph)
-
-
-def _has_eulerian_path_undirected(graph: Graph[T]) -> bool:
-    """无向图欧拉路径检测"""
-    odd_degree = 0
-    for v in graph.vertices:
-        if graph.get_degree(v) % 2 == 1:
-            odd_degree += 1
-    return odd_degree in (0, 2)
-
-
-def _has_eulerian_path_directed(graph: Graph[T]) -> bool:
-    """有向图欧拉路径检测"""
-    start_nodes = 0
-    end_nodes = 0
-    
-    for v in graph.vertices:
-        diff = graph.get_out_degree(v) - graph.get_in_degree(v)
-        if diff > 1 or diff < -1:
-            return False
-        if diff == 1:
-            start_nodes += 1
-        elif diff == -1:
-            end_nodes += 1
-    
-    return (start_nodes == 0 and end_nodes == 0) or (start_nodes == 1 and end_nodes == 1)
-
-
-def has_eulerian_circuit(graph: Graph[T]) -> bool:
-    """
-    检测是否存在欧拉回路
-    
-    Args:
-        graph: 图对象
-    
-    Returns:
-        是否存在欧拉回路
-    """
-    if graph.is_directed:
-        for v in graph.vertices:
-            if graph.get_in_degree(v) != graph.get_out_degree(v):
-                return False
+                elif color[neighbor] == color[node]:
+                    return False
         return True
-    else:
-        for v in graph.vertices:
-            if graph.get_degree(v) % 2 != 0:
-                return False
-        return True
-
-
-# ==================== 图工具函数 ====================
-
-def is_tree(graph: Graph[T]) -> bool:
-    """
-    判断无向图是否为树
     
-    Args:
-        graph: 图对象
+    for node in nodes:
+        if node not in color:
+            if not bfs_color(node):
+                return False, None
     
-    Returns:
-        是否为树
+    set_a = {node for node, c in color.items() if c == 0}
+    set_b = {node for node, c in color.items() if c == 1}
+    
+    return True, (set_a, set_b)
+
+
+# ============================================================================
+# 其他实用算法
+# ============================================================================
+
+def degree_sequence(g: Graph[T]) -> List[int]:
     """
-    if graph.is_directed:
+    获取图的度序列（按降序排列）。
+    """
+    return sorted([g.degree(node) for node in g.get_nodes()], reverse=True)
+
+
+def is_eulerian(g: Graph[T]) -> bool:
+    """
+    检测无向图是否为欧拉图（存在欧拉回路）。
+    
+    欧拉图的充要条件：连通且所有节点度数为偶数。
+    """
+    if g.directed:
+        raise ValueError("is_eulerian 适用于无向图")
+    
+    if not is_connected(g):
         return False
     
-    # 树有 n-1 条边且连通
-    if len(graph.vertices) == 0:
-        return True
+    return all(g.degree(node) % 2 == 0 for node in g.get_nodes())
+
+
+def is_semi_eulerian(g: Graph[T]) -> bool:
+    """
+    检测无向图是否为半欧拉图（存在欧拉路径）。
     
-    if graph.edge_count != len(graph.vertices) - 1:
+    半欧拉图的充要条件：连通且恰好有两个奇度节点。
+    """
+    if g.directed:
+        raise ValueError("is_semi_eulerian 适用于无向图")
+    
+    if not is_connected(g):
         return False
     
-    result = connected_components(graph)
-    return result.is_connected
+    odd_degree_count = sum(1 for node in g.get_nodes() if g.degree(node) % 2 == 1)
+    return odd_degree_count == 2
 
 
-def get_shortest_path_tree(
-    graph: Graph[T], 
-    start: T
-) -> Optional[Graph[T]]:
+def articulation_points(g: Graph[T]) -> Set[T]:
     """
-    获取最短路径树（使用 Dijkstra 算法）
+    查找无向图的割点（关节点）。
     
-    Args:
-        graph: 图对象
-        start: 起点
+    割点是移除后会使图不连通的节点。
     
-    Returns:
-        最短路径树图
+    时间复杂度: O(V + E)
     """
-    if start not in graph.vertices:
-        return None
+    if g.directed:
+        raise ValueError("articulation_points 适用于无向图")
     
-    distances, previous, _ = bellman_ford(graph, start)
-    
-    tree = Graph(GraphType.DIRECTED if graph.is_directed else GraphType.UNDIRECTED)
-    
-    for v in graph.vertices:
-        if previous[v] is not None:
-            weight = graph.get_edge_weight(previous[v], v)
-            if weight is not None:
-                tree.add_edge(previous[v], v, weight)
-        else:
-            tree.add_vertex(v)
-    
-    return tree
-
-
-def graph_statistics(graph: Graph[T]) -> Dict[str, Any]:
-    """
-    获取图统计信息
-    
-    Args:
-        graph: 图对象
-    
-    Returns:
-        统计信息字典
-    """
-    degrees = [graph.get_degree(v) for v in graph.vertices]
-    
-    stats = {
-        "vertex_count": graph.vertex_count,
-        "edge_count": graph.edge_count,
-        "is_directed": graph.is_directed,
-        "is_connected": None,
-        "has_cycle": has_cycle(graph),
-        "min_degree": min(degrees) if degrees else 0,
-        "max_degree": max(degrees) if degrees else 0,
-        "avg_degree": sum(degrees) / len(degrees) if degrees else 0,
-    }
-    
-    if not graph.is_directed:
-        result = connected_components(graph)
-        stats["is_connected"] = result.is_connected
-        stats["component_count"] = result.count
-        stats["is_bipartite"], _ = is_bipartite(graph)
-        stats["is_tree"] = is_tree(graph)
-    else:
-        scc = strongly_connected_components(graph)
-        stats["is_strongly_connected"] = scc.is_connected
-        stats["scc_count"] = scc.count
-    
-    return stats
-
-
-def reverse_graph(graph: Graph[T]) -> Graph[T]:
-    """
-    反转图（所有边的方向取反）
-    
-    Args:
-        graph: 图对象
-    
-    Returns:
-        反转后的图
-    """
-    reversed_graph = Graph(GraphType.DIRECTED)
-    for v in graph.vertices:
-        reversed_graph.add_vertex(v)
-    for edge in graph.edges:
-        reversed_graph.add_edge(edge.target, edge.source, edge.weight)
-    return reversed_graph
-
-
-def get_isolated_vertices(graph: Graph[T]) -> Set[T]:
-    """
-    获取所有孤立顶点（度为0）
-    
-    Args:
-        graph: 图对象
-    
-    Returns:
-        孤立顶点集合
-    """
-    return {v for v in graph.vertices if graph.get_degree(v) == 0}
-
-
-def get_articulation_points(graph: Graph[T]) -> Set[T]:
-    """
-    查找割点（关节点）
-    
-    Args:
-        graph: 图对象
-    
-    Returns:
-        割点集合
-    """
-    if graph.is_directed:
-        raise ValueError("割点检测仅适用于无向图")
-    
-    if len(graph.vertices) == 0:
+    nodes = g.get_nodes()
+    if not nodes:
         return set()
     
-    disc = {}
-    low = {}
-    visited = set()
-    ap = set()
-    parent = {}
-    time = [0]
+    visited: Set[T] = set()
+    disc: Dict[T, int] = {}  # 发现时间
+    low: Dict[T, int] = {}   # 最早可到达祖先
+    parent: Dict[T, Optional[T]] = {}
+    ap: Set[T] = set()
+    time = [0]  # 使用列表以便在闭包中修改
     
-    def dfs(u):
+    def dfs(node: T) -> None:
         children = 0
-        visited.add(u)
-        disc[u] = low[u] = time[0]
+        visited.add(node)
+        disc[node] = low[node] = time[0]
         time[0] += 1
         
-        for v in graph.get_neighbors(u):
-            if v not in visited:
+        for neighbor, _ in g.neighbors(node):
+            if neighbor not in visited:
                 children += 1
-                parent[v] = u
-                dfs(v)
-                low[u] = min(low[u], low[v])
+                parent[neighbor] = node
+                dfs(neighbor)
                 
-                # u 是根节点且有两个子节点
-                if parent.get(u) is None and children > 1:
-                    ap.add(u)
+                # 更新 low 值
+                low[node] = min(low[node], low[neighbor])
                 
-                # u 不是根节点且 low[v] >= disc[u]
-                if parent.get(u) is not None and low[v] >= disc[u]:
-                    ap.add(u)
-            elif v != parent.get(u):
-                low[u] = min(low[u], disc[v])
+                # 判断是否为割点
+                if parent.get(node) is None and children > 1:
+                    ap.add(node)
+                if parent.get(node) is not None and low[neighbor] >= disc[node]:
+                    ap.add(node)
+            elif neighbor != parent.get(node):
+                low[node] = min(low[node], disc[neighbor])
     
-    for v in graph.vertices:
-        if v not in visited:
-            dfs(v)
+    for node in nodes:
+        if node not in visited:
+            parent[node] = None
+            dfs(node)
     
     return ap
 
 
-def get_bridges(graph: Graph[T]) -> List[Edge[T]]:
+def bridges(g: Graph[T]) -> List[Tuple[T, T]]:
     """
-    查找桥（割边）
+    查找无向图的桥（割边）。
     
-    Args:
-        graph: 图对象
+    桥是移除后会使图不连通的边。
     
-    Returns:
-        桥列表
+    时间复杂度: O(V + E)
     """
-    if graph.is_directed:
-        raise ValueError("桥检测仅适用于无向图")
+    if g.directed:
+        raise ValueError("bridges 适用于无向图")
     
-    if len(graph.vertices) == 0:
+    nodes = g.get_nodes()
+    if not nodes:
         return []
     
-    disc = {}
-    low = {}
-    visited = set()
-    parent = {}
-    bridges = []
+    visited: Set[T] = set()
+    disc: Dict[T, int] = {}
+    low: Dict[T, int] = {}
+    parent: Dict[T, Optional[T]] = {}
+    bridge_list: List[Tuple[T, T]] = []
     time = [0]
     
-    def dfs(u):
-        visited.add(u)
-        disc[u] = low[u] = time[0]
+    def dfs(node: T) -> None:
+        visited.add(node)
+        disc[node] = low[node] = time[0]
         time[0] += 1
         
-        for v, weight in graph.get_neighbors(u).items():
-            if v not in visited:
-                parent[v] = u
-                dfs(v)
-                low[u] = min(low[u], low[v])
+        for neighbor, _ in g.neighbors(node):
+            if neighbor not in visited:
+                parent[neighbor] = node
+                dfs(neighbor)
                 
-                if low[v] > disc[u]:
-                    bridges.append(Edge(u, v, weight))
-            elif v != parent.get(u):
-                low[u] = min(low[u], disc[v])
+                low[node] = min(low[node], low[neighbor])
+                
+                # 判断是否为桥
+                if low[neighbor] > disc[node]:
+                    bridge_list.append((node, neighbor))
+            elif neighbor != parent.get(node):
+                low[node] = min(low[node], disc[neighbor])
     
-    for v in graph.vertices:
-        if v not in visited:
-            dfs(v)
+    for node in nodes:
+        if node not in visited:
+            parent[node] = None
+            dfs(node)
     
-    return bridges
+    return bridge_list
 
 
-# ==================== 便捷函数 ====================
-
-def create_graph(
-    edges: Optional[List[Tuple[T, T, Weight]]] = None,
-    vertices: Optional[List[T]] = None,
-    directed: bool = False
-) -> Graph[T]:
+def shortest_path_bfs(g: Graph[T], start: T, end: T) -> Optional[List[T]]:
     """
-    快速创建图
+    BFS 最短路径（无权图）。
+    
+    返回从 start 到 end 的最短路径，若不存在则返回 None。
+    """
+    if start not in g.get_nodes() or end not in g.get_nodes():
+        return None
+    
+    if start == end:
+        return [start]
+    
+    visited: Set[T] = set()
+    parent: Dict[T, Optional[T]] = {start: None}
+    queue = deque([start])
+    visited.add(start)
+    
+    while queue:
+        node = queue.popleft()
+        
+        for neighbor, _ in g.neighbors(node):
+            if neighbor not in visited:
+                visited.add(neighbor)
+                parent[neighbor] = node
+                queue.append(neighbor)
+                
+                if neighbor == end:
+                    # 重构路径
+                    path = []
+                    current: Optional[T] = end
+                    while current is not None:
+                        path.append(current)
+                        current = parent[current]
+                    path.reverse()
+                    return path
+    
+    return None
+
+
+def all_paths(g: Graph[T], start: T, end: T, max_paths: int = 1000) -> List[List[T]]:
+    """
+    查找所有从 start 到 end 的路径。
     
     Args:
-        edges: 边列表 [(u, v, weight), ...]
-        vertices: 顶点列表
-        directed: 是否为有向图
-    
-    Returns:
-        图对象
-    """
-    graph_type = GraphType.DIRECTED if directed else GraphType.UNDIRECTED
-    graph = Graph(graph_type)
-    
-    if vertices:
-        for v in vertices:
-            graph.add_vertex(v)
-    
-    if edges:
-        for edge in edges:
-            if len(edge) == 2:
-                graph.add_edge(edge[0], edge[1])
-            else:
-                graph.add_edge(edge[0], edge[1], edge[2])
-    
-    return graph
-
-
-def shortest_path(graph: Graph[T], start: T, end: T) -> PathResult[T]:
-    """
-    快速查找最短路径
-    
-    Args:
-        graph: 图对象
+        g: 图
         start: 起点
         end: 终点
+        max_paths: 最大路径数，防止组合爆炸
     
     Returns:
-        路径结果
+        路径列表
     """
-    return dijkstra(graph, start, end)
+    if start not in g.get_nodes() or end not in g.get_nodes():
+        return []
+    
+    paths: List[List[T]] = []
+    
+    def dfs(node: T, path: List[T], visited: Set[T]) -> None:
+        if len(paths) >= max_paths:
+            return
+        
+        path.append(node)
+        visited.add(node)
+        
+        if node == end:
+            paths.append(path.copy())
+        else:
+            for neighbor, _ in g.neighbors(node):
+                if neighbor not in visited:
+                    dfs(neighbor, path, visited)
+        
+        path.pop()
+        visited.remove(node)
+    
+    dfs(start, [], set())
+    return paths
 
 
-def all_shortest_paths(graph: Graph[T]) -> Dict[T, Dict[T, PathResult[T]]]:
+def degree_centrality(g: Graph[T]) -> Dict[T, float]:
     """
-    计算所有顶点对之间的最短路径
+    计算度中心性。
+    
+    度中心性 = 节点度数 / (n-1)
+    """
+    n = g.node_count()
+    if n <= 1:
+        return {node: 0.0 for node in g.get_nodes()}
+    
+    return {node: g.degree(node) / (n - 1) for node in g.get_nodes()}
+
+
+def betweenness_centrality(g: Graph[T]) -> Dict[T, float]:
+    """
+    计算介数中心性（简化版）。
+    
+    介数中心性衡量节点在最短路径中的重要性。
+    
+    时间复杂度: O(V * (V + E))
+    """
+    nodes = list(g.get_nodes())
+    n = len(nodes)
+    if n <= 2:
+        return {node: 0.0 for node in nodes}
+    
+    betweenness: Dict[T, float] = {node: 0.0 for node in nodes}
+    
+    for source in nodes:
+        # BFS 计算最短路径
+        stack: List[T] = []
+        predecessors: Dict[T, List[T]] = {node: [] for node in nodes}
+        sigma: Dict[T, int] = {node: 0 for node in nodes}  # 最短路径数
+        sigma[source] = 1
+        dist: Dict[T, int] = {node: -1 for node in nodes}
+        dist[source] = 0
+        queue = deque([source])
+        
+        while queue:
+            v = queue.popleft()
+            stack.append(v)
+            for w, _ in g.neighbors(v):
+                if dist[w] < 0:
+                    queue.append(w)
+                    dist[w] = dist[v] + 1
+                if dist[w] == dist[v] + 1:
+                    sigma[w] += sigma[v]
+                    predecessors[w].append(v)
+        
+        # 累积依赖
+        delta: Dict[T, float] = {node: 0.0 for node in nodes}
+        while stack:
+            w = stack.pop()
+            for v in predecessors[w]:
+                delta[v] += (sigma[v] / sigma[w]) * (1 + delta[w])
+            if w != source:
+                betweenness[w] += delta[w]
+    
+    # 归一化
+    if not g.directed:
+        scale = 2.0 / ((n - 1) * (n - 2))
+    else:
+        scale = 1.0 / ((n - 1) * (n - 2))
+    
+    return {node: betweenness[node] * scale for node in nodes}
+
+
+def clustering_coefficient(g: Graph[T], node: Optional[T] = None) -> Union[float, Dict[T, float]]:
+    """
+    计算聚类系数。
+    
+    聚类系数衡量节点的邻居之间的连接程度。
     
     Args:
-        graph: 图对象
+        g: 无向图
+        node: 可选，计算单个节点的聚类系数
     
     Returns:
-        所有路径结果
+        单个节点的聚类系数或所有节点的聚类系数字典
     """
-    distances, previous = floyd_warshall(graph)
-    vertices = list(graph.vertices)
+    if g.directed:
+        raise ValueError("clustering_coefficient 适用于无向图")
     
-    def build_path(start: T, end: T) -> PathResult[T]:
-        if distances[start][end] == float('inf'):
-            return PathResult([], float('inf'), False)
+    def _local_cc(n: T) -> float:
+        neighbors = [v for v, _ in g.neighbors(n)]
+        k = len(neighbors)
+        if k < 2:
+            return 0.0
         
-        path = []
-        current = end
-        while current is not None:
-            path.append(current)
-            current = previous[start].get(current)
-        path.reverse()
+        neighbor_set = set(neighbors)
+        triangles = 0
         
-        return PathResult(path, distances[start][end], True)
+        for i, u in enumerate(neighbors):
+            for v in neighbors[i+1:]:
+                if v in neighbor_set and g.has_edge(u, v):
+                    triangles += 1
+        
+        return 2.0 * triangles / (k * (k - 1))
     
-    return {
-        u: {v: build_path(u, v) for v in vertices}
-        for u in vertices
-    }
+    if node is not None:
+        return _local_cc(node)
+    
+    return {n: _local_cc(n) for n in g.get_nodes()}
+
+
+def average_clustering_coefficient(g: Graph[T]) -> float:
+    """计算平均聚类系数。"""
+    cc = clustering_coefficient(g)
+    if not cc:
+        return 0.0
+    return sum(cc.values()) / len(cc)
+
+
+# 导出公共接口
+__all__ = [
+    # 图类
+    'Graph',
+    
+    # 遍历
+    'bfs',
+    'dfs',
+    'dfs_postorder',
+    
+    # 最短路径
+    'dijkstra',
+    'bellman_ford',
+    'floyd_warshall',
+    'get_path',
+    'shortest_path_bfs',
+    'all_paths',
+    
+    # 最小生成树
+    'prim',
+    'kruskal',
+    
+    # 拓扑排序
+    'topological_sort',
+    'topological_sort_dfs',
+    
+    # 连通性
+    'connected_components',
+    'is_connected',
+    'strongly_connected_components',
+    
+    # 环检测
+    'has_cycle',
+    'find_cycle',
+    
+    # 二分图
+    'is_bipartite',
+    
+    # 其他
+    'degree_sequence',
+    'is_eulerian',
+    'is_semi_eulerian',
+    'articulation_points',
+    'bridges',
+    'degree_centrality',
+    'betweenness_centrality',
+    'clustering_coefficient',
+    'average_clustering_coefficient',
+]
