@@ -1,0 +1,25 @@
+[package]
+name = "weighted_random"
+version = "1.0.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "A high-performance weighted random selector using the Alias Method with O(1) selection complexity"
+license = "MIT"
+keywords = ["random", "weighted", "sampling", "alias-method", "probability"]
+categories = ["algorithms", "data-structures"]
+
+[dependencies]
+
+[dev-dependencies]
+
+[[example]]
+name = "basic"
+path = "examples/basic.rs"
+
+[[example]]
+name = "load_balancer"
+path = "examples/load_balancer.rs"
+
+[[example]]
+name = "loot_table"
+path = "examples/loot_table.rs"
