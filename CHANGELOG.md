@@ -3,6 +3,19 @@
 ## [2026-04-22]
 
 ### 新增
+- **C: trie_utils (30 单元测试，完整前缀树工具)** 🌳
+  - Trie：高效字符串存储和前缀操作数据结构
+  - 基本操作：insert/search/delete/batch insert
+  - 前缀操作：starts_with/count_prefix/longest_common_prefix
+  - 自动补全：get_words_with_prefix/get_all_words（支持限制结果数量）
+  - 模式匹配：pattern_match（支持 ? 和 * 通配符）
+  - 迭代器：iterator_init/next/has_next（按字母顺序遍历）
+  - 工具函数：size/node_count/is_empty/memory_usage/print
+  - 内存优化：自动清理无用节点、word_count 追踪
+  - 5 个完整示例（基础用法/自动补全/拼写检查/词频统计/迭代器）
+  - 零外部依赖，纯 C 标准库实现（C11 标准）
+  - 测试覆盖：30 测试全部通过
+
 - **Python: currency_utils (24 测试，完整货币处理工具)** 💰
   - ISO 4217 货币支持（68 种货币，含加密货币 BTC/ETH）
   - Money 类：精确货币金额处理（Decimal 避免浮点误差）
