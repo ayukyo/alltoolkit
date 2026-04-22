@@ -21,24 +21,29 @@
 
 | 语言 | 模块数 | 状态 |
 |------|--------|------|
-| Python | 108 | ✅ 活跃 |
-| Go | 29 | ✅ 活跃 |
-| Rust | 15 | ✅ 活跃 |
-| Java | 10+ | ✅ 活跃 |
-| JavaScript | 10+ | ✅ 活跃 |
-| TypeScript | 10+ | ✅ 活跃 |
-| C# | 10+ | ✅ 活跃 |
-| C++ | 5+ | ✅ 活跃 |
-| C | 5+ | ✅ 活跃 |
-| PHP | 10+ | ✅ 活跃 |
-| Ruby | 5+ | ✅ 活跃 |
-| MATLAB | 5+ | ✅ 活跃 |
-| R | 5+ | ✅ 活跃 |
-| Fortran | 5+ | ✅ 活跃 |
-| Delphi | 5+ | ✅ 活跃 |
-| Perl | 6+ | ✅ 活跃 |
-| Kotlin | 6+ | ✅ 活跃 |
-| Swift | 9+ | ✅ 活跃 |
+| Python | 174 | ✅ 活跃 |
+| Go | 42 | ✅ 活跃 |
+| Rust | 32 | ✅ 活跃 |
+| TypeScript | 16 | ✅ 活跃 |
+| Zig | 16 | ✅ 活跃 |
+| JavaScript | 12 | ✅ 活跃 |
+| C++ | 12 | ✅ 活跃 |
+| C# | 12 | ✅ 活跃 |
+| Java | 11 | ✅ 活跃 |
+| Kotlin | 11 | ✅ 活跃 |
+| PHP | 11 | ✅ 活跃 |
+| Swift | 11 | ✅ 活跃 |
+| C | 10 | ✅ 活跃 |
+| Delphi | 8 | ✅ 活跃 |
+| Ruby | 9 | ✅ 活跃 |
+| Perl | 9 | ✅ 活跃 |
+| SQL | 7 | ✅ 活跃 |
+| Fortran | 7 | ✅ 活跃 |
+| R | 7 | ✅ 活跃 |
+| Lua | 6 | ✅ 活跃 |
+| MATLAB | 6 | ✅ 活跃 |
+| VB | 6 | ✅ 活跃 |
+| ArkTS | 6 | ✅ 活跃 |
 
 *完整列表见 [docs/languages.md](docs/languages.md)*
 
@@ -240,8 +245,8 @@ perl Perl/csv_utils/csv_utils_test.pl
 | boyer_moore_utils | Python | 25+ | ✅ 100% |
 | chess_utils | Python | 30+ | ✅ 100% |
 
-**总计**: Python 108 模块，2000+ 测试用例，100% 通过率 ✅
+**总计**: Python 174 模块，165 测试文件，3000+ 测试用例，100% 通过率 ✅
 
 ---
 
-**最后更新**: 2026-04-22
+**最后更新**: 2026-04-23
