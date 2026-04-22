@@ -3,6 +3,23 @@
 ## [2026-04-22]
 
 ### 新增
+- **Go: graph_utils (45 单元测试，完整图算法工具)** 🕸️
+  - 图类型：无向图、有向图支持
+  - 基本操作：AddEdge/AddEdges/RemoveEdge/HasEdge/GetNeighbors/GetAllEdges
+  - 度数计算：Degree/InDegree（支持有向图入度）
+  - 图遍历：BFS（广度优先）、DFS（深度优先递归/迭代）
+  - 最短路径：Dijkstra（非负权重）、BellmanFord（支持负权重、负环检测）
+  - 路径重建：ShortestPathResult.GetPath(target)
+  - 拓扑排序：TopologicalSort（DAG 有环检测）
+  - 环检测：HasCycle（有向/无向图）
+  - 连通性：ConnectedComponents、IsConnected
+  - 最小生成树：Kruskal、Prim（贪心算法）
+  - 二分图：Bipartite（检测与着色）
+  - 图操作：Clone（深拷贝）、Transpose（有向图转置）
+  - 6 个完整示例（基础操作/遍历/最短路径/拓扑排序/MST/社交网络）
+  - 零外部依赖，纯 Go 标准库实现（container/heap、container/list）
+  - 测试覆盖：45 测试（基本操作/遍历/最短路径/拓扑排序/环检测/连通性/MST/二分图/边界情况）
+
 - **C: trie_utils (30 单元测试，完整前缀树工具)** 🌳
   - Trie：高效字符串存储和前缀操作数据结构
   - 基本操作：insert/search/delete/batch insert
