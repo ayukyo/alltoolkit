@@ -1,0 +1,36 @@
+[package]
+name = "suffix_array_utils"
+version = "0.1.0"
+edition = "2021"
+description = "A comprehensive suffix array implementation for Rust"
+license = "MIT"
+keywords = ["suffix-array", "string", "algorithm", "search", "data-structure"]
+categories = ["algorithms", "data-structures", "text-processing"]
+
+[dependencies]
+
+[dev-dependencies]
+
+[[example]]
+name = "01_basic_usage"
+path = "examples/01_basic_usage.rs"
+
+[[example]]
+name = "02_pattern_search"
+path = "examples/02_pattern_search.rs"
+
+[[example]]
+name = "03_repeated_substrings"
+path = "examples/03_repeated_substrings.rs"
+
+[[example]]
+name = "04_common_substrings"
+path = "examples/04_common_substrings.rs"
+
+[[example]]
+name = "05_distinct_substrings"
+path = "examples/05_distinct_substrings.rs"
+
+[[example]]
+name = "06_advanced_features"
+path = "examples/06_advanced_features.rs"

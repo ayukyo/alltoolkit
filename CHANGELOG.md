@@ -1,5 +1,24 @@
 # AllToolkit 更新日志
 
+## [2026-04-23]
+
+### 新增
+- **Rust: suffix_array_utils (26 单元测试，完整后缀数组工具)** 📝
+  - SuffixArray：高效字符串处理数据结构
+  - 基本操作：构建、索引访问、后缀获取
+  - LCP 数组：Kasai 算法实现 O(n) 时间复杂度
+  - 模式搜索：find_all/count/contains（二分搜索）
+  - 重复子串：longest_repeated_substring/all_repeated_substrings
+  - 最小重复次数：longest_repeated_substring_min
+  - 公共子串：longest_common_substring/common_substrings
+  - 回文检测：longest_palindromic_substring
+  - 最小字典序旋转：min_lexicographic_rotation（Booth 算法）
+  - 不同子串计数：count_distinct_substrings/all_substrings/kth_distinct_substring
+  - 排名和比较：rank/compare_suffixes/lcp_between/nth_element
+  - 6 个完整示例（基础操作/模式搜索/重复子串/公共子串/不同子串/高级特性）
+  - 零外部依赖，纯 Rust 标准库实现
+  - 测试覆盖：26 测试全部通过
+
 ## [2026-04-22]
 
 ### 新增
