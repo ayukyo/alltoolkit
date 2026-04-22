@@ -60,9 +60,18 @@ class RLEEncoder:
             >>> encoder = RLEEncoder()
             >>> encoder.encode_string("AAABBC")
             [RLERun(value='A', count=3), RLERun(value='B', count=2), RLERun(value='C', count=1)]
+        
+        Note:
+            优化版本：添加单字符快速路径，
+            边界处理：空输入返回空列表。
         """
+        # 边界处理：空输入快速返回
         if not data:
             return []
+        
+        # 快速路径：单字符直接返回
+        if len(data) == 1:
+            return [RLERun(value=data[0], count=1)]
         
         runs: List[RLERun] = []
         current_char = data[0]

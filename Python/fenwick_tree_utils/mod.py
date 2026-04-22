@@ -56,21 +56,39 @@ class FenwickTree(Generic[T]):
         Args:
             data: 初始数据（可选）
             size: 数组大小（当 data 为 None 时使用）
+        
+        Note:
+            优化版本：使用 O(n) 构建算法替代 O(n log n)，
+            边界处理：空输入快速初始化。
         """
+        # 边界处理：空输入快速初始化
         if data is not None:
             self._data = list(data)
             self._size = len(self._data)
+            
+            # 快速返回空数组
+            if self._size == 0:
+                self._tree = [0]
+                return
         else:
             self._data = [0] * size
             self._size = size
+            self._tree = [0] * (self._size + 1)
+            return
         
         # 树状数组（1-indexed）
         self._tree = [0] * (self._size + 1)
         
-        # 从原始数据构建树
-        if data is not None:
-            for i in range(self._size):
-                self._add_to_tree(i, self._data[i])
+        # O(n) 构建算法（优化版本）
+        # 先复制数据到树，再通过累加父节点构建
+        for i in range(self._size):
+            self._tree[i + 1] = self._data[i]
+        
+        # 累加每个节点的直接子节点贡献
+        for i in range(1, self._size + 1):
+            parent = i + self._lsb(i)
+            if parent <= self._size:
+                self._tree[parent] += self._tree[i]
     
     def _lsb(self, index: int) -> int:
         """

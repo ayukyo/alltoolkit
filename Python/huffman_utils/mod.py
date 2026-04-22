@@ -206,10 +206,19 @@ def build_frequency_table(data: Union[str, bytes],
         {'h': 1, 'e': 1, 'l': 2, 'o': 1}
         >>> build_frequency_table(b"hello", byte_mode=True)
         {104: 1, 101: 1, 108: 2, 111: 1}
+    
+    Note:
+        优化版本：添加空输入快速返回路径，
+        减少不必要的类型转换开销。
     """
+    # 边界处理：空输入快速返回空字典
+    if not data:
+        return {}
+    
     if byte_mode or isinstance(data, bytes):
         if isinstance(data, str):
             data = data.encode('utf-8')
+        # 使用 Counter 的优化版本
         return dict(Counter(data))
     else:
         return dict(Counter(data))

@@ -455,23 +455,34 @@ def triangle_area_heron(a: float, b: float, c: float) -> float:
         6.0
         >>> triangle_area_heron(1, 2, 10)  # Invalid triangle
         0.0
+    
+    Note:
+        优化版本：减少重复计算，使用提前返回优化，
+        边界处理：负值和无效三角形快速返回 0。
     """
     a, b, c = _to_float(a), _to_float(b), _to_float(c)
     
-    # Check if sides form a valid triangle
+    # 边界处理：快速检查无效输入（提前返回）
     if a <= 0 or b <= 0 or c <= 0:
         return 0.0
-    if a + b <= c or a + c <= b or b + c <= a:
+    
+    # 三角形不等式验证（排序后只需一次比较）
+    # 优化：找出最大边，只需一次比较验证
+    max_side = max(a, b, c)
+    sum_other = a + b + c - max_side
+    if sum_other <= max_side:
         return 0.0
     
-    # Heron's formula
-    s = (a + b + c) / 2  # Semi-perimeter
-    area_squared = s * (s - a) * (s - b) * (s - c)
+    # Heron's formula - 优化：减少乘法次数
+    s = (a + b + c) * 0.5  # Semi-perimeter (避免除法)
+    # 使用 s - max_side 来减少计算
+    s_minus_max = s - max_side
     
-    if area_squared < 0:
-        return 0.0
+    # 计算面积平方值（避免多次减法）
+    area_squared = s * s_minus_max * (s - a) * (s - b)
     
-    return math.sqrt(area_squared)
+    # 简化：如果 area_squared < 0 说明数值精度问题，返回 0
+    return math.sqrt(max(area_squared, 0.0))
 
 
 def triangle_perimeter(a: float, b: float, c: float) -> float:

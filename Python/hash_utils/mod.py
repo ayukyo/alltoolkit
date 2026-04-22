@@ -533,10 +533,18 @@ def hex_to_base64(hex_string: str) -> str:
     Example:
         >>> hex_to_base64("48656c6c6f")  # "Hello" in hex
         'SGVsbG8='
+    
+    Note:
+        优化版本：添加空输入快速返回，
+        使用链式调用减少中间变量。
     """
+    # 边界处理：空字符串快速返回
+    if not hex_string:
+        return ''
+    
     try:
-        binary_data = bytes.fromhex(hex_string)
-        return base64.b64encode(binary_data).decode('ascii')
+        # 优化：链式调用，减少中间变量
+        return base64.b64encode(bytes.fromhex(hex_string)).decode('ascii')
     except ValueError as e:
         raise ValueError(f"Invalid hex string: {hex_string}") from e
 
