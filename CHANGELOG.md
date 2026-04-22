@@ -3,6 +3,18 @@
 ## [2026-04-23]
 
 ### 新增
+- **Zig: trie_utils (15 单元测试，完整前缀树工具)** 🌳
+  - Trie：高效字符串存储和前缀操作数据结构
+  - 基本操作：insert/search/delete/batch insert
+  - 前缀操作：startsWith/countPrefix/longestCommonPrefix
+  - 自动补全：getWordsWithPrefix/getAllWords（支持限制结果数量）
+  - 模式匹配：patternMatch（支持 ? 和 * 通配符）
+  - 工具函数：count/isEmpty/nodeCount/memoryUsage/clear
+  - 内存优化：自动清理无用节点、word_count 追踪
+  - 5 个完整示例（基础用法/自动补全/拼写检查/模式匹配/词频统计）
+  - 零外部依赖，纯 Zig 标准库实现
+  - 测试覆盖：15 测试全部通过
+
 - **Rust: suffix_array_utils (26 单元测试，完整后缀数组工具)** 📝
   - SuffixArray：高效字符串处理数据结构
   - 基本操作：构建、索引访问、后缀获取

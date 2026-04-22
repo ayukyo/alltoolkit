@@ -1,0 +1,10 @@
+.{
+    .name = "trie_utils",
+    .version = "0.1.0",
+    .paths = .{
+        "src",
+        "examples",
+        "build.zig",
+    },
+    .dependencies = .{},
+}
