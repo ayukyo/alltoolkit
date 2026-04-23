@@ -3,6 +3,16 @@
 ## [2026-04-23]
 
 ### 新增
+- **C: lorem_ipsum_utils (17 单元测试，完整 Lorem Ipsum 文本生成工具)** 📝
+  - 基础生成：words/sentences/paragraphs
+  - 自定义生成：自定义每句单词数范围、每段句子数范围
+  - 随机种子控制：set_seed/reset_seed 实现可重复生成
+  - 经典开头：提供标准 Lorem Ipsum 开头段落
+  - 缓冲区估算：estimate_buffer 预计算所需缓冲区大小
+  - 零外部依赖，纯 C 标准库实现
+  - 完整示例：10 个使用场景演示
+  - 测试覆盖：17 测试全部通过
+
 - **Zig: trie_utils (15 单元测试，完整前缀树工具)** 🌳
   - Trie：高效字符串存储和前缀操作数据结构
   - 基本操作：insert/search/delete/batch insert
