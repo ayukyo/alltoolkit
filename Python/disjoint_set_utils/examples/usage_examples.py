@@ -1,402 +1,380 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-AllToolkit - Disjoint Set Utilities Usage Examples
-====================================================
-Practical examples demonstrating various use cases of the DisjointSet module.
+disjoint_set_utils 使用示例
 
-Run with: python usage_examples.py
+展示并查集在各种场景下的应用
 """
 
 import sys
 import os
-# Add the AllToolkit root directory to path
-_alltoolkit_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-sys.path.insert(0, _alltoolkit_root)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Import using the correct module path from AllToolkit root
-import importlib.util
-spec = importlib.util.spec_from_file_location("mod", os.path.join(_alltoolkit_root, "Python", "disjoint_set_utils", "mod.py"))
-mod = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(mod)
-
-DisjointSet = mod.DisjointSet
-count_connected_components = mod.count_connected_components
-find_connected_groups = mod.find_connected_groups
-is_connected_graph = mod.is_connected_graph
-detect_cycle_undirected = mod.detect_cycle_undirected
-kruskal_mst = mod.kruskal_mst
-find_friend_circles = mod.find_friend_circles
-get_circle_sizes = mod.get_circle_sizes
-find_connected_pixels = mod.find_connected_pixels
+from mod import (
+    DisjointSet, WeightedDisjointSet,
+    connected_components, detect_cycle_undirected,
+    minimum_spanning_tree_kruskal
+)
 
 
 def example_basic_operations():
-    """Basic union-find operations."""
+    """基本操作示例"""
     print("=" * 60)
-    print("Example 1: Basic Union-Find Operations")
+    print("1. 并查集基本操作")
     print("=" * 60)
     
-    # Create a new disjoint set
-    ds = DisjointSet[int]()
+    # 创建并查集
+    ds = DisjointSet()
     
-    # Add elements as individual sets
-    ds.make_sets(1, 2, 3, 4, 5, 6, 7, 8)
-    print(f"Created 8 elements: {list(ds)}")
-    print(f"Component count: {ds.component_count()}")
+    # 添加元素
+    for i in range(1, 6):
+        ds.make_set(i)
     
-    # Merge some sets
+    print(f"初始状态: {ds}")
+    print(f"集合数量: {ds.set_count}")
+    print()
+    
+    # 合并操作
+    print("合并 1 和 2...")
     ds.union(1, 2)
+    print(f"结果: {ds}")
+    print()
+    
+    print("合并 3 和 4...")
+    ds.union(3, 4)
+    print(f"结果: {ds}")
+    print()
+    
+    print("合并 2 和 3...")
     ds.union(2, 3)
-    ds.union(4, 5)
-    ds.union_all(6, 7, 8)
+    print(f"结果: {ds}")
+    print()
     
-    print(f"\nAfter unions:")
-    print(f"  1-2-3 merged: {ds.connected(1, 3)}")
-    print(f"  4-5 merged: {ds.connected(4, 5)}")
-    print(f"  6-7-8 merged: {ds.connected(6, 8)}")
-    print(f"  1 and 4 not connected: {not ds.connected(1, 4)}")
-    print(f"Component count: {ds.component_count()}")
+    # 连通性检查
+    print("连通性检查:")
+    print(f"  1 和 4: {ds.connected(1, 4)}")  # True
+    print(f"  1 和 5: {ds.connected(1, 5)}")  # False
+    print()
     
-    # Query operations
-    print(f"\nComponent containing 1: {ds.get_component(1)}")
-    print(f"Size of component with 1: {ds.component_size(1)}")
-    print(f"All components: {ds.get_components()}")
-
-
-def example_network_connectivity():
-    """Network connectivity analysis."""
-    print("\n" + "=" * 60)
-    print("Example 2: Network Connectivity Analysis")
-    print("=" * 60)
-    
-    # Simulate a computer network
-    computers = ["Server1", "Server2", "Server3", "Server4", "Server5", "Server6"]
-    connections = [
-        ("Server1", "Server2"),
-        ("Server2", "Server3"),
-        ("Server4", "Server5"),
-        # Server6 is isolated
-    ]
-    
-    # Find connected groups
-    groups = find_connected_groups(computers, connections)
-    
-    print("Network topology:")
-    print("  Server1 --- Server2 --- Server3")
-    print("  Server4 --- Server5")
-    print("  Server6 (isolated)")
-    print(f"\nConnected groups: {groups}")
-    print(f"Number of network segments: {len(groups)}")
-    
-    # Check if entire network is connected
-    print(f"\nIs network fully connected: {is_connected_graph(computers, connections)}")
-    
-    # Check connectivity between specific servers
-    ds = DisjointSet[str]()
-    ds.add_connections(connections)
-    print(f"\nServer1 connected to Server3: {ds.connected('Server1', 'Server3')}")
-    print(f"Server1 connected to Server5: {ds.connected('Server1', 'Server5')}")
-
-
-def example_cycle_detection():
-    """Detect cycles in undirected graphs."""
-    print("\n" + "=" * 60)
-    print("Example 3: Cycle Detection in Graphs")
-    print("=" * 60)
-    
-    # Graph with cycle
-    nodes_with_cycle = [1, 2, 3, 4]
-    edges_with_cycle = [(1, 2), (2, 3), (3, 4), (4, 1)]  # Square
-    
-    print("Graph 1 (square with cycle):")
-    print("  1 --- 2")
-    print("  |     |")
-    print("  4 --- 3")
-    print(f"  Has cycle: {detect_cycle_undirected(nodes_with_cycle, edges_with_cycle)}")
-    
-    # Graph without cycle (tree)
-    nodes_tree = [1, 2, 3, 4, 5]
-    edges_tree = [(1, 2), (1, 3), (3, 4), (3, 5)]
-    
-    print("\nGraph 2 (tree without cycle):")
-    print("    1")
-    print("   / \\")
-    print("  2   3")
-    print("     / \\")
-    print("    4   5")
-    print(f"  Has cycle: {detect_cycle_undirected(nodes_tree, edges_tree)}")
-
-
-def example_minimum_spanning_tree():
-    """Kruskal's Minimum Spanning Tree algorithm."""
-    print("\n" + "=" * 60)
-    print("Example 4: Minimum Spanning Tree (Kruskal's Algorithm)")
-    print("=" * 60)
-    
-    # Network of cities with connection costs
-    cities = ['New York', 'Boston', 'Philadelphia', 'Washington', 'Chicago']
-    
-    # (city1, city2, cost_millions)
-    connections = [
-        ('New York', 'Boston', 2.5),
-        ('New York', 'Philadelphia', 1.8),
-        ('New York', 'Washington', 3.2),
-        ('Boston', 'Chicago', 8.5),
-        ('Philadelphia', 'Washington', 2.0),
-        ('New York', 'Chicago', 7.0),
-        ('Washington', 'Chicago', 9.0),
-    ]
-    
-    print("Finding minimum cost network connecting all cities...")
-    print("\nAvailable connections (cost in millions):")
-    for c1, c2, cost in sorted(connections, key=lambda x: x[2]):
-        print(f"  {c1} <-> {c2}: ${cost}M")
-    
-    mst_edges, total_cost = kruskal_mst(cities, connections)
-    
-    print(f"\nMinimum Spanning Tree:")
-    print(f"  Edges to build:")
-    for c1, c2, cost in mst_edges:
-        print(f"    {c1} <-> {c2}: ${cost}M")
-    print(f"  Total cost: ${total_cost}M")
-    print(f"  Cities connected: {len(mst_edges) + 1}/{len(cities)}")
+    # 查询集合信息
+    print("集合信息:")
+    print(f"  所有集合: {ds.get_sets()}")
+    print(f"  元素1所在集合: {ds.get_set(1)}")
+    print(f"  集合大小: {ds.get_set_size(1)}")
+    print()
 
 
 def example_social_network():
-    """Social network friend circle analysis."""
-    print("\n" + "=" * 60)
-    print("Example 5: Social Network Friend Circles")
+    """社交网络好友圈示例"""
+    print("=" * 60)
+    print("2. 社交网络好友圈分析")
     print("=" * 60)
     
-    users = ['Alice', 'Bob', 'Carol', 'David', 'Eve', 'Frank', 'Grace']
+    # 用户列表
+    users = ['Alice', 'Bob', 'Charlie', 'David', 'Eve', 'Frank']
+    ds = DisjointSet(users)
+    
+    # 好友关系
     friendships = [
         ('Alice', 'Bob'),
-        ('Bob', 'Carol'),
+        ('Bob', 'Charlie'),
         ('David', 'Eve'),
-        ('Eve', 'Frank'),
-        # Grace has no friends yet :(
     ]
     
-    print("Social Network:")
-    print("  Alice -- Bob -- Carol")
-    print("  David -- Eve -- Frank")
-    print("  Grace (new user)")
+    print("建立好友关系:")
+    for u, v in friendships:
+        ds.union(u, v)
+        print(f"  {u} <-> {v}")
     
-    # Find friend circles
-    circles = find_friend_circles(users, friendships)
-    print(f"\nFriend circles (by representative):")
-    circle_groups = {}
-    for user, rep in circles.items():
-        if rep not in circle_groups:
-            circle_groups[rep] = []
-        circle_groups[rep].append(user)
+    print()
+    print("好友圈分析:")
+    circles = ds.get_sets()
+    for i, circle in enumerate(circles, 1):
+        print(f"  好友圈 {i}: {circle}")
     
-    for i, (rep, members) in enumerate(circle_groups.items(), 1):
-        print(f"  Circle {i}: {members}")
-    
-    # Get circle sizes
-    sizes = get_circle_sizes(users, friendships)
-    print(f"\nCircle sizes:")
-    for user in users:
-        print(f"  {user}: {sizes[user]} friend(s) in circle")
+    print()
+    print("好友关系检查:")
+    print(f"  Alice 和 Charlie 是好友(间接): {ds.connected('Alice', 'Charlie')}")
+    print(f"  Alice 和 David 是好友: {ds.connected('Alice', 'David')}")
+    print()
 
 
 def example_image_processing():
-    """Connected component labeling in images."""
-    print("\n" + "=" * 60)
-    print("Example 6: Image Connected Component Labeling")
+    """图像处理连通区域示例"""
+    print("=" * 60)
+    print("3. 图像处理 - 连通区域标记")
     print("=" * 60)
     
-    # Binary image (1 = foreground, 0 = background)
+    # 模拟一个简单的二值图像 (1=前景, 0=背景)
+    # 1 1 0 0 1
+    # 1 0 0 1 0
+    # 0 0 1 1 1
+    
     image = [
         [1, 1, 0, 0, 1],
-        [1, 1, 0, 1, 1],
-        [0, 0, 1, 1, 0],
-        [0, 1, 1, 0, 0]
+        [1, 0, 0, 1, 0],
+        [0, 0, 1, 1, 1]
     ]
     
-    print("Original binary image:")
-    for row in image:
-        print("  " + " ".join(['█' if p else '·' for p in row]))
+    rows, cols = 3, 5
     
-    # Label connected components
-    labeled = find_connected_pixels(image, connectivity=4)
+    # 为每个前景像素创建集合
+    ds = DisjointSet()
     
-    print("\nLabeled components:")
-    for row in labeled:
-        print("  " + " ".join([str(c) if c > 0 else '·' for c in row]))
+    def pos(r, c):
+        return f"({r},{c})"
     
-    # Count objects
-    num_objects = max(max(row) for row in labeled)
-    print(f"\nNumber of distinct objects detected: {num_objects}")
+    # 初始化前景像素
+    foreground = []
+    for r in range(rows):
+        for c in range(cols):
+            if image[r][c] == 1:
+                ds.make_set(pos(r, c))
+                foreground.append(pos(r, c))
     
-    # With 8-connectivity
-    labeled_8 = find_connected_pixels(image, connectivity=8)
-    num_objects_8 = max(max(row) for row in labeled_8)
-    print(f"With 8-connectivity: {num_objects_8} objects")
-
-
-def example_equivalence_classes():
-    """Group elements by equivalence relations."""
-    print("\n" + "=" * 60)
-    print("Example 7: Equivalence Classes")
-    print("=" * 60)
-    
-    # Suppose we have items that should be grouped as equivalent
-    items = ['apple', 'orange', 'banana', 'carrot', 'potato', 'tomato']
-    
-    # Equivalence rules: fruits together, vegetables together
-    equivalences = [
-        ('apple', 'orange'),
-        ('orange', 'banana'),
-        ('carrot', 'potato'),
-        ('potato', 'tomato'),  # tomato is technically a fruit but grouped as veg
-    ]
-    
-    print("Items:", items)
-    print("Equivalence rules:", equivalences)
-    
-    groups = find_connected_groups(items, equivalences)
-    
-    print("\nGrouped by equivalence:")
-    for i, group in enumerate(groups, 1):
-        print(f"  Group {i}: {sorted(group)}")
-
-
-def example_island_counting():
-    """Count islands in a grid (LeetCode style problem)."""
-    print("\n" + "=" * 60)
-    print("Example 8: Island Counting")
-    print("=" * 60)
-    
-    # 1 = land, 0 = water
-    grid = [
-        [1, 1, 0, 0, 0],
-        [1, 1, 0, 0, 1],
-        [0, 0, 0, 1, 1],
-        [0, 0, 0, 0, 0],
-        [1, 0, 1, 0, 1]
-    ]
-    
-    print("Grid (█ = land, · = water):")
-    for row in grid:
-        print("  " + " ".join(['█' if c else '·' for c in row]))
-    
-    # Convert grid coordinates to nodes and find connected land
-    rows, cols = len(grid), len(grid[0])
-    nodes = []
-    edges = []
+    # 合并相邻的前景像素
+    directions = [(0, 1), (1, 0)]  # 只检查右和下
     
     for r in range(rows):
         for c in range(cols):
-            if grid[r][c] == 1:
-                nodes.append((r, c))
-                # Add edges to adjacent land cells
-                if r > 0 and grid[r-1][c] == 1:
-                    edges.append(((r, c), (r-1, c)))
-                if c > 0 and grid[r][c-1] == 1:
-                    edges.append(((r, c), (r, c-1)))
+            if image[r][c] == 1:
+                for dr, dc in directions:
+                    nr, nc = r + dr, c + dc
+                    if 0 <= nr < rows and 0 <= nc < cols and image[nr][nc] == 1:
+                        ds.union(pos(r, c), pos(nr, nc))
     
-    num_islands = count_connected_components(nodes, edges)
-    print(f"\nNumber of islands: {num_islands}")
+    print("原始图像:")
+    for row in image:
+        print(f"  {row}")
+    
+    print()
+    print(f"连通区域数量: {ds.set_count}")
+    
+    components = ds.get_sets()
+    for i, comp in enumerate(components, 1):
+        print(f"  区域 {i}: {sorted(comp)}")
+    
+    print()
+
+
+def example_network_connectivity():
+    """网络连通性示例"""
+    print("=" * 60)
+    print("4. 网络连通性检测")
+    print("=" * 60)
+    
+    # 服务器节点
+    servers = ['Server-A', 'Server-B', 'Server-C', 'Server-D', 'Server-E']
+    ds = DisjointSet(servers)
+    
+    # 网络连接
+    connections = [
+        ('Server-A', 'Server-B'),
+        ('Server-B', 'Server-C'),
+        ('Server-D', 'Server-E'),
+    ]
+    
+    print("建立网络连接:")
+    for u, v in connections:
+        ds.union(u, v)
+        print(f"  {u} <---> {v}")
+    
+    print()
+    print("网络状态:")
+    print(f"  连通分量数: {ds.set_count}")
+    
+    print()
+    print("连通性测试:")
+    tests = [
+        ('Server-A', 'Server-C'),
+        ('Server-A', 'Server-D'),
+        ('Server-D', 'Server-E'),
+    ]
+    for s1, s2 in tests:
+        result = "连通" if ds.connected(s1, s2) else "不连通"
+        print(f"  {s1} <-> {s2}: {result}")
+    
+    print()
+    
+    # 添加新连接
+    print("添加新连接: Server-C <-> Server-D")
+    ds.union('Server-C', 'Server-D')
+    print(f"  现在连通分量数: {ds.set_count}")
+    print(f"  Server-A <-> Server-E: {'连通' if ds.connected('Server-A', 'Server-E') else '不连通'}")
+    print()
+
+
+def example_cycle_detection():
+    """环检测示例"""
+    print("=" * 60)
+    print("5. 图的环检测")
+    print("=" * 60)
+    
+    # 无环图
+    edges1 = [(1, 2), (2, 3), (3, 4), (4, 5)]
+    print(f"图1 边: {edges1}")
+    print(f"  存在环: {detect_cycle_undirected(edges1)}")
+    print()
+    
+    # 有环图
+    edges2 = [(1, 2), (2, 3), (3, 4), (4, 1)]
+    print(f"图2 边: {edges2}")
+    print(f"  存在环: {detect_cycle_undirected(edges2)}")
+    print()
+
+
+def example_minimum_spanning_tree():
+    """最小生成树示例"""
+    print("=" * 60)
+    print("6. 最小生成树 (Kruskal算法)")
+    print("=" * 60)
+    
+    # 城市网络
+    cities = ['北京', '上海', '广州', '深圳', '武汉']
+    
+    # 城市间距离（边）
+    edges = [
+        ('北京', '上海', 1200),
+        ('北京', '武汉', 1100),
+        ('上海', '武汉', 800),
+        ('上海', '广州', 1500),
+        ('武汉', '广州', 1000),
+        ('武汉', '深圳', 900),
+        ('广州', '深圳', 150),
+    ]
+    
+    print("城市连接成本:")
+    for u, v, w in edges:
+        print(f"  {u} <-> {v}: {w}km")
+    
+    print()
+    
+    mst, total_cost = minimum_spanning_tree_kruskal(cities, edges)
+    
+    print("最小生成树结果:")
+    print("  选择的边:")
+    for u, v, w in mst:
+        print(f"    {u} <-> {v}: {w}km")
+    print(f"  总距离: {total_cost}km")
+    print()
+
+
+def example_weighted_disjoint_set():
+    """带权并查集示例"""
+    print("=" * 60)
+    print("7. 带权并查集 - 相对关系")
+    print("=" * 60)
+    
+    # 物品称重问题
+    # 已知 A 比 B 重 5，B 比 C 重 3
+    # 推导 A 比 C 重 8
+    
+    wds = WeightedDisjointSet()
+    items = ['A', 'B', 'C', 'D']
+    for item in items:
+        wds.make_set(item)
+    
+    print("建立重量关系:")
+    print("  B 比 A 重 5")
+    wds.union('A', 'B', weight=5)  # weight(B) - weight(A) = 5
+    
+    print("  C 比 B 重 3")
+    wds.union('B', 'C', weight=3)  # weight(C) - weight(B) = 3
+    
+    print("  D 比 A 重 2")
+    wds.union('A', 'D', weight=2)
+    
+    print()
+    print("推导重量关系:")
+    print(f"  A 到 C 的重量差: {wds.get_weight('A', 'C')}")  # 8
+    print(f"  A 到 D 的重量差: {wds.get_weight('A', 'D')}")  # 2
+    print(f"  C 到 D 的重量差: {wds.get_weight('C', 'D')}")  # -6
+    print()
 
 
 def example_dynamic_connectivity():
-    """Dynamic connectivity problem."""
-    print("\n" + "=" * 60)
-    print("Example 9: Dynamic Connectivity Simulation")
+    """动态连通性示例"""
+    print("=" * 60)
+    print("8. 动态连通性问题")
     print("=" * 60)
     
-    ds = DisjointSet[int]()
-    
-    # Simulate network connections over time
+    # 模拟一系列合并和查询操作
     operations = [
-        ("add", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
-        ("connect", 1, 2),
-        ("connect", 3, 4),
-        ("check", 1, 2),
-        ("check", 1, 3),
-        ("connect", 2, 3),
-        ("check", 1, 4),
-        ("connect", 5, 6),
-        ("connect", 6, 7),
-        ("connect", 8, 9),
-        ("connect", 9, 10),
-        ("connect", 7, 8),
-        ("check", 5, 10),
-        ("count", None, None),
-        ("connect", 1, 5),
-        ("count", None, None),
-        ("check", 1, 10),
+        ('union', 1, 2),
+        ('union', 3, 4),
+        ('query', 1, 3),
+        ('union', 2, 3),
+        ('query', 1, 4),
+        ('union', 5, 6),
+        ('query', 1, 5),
+        ('union', 4, 5),
+        ('query', 1, 6),
     ]
     
+    ds = DisjointSet(range(1, 7))
+    
+    print("操作序列:")
     for op in operations:
-        if op[0] == "add":
-            elements = op[1]
-            ds.make_sets(*elements)
-            print(f"Added elements: {elements}")
-        
-        elif op[0] == "connect":
-            e1, e2 = op[1], op[2]
-            ds.union(e1, e2)
-            print(f"Connected {e1} <-> {e2}")
-        
-        elif op[0] == "check":
-            e1, e2 = op[1], op[2]
-            result = ds.connected(e1, e2)
-            print(f"  Are {e1} and {e2} connected? {result}")
-        
-        elif op[0] == "count":
-            print(f"  Component count: {ds.component_count()}")
+        if op[0] == 'union':
+            _, u, v = op
+            result = ds.union(u, v)
+            status = "合并成功" if result else "已在同一集合"
+            print(f"  union({u}, {v}): {status}")
+        else:
+            _, u, v = op
+            result = ds.connected(u, v)
+            print(f"  query({u}, {v}): {'连通' if result else '不连通'}")
+    
+    print()
+    print(f"最终状态: {ds}")
+    print()
 
 
-def example_serialization():
-    """Save and restore disjoint set state."""
-    print("\n" + "=" * 60)
-    print("Example 10: Serialization and Persistence")
+def example_performance():
+    """性能测试示例"""
+    print("=" * 60)
+    print("9. 性能测试")
     print("=" * 60)
     
-    # Create and populate a disjoint set
-    ds1 = DisjointSet[str]()
-    ds1.make_sets('A', 'B', 'C', 'D', 'E')
-    ds1.union('A', 'B')
-    ds1.union('B', 'C')
-    ds1.union('D', 'E')
+    import time
     
-    print("Original disjoint set:")
-    print(f"  Components: {ds1.get_components()}")
+    # 大规模测试
+    n = 100000
     
-    # Serialize to dictionary
-    data = ds1.to_dict()
-    print(f"\nSerialized (can be saved to JSON):")
-    print(f"  parent mapping: {data['parent']}")
-    print(f"  ranks: {data['rank']}")
+    print(f"创建 {n} 个元素的并查集...")
+    start = time.time()
+    ds = DisjointSet(range(n))
+    create_time = time.time() - start
+    print(f"  创建时间: {create_time:.4f}s")
     
-    # Restore from dictionary
-    ds2 = DisjointSet[str].from_dict(data)
-    print(f"\nRestored disjoint set:")
-    print(f"  Components: {ds2.get_components()}")
-    print(f"  A connected to C: {ds2.connected('A', 'C')}")
+    print(f"执行 {n-1} 次合并...")
+    start = time.time()
+    for i in range(1, n):
+        ds.union(0, i)
+    union_time = time.time() - start
+    print(f"  合并时间: {union_time:.4f}s")
+    
+    print("执行查找测试...")
+    start = time.time()
+    for i in range(0, n, 1000):
+        ds.find(i)
+    find_time = time.time() - start
+    print(f"  查找时间 (100次): {find_time:.6f}s")
+    
+    print(f"最终集合数量: {ds.set_count}")
+    print(f"总元素数: {len(ds)}")
+    print()
 
 
-def main():
-    """Run all examples."""
+if __name__ == '__main__':
     example_basic_operations()
+    example_social_network()
+    example_image_processing()
     example_network_connectivity()
     example_cycle_detection()
     example_minimum_spanning_tree()
-    example_social_network()
-    example_image_processing()
-    example_equivalence_classes()
-    example_island_counting()
+    example_weighted_disjoint_set()
     example_dynamic_connectivity()
-    example_serialization()
+    example_performance()
     
-    print("\n" + "=" * 60)
-    print("All examples completed!")
     print("=" * 60)
-
-
-if __name__ == "__main__":
-    main()
+    print("所有示例完成!")
+    print("=" * 60)

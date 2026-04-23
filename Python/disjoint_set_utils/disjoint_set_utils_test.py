@@ -1,496 +1,458 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-AllToolkit - Disjoint Set Utilities Test Suite
-===============================================
-Comprehensive tests for the DisjointSet module.
+disjoint_set_utils 测试模块
 
-Run with: python -m pytest disjoint_set_utils_test.py -v
-Or: python disjoint_set_utils_test.py
+全面测试并查集的各项功能
 """
 
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from disjoint_set_utils.mod import (
-    DisjointSet,
-    count_connected_components,
-    find_connected_groups,
-    is_connected_graph,
-    detect_cycle_undirected,
-    kruskal_mst,
-    find_friend_circles,
-    get_circle_sizes,
-    find_connected_pixels
+import unittest
+from typing import List, Set, Tuple
+from mod import (
+    DisjointSet, WeightedDisjointSet,
+    connected_components, detect_cycle_undirected,
+    minimum_spanning_tree_kruskal,
+    create_disjoint_set, create_weighted_disjoint_set
 )
 
 
-class TestDisjointSetBasic:
-    """Test basic DisjointSet operations."""
+class TestDisjointSet(unittest.TestCase):
+    """测试 DisjointSet 类"""
     
-    def test_init(self):
-        """Test initialization."""
-        ds = DisjointSet[int]()
-        assert len(ds) == 0
-        assert ds.component_count() == 0
+    def test_init_empty(self):
+        """测试空初始化"""
+        ds = DisjointSet()
+        self.assertEqual(len(ds), 0)
+        self.assertEqual(ds.set_count, 0)
+        self.assertTrue(ds.is_empty())
+    
+    def test_init_with_elements(self):
+        """测试带元素初始化"""
+        ds = DisjointSet([1, 2, 3, 4])
+        self.assertEqual(len(ds), 4)
+        self.assertEqual(ds.set_count, 4)
+        self.assertFalse(ds.is_empty())
     
     def test_make_set(self):
-        """Test make_set operation."""
-        ds = DisjointSet[int]()
-        assert ds.make_set(1) == True
-        assert ds.make_set(1) == False  # Duplicate
-        assert len(ds) == 1
-        assert 1 in ds
+        """测试创建单元素集合"""
+        ds = DisjointSet()
+        ds.make_set(1)
+        self.assertIn(1, ds)
+        self.assertEqual(ds.find(1), 1)
+        self.assertEqual(ds.set_count, 1)
+    
+    def test_make_set_duplicate(self):
+        """测试重复创建元素"""
+        ds = DisjointSet()
+        ds.make_set(1)
+        with self.assertRaises(ValueError):
+            ds.make_set(1)
     
     def test_make_sets(self):
-        """Test batch make_set operation."""
-        ds = DisjointSet[int]()
-        count = ds.make_sets(1, 2, 3, 4)
-        assert count == 4
-        assert len(ds) == 4
-        assert all(i in ds for i in [1, 2, 3, 4])
+        """测试批量创建集合"""
+        ds = DisjointSet()
+        ds.make_sets([1, 2, 3])
+        self.assertEqual(len(ds), 3)
+        self.assertEqual(ds.set_count, 3)
     
-    def test_find(self):
-        """Test find operation."""
-        ds = DisjointSet[str]()
-        ds.make_set("A")
-        assert ds.find("A") == "A"
-        assert ds.find("B") is None  # Non-existent
+    def test_find_basic(self):
+        """测试基本查找"""
+        ds = DisjointSet([1])
+        self.assertEqual(ds.find(1), 1)
     
-    def test_union(self):
-        """Test union operation."""
-        ds = DisjointSet[int]()
-        ds.make_sets(1, 2)
-        assert ds.union(1, 2) == True
-        assert ds.find(1) == ds.find(2)
-        assert ds.union(1, 2) == False  # Already connected
-        assert ds.component_count() == 1
+    def test_find_nonexistent(self):
+        """测试查找不存在的元素"""
+        ds = DisjointSet()
+        with self.assertRaises(KeyError):
+            ds.find(999)
+    
+    def test_union_basic(self):
+        """测试基本合并"""
+        ds = DisjointSet([1, 2])
+        result = ds.union(1, 2)
+        self.assertTrue(result)
+        self.assertEqual(ds.find(1), ds.find(2))
+        self.assertEqual(ds.set_count, 1)
+    
+    def test_union_same_set(self):
+        """测试合并同一集合中的元素"""
+        ds = DisjointSet([1, 2])
+        ds.union(1, 2)
+        result = ds.union(1, 2)
+        self.assertFalse(result)
+    
+    def test_union_multiple(self):
+        """测试多次合并"""
+        ds = DisjointSet([1, 2, 3, 4, 5])
+        ds.union(1, 2)
+        ds.union(3, 4)
+        ds.union(2, 3)
+        ds.union(4, 5)
+        self.assertEqual(ds.set_count, 1)
+        self.assertTrue(ds.connected(1, 5))
     
     def test_union_all(self):
-        """Test union_all operation."""
-        ds = DisjointSet[int]()
-        ds.make_sets(1, 2, 3, 4)
-        unions = ds.union_all(1, 2, 3, 4)
-        assert unions == 3
-        assert ds.component_count() == 1
-        assert all(ds.connected(1, i) for i in [2, 3, 4])
+        """测试批量合并"""
+        ds = DisjointSet([1, 2, 3, 4, 5])
+        merges = ds.union_all([1, 2, 3, 4, 5])
+        self.assertEqual(merges, 4)
+        self.assertEqual(ds.set_count, 1)
     
-    def test_connected(self):
-        """Test connected operation."""
-        ds = DisjointSet[int]()
-        ds.make_sets(1, 2, 3)
-        assert ds.connected(1, 2) == False
-        ds.union(1, 2)
-        assert ds.connected(1, 2) == True
-        assert ds.connected(1, 3) == False
-
-
-class TestDisjointSetQuery:
-    """Test query operations."""
-    
-    def test_component_count(self):
-        """Test component counting."""
-        ds = DisjointSet[int]()
-        ds.make_sets(1, 2, 3, 4, 5)
-        assert ds.component_count() == 5
-        ds.union(1, 2)
-        assert ds.component_count() == 4
-        ds.union(2, 3)
-        assert ds.component_count() == 3
-        ds.union(4, 5)
-        assert ds.component_count() == 2
-        ds.union(1, 4)
-        assert ds.component_count() == 1
-    
-    def test_component_size(self):
-        """Test component size."""
-        ds = DisjointSet[int]()
-        ds.make_sets(1, 2, 3, 4)
+    def test_connected_true(self):
+        """测试连通性检测 - 连通"""
+        ds = DisjointSet([1, 2, 3])
         ds.union(1, 2)
         ds.union(2, 3)
-        assert ds.component_size(1) == 3
-        assert ds.component_size(4) == 1
+        self.assertTrue(ds.connected(1, 3))
     
-    def test_get_component(self):
-        """Test getting all elements in a component."""
-        ds = DisjointSet[int]()
-        ds.make_sets(1, 2, 3, 4, 5)
+    def test_connected_false(self):
+        """测试连通性检测 - 不连通"""
+        ds = DisjointSet([1, 2, 3])
+        ds.union(1, 2)
+        self.assertFalse(ds.connected(1, 3))
+    
+    def test_connected_nonexistent(self):
+        """测试不存在的元素的连通性"""
+        ds = DisjointSet([1])
+        self.assertFalse(ds.connected(1, 999))
+        self.assertFalse(ds.connected(999, 1))
+    
+    def test_get_set_size(self):
+        """测试获取集合大小"""
+        ds = DisjointSet([1, 2, 3, 4])
+        ds.union(1, 2)
+        ds.union(3, 4)
+        self.assertEqual(ds.get_set_size(1), 2)
+        self.assertEqual(ds.get_set_size(3), 2)
+    
+    def test_get_sets(self):
+        """测试获取所有集合"""
+        ds = DisjointSet([1, 2, 3, 4, 5])
+        ds.union(1, 2)
+        ds.union(3, 4)
+        
+        sets = ds.get_sets()
+        self.assertEqual(len(sets), 3)
+        
+        # 检查每个集合的内容
+        set_sizes = sorted(len(s) for s in sets)
+        self.assertEqual(set_sizes, [1, 2, 2])
+    
+    def test_get_set(self):
+        """测试获取特定元素所属集合"""
+        ds = DisjointSet([1, 2, 3, 4])
+        ds.union(1, 2)
+        ds.union(3, 4)
+        
+        set1 = ds.get_set(1)
+        self.assertEqual(set1, {1, 2})
+        
+        set3 = ds.get_set(3)
+        self.assertEqual(set3, {3, 4})
+    
+    def test_find_path(self):
+        """测试查找路径"""
+        ds = DisjointSet([1, 2, 3])
         ds.union(1, 2)
         ds.union(2, 3)
-        assert ds.get_component(1) == {1, 2, 3}
-        assert ds.get_component(4) == {4}
-        assert ds.get_component(6) == set()  # Non-existent
+        
+        path = ds.find_path(3)
+        self.assertEqual(path[-1], ds.find(3))  # 路径终点是根
     
-    def test_get_components(self):
-        """Test getting all components."""
-        ds = DisjointSet[int]()
-        ds.make_sets(1, 2, 3, 4, 5)
+    def test_path_compression(self):
+        """测试路径压缩"""
+        ds = DisjointSet(range(10))
+        # 创建一个长链
+        for i in range(1, 10):
+            ds.union(i-1, i)
+        
+        # 查找应该压缩路径
+        root = ds.find(9)
+        # 再次查找时路径应该更短
+        path_after = ds.find_path(9)
+        self.assertLessEqual(len(path_after), 2)  # 压缩后最多2层
+    
+    def test_remove_leaf(self):
+        """测试移除叶节点"""
+        ds = DisjointSet([1, 2, 3])
         ds.union(1, 2)
-        ds.union(4, 5)
-        components = ds.get_components()
-        assert len(components) == 3
-        assert {1, 2} in components
-        assert {3} in components
-        assert {4, 5} in components
+        ds.union(2, 3)
+        
+        result = ds.remove(3)
+        self.assertTrue(result)
+        self.assertNotIn(3, ds)
     
-    def test_get_representatives(self):
-        """Test getting all representatives."""
-        ds = DisjointSet[int]()
-        ds.make_sets(1, 2, 3)
+    def test_remove_root(self):
+        """测试移除根节点"""
+        ds = DisjointSet([1, 2, 3])
         ds.union(1, 2)
-        reps = ds.get_representatives()
-        assert len(reps) == 2  # Two components: {1,2} and {3}
-
-
-class TestDisjointSetBulk:
-    """Test bulk operations."""
+        ds.union(2, 3)
+        
+        result = ds.remove(1)
+        self.assertTrue(result)
+        self.assertNotIn(1, ds)
+        # 其他元素应该仍然连通
+        self.assertTrue(ds.connected(2, 3))
     
-    def test_add_connections(self):
-        """Test adding multiple connections."""
-        ds = DisjointSet[str]()
-        connections = [("A", "B"), ("B", "C"), ("D", "E")]
-        unions = ds.add_connections(connections)
-        assert unions == 3
-        assert ds.component_count() == 2
-        assert ds.connected("A", "C")
-        assert ds.connected("D", "E")
-        assert not ds.connected("A", "D")
-    
-    def test_from_edges(self):
-        """Test creating from edges."""
-        ds = DisjointSet[int]().from_edges([(1, 2), (2, 3), (4, 5)])
-        assert ds.component_count() == 2
-        assert ds.connected(1, 3)
-        assert not ds.connected(3, 4)
-    
-    def test_reset(self):
-        """Test reset operation."""
-        ds = DisjointSet[int]()
-        ds.make_sets(1, 2, 3)
-        ds.union(1, 2)
-        ds.reset()
-        assert len(ds) == 0
-        assert ds.component_count() == 0
+    def test_remove_nonexistent(self):
+        """测试移除不存在的元素"""
+        ds = DisjointSet([1])
+        result = ds.remove(999)
+        self.assertFalse(result)
     
     def test_copy(self):
-        """Test copy operation."""
-        ds1 = DisjointSet[int]()
-        ds1.make_sets(1, 2, 3)
+        """测试深拷贝"""
+        ds1 = DisjointSet([1, 2, 3])
         ds1.union(1, 2)
+        
         ds2 = ds1.copy()
-        assert len(ds2) == 3
-        assert ds2.connected(1, 2)
-        # Modify copy shouldn't affect original
         ds2.union(2, 3)
-        assert ds2.connected(1, 3)
-        assert not ds1.connected(1, 3)
-
-
-class TestDisjointSetSerialization:
-    """Test serialization operations."""
+        
+        # 原并查集不受影响
+        self.assertEqual(ds1.set_count, 2)
+        self.assertEqual(ds2.set_count, 1)
     
-    def test_to_dict_and_from_dict(self):
-        """Test dictionary serialization."""
-        ds1 = DisjointSet[str]()
-        ds1.make_sets("A", "B", "C")
-        ds1.union("A", "B")
+    def test_clear(self):
+        """测试清空"""
+        ds = DisjointSet([1, 2, 3])
+        ds.union(1, 2)
+        ds.clear()
+        
+        self.assertEqual(len(ds), 0)
+        self.assertEqual(ds.set_count, 0)
+        self.assertTrue(ds.is_empty())
+    
+    def test_iteration(self):
+        """测试迭代"""
+        ds = DisjointSet([1, 2, 3])
+        elements = list(ds)
+        self.assertEqual(sorted(elements), [1, 2, 3])
+    
+    def test_repr(self):
+        """测试字符串表示"""
+        ds = DisjointSet([1, 2])
+        repr_str = repr(ds)
+        self.assertIn("DisjointSet", repr_str)
+    
+    def test_serialization(self):
+        """测试序列化和反序列化"""
+        ds1 = DisjointSet([1, 2, 3, 4])
+        ds1.union(1, 2)
+        ds1.union(3, 4)
         
         data = ds1.to_dict()
         ds2 = DisjointSet.from_dict(data)
         
-        assert len(ds2) == 3
-        assert ds2.connected("A", "B")
-        assert not ds2.connected("A", "C")
-
-
-class TestDisjointSetTypes:
-    """Test with different types."""
+        self.assertEqual(ds1.set_count, ds2.set_count)
+        self.assertEqual(len(ds1), len(ds2))
     
     def test_string_elements(self):
-        """Test with string elements."""
-        ds = DisjointSet[str]()
-        ds.make_sets("apple", "banana", "cherry")
-        ds.union("apple", "banana")
-        assert ds.connected("apple", "banana")
+        """测试字符串元素"""
+        ds = DisjointSet(['a', 'b', 'c'])
+        ds.union('a', 'b')
+        self.assertTrue(ds.connected('a', 'b'))
+        self.assertFalse(ds.connected('a', 'c'))
     
     def test_tuple_elements(self):
-        """Test with tuple elements."""
-        ds = DisjointSet[tuple]()
-        ds.make_sets((0, 0), (0, 1), (1, 0))
-        ds.union((0, 0), (0, 1))
-        assert ds.connected((0, 0), (0, 1))
-
-
-class TestGraphUtilities:
-    """Test graph utility functions."""
+        """测试元组元素"""
+        ds = DisjointSet([(1, 2), (3, 4), (5, 6)])
+        ds.union((1, 2), (3, 4))
+        self.assertTrue(ds.connected((1, 2), (3, 4)))
     
-    def test_count_connected_components(self):
-        """Test counting connected components."""
-        nodes = [1, 2, 3, 4, 5]
-        edges = [(1, 2), (2, 3), (4, 5)]
-        assert count_connected_components(nodes, edges) == 2
+    def test_large_dataset(self):
+        """测试大数据集"""
+        n = 10000
+        ds = DisjointSet(range(n))
         
-        # Single component
-        edges2 = [(1, 2), (2, 3), (3, 4), (4, 5)]
-        assert count_connected_components(nodes, edges2) == 1
+        # 合并成单个集合
+        for i in range(1, n):
+            ds.union(0, i)
         
-        # No edges
-        assert count_connected_components(nodes, []) == 5
-    
-    def test_find_connected_groups(self):
-        """Test finding connected groups."""
-        elements = ['A', 'B', 'C', 'D', 'E']
-        connections = [('A', 'B'), ('B', 'C'), ('D', 'E')]
-        groups = find_connected_groups(elements, connections)
-        assert len(groups) == 2
-        assert {'A', 'B', 'C'} in groups
-        assert {'D', 'E'} in groups
-    
-    def test_is_connected_graph(self):
-        """Test graph connectivity check."""
-        # Connected graph
-        assert is_connected_graph([1, 2, 3], [(1, 2), (2, 3)]) == True
-        # Disconnected graph
-        assert is_connected_graph([1, 2, 3, 4], [(1, 2), (3, 4)]) == False
-        # Empty graph
-        assert is_connected_graph([], []) == True
-    
-    def test_detect_cycle_undirected(self):
-        """Test cycle detection."""
-        # Triangle - has cycle
-        assert detect_cycle_undirected([1, 2, 3], [(1, 2), (2, 3), (3, 1)]) == True
-        # Line - no cycle
-        assert detect_cycle_undirected([1, 2, 3], [(1, 2), (2, 3)]) == False
-        # Square - has cycle
-        assert detect_cycle_undirected([1, 2, 3, 4], 
-                                        [(1, 2), (2, 3), (3, 4), (4, 1)]) == True
+        self.assertEqual(ds.set_count, 1)
+        self.assertTrue(ds.connected(0, n-1))
 
 
-class TestKruskalMST:
-    """Test Kruskal's MST algorithm."""
+class TestWeightedDisjointSet(unittest.TestCase):
+    """测试带权并查集"""
     
-    def test_simple_mst(self):
-        """Test simple MST."""
-        nodes = ['A', 'B', 'C']
-        edges = [('A', 'B', 1), ('B', 'C', 2), ('A', 'C', 3)]
-        mst, weight = kruskal_mst(nodes, edges)
-        assert len(mst) == 2
-        assert weight == 3.0  # 1 + 2
+    def test_basic_operations(self):
+        """测试基本操作"""
+        wds = WeightedDisjointSet([1, 2, 3])
+        wds.union(1, 2, weight=5)
+        
+        self.assertTrue(wds.connected(1, 2))
+        self.assertEqual(wds.get_weight(1, 2), 5)
     
-    def test_disconnected_graph(self):
-        """Test MST on disconnected graph returns empty."""
+    def test_transitive_weight(self):
+        """测试权重传递"""
+        wds = WeightedDisjointSet([1, 2, 3])
+        wds.union(1, 2, weight=3)
+        wds.union(2, 3, weight=2)
+        
+        self.assertTrue(wds.connected(1, 3))
+        # 1 -> 2 -> 3: 3 + 2 = 5
+        self.assertEqual(wds.get_weight(1, 3), 5)
+    
+    def test_negative_weight(self):
+        """测试负权重"""
+        wds = WeightedDisjointSet([1, 2])
+        wds.union(1, 2, weight=-10)
+        self.assertEqual(wds.get_weight(1, 2), -10)
+    
+    def test_zero_weight(self):
+        """测试零权重"""
+        wds = WeightedDisjointSet([1, 2])
+        wds.union(1, 2, weight=0)
+        self.assertEqual(wds.get_weight(1, 2), 0)
+    
+    def test_different_components(self):
+        """测试不同集合的权重"""
+        wds = WeightedDisjointSet([1, 2, 3])
+        wds.union(1, 2, weight=5)
+        
+        # 1 和 3 不连通
+        self.assertIsNone(wds.get_weight(1, 3))
+
+
+class TestConnectedComponents(unittest.TestCase):
+    """测试连通分量计算"""
+    
+    def test_empty(self):
+        """测试空图"""
+        result = connected_components([])
+        self.assertEqual(result, [])
+    
+    def test_single_component(self):
+        """测试单一连通分量"""
+        edges = [(1, 2), (2, 3), (3, 4)]
+        result = connected_components(edges)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0], {1, 2, 3, 4})
+    
+    def test_multiple_components(self):
+        """测试多个连通分量"""
+        edges = [(1, 2), (2, 3), (4, 5), (6, 7), (7, 8)]
+        result = connected_components(edges)
+        self.assertEqual(len(result), 3)
+        
+        sizes = sorted(len(c) for c in result)
+        self.assertEqual(sizes, [2, 3, 3])
+    
+    def test_no_edges(self):
+        """测试无边的图"""
+        # 无边的情况，每个节点自成一个分量
+        # 但函数从边推导节点，无边则为空
+        result = connected_components([])
+        self.assertEqual(result, [])
+
+
+class TestCycleDetection(unittest.TestCase):
+    """测试环检测"""
+    
+    def test_no_cycle(self):
+        """测试无环图"""
+        edges = [(1, 2), (2, 3), (3, 4)]
+        self.assertFalse(detect_cycle_undirected(edges))
+    
+    def test_simple_cycle(self):
+        """测试简单环"""
+        edges = [(1, 2), (2, 3), (3, 1)]
+        self.assertTrue(detect_cycle_undirected(edges))
+    
+    def test_complex_cycle(self):
+        """测试复杂环"""
+        edges = [(1, 2), (2, 3), (3, 4), (4, 5), (5, 2)]
+        self.assertTrue(detect_cycle_undirected(edges))
+    
+    def test_multiple_cycles(self):
+        """测试多个环"""
+        edges = [(1, 2), (2, 3), (3, 1), (4, 5), (5, 6), (6, 4)]
+        self.assertTrue(detect_cycle_undirected(edges))
+    
+    def test_empty_graph(self):
+        """测试空图"""
+        self.assertFalse(detect_cycle_undirected([]))
+    
+    def test_single_edge(self):
+        """测试单边"""
+        self.assertFalse(detect_cycle_undirected([(1, 2)]))
+
+
+class TestMinimumSpanningTree(unittest.TestCase):
+    """测试最小生成树"""
+    
+    def test_simple_graph(self):
+        """测试简单图"""
+        nodes = [1, 2, 3]
+        edges = [(1, 2, 1), (2, 3, 2), (1, 3, 3)]
+        
+        mst, total = minimum_spanning_tree_kruskal(nodes, edges)
+        self.assertEqual(len(mst), 2)
+        self.assertEqual(total, 3)  # 1 + 2
+    
+    def test_complex_graph(self):
+        """测试复杂图"""
         nodes = ['A', 'B', 'C', 'D']
-        edges = [('A', 'B', 1), ('C', 'D', 2)]
-        mst, weight = kruskal_mst(nodes, edges)
-        assert mst == []
-        assert weight == 0.0
+        edges = [
+            ('A', 'B', 4),
+            ('A', 'C', 2),
+            ('B', 'C', 1),
+            ('B', 'D', 3),
+            ('C', 'D', 5)
+        ]
+        
+        mst, total = minimum_spanning_tree_kruskal(nodes, edges)
+        self.assertEqual(len(mst), 3)  # n-1 edges
+        self.assertEqual(total, 6)  # 2 + 1 + 3
+    
+    def test_empty_graph(self):
+        """测试空图"""
+        mst, total = minimum_spanning_tree_kruskal([], [])
+        self.assertEqual(mst, [])
+        self.assertEqual(total, 0)
     
     def test_single_node(self):
-        """Test MST on single node."""
-        mst, weight = kruskal_mst(['A'], [])
-        assert mst == []
-        assert weight == 0.0
-
-
-class TestSocialNetwork:
-    """Test social network utilities."""
+        """测试单节点"""
+        mst, total = minimum_spanning_tree_kruskal([1], [])
+        self.assertEqual(mst, [])
+        self.assertEqual(total, 0)
     
-    def test_find_friend_circles(self):
-        """Test friend circle detection."""
-        users = ['Alice', 'Bob', 'Carol', 'Dave', 'Eve']
-        friendships = [('Alice', 'Bob'), ('Bob', 'Carol'), ('Dave', 'Eve')]
-        circles = find_friend_circles(users, friendships)
+    def test_disconnected_graph(self):
+        """测试不连通图"""
+        nodes = [1, 2, 3, 4]
+        edges = [(1, 2, 1), (3, 4, 2)]  # 两个不连通部分
         
-        # Alice, Bob, Carol should share same circle
-        assert circles['Alice'] == circles['Bob'] == circles['Carol']
-        # Dave and Eve should share another circle
-        assert circles['Dave'] == circles['Eve']
-        # The two circles should be different
-        assert circles['Alice'] != circles['Dave']
+        mst, total = minimum_spanning_tree_kruskal(nodes, edges)
+        self.assertEqual(len(mst), 2)
+        self.assertEqual(total, 3)
     
-    def test_get_circle_sizes(self):
-        """Test circle size calculation."""
-        users = ['A', 'B', 'C', 'D']
-        friendships = [('A', 'B'), ('B', 'C')]
-        sizes = get_circle_sizes(users, friendships)
-        assert sizes['A'] == 3
-        assert sizes['B'] == 3
-        assert sizes['C'] == 3
-        assert sizes['D'] == 1
-
-
-class TestImageProcessing:
-    """Test image processing utilities."""
-    
-    def test_connected_pixels_simple(self):
-        """Test simple connected component labeling."""
-        grid = [
-            [1, 1, 0],
-            [1, 0, 0],
-            [0, 0, 1]
-        ]
-        labeled = find_connected_pixels(grid)
+    def test_equal_weights(self):
+        """测试等权重边"""
+        nodes = [1, 2, 3]
+        edges = [(1, 2, 1), (2, 3, 1), (1, 3, 1)]
         
-        # First two 1s should have same label
-        assert labeled[0][0] == labeled[0][1] == labeled[1][0]
-        # Last 1 should have different label
-        assert labeled[2][2] != labeled[0][0]
-    
-    def test_connected_pixels_empty(self):
-        """Test empty grid."""
-        assert find_connected_pixels([]) == []
-        assert find_connected_pixels([[]]) == []
-    
-    def test_connected_pixels_all_zeros(self):
-        """Test grid of all zeros."""
-        grid = [[0, 0], [0, 0]]
-        labeled = find_connected_pixels(grid)
-        assert all(all(cell == 0 for cell in row) for row in labeled)
-    
-    def test_connected_pixels_8_connectivity(self):
-        """Test 8-connectivity."""
-        grid = [
-            [1, 0, 1],
-            [0, 1, 0],
-            [1, 0, 1]
-        ]
-        # With 4-connectivity, these are 5 separate components
-        labeled_4 = find_connected_pixels(grid, connectivity=4)
-        # With 8-connectivity, they're all connected through diagonals
-        labeled_8 = find_connected_pixels(grid, connectivity=8)
-        
-        # Count unique non-zero labels
-        labels_4 = set(x for row in labeled_4 for x in row if x > 0)
-        labels_8 = set(x for row in labeled_8 for x in row if x > 0)
-        
-        assert len(labels_4) > len(labels_8)
+        mst, total = minimum_spanning_tree_kruskal(nodes, edges)
+        self.assertEqual(len(mst), 2)
+        self.assertEqual(total, 2)
 
 
-class TestPathCompression:
-    """Test path compression optimization."""
+class TestConvenienceFunctions(unittest.TestCase):
+    """测试便捷函数"""
     
-    def test_path_compression(self):
-        """Test that path compression works correctly."""
-        ds = DisjointSet[int]()
-        # Create a chain: 1 -> 2 -> 3 -> 4 -> 5
-        ds.make_sets(1, 2, 3, 4, 5)
-        ds.union(1, 2)
-        ds.union(2, 3)
-        ds.union(3, 4)
-        ds.union(4, 5)
-        
-        # All should be connected
-        assert ds.connected(1, 5)
-        
-        # After find(5), path should be compressed
-        root = ds.find(5)
-        path = ds.find_path(5)
-        assert path is not None
-        assert path[-1] == root
-        # Path should be short after compression
-        assert len(path) <= 3
+    def test_create_disjoint_set(self):
+        """测试创建并查集函数"""
+        ds = create_disjoint_set([1, 2, 3])
+        self.assertEqual(len(ds), 3)
+        self.assertEqual(ds.set_count, 3)
+    
+    def test_create_weighted_disjoint_set(self):
+        """测试创建带权并查集函数"""
+        wds = create_weighted_disjoint_set([1, 2, 3])
+        self.assertEqual(len(wds), 3)
+    
+    def test_create_empty(self):
+        """测试创建空并查集"""
+        ds = create_disjoint_set()
+        self.assertTrue(ds.is_empty())
 
 
-class TestUnionByRank:
-    """Test union by rank optimization."""
-    
-    def test_union_by_rank(self):
-        """Test that smaller tree is attached under larger tree."""
-        ds = DisjointSet[int]()
-        # Create two trees of different heights
-        ds.make_sets(1, 2, 3, 4, 5, 6)
-        ds.union(1, 2)  # Tree 1 has rank 1
-        ds.union(3, 4)
-        ds.union(3, 5)
-        ds.union(3, 6)  # Tree 3 has rank 2
-        
-        # After union, rank should be at most max(rank1, rank2) + 1
-        initial_rank = ds.get_rank(1)
-        ds.union(1, 3)
-        final_rank = ds.get_rank(1)
-        assert final_rank >= initial_rank
-
-
-class TestEdgeCases:
-    """Test edge cases."""
-    
-    def test_empty_operations(self):
-        """Test operations on empty set."""
-        ds = DisjointSet[int]()
-        assert ds.find(1) is None
-        assert ds.component_size(1) == 0
-        assert ds.get_component(1) == set()
-        assert ds.union(1, 2) == False
-    
-    def test_single_element(self):
-        """Test with single element."""
-        ds = DisjointSet[int]()
-        ds.make_set(1)
-        assert ds.find(1) == 1
-        assert ds.component_size(1) == 1
-        assert ds.component_count() == 1
-    
-    def test_self_union(self):
-        """Test union with self."""
-        ds = DisjointSet[int]()
-        ds.make_set(1)
-        assert ds.union(1, 1) == False  # No change
-    
-    def test_nonexistent_union(self):
-        """Test union with non-existent elements."""
-        ds = DisjointSet[int]()
-        ds.make_set(1)
-        assert ds.union(1, 2) == False  # 2 doesn't exist
-        assert ds.union(3, 4) == False  # Both don't exist
-
-
-def run_tests():
-    """Run all tests manually."""
-    import traceback
-    
-    test_classes = [
-        TestDisjointSetBasic,
-        TestDisjointSetQuery,
-        TestDisjointSetBulk,
-        TestDisjointSetSerialization,
-        TestDisjointSetTypes,
-        TestGraphUtilities,
-        TestKruskalMST,
-        TestSocialNetwork,
-        TestImageProcessing,
-        TestPathCompression,
-        TestUnionByRank,
-        TestEdgeCases
-    ]
-    
-    total_tests = 0
-    passed = 0
-    failed = 0
-    
-    for test_class in test_classes:
-        instance = test_class()
-        for method_name in dir(instance):
-            if method_name.startswith('test_'):
-                total_tests += 1
-                try:
-                    getattr(instance, method_name)()
-                    passed += 1
-                    print(f"✓ {test_class.__name__}.{method_name}")
-                except AssertionError as e:
-                    failed += 1
-                    print(f"✗ {test_class.__name__}.{method_name}")
-                    print(f"  AssertionError: {e}")
-                except Exception as e:
-                    failed += 1
-                    print(f"✗ {test_class.__name__}.{method_name}")
-                    traceback.print_exc()
-    
-    print(f"\n{'='*50}")
-    print(f"Total: {total_tests}, Passed: {passed}, Failed: {failed}")
-    return failed == 0
-
-
-if __name__ == "__main__":
-    success = run_tests()
-    sys.exit(0 if success else 1)
+if __name__ == '__main__':
+    unittest.main(verbosity=2)

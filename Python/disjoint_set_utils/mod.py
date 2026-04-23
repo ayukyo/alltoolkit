@@ -1,221 +1,180 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-AllToolkit - Disjoint Set (Union-Find) Utilities Module
-========================================================
-A comprehensive disjoint set / union-find data structure module for Python 
-with zero external dependencies.
+disjoint_set_utils - 并查集（Union-Find）数据结构实现
 
-Features:
-    - DisjointSet class with path compression and union by rank
-    - Efficient find, union, and connected operations
-    - Support for any hashable element type
-    - Component counting and size tracking
-    - Batch operations for performance
-    - Kruskal's MST algorithm helper
-    - Network connectivity analysis utilities
+零外部依赖的并查集实现，支持路径压缩和按秩合并优化。
+广泛应用于图连通性问题、最小生成树算法、网络连接检测等场景。
 
-Time Complexity (amortized):
-    - Find: O(α(n)) ≈ O(1), where α is inverse Ackermann function
-    - Union: O(α(n)) ≈ O(1)
-    - Connected: O(α(n)) ≈ O(1)
+主要功能:
+- 基本并查集操作 (make_set, find, union)
+- 路径压缩和按秩合并优化
+- 连通性检测
+- 集合计数
+- 批量操作
+- 序列化/反序列化
 
-Author: AllToolkit Contributors
-License: MIT
+作者: AllToolkit
+日期: 2026-04-23
 """
 
-from typing import Dict, Generic, Hashable, Iterator, List, Optional, Set, Tuple, TypeVar
+from typing import Dict, List, Set, Tuple, Optional, Any, Iterator, Generic, TypeVar, Iterable
+from collections import defaultdict
 
-T = TypeVar('T', bound=Hashable)
+T = TypeVar('T')
 
 
 class DisjointSet(Generic[T]):
     """
-    A disjoint-set (union-find) data structure with path compression 
-    and union by rank optimization.
+    泛型并查集数据结构
     
-    This data structure keeps track of elements partitioned into disjoint 
-    (non-overlapping) subsets. It provides near-constant-time operations 
-    for adding new sets, merging sets, and finding set representatives.
+    使用路径压缩和按秩合并优化，近乎 O(1) 的查找和合并操作。
     
-    Examples:
-        >>> ds = DisjointSet[str]()
-        >>> ds.make_set("A")
-        >>> ds.make_set("B")
-        >>> ds.union("A", "B")
+    时间复杂度:
+    - find: O(α(n)) ≈ O(1), α 是反阿克曼函数
+    - union: O(α(n)) ≈ O(1)
+    - make_set: O(1)
+    
+    空间复杂度: O(n)
+    
+    示例:
+        >>> ds = DisjointSet()
+        >>> ds.make_set(1)
+        >>> ds.make_set(2)
+        >>> ds.union(1, 2)
+        >>> ds.connected(1, 2)
         True
-        >>> ds.connected("A", "B")
-        True
-        >>> ds.find("A")
-        'A' or 'B' (representative)
     """
     
-    def __init__(self) -> None:
-        """Initialize an empty disjoint set."""
+    def __init__(self, elements: Optional[Iterable[T]] = None):
+        """
+        初始化并查集
+        
+        Args:
+            elements: 可选的初始元素集合
+        """
         self._parent: Dict[T, T] = {}
         self._rank: Dict[T, int] = {}
-        self._size: Dict[T, int] = {}
-        self._count: int = 0
+        self._size: Dict[T, int] = {}  # 每个集合的大小
+        self._count: int = 0  # 集合数量
+        
+        if elements:
+            for elem in elements:
+                self.make_set(elem)
     
     def __len__(self) -> int:
-        """Return the number of elements in the disjoint set."""
+        """返回元素总数"""
         return len(self._parent)
     
     def __contains__(self, element: T) -> bool:
-        """Check if an element exists in the disjoint set."""
+        """检查元素是否存在"""
         return element in self._parent
     
     def __iter__(self) -> Iterator[T]:
-        """Iterate over all elements in the disjoint set."""
+        """迭代所有元素"""
         return iter(self._parent.keys())
     
     def __repr__(self) -> str:
-        """Return string representation of the disjoint set."""
-        components = self.get_components()
-        return f"DisjointSet({components})"
+        sets = self.get_sets()
+        sets_str = ", ".join(f"{{{', '.join(map(str, s))}}}" for s in sets)
+        return f"DisjointSet({sets_str})"
     
-    def __str__(self) -> str:
-        """Return human-readable string representation."""
-        components = self.get_components()
-        parts = [f"{{{', '.join(map(str, sorted(c))) if all(isinstance(x, (str, int)) for x in c) else ', '.join(map(str, c))}}}" 
-                 for c in components]
-        return f"DisjointSet({', '.join(parts)})"
-    
-    # ========================================================================
-    # Core Operations
-    # ========================================================================
-    
-    def make_set(self, element: T) -> bool:
+    def make_set(self, element: T) -> None:
         """
-        Create a new set containing only the given element.
+        创建一个新集合，包含单个元素
         
         Args:
-            element: The element to add as a new singleton set.
+            element: 要创建集合的元素
             
-        Returns:
-            True if element was added, False if it already existed.
-            
-        Examples:
-            >>> ds = DisjointSet[int]()
-            >>> ds.make_set(1)
-            True
-            >>> ds.make_set(1)  # Already exists
-            False
+        Raises:
+            ValueError: 如果元素已存在
         """
         if element in self._parent:
-            return False
+            raise ValueError(f"元素 '{element}' 已存在")
         
         self._parent[element] = element
         self._rank[element] = 0
         self._size[element] = 1
         self._count += 1
-        return True
     
-    def make_sets(self, *elements: T) -> int:
+    def make_sets(self, elements: Iterable[T]) -> None:
         """
-        Create multiple singleton sets from the given elements.
+        批量创建集合
         
         Args:
-            *elements: Elements to add as new singleton sets.
-            
-        Returns:
-            Number of elements actually added.
-            
-        Examples:
-            >>> ds = DisjointSet[int]()
-            >>> ds.make_sets(1, 2, 3, 4)
-            4
+            elements: 元素集合
         """
-        added = 0
-        for element in elements:
-            if self.make_set(element):
-                added += 1
-        return added
+        for elem in elements:
+            if elem not in self._parent:
+                self.make_set(elem)
     
-    def find(self, element: T) -> Optional[T]:
+    def find(self, element: T) -> T:
         """
-        Find the representative (root) of the set containing the element.
+        查找元素所属集合的根节点
         
-        Uses path compression to flatten the tree structure, making future
-        queries faster.
+        使用路径压缩优化，将沿途节点直接连接到根节点。
         
         Args:
-            element: The element to find the representative for.
+            element: 要查找的元素
             
         Returns:
-            The representative element, or None if element doesn't exist.
+            集合的根节点（代表元素）
             
-        Examples:
-            >>> ds = DisjointSet[int]()
-            >>> ds.make_sets(1, 2)
-            >>> ds.union(1, 2)
-            True
-            >>> ds.find(1) == ds.find(2)
-            True
+        Raises:
+            KeyError: 如果元素不存在
         """
         if element not in self._parent:
-            return None
+            raise KeyError(f"元素 '{element}' 不存在")
         
-        # Path compression: make every node point directly to root
+        # 路径压缩：递归查找时将节点直接连接到根
         if self._parent[element] != element:
             self._parent[element] = self.find(self._parent[element])
+        
         return self._parent[element]
     
-    def find_path(self, element: T) -> Optional[List[T]]:
+    def find_path(self, element: T) -> List[T]:
         """
-        Find the path from element to its representative.
-        
-        Useful for debugging or visualization.
+        查找从元素到根节点的路径
         
         Args:
-            element: The element to find the path for.
+            element: 起始元素
             
         Returns:
-            List of elements from given element to root, or None if not found.
+            从元素到根节点的路径列表
         """
         if element not in self._parent:
-            return None
+            raise KeyError(f"元素 '{element}' 不存在")
         
         path = [element]
         current = element
+        
         while self._parent[current] != current:
             current = self._parent[current]
             path.append(current)
+        
         return path
     
     def union(self, element1: T, element2: T) -> bool:
         """
-        Merge the sets containing element1 and element2.
+        合并两个元素所属的集合
         
-        Uses union by rank to keep trees shallow.
+        使用按秩合并优化，将较矮的树连接到较高的树。
         
         Args:
-            element1: First element.
-            element2: Second element.
+            element1: 第一个元素
+            element2: 第二个元素
             
         Returns:
-            True if sets were merged, False if already in same set or 
-            one/both elements don't exist.
+            True 如果合并成功（原本不同集合），False 如果已在同一集合
             
-        Examples:
-            >>> ds = DisjointSet[int]()
-            >>> ds.make_sets(1, 2, 3)
-            3
-            >>> ds.union(1, 2)
-            True
-            >>> ds.union(1, 2)  # Already connected
-            False
+        Raises:
+            KeyError: 如果任一元素不存在
         """
         root1 = self.find(element1)
         root2 = self.find(element2)
         
-        if root1 is None or root2 is None:
+        if root1 == root2:
             return False
         
-        if root1 == root2:
-            return False  # Already in same set
-        
-        # Union by rank: attach smaller tree under larger tree
+        # 按秩合并：将较低的树连接到较高的树
         if self._rank[root1] < self._rank[root2]:
             root1, root2 = root2, root1
         
@@ -228,232 +187,126 @@ class DisjointSet(Generic[T]):
         self._count -= 1
         return True
     
-    def union_all(self, *elements: T) -> int:
+    def union_all(self, elements: Iterable[T]) -> int:
         """
-        Union all given elements into a single set.
+        将多个元素全部合并到同一集合
         
         Args:
-            *elements: Elements to union together.
+            elements: 要合并的元素集合
             
         Returns:
-            Number of successful unions performed.
-            
-        Examples:
-            >>> ds = DisjointSet[int]()
-            >>> ds.make_sets(1, 2, 3, 4)
-            4
-            >>> ds.union_all(1, 2, 3, 4)
-            3
+            实际执行的合并次数
         """
+        elements = list(elements)
         if len(elements) < 2:
             return 0
         
-        unions = 0
+        merges = 0
         first = elements[0]
-        for element in elements[1:]:
-            if self.union(first, element):
-                unions += 1
-        return unions
+        for elem in elements[1:]:
+            if self.union(first, elem):
+                merges += 1
+        
+        return merges
     
     def connected(self, element1: T, element2: T) -> bool:
         """
-        Check if two elements are in the same set.
+        检查两个元素是否在同一集合
         
         Args:
-            element1: First element.
-            element2: Second element.
+            element1: 第一个元素
+            element2: 第二个元素
             
         Returns:
-            True if both elements exist and are in the same set.
-            
-        Examples:
-            >>> ds = DisjointSet[int]()
-            >>> ds.make_sets(1, 2)
-            2
-            >>> ds.connected(1, 2)
-            False
-            >>> ds.union(1, 2)
-            True
-            >>> ds.connected(1, 2)
-            True
+            True 如果在同一集合，False 否则
         """
-        root1 = self.find(element1)
-        root2 = self.find(element2)
-        return root1 is not None and root1 == root2
+        try:
+            return self.find(element1) == self.find(element2)
+        except KeyError:
+            return False
     
-    # ========================================================================
-    # Query Operations
-    # ========================================================================
-    
-    def component_count(self) -> int:
+    def get_set_size(self, element: T) -> int:
         """
-        Get the number of disjoint sets (components).
-        
-        Returns:
-            Number of disjoint sets.
-        """
-        return self._count
-    
-    def component_size(self, element: T) -> int:
-        """
-        Get the size of the component containing the element.
+        获取元素所属集合的大小
         
         Args:
-            element: The element to check.
+            element: 要查询的元素
             
         Returns:
-            Size of the component, or 0 if element doesn't exist.
+            集合大小（元素数量）
         """
         root = self.find(element)
-        if root is None:
-            return 0
         return self._size[root]
     
-    def get_component(self, element: T) -> Set[T]:
+    def get_sets(self) -> List[Set[T]]:
         """
-        Get all elements in the same component as the given element.
-        
-        Args:
-            element: The element to get the component for.
-            
-        Returns:
-            Set of all elements in the component, or empty set if not found.
-        """
-        if element not in self._parent:
-            return set()
-        
-        root = self.find(element)
-        return {e for e in self._parent if self.find(e) == root}
-    
-    def get_components(self) -> List[Set[T]]:
-        """
-        Get all disjoint sets (components).
+        获取所有集合
         
         Returns:
-            List of sets, each containing elements of one component.
+            集合列表，每个集合是一个包含该集合所有元素的 set
         """
-        components: Dict[T, Set[T]] = {}
+        sets_dict: Dict[T, Set[T]] = defaultdict(set)
+        
         for element in self._parent:
             root = self.find(element)
-            if root not in components:
-                components[root] = set()
-            components[root].add(element)
-        return list(components.values())
-    
-    def get_representatives(self) -> Set[T]:
-        """
-        Get all representative elements (roots of each component).
+            sets_dict[root].add(element)
         
-        Returns:
-            Set of representative elements.
-        """
-        return {self.find(e) for e in self._parent if self.find(e) is not None}
+        return list(sets_dict.values())
     
-    def get_rank(self, element: T) -> int:
+    def get_set(self, element: T) -> Set[T]:
         """
-        Get the rank of an element.
+        获取元素所属集合的所有元素
         
         Args:
-            element: The element to check.
+            element: 要查询的元素
             
         Returns:
-            Rank of the element, or -1 if not found.
+            该集合的所有元素
         """
         root = self.find(element)
-        if root is None:
-            return -1
-        return self._rank[root]
+        return {elem for elem in self._parent if self.find(elem) == root}
     
-    # ========================================================================
-    # Bulk Operations
-    # ========================================================================
+    @property
+    def set_count(self) -> int:
+        """返回当前集合数量"""
+        return self._count
     
-    def add_connections(self, connections: List[Tuple[T, T]]) -> int:
-        """
-        Add multiple connections (unions) at once.
-        
-        Elements are automatically created if they don't exist.
-        
-        Args:
-            connections: List of (element1, element2) tuples to union.
-            
-        Returns:
-            Number of successful unions.
-            
-        Examples:
-            >>> ds = DisjointSet[int]()
-            >>> ds.add_connections([(1, 2), (2, 3), (4, 5)])
-            3
-        """
-        # First, add all elements
-        elements = set()
-        for e1, e2 in connections:
-            elements.add(e1)
-            elements.add(e2)
-        for e in elements:
-            self.make_set(e)
-        
-        # Then perform unions
-        unions = 0
-        for e1, e2 in connections:
-            if self.union(e1, e2):
-                unions += 1
-        return unions
+    @property
+    def element_count(self) -> int:
+        """返回元素总数"""
+        return len(self._parent)
     
-    def from_edges(self, edges: List[Tuple[T, T]]) -> 'DisjointSet[T]':
-        """
-        Create a disjoint set from a list of edges.
-        
-        Args:
-            edges: List of (node1, node2) tuples representing connections.
-            
-        Returns:
-            Self for method chaining.
-            
-        Examples:
-            >>> ds = DisjointSet[int]().from_edges([(1, 2), (2, 3), (4, 5)])
-            >>> ds.component_count()
-            2
-        """
-        for e1, e2 in edges:
-            self.make_set(e1)
-            self.make_set(e2)
-            self.union(e1, e2)
-        return self
+    def is_empty(self) -> bool:
+        """检查是否为空"""
+        return len(self._parent) == 0
     
-    def reset(self) -> None:
-        """Reset the disjoint set to empty state."""
+    def clear(self) -> None:
+        """清空所有元素"""
         self._parent.clear()
         self._rank.clear()
         self._size.clear()
         self._count = 0
     
-    # ========================================================================
-    # Utility Methods
-    # ========================================================================
-    
     def copy(self) -> 'DisjointSet[T]':
         """
-        Create a shallow copy of this disjoint set.
+        创建并查集的深拷贝
         
         Returns:
-            A new DisjointSet with the same structure.
+            新的 DisjointSet 实例
         """
-        new_ds = DisjointSet[T]()
-        new_ds._parent = self._parent.copy()
-        new_ds._rank = self._rank.copy()
-        new_ds._size = self._size.copy()
+        new_ds = DisjointSet()
+        new_ds._parent = dict(self._parent)
+        new_ds._rank = dict(self._rank)
+        new_ds._size = dict(self._size)
         new_ds._count = self._count
         return new_ds
     
-    def to_dict(self) -> Dict[str, any]:
+    def to_dict(self) -> Dict[str, Any]:
         """
-        Export the disjoint set state as a dictionary.
-        
-        Useful for serialization or debugging.
+        序列化为字典
         
         Returns:
-            Dictionary with parent, rank, size, and count info.
+            包含并查集状态的字典
         """
         return {
             'parent': dict(self._parent),
@@ -463,373 +316,331 @@ class DisjointSet(Generic[T]):
         }
     
     @classmethod
-    def from_dict(cls, data: Dict[str, any]) -> 'DisjointSet':
+    def from_dict(cls, data: Dict[str, Any]) -> 'DisjointSet':
         """
-        Create a disjoint set from a dictionary (inverse of to_dict).
+        从字典反序列化
         
         Args:
-            data: Dictionary with parent, rank, size, and count.
+            data: 包含并查集状态的字典
             
         Returns:
-            A new DisjointSet instance.
+            新的 DisjointSet 实例
         """
         ds = cls()
-        ds._parent = data['parent'].copy()
-        ds._rank = data['rank'].copy()
-        ds._size = data['size'].copy()
+        ds._parent = dict(data['parent'])
+        ds._rank = dict(data['rank'])
+        ds._size = dict(data['size'])
         ds._count = data['count']
         return ds
-
-
-# ============================================================================
-# Graph/Network Utilities using DisjointSet
-# ============================================================================
-
-def count_connected_components(nodes: List[T], edges: List[Tuple[T, T]]) -> int:
-    """
-    Count the number of connected components in an undirected graph.
     
-    Args:
-        nodes: List of node identifiers.
-        edges: List of (node1, node2) tuples representing edges.
+    def remove(self, element: T) -> bool:
+        """
+        从并查集中移除元素
         
-    Returns:
-        Number of connected components.
+        注意：如果移除的不是根节点，需要重建相关集合
         
-    Examples:
-        >>> nodes = [1, 2, 3, 4, 5]
-        >>> edges = [(1, 2), (2, 3), (4, 5)]
-        >>> count_connected_components(nodes, edges)
-        2
-    """
-    ds = DisjointSet[T]()
-    for node in nodes:
-        ds.make_set(node)
-    for n1, n2 in edges:
-        ds.union(n1, n2)
-    return ds.component_count()
-
-
-def find_connected_groups(elements: List[T], 
-                          connections: List[Tuple[T, T]]) -> List[Set[T]]:
-    """
-    Find all connected groups given a list of connections.
-    
-    Args:
-        elements: List of element identifiers.
-        connections: List of (elem1, elem2) tuples representing connections.
+        Args:
+            element: 要移除的元素
+            
+        Returns:
+            True 如果移除成功，False 如果元素不存在
+        """
+        if element not in self._parent:
+            return False
         
-    Returns:
-        List of sets, each containing a connected group.
+        root = self.find(element)
         
-    Examples:
-        >>> elements = ['A', 'B', 'C', 'D', 'E']
-        >>> connections = [('A', 'B'), ('B', 'C'), ('D', 'E')]
-        >>> find_connected_groups(elements, connections)
-        [{'A', 'B', 'C'}, {'D', 'E'}]
-    """
-    ds = DisjointSet[T]()
-    for elem in elements:
-        ds.make_set(elem)
-    for e1, e2 in connections:
-        ds.union(e1, e2)
-    return ds.get_components()
-
-
-def is_connected_graph(nodes: List[T], edges: List[Tuple[T, T]]) -> bool:
-    """
-    Check if an undirected graph is connected (single component).
-    
-    Args:
-        nodes: List of node identifiers.
-        edges: List of (node1, node2) tuples.
+        # 如果是根节点且集合大小 > 1，需要选择新根
+        if element == root:
+            children = [e for e in self._parent if self._parent[e] == element and e != element]
+            
+            if children:
+                # 选择第一个子节点作为新根
+                new_root = children[0]
+                self._parent[new_root] = new_root
+                self._rank[new_root] = self._rank[element]
+                self._size[new_root] = self._size[element] - 1
+                
+                # 更新其他子节点的父指针
+                for child in children[1:]:
+                    self._parent[child] = new_root
+            else:
+                # 集合只有这一个元素
+                self._count -= 1
+        else:
+            # 元素不是根，直接移除
+            self._size[root] -= 1
         
-    Returns:
-        True if the graph has exactly one connected component.
+        del self._parent[element]
+        if element in self._rank:
+            del self._rank[element]
+        if element in self._size:
+            del self._size[element]
         
-    Examples:
-        >>> is_connected_graph([1, 2, 3], [(1, 2), (2, 3)])
-        True
-        >>> is_connected_graph([1, 2, 3, 4], [(1, 2), (3, 4)])
-        False
-    """
-    if not nodes:
         return True
-    return count_connected_components(nodes, edges) == 1
 
 
-def detect_cycle_undirected(nodes: List[T], edges: List[Tuple[T, T]]) -> bool:
+class WeightedDisjointSet(Generic[T]):
     """
-    Detect if an undirected graph has a cycle using union-find.
+    带权并查集
     
-    For each edge, if the two endpoints are already in the same set,
-    adding this edge would create a cycle.
+    支持维护元素之间的相对权重/距离关系。
+    常用于食物链问题、差分约束等场景。
+    
+    示例:
+        >>> wds = WeightedDisjointSet()
+        >>> wds.make_set(1)
+        >>> wds.make_set(2)
+        >>> wds.union(1, 2, weight=5)  # 2 比 1 重 5
+        >>> wds.get_weight(1, 2)
+        5
+    """
+    
+    def __init__(self, elements: Optional[Iterable[T]] = None):
+        """初始化带权并查集"""
+        self._parent: Dict[T, T] = {}
+        self._rank: Dict[T, int] = {}
+        self._weight: Dict[T, float] = {}  # 到父节点的权重
+        self._count: int = 0
+        
+        if elements:
+            for elem in elements:
+                self.make_set(elem)
+    
+    def __len__(self) -> int:
+        """返回元素总数"""
+        return len(self._parent)
+    
+    def __contains__(self, element: T) -> bool:
+        """检查元素是否存在"""
+        return element in self._parent
+    
+    def make_set(self, element: T) -> None:
+        """创建新集合"""
+        if element in self._parent:
+            raise ValueError(f"元素 '{element}' 已存在")
+        
+        self._parent[element] = element
+        self._rank[element] = 0
+        self._weight[element] = 0
+        self._count += 1
+    
+    def find(self, element: T) -> T:
+        """
+        查找根节点，同时维护权重路径
+        
+        返回根节点，并更新沿途权重
+        """
+        if element not in self._parent:
+            raise KeyError(f"元素 '{element}' 不存在")
+        
+        if self._parent[element] != element:
+            root = self.find(self._parent[element])
+            self._weight[element] += self._weight[self._parent[element]]
+            self._parent[element] = root
+        
+        return self._parent[element]
+    
+    def union(self, element1: T, element2: T, weight: float = 0) -> bool:
+        """
+        合并两个集合，设置相对权重
+        
+        Args:
+            element1: 第一个元素
+            element2: 第二个元素
+            weight: element2 相对于 element1 的权重
+                   (weight[element2] - weight[element1] = weight)
+        """
+        root1 = self.find(element1)
+        root2 = self.find(element2)
+        
+        if root1 == root2:
+            return False
+        
+        # 按 rank 合并
+        if self._rank[root1] < self._rank[root2]:
+            root1, root2 = root2, root1
+            weight = -weight
+        
+        self._parent[root2] = root1
+        self._weight[root2] = weight + self._weight[element1] - self._weight[element2]
+        
+        if self._rank[root1] == self._rank[root2]:
+            self._rank[root1] += 1
+        
+        self._count -= 1
+        return True
+    
+    def get_weight(self, element1: T, element2: T) -> Optional[float]:
+        """
+        获取两个元素之间的相对权重
+        
+        如果两个元素不在同一集合，返回 None
+        """
+        if not self.connected(element1, element2):
+            return None
+        
+        return self._weight[element2] - self._weight[element1]
+    
+    def connected(self, element1: T, element2: T) -> bool:
+        """检查两个元素是否在同一集合"""
+        try:
+            return self.find(element1) == self.find(element2)
+        except KeyError:
+            return False
+
+
+def connected_components(edges: List[Tuple[T, T]]) -> List[Set[T]]:
+    """
+    从边列表计算连通分量
     
     Args:
-        nodes: List of node identifiers.
-        edges: List of (node1, node2) tuples.
+        edges: 边列表，每条边是一个 (node1, node2) 元组
         
     Returns:
-        True if a cycle exists.
+        连通分量列表
         
-    Examples:
-        >>> detect_cycle_undirected([1, 2, 3], [(1, 2), (2, 3), (3, 1)])
+    示例:
+        >>> edges = [(1, 2), (2, 3), (4, 5)]
+        >>> connected_components(edges)
+        [{1, 2, 3}, {4, 5}]
+    """
+    if not edges:
+        return []
+    
+    # 收集所有节点
+    nodes: Set[T] = set()
+    for u, v in edges:
+        nodes.add(u)
+        nodes.add(v)
+    
+    ds = DisjointSet(nodes)
+    
+    for u, v in edges:
+        ds.union(u, v)
+    
+    return ds.get_sets()
+
+
+def detect_cycle_undirected(edges: List[Tuple[T, T]]) -> bool:
+    """
+    检测无向图中是否存在环
+    
+    使用并查集实现，时间复杂度 O(E * α(V))
+    
+    Args:
+        edges: 边列表
+        
+    Returns:
+        True 如果存在环，False 否则
+        
+    示例:
+        >>> detect_cycle_undirected([(1, 2), (2, 3), (3, 1)])  # 三角形
         True
-        >>> detect_cycle_undirected([1, 2, 3], [(1, 2), (2, 3)])
+        >>> detect_cycle_undirected([(1, 2), (2, 3)])  # 线性
         False
     """
-    ds = DisjointSet[T]()
-    for node in nodes:
-        ds.make_set(node)
+    if not edges:
+        return False
     
-    for n1, n2 in edges:
-        if ds.connected(n1, n2):
-            return True  # Adding this edge creates a cycle
-        ds.union(n1, n2)
+    nodes: Set[T] = set()
+    for u, v in edges:
+        nodes.add(u)
+        nodes.add(v)
+    
+    ds = DisjointSet(nodes)
+    
+    for u, v in edges:
+        if ds.connected(u, v):
+            return True
+        ds.union(u, v)
     
     return False
 
 
-# ============================================================================
-# Kruskal's MST Helper
-# ============================================================================
-
-Edge = Tuple[T, T, float]  # (node1, node2, weight)
-
-
-def kruskal_mst(nodes: List[T], edges: List[Edge]) -> Tuple[List[Edge], float]:
+def minimum_spanning_tree_kruskal(
+    nodes: List[T],
+    edges: List[Tuple[T, T, float]]
+) -> Tuple[List[Tuple[T, T, float]], float]:
     """
-    Find the Minimum Spanning Tree using Kruskal's algorithm.
+    使用 Kruskal 算法求最小生成树
     
     Args:
-        nodes: List of node identifiers.
-        edges: List of (node1, node2, weight) tuples.
+        nodes: 节点列表
+        edges: 边列表，每条边是 (node1, node2, weight) 元组
         
     Returns:
-        Tuple of (mst_edges, total_weight).
-        Returns ([], 0.0) if graph is disconnected.
+        (最小生成树的边列表, 总权重)
         
-    Examples:
-        >>> nodes = ['A', 'B', 'C', 'D']
-        >>> edges = [('A', 'B', 1), ('B', 'C', 2), ('C', 'D', 3), ('A', 'D', 4)]
-        >>> mst, weight = kruskal_mst(nodes, edges)
-        >>> len(mst)
-        3
-        >>> weight
-        6.0
+    示例:
+        >>> nodes = [1, 2, 3, 4]
+        >>> edges = [(1, 2, 1), (2, 3, 2), (3, 4, 3), (1, 4, 4)]
+        >>> mst_edges, total = minimum_spanning_tree_kruskal(nodes, edges)
+        >>> total
+        6
     """
-    ds = DisjointSet[T]()
-    for node in nodes:
-        ds.make_set(node)
+    if not nodes or not edges:
+        return [], 0.0
     
-    # Sort edges by weight
+    # 按权重排序边
     sorted_edges = sorted(edges, key=lambda e: e[2])
     
-    mst_edges: List[Edge] = []
+    ds = DisjointSet(nodes)
+    mst_edges: List[Tuple[T, T, float]] = []
     total_weight = 0.0
     
-    for n1, n2, weight in sorted_edges:
-        if not ds.connected(n1, n2):
-            ds.union(n1, n2)
-            mst_edges.append((n1, n2, weight))
-            total_weight += weight
+    for u, v, w in sorted_edges:
+        if ds.union(u, v):  # 如果合并成功（原本不在同一集合）
+            mst_edges.append((u, v, w))
+            total_weight += w
             
             if len(mst_edges) == len(nodes) - 1:
                 break
     
-    # Check if we have a valid MST (all nodes connected)
-    if len(mst_edges) != len(nodes) - 1:
-        return ([], 0.0)
-    
-    return (mst_edges, total_weight)
+    return mst_edges, total_weight
 
 
-# ============================================================================
-# Social Network Analysis Utilities
-# ============================================================================
-
-def find_friend_circles(users: List[T], 
-                        friendships: List[Tuple[T, T]]) -> Dict[T, int]:
-    """
-    Find friend circles (connected components) in a social network.
-    
-    Returns a mapping from each user to their circle ID (representative).
-    
-    Args:
-        users: List of user identifiers.
-        friendships: List of (user1, user2) tuples.
-        
-    Returns:
-        Dictionary mapping each user to their circle representative.
-        
-    Examples:
-        >>> users = ['Alice', 'Bob', 'Carol', 'Dave']
-        >>> friendships = [('Alice', 'Bob'), ('Bob', 'Carol')]
-        >>> circles = find_friend_circles(users, friendships)
-        >>> circles['Alice'] == circles['Bob'] == circles['Carol']
-        True
-        >>> circles['Dave'] != circles['Alice']
-        True
-    """
-    ds = DisjointSet[T]()
-    for user in users:
-        ds.make_set(user)
-    for u1, u2 in friendships:
-        ds.union(u1, u2)
-    
-    return {user: ds.find(user) for user in users if ds.find(user) is not None}
+# 便捷函数
+def create_disjoint_set(elements: Optional[Iterable[T]] = None) -> DisjointSet[T]:
+    """创建并查集的便捷函数"""
+    return DisjointSet(elements)
 
 
-def get_circle_sizes(users: List[T], 
-                    friendships: List[Tuple[T, T]]) -> Dict[T, int]:
-    """
-    Get the size of each user's friend circle.
-    
-    Args:
-        users: List of user identifiers.
-        friendships: List of (user1, user2) tuples.
-        
-    Returns:
-        Dictionary mapping each user to their circle size.
-        
-    Examples:
-        >>> users = ['A', 'B', 'C', 'D']
-        >>> friendships = [('A', 'B'), ('B', 'C')]
-        >>> get_circle_sizes(users, friendships)
-        {'A': 3, 'B': 3, 'C': 3, 'D': 1}
-    """
-    ds = DisjointSet[T]()
-    for user in users:
-        ds.make_set(user)
-    for u1, u2 in friendships:
-        ds.union(u1, u2)
-    
-    return {user: ds.component_size(user) for user in users}
+def create_weighted_disjoint_set(elements: Optional[Iterable[T]] = None) -> WeightedDisjointSet[T]:
+    """创建带权并查集的便捷函数"""
+    return WeightedDisjointSet(elements)
 
 
-# ============================================================================
-# Image Processing Utilities (Connected Components)
-# ============================================================================
-
-def find_connected_pixels(grid: List[List[int]], 
-                          connectivity: int = 4) -> List[List[int]]:
-    """
-    Label connected components in a binary image (grid of 0s and 1s).
+if __name__ == '__main__':
+    # 简单演示
+    print("=== 并查集基本演示 ===")
     
-    Uses union-find for efficient connected component labeling.
+    # 创建并查集
+    ds = DisjointSet(range(1, 6))
+    print(f"初始状态: {ds}")
+    print(f"集合数量: {ds.set_count}")
     
-    Args:
-        grid: 2D list where 1 = foreground, 0 = background.
-        connectivity: 4 for 4-connected, 8 for 8-connected (including diagonals).
-        
-    Returns:
-        2D list with each connected component labeled with a unique integer.
-        
-    Examples:
-        >>> grid = [[1, 1, 0], [1, 0, 0], [0, 0, 1]]
-        >>> result = find_connected_pixels(grid)
-        >>> # First component labeled 1, second labeled 2
-    """
-    if not grid or not grid[0]:
-        return []
-    
-    rows, cols = len(grid), len(grid[0])
-    ds = DisjointSet[int]()
-    
-    # First pass: assign provisional labels and record equivalences
-    labels = [[0] * cols for _ in range(rows)]
-    current_label = 0
-    
-    for r in range(rows):
-        for c in range(cols):
-            if grid[r][c] == 0:
-                continue
-            
-            neighbors = []
-            if r > 0 and labels[r-1][c] > 0:
-                neighbors.append(labels[r-1][c])
-            if c > 0 and labels[r][c-1] > 0:
-                neighbors.append(labels[r][c-1])
-            if connectivity == 8:
-                if r > 0 and c > 0 and labels[r-1][c-1] > 0:
-                    neighbors.append(labels[r-1][c-1])
-                if r > 0 and c < cols-1 and labels[r-1][c+1] > 0:
-                    neighbors.append(labels[r-1][c+1])
-            
-            if not neighbors:
-                current_label += 1
-                labels[r][c] = current_label
-                ds.make_set(current_label)
-            else:
-                min_label = min(neighbors)
-                labels[r][c] = min_label
-                for lbl in neighbors:
-                    ds.union(min_label, lbl)
-    
-    # Second pass: assign final labels
-    label_map = {}
-    final_label = 0
-    for r in range(rows):
-        for c in range(cols):
-            if labels[r][c] > 0:
-                root = ds.find(labels[r][c])
-                if root not in label_map:
-                    final_label += 1
-                    label_map[root] = final_label
-                labels[r][c] = label_map[root]
-    
-    return labels
-
-
-# ============================================================================
-# Main
-# ============================================================================
-
-if __name__ == "__main__":
-    # Basic usage demonstration
-    print("=== DisjointSet Demo ===\n")
-    
-    # Create and populate
-    ds = DisjointSet[int]()
-    ds.make_sets(1, 2, 3, 4, 5, 6, 7, 8)
-    print(f"Initial state: {ds}")
-    print(f"Component count: {ds.component_count()}")
-    
-    # Union operations
+    # 合并操作
     ds.union(1, 2)
+    ds.union(3, 4)
+    print(f"合并 (1,2) 和 (3,4) 后: {ds}")
+    
     ds.union(2, 3)
-    ds.union(4, 5)
-    ds.union_all(6, 7, 8)
-    print(f"\nAfter unions: {ds}")
-    print(f"Component count: {ds.component_count()}")
+    print(f"合并 (2,3) 后: {ds}")
+    print(f"连通性 1-4: {ds.connected(1, 4)}")
+    print(f"连通性 1-5: {ds.connected(1, 5)}")
+    print(f"集合大小: {ds.get_set_size(1)}")
     
-    # Query operations
-    print(f"\n1 and 3 connected: {ds.connected(1, 3)}")
-    print(f"1 and 4 connected: {ds.connected(1, 4)}")
-    print(f"Component containing 1: {ds.get_component(1)}")
-    print(f"Size of component with 1: {ds.component_size(1)}")
-    
-    # MST example
-    print("\n=== Kruskal MST ===")
+    print("\n=== 最小生成树演示 ===")
     nodes = ['A', 'B', 'C', 'D']
-    edges = [('A', 'B', 1), ('B', 'C', 2), ('C', 'D', 3), ('A', 'D', 4), ('B', 'D', 5)]
-    mst, weight = kruskal_mst(nodes, edges)
-    print(f"MST edges: {mst}")
-    print(f"Total weight: {weight}")
-    
-    # Cycle detection
-    print("\n=== Cycle Detection ===")
-    print(f"Has cycle (triangle): {detect_cycle_undirected([1,2,3], [(1,2), (2,3), (3,1)])}")
-    print(f"Has cycle (line): {detect_cycle_undirected([1,2,3], [(1,2), (2,3)])}")
-    
-    # Connected components in image
-    print("\n=== Image Connected Components ===")
-    grid = [
-        [1, 1, 0, 0, 1],
-        [1, 0, 0, 1, 1],
-        [0, 0, 1, 1, 0],
-        [0, 1, 1, 0, 0]
+    edges = [
+        ('A', 'B', 4),
+        ('A', 'C', 2),
+        ('B', 'C', 1),
+        ('B', 'D', 3),
+        ('C', 'D', 5)
     ]
-    labeled = find_connected_pixels(grid)
-    for row in labeled:
-        print(row)
+    
+    mst, total = minimum_spanning_tree_kruskal(nodes, edges)
+    print(f"MST 边: {mst}")
+    print(f"总权重: {total}")
