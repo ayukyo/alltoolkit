@@ -676,12 +676,23 @@ def minify_xml(xml_string: str) -> str:
     
     Returns:
         压缩后的 XML 字符串
+    
+    Note:
+        优化版本：使用编译正则一次性处理所有空白，
+        边界处理：空输入返回空字符串。
     """
+    # 边界处理：空输入
+    if not xml_string:
+        return ''
+    
+    # 编译正则：一次性移除标签间空白和多余空白
+    _MINIFY_PATTERN = re.compile(r'>\s+<')
+    
     # 移除 XML 声明前后的空白
     xml_string = xml_string.strip()
     
-    # 移除标签间的空白和换行
-    xml_string = re.sub(r'>\s+<', '><', xml_string)
+    # 使用编译正则快速处理
+    xml_string = _MINIFY_PATTERN.sub('><', xml_string)
     
     return xml_string
 

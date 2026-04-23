@@ -182,8 +182,13 @@ class ArchiveUtils:
         
         Note:
             优化版本：按使用频率排序检查扩展名，
-            使用类级别常量避免重复创建字典。
+            使用类级别常量避免重复创建字典，
+            边界处理：空路径返回 None。
         """
+        # 边界处理：空路径
+        if not path:
+            return None
+        
         path_lower = path.lower()
         
         # 按频率顺序检查扩展名（多部分优先）
