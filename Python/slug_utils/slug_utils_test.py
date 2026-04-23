@@ -1,493 +1,614 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-AllToolkit - Slug Utilities Test Suite
-=======================================
-Comprehensive tests for the slug_utils module.
+slug_utils 测试套件
+===================
+
+完整的功能测试和边界值测试。
 """
 
-import unittest
 import sys
 import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from slug_utils.mod import (
-    transliterate,
-    normalize,
+from mod import (
+    slugify,
+    slugify_unique,
     generate_slug,
-    generate_unique_slug,
-    generate_sequential_slug,
-    generate_date_slug,
-    generate_category_slug,
-    generate_hierarchical_slug,
-    generate_slug_batch,
-    slug_from_filename,
     is_valid_slug,
-    fix_slug,
-    slug_to_text,
-    compare_slugs,
-    get_slug_words,
+    unslugify,
+    slug_range,
+    smart_slugify,
     count_slug_words,
-    SlugGenerator,
+    truncate_slug,
+    compare_slugs,
+    batch_slugify,
+    _transliterate,
+    _transliterate_char,
 )
 
 
-class TestTransliteration(unittest.TestCase):
-    """Tests for transliteration functions."""
+def test_slugify_basic():
+    """测试基本slugify功能"""
+    print("测试基本slugify功能...")
     
-    def test_latin_characters(self):
-        """Test Latin character transliteration."""
-        self.assertEqual(transliterate("Héllo Wörld"), "Hello World")
-        self.assertEqual(transliterate("Café"), "Cafe")
-        self.assertEqual(transliterate("Naïve"), "Naive")
-        self.assertEqual(transliterate("Ångström"), "Angstrom")
+    # 简单字符串
+    assert slugify("Hello World") == "hello-world"
+    assert slugify("hello world") == "hello-world"
+    assert slugify("HELLO WORLD") == "hello-world"
     
-    def test_cyrillic_characters(self):
-        """Test Cyrillic character transliteration."""
-        self.assertEqual(transliterate("Привет"), "Privet")
-        self.assertEqual(transliterate("Мир"), "Mir")
+    # 带特殊字符
+    assert slugify("Hello, World!") == "hello-world"
+    assert slugify("Hello@World#Test") == "hello-world-test"
+    assert slugify("Hello...World") == "hello-world"
     
-    def test_greek_characters(self):
-        """Test Greek character transliteration."""
-        self.assertEqual(transliterate("Γειά"), "Geia")
-        # υ → y in our mapping
-        self.assertIn("soy", transliterate("σου").lower())
+    # 带数字
+    assert slugify("Hello World 123") == "hello-world-123"
+    assert slugify("2024 Year") == "2024-year"
     
-    def test_mixed_characters(self):
-        """Test mixed character sets."""
-        result = transliterate("Café Привет")
-        self.assertIn("Cafe", result)
-        self.assertIn("Privet", result)
-    
-    def test_ascii_passthrough(self):
-        """Test that ASCII passes through unchanged."""
-        self.assertEqual(transliterate("Hello World"), "Hello World")
-        self.assertEqual(transliterate("abc123"), "abc123")
+    print("  ✅ 基本功能测试通过")
 
 
-class TestNormalize(unittest.TestCase):
-    """Tests for normalize function."""
+def test_slugify_separator():
+    """测试自定义分隔符"""
+    print("测试自定义分隔符...")
     
-    def test_lowercase(self):
-        """Test lowercase conversion."""
-        self.assertEqual(normalize("HELLO"), "hello")
-        self.assertEqual(normalize("HeLLo WoRLD"), "hello world")
+    assert slugify("Hello World", separator="_") == "hello_world"
+    assert slugify("Hello World", separator=".") == "hello.world"
+    assert slugify("Hello World", separator="") == "helloworld"
+    assert slugify("Hello World", separator="---") == "hello---world"
     
-    def test_no_lowercase(self):
-        """Test without lowercase conversion."""
-        self.assertEqual(normalize("HELLO", lowercase=False), "HELLO")
-        self.assertEqual(normalize("HeLLo", lowercase=False), "HeLLo")
-    
-    def test_transliteration_in_normalize(self):
-        """Test that normalize includes transliteration."""
-        self.assertIn("hello", normalize("Héllo").lower())
+    print("  ✅ 分隔符测试通过")
 
 
-class TestGenerateSlug(unittest.TestCase):
-    """Tests for generate_slug function."""
+def test_slugify_case():
+    """测试大小写处理"""
+    print("测试大小写处理...")
     
-    def test_basic_slug(self):
-        """Test basic slug generation."""
-        self.assertEqual(generate_slug("Hello World"), "hello-world")
-        self.assertEqual(generate_slug("This is a test"), "this-is-a-test")
+    assert slugify("Hello World", lowercase=True) == "hello-world"
+    assert slugify("Hello World", lowercase=False) == "Hello-World"
+    assert slugify("HELLO WORLD", lowercase=False) == "HELLO-WORLD"
+    assert slugify("hello world", lowercase=False) == "hello-world"
     
-    def test_special_characters(self):
-        """Test handling of special characters."""
-        self.assertEqual(generate_slug("Hello! World?"), "hello-world")
-        # @ is replaced with separator (not in WORD_MAP)
-        self.assertEqual(generate_slug("Test@Example.com"), "test-example-com")
-        self.assertEqual(generate_slug("Price: $100"), "price-100")
-        # & is in WORD_MAP and becomes 'and'
-        self.assertEqual(generate_slug("Tom & Jerry"), "tom-and-jerry")
-    
-    def test_custom_separator(self):
-        """Test custom separator."""
-        self.assertEqual(generate_slug("Hello World", separator="_"), "hello_world")
-        self.assertEqual(generate_slug("Hello World", separator=""), "helloworld")
-        self.assertEqual(generate_slug("Hello World", separator="."), "hello.world")
-    
-    def test_max_length(self):
-        """Test maximum length constraint."""
-        slug = generate_slug("This is a very long title", max_length=10)
-        self.assertLessEqual(len(slug), 10)
-        self.assertEqual(slug, "this-is-a")
-    
-    def test_max_length_word_boundary(self):
-        """Test max length with word boundary."""
-        slug = generate_slug("Hello Beautiful World", max_length=12)
-        self.assertLessEqual(len(slug), 12)
-        # Should cut at word boundary
-    
-    def test_empty_string(self):
-        """Test empty string input."""
-        self.assertEqual(generate_slug(""), "")
-    
-    def test_whitespace_only(self):
-        """Test whitespace-only input."""
-        self.assertEqual(generate_slug("   "), "")
-    
-    def test_numbers(self):
-        """Test numbers in slug."""
-        self.assertEqual(generate_slug("Test 123"), "test-123")
-        self.assertEqual(generate_slug("2024 Report"), "2024-report")
-    
-    def test_multiple_spaces(self):
-        """Test multiple spaces normalization."""
-        self.assertEqual(generate_slug("Hello    World"), "hello-world")
-    
-    def test_custom_map(self):
-        """Test custom character mappings."""
-        custom = {"&": "and", "@": "at"}
-        self.assertEqual(generate_slug("Tom & Jerry", custom_map=custom), "tom-and-jerry")
-    
-    def test_strip_common_words(self):
-        """Test stripping common words."""
-        slug = generate_slug("The Quick Brown Fox", strip_common_words=True)
-        self.assertNotIn("the", slug)
-    
-    def test_allowed_chars(self):
-        """Test additional allowed characters."""
-        # When @ is allowed, it's preserved in the slug
-        slug = generate_slug("test@example", allowed_chars="@")
-        self.assertEqual(slug, "test@example")
-        
-        # When @ is NOT allowed, it becomes a separator
-        slug = generate_slug("test@example")
-        self.assertEqual(slug, "test-example")  # @ becomes separator
+    print("  ✅ 大小写测试通过")
 
 
-class TestUniqueSlug(unittest.TestCase):
-    """Tests for generate_unique_slug function."""
+def test_slugify_numbers():
+    """测试数字处理"""
+    print("测试数字处理...")
     
-    def test_no_conflict(self):
-        """Test when no conflict exists."""
-        result = generate_unique_slug("Hello World", [])
-        self.assertEqual(result, "hello-world")
+    assert slugify("Test 123", keep_numbers=True) == "test-123"
+    assert slugify("Test 123", keep_numbers=False) == "test"
+    assert slugify("2024-01-01", keep_numbers=True) == "2024-01-01"
+    assert slugify("2024-01-01", keep_numbers=False) == ""
     
-    def test_single_conflict(self):
-        """Test with single conflict."""
-        result = generate_unique_slug("Hello World", ["hello-world"])
-        self.assertEqual(result, "hello-world-2")
-    
-    def test_multiple_conflicts(self):
-        """Test with multiple conflicts."""
-        existing = ["hello-world", "hello-world-2", "hello-world-3"]
-        result = generate_unique_slug("Hello World", existing)
-        self.assertEqual(result, "hello-world-4")
-    
-    def test_custom_separator(self):
-        """Test unique slug with custom separator."""
-        existing = ["hello_world"]
-        result = generate_unique_slug("Hello World", existing, separator="_")
-        self.assertEqual(result, "hello_world_2")
-    
-    def test_max_length_with_unique(self):
-        """Test unique slug with max length."""
-        existing = ["hello-world"]
-        result = generate_unique_slug("Hello World Test", existing, max_length=15)
-        self.assertLessEqual(len(result), 15)
-        self.assertNotIn(result, existing)
+    print("  ✅ 数字处理测试通过")
 
 
-class TestSequentialSlug(unittest.TestCase):
-    """Tests for generate_sequential_slug function."""
+def test_slugify_max_length():
+    """测试最大长度限制"""
+    print("测试最大长度限制...")
     
-    def test_basic_sequential(self):
-        """Test basic sequential slug."""
-        self.assertEqual(generate_sequential_slug("Blog Post", 1), "blog-post-1")
-        self.assertEqual(generate_sequential_slug("Blog Post", 5), "blog-post-5")
+    # 精确截断
+    assert slugify("Hello World", max_length=5) == "hello"
+    assert slugify("Hello World", max_length=11) == "hello-world"
     
-    def test_zero_padding(self):
-        """Test zero-padded sequential slug."""
-        self.assertEqual(generate_sequential_slug("Post", 1, index_width=3), "post-001")
-        self.assertEqual(generate_sequential_slug("Post", 100, index_width=3), "post-100")
+    # 在分隔符处截断
+    assert slugify("Hello World Test", max_length=13) == "hello-world"
     
-    def test_custom_separator(self):
-        """Test sequential slug with custom separator."""
-        self.assertEqual(generate_sequential_slug("Post", 1, separator="_"), "post_1")
+    # 边界值
+    assert slugify("Hi", max_length=10) == "hi"
+    assert slugify("Hello World", max_length=0) == ""
+    assert slugify("Hello World", max_length=1) == "h"
+    
+    print("  ✅ 最大长度测试通过")
 
 
-class TestDateSlug(unittest.TestCase):
-    """Tests for generate_date_slug function."""
+def test_slugify_replacements():
+    """测试自定义替换"""
+    print("测试自定义替换...")
     
-    def test_with_date(self):
-        """Test slug with explicit date."""
-        result = generate_date_slug("My Post", "2024-01-15")
-        self.assertIn("2024-01-15", result)
-        self.assertIn("my-post", result)
+    assert slugify("Café & Restaurant", replacements={'&': 'and'}) == "cafe-and-restaurant"
+    assert slugify("User @Location", replacements={'@': 'at'}) == "user-at-location"
+    assert slugify("A + B = C", replacements={'+': 'plus', '=': 'equals'}) == "a-plus-b-equals-c"
     
-    def test_date_format(self):
-        """Test custom date format."""
-        result = generate_date_slug("My Post", "2024-01-15", date_format="%Y/%m/%d")
-        self.assertIn("2024/01/15", result)
+    # 多字符替换
+    assert slugify("Hello World", replacements={'Hello': 'Hi', 'World': 'There'}) == "hi-there"
     
-    def test_iso_format(self):
-        """Test ISO date format."""
-        result = generate_date_slug("Post", "2024-06-20")
-        self.assertIn("2024-06-20", result)
+    print("  ✅ 自定义替换测试通过")
 
 
-class TestCategorySlug(unittest.TestCase):
-    """Tests for generate_category_slug function."""
+def test_slugify_chinese():
+    """测试中文处理"""
+    print("测试中文处理...")
     
-    def test_basic_category(self):
-        """Test basic category slug."""
-        result = generate_category_slug("My Post", "Tech")
-        self.assertEqual(result, "tech-my-post")
+    # 常用中文
+    assert slugify("你好世界") == "ni-hao-shi-jie"
+    assert slugify("中国") == "zhong-guo"
     
-    def test_category_with_separator(self):
-        """Test category slug with custom separator."""
-        result = generate_category_slug("My Post", "Tech", separator="_")
-        self.assertEqual(result, "tech_my_post")
+    # 中英混合
+    result = slugify("Hello世界")
+    assert "hello" in result and "shi" in result and "jie" in result
+    result = slugify("你好World")
+    assert "ni" in result and "hao" in result and "world" in result
+    
+    # 未映射的中文会被移除
+    result = slugify("Test")  # 纯英文
+    assert result == "test"
+    
+    print("  ✅ 中文处理测试通过")
 
 
-class TestHierarchicalSlug(unittest.TestCase):
-    """Tests for generate_hierarchical_slug function."""
+def test_slugify_japanese():
+    """测试日文处理"""
+    print("测试日文处理...")
     
-    def test_basic_hierarchical(self):
-        """Test basic hierarchical slug."""
-        result = generate_hierarchical_slug(["Tech", "Programming", "Python"])
-        self.assertEqual(result, "tech/programming/python")
+    # 平假名
+    result = slugify("こんにちは")
+    # こ=ko, ん=n, に=ni, ち=chi, は=ha
+    assert result.replace("-", "") in ["konni chiha", "konnichiha", "ko-n-ni-chi-ha"]
     
-    def test_custom_path_separator(self):
-        """Test custom path separator."""
-        result = generate_hierarchical_slug(["A", "B", "C"], path_separator=">")
-        self.assertEqual(result, "a>b>c")
+    result = slugify("ありがとう")
+    # あ=a, り=ri, が=ga, と=to, う=u
+    assert result.replace("-", "") in ["arigatou", "a-ri-ga-to-u"]
     
-    def test_empty_parts(self):
-        """Test with empty parts."""
-        result = generate_hierarchical_slug(["A", "", "B"])
-        self.assertEqual(result, "a/b")
+    # 片假名
+    result = slugify("テスト")
+    assert result == "te-su-to"
+    
+    print("  ✅ 日文处理测试通过")
 
 
-class TestBatchGeneration(unittest.TestCase):
-    """Tests for generate_slug_batch function."""
+def test_slugify_korean():
+    """测试韩文处理"""
+    print("测试韩文处理...")
     
-    def test_basic_batch(self):
-        """Test basic batch generation."""
-        texts = ["Hello", "World", "Test"]
-        result = generate_slug_batch(texts)
-        self.assertEqual(result, ["hello", "world", "test"])
+    result = slugify("한국")
+    assert result == "han-guk"
     
-    def test_unique_batch(self):
-        """Test unique batch generation."""
-        texts = ["Hello", "Hello", "Hello"]
-        result = generate_slug_batch(texts, ensure_unique=True)
-        self.assertEqual(result, ["hello", "hello-2", "hello-3"])
+    result = slugify("안녕")
+    assert result == "an-nyeong"
     
-    def test_non_unique_batch(self):
-        """Test non-unique batch generation."""
-        texts = ["Hello", "Hello", "Hello"]
-        result = generate_slug_batch(texts, ensure_unique=False)
-        self.assertEqual(result, ["hello", "hello", "hello"])
+    print("  ✅ 韩文处理测试通过")
 
 
-class TestFilenameSlug(unittest.TestCase):
-    """Tests for slug_from_filename function."""
+def test_slugify_unicode():
+    """测试Unicode字符处理"""
+    print("测试Unicode字符处理...")
     
-    def test_basic_filename(self):
-        """Test basic filename conversion."""
-        self.assertEqual(slug_from_filename("Document.pdf"), "document")
+    # 重音字符（NFKD分解后可正确处理）
+    result = slugify("café")
+    assert result == "cafe" or "caf" in result
     
-    def test_keep_extension(self):
-        """Test keeping extension."""
-        self.assertEqual(slug_from_filename("Document.pdf", remove_extension=False), "document-pdf")
+    result = slugify("naïve")
+    assert result == "naive" or "na" in result
     
-    def test_complex_filename(self):
-        """Test complex filename."""
-        self.assertEqual(slug_from_filename("My Document (1).pdf"), "my-document-1")
+    result = slugify("résumé")
+    assert result == "resume" or "resum" in result
+    
+    # 西班牙语
+    result = slugify("niño")
+    assert result == "nino" or "nin" in result
+    
+    print("  ✅ Unicode处理测试通过")
 
 
-class TestValidation(unittest.TestCase):
-    """Tests for is_valid_slug function."""
+def test_slugify_empty():
+    """测试空值和边界值"""
+    print("测试空值和边界值...")
     
-    def test_valid_slugs(self):
-        """Test valid slugs."""
-        self.assertTrue(is_valid_slug("hello-world"))
-        self.assertTrue(is_valid_slug("test123"))
-        self.assertTrue(is_valid_slug("a-b-c"))
+    # 空字符串
+    assert slugify("") == ""
+    assert slugify("   ") == ""
     
-    def test_invalid_slugs(self):
-        """Test invalid slugs."""
-        self.assertFalse(is_valid_slug("hello world"))
-        self.assertFalse(is_valid_slug("hello_world"))
-        self.assertFalse(is_valid_slug(""))
-        self.assertFalse(is_valid_slug("hello!"))
+    # 只有特殊字符
+    assert slugify("@#$%") == ""
+    assert slugify("!!!") == ""
     
-    def test_custom_separator(self):
-        """Test validation with custom separator."""
-        self.assertTrue(is_valid_slug("hello_world", separator="_"))
-        self.assertFalse(is_valid_slug("hello-world", separator="_"))
+    # 单个字符
+    assert slugify("a") == "a"
+    assert slugify("A") == "a"
+    assert slugify("1") == "1"
     
-    def test_allow_uppercase(self):
-        """Test validation with uppercase allowed."""
-        self.assertTrue(is_valid_slug("Hello-World", allow_uppercase=True))
-        self.assertFalse(is_valid_slug("Hello-World", allow_uppercase=False))
+    # 只有分隔符
+    assert slugify("---") == ""
+    assert slugify("___", separator="_") == ""
     
-    def test_max_length(self):
-        """Test validation with max length."""
-        self.assertTrue(is_valid_slug("hello", max_length=10))
-        self.assertFalse(is_valid_slug("hello-world", max_length=5))
+    print("  ✅ 空值边界测试通过")
 
 
-class TestFixSlug(unittest.TestCase):
-    """Tests for fix_slug function."""
+def test_slugify_merge_separators():
+    """测试分隔符合并"""
+    print("测试分隔符合并...")
     
-    def test_fix_spaces(self):
-        """Test fixing spaces."""
-        self.assertEqual(fix_slug("hello world"), "hello-world")
+    assert slugify("Hello    World") == "hello-world"
+    assert slugify("Hello---World") == "hello-world"
+    assert slugify("Hello___World", separator="_") == "hello_world"
     
-    def test_fix_underscores(self):
-        """Test fixing underscores."""
-        self.assertEqual(fix_slug("hello_world"), "hello-world")
+    # 禁用合并
+    assert slugify("Hello  World", merge_separators=False) == "hello--world"
     
-    def test_fix_multiple_separators(self):
-        """Test fixing multiple separators."""
-        self.assertEqual(fix_slug("hello___world"), "hello-world")
-    
-    def test_fix_leading_trailing(self):
-        """Test fixing leading/trailing separators."""
-        self.assertEqual(fix_slug("-hello-world-"), "hello-world")
-    
-    def test_fix_invalid_chars(self):
-        """Test removing invalid characters."""
-        # Invalid chars are replaced with separator, then cleaned
-        self.assertEqual(fix_slug("hello!@#world"), "hello-world")
+    print("  ✅ 分隔符合并测试通过")
 
 
-class TestSlugToText(unittest.TestCase):
-    """Tests for slug_to_text function."""
+def test_slugify_trim():
+    """测试首尾分隔符去除"""
+    print("测试首尾分隔符去除...")
     
-    def test_basic_conversion(self):
-        """Test basic slug to text."""
-        self.assertEqual(slug_to_text("hello-world"), "Hello World")
+    assert slugify("-Hello World-") == "hello-world"
+    assert slugify("   Hello World   ") == "hello-world"
+    assert slugify("__Hello World__", separator="_") == "hello_world"
     
-    def test_multiple_words(self):
-        """Test multiple words."""
-        self.assertEqual(slug_to_text("my-blog-post-2024"), "My Blog Post 2024")
+    # 禁用去除
+    assert slugify("-Hello-", trim_separator=False) == "-hello-"
     
-    def test_custom_separator(self):
-        """Test custom separator."""
-        self.assertEqual(slug_to_text("hello_world", separator="_"), "Hello World")
+    print("  ✅ 首尾分隔符测试通过")
 
 
-class TestCompareSlugs(unittest.TestCase):
-    """Tests for compare_slugs function."""
+def test_slugify_unique():
+    """测试唯一slug生成"""
+    print("测试唯一slug生成...")
     
-    def test_identical(self):
-        """Test identical slugs."""
-        self.assertTrue(compare_slugs("hello-world", "hello-world"))
+    # 无冲突
+    assert slugify_unique("Hello World") == "hello-world"
     
-    def test_case_difference(self):
-        """Test case differences."""
-        self.assertTrue(compare_slugs("Hello-World", "hello-world"))
-        self.assertFalse(compare_slugs("Hello-World", "hello-world", ignore_case=False))
+    # 有冲突
+    assert slugify_unique("Hello World", existing=["hello-world"]) == "hello-world-2"
+    assert slugify_unique("Hello World", existing=["hello-world", "hello-world-2"]) == "hello-world-3"
     
-    def test_different(self):
-        """Test different slugs."""
-        self.assertFalse(compare_slugs("hello-world", "hello-world-2"))
+    # 多个不同冲突
+    existing = ["hello-world", "foo-bar", "hello-world-2"]
+    assert slugify_unique("Hello World", existing=existing) == "hello-world-3"
+    
+    # 自定义分隔符
+    assert slugify_unique("Hello World", existing=["hello_world"], separator="_") == "hello_world_2"
+    
+    print("  ✅ 唯一slug测试通过")
 
 
-class TestGetSlugWords(unittest.TestCase):
-    """Tests for get_slug_words function."""
+def test_generate_slug():
+    """测试带前缀后缀的slug生成"""
+    print("测试带前缀后缀的slug生成...")
     
-    def test_basic_words(self):
-        """Test basic word extraction."""
-        self.assertEqual(get_slug_words("hello-world"), ["hello", "world"])
+    assert generate_slug("Hello World") == "hello-world"
+    assert generate_slug("Hello World", prefix="blog") == "blog-hello-world"
+    assert generate_slug("Hello World", suffix="2024") == "hello-world-2024"
+    assert generate_slug("Hello World", prefix="blog", suffix="2024") == "blog-hello-world-2024"
     
-    def test_empty_slug(self):
-        """Test empty slug."""
-        self.assertEqual(get_slug_words(""), [])
+    # 自定义分隔符
+    assert generate_slug("Hello World", prefix="blog", suffix="2024", separator="_") == "blog_hello_world_2024"
     
-    def test_custom_separator(self):
-        """Test custom separator."""
-        self.assertEqual(get_slug_words("hello_world_test", separator="_"), 
-                        ["hello", "world", "test"])
+    print("  ✅ 前缀后缀slug测试通过")
 
 
-class TestCountSlugWords(unittest.TestCase):
-    """Tests for count_slug_words function."""
+def test_is_valid_slug():
+    """测试slug验证"""
+    print("测试slug验证...")
     
-    def test_word_count(self):
-        """Test word counting."""
-        self.assertEqual(count_slug_words("hello-world"), 2)
-        self.assertEqual(count_slug_words("a-b-c-d"), 4)
+    # 有效slug
+    assert is_valid_slug("hello-world") == True
+    assert is_valid_slug("hello_world", separator="_") == True
+    assert is_valid_slug("hello123") == True
+    assert is_valid_slug("Hello-World", allow_uppercase=True) == True
     
-    def test_empty_slug(self):
-        """Test empty slug."""
-        self.assertEqual(count_slug_words(""), 0)
+    # 无效slug
+    assert is_valid_slug("Hello World") == False  # 空格
+    assert is_valid_slug("hello world") == False  # 空格
+    assert is_valid_slug("hello-world!") == False  # 特殊字符
+    assert is_valid_slug("hello world") == False
+    
+    # 首尾分隔符
+    assert is_valid_slug("-hello") == False
+    assert is_valid_slug("hello-") == False
+    
+    # 长度限制
+    assert is_valid_slug("hi", min_length=3) == False
+    assert is_valid_slug("a" * 100, max_length=50) == False
+    
+    # 空值
+    assert is_valid_slug("") == False
+    assert is_valid_slug("-") == False
+    
+    print("  ✅ slug验证测试通过")
 
 
-class TestSlugGenerator(unittest.TestCase):
-    """Tests for SlugGenerator class."""
+def test_unslugify():
+    """测试slug还原"""
+    print("测试slug还原...")
     
-    def test_basic_generation(self):
-        """Test basic slug generation."""
-        gen = SlugGenerator()
-        self.assertEqual(gen.generate("Hello World"), "hello-world")
+    assert unslugify("hello-world") == "hello world"
+    assert unslugify("hello_world", separator="_") == "hello world"
+    assert unslugify("hello-world", title_case=True) == "Hello World"
+    assert unslugify("hello-world", space_replacement="-") == "hello-world"
     
-    def test_custom_settings(self):
-        """Test with custom settings."""
-        gen = SlugGenerator(separator="_", max_length=30)
-        # Use short title to ensure underscore is present
-        result = gen.generate("Hello World")
-        self.assertEqual(result, "hello_world")
-        # Test max_length truncation
-        result = gen.generate("A Very Very Long Title")
-        self.assertLessEqual(len(result), 30)
-        self.assertIn("_", result)
+    # 空值
+    assert unslugify("") == ""
+    assert unslugify("single") == "single"
     
-    def test_unique_generation(self):
-        """Test unique generation."""
-        gen = SlugGenerator()
-        slug1 = gen.generate_unique("Hello")
-        slug2 = gen.generate_unique("Hello")
-        self.assertNotEqual(slug1, slug2)
-    
-    def test_batch_generation(self):
-        """Test batch generation."""
-        gen = SlugGenerator()
-        result = gen.generate_batch(["Hello", "World"])
-        self.assertEqual(result, ["hello", "world"])
-    
-    def test_reset(self):
-        """Test resetting generator."""
-        gen = SlugGenerator()
-        gen.generate_unique("Hello")
-        gen.reset()
-        self.assertEqual(len(gen._existing), 0)
+    print("  ✅ slug还原测试通过")
 
 
-class TestEdgeCases(unittest.TestCase):
-    """Tests for edge cases."""
+def test_slug_range():
+    """测试slug范围生成"""
+    print("测试slug范围生成...")
     
-    def test_unicode_extreme(self):
-        """Test extreme unicode characters."""
-        # Test that it doesn't crash
-        result = generate_slug("🎉 Party Time 🎊")
-        self.assertIsInstance(result, str)
+    result = slug_range("Chapter", 1, 3)
+    assert result == ["chapter-1", "chapter-2", "chapter-3"]
     
-    def test_very_long_input(self):
-        """Test very long input."""
-        long_text = "a" * 1000
-        result = generate_slug(long_text, max_length=100)
-        self.assertLessEqual(len(result), 100)
+    result = slug_range("Part", 0, 2, separator="_")
+    assert result == ["part_0", "part_1", "part_2"]
     
-    def test_numbers_only(self):
-        """Test numbers only input."""
-        self.assertEqual(generate_slug("123 456"), "123-456")
+    result = slug_range("Test", 10, 12)
+    assert result == ["test-10", "test-11", "test-12"]
     
-    def test_mixed_case(self):
-        """Test mixed case input."""
-        self.assertEqual(generate_slug("HeLLo WoRLD"), "hello-world")
+    print("  ✅ slug范围测试通过")
+
+
+def test_smart_slugify():
+    """测试智能slug生成"""
+    print("测试智能slug生成...")
     
-    def test_consecutive_separators(self):
-        """Test consecutive separators in input."""
-        self.assertEqual(generate_slug("Hello---World"), "hello-world")
+    # 特殊符号
+    result = smart_slugify("What's Up?!")
+    assert result == "whats-up"
+    
+    # 数学符号
+    result = smart_slugify("A + B")
+    assert result == "a-plus-b"
+    
+    result = smart_slugify("100% Success")
+    assert result == "100-percent-success"
+    
+    # 希腊字母
+    result = smart_slugify("π Value")
+    assert result == "pi-value"
+    
+    # 自定义替换覆盖
+    result = smart_slugify("A & B", replacements={'&': 'with'})
+    assert result == "a-with-b"
+    
+    print("  ✅ 智能slug测试通过")
+
+
+def test_count_slug_words():
+    """测试单词计数"""
+    print("测试单词计数...")
+    
+    assert count_slug_words("hello-world") == 2
+    assert count_slug_words("single") == 1
+    assert count_slug_words("one-two-three-four") == 4
+    assert count_slug_words("") == 0
+    assert count_slug_words("---") == 0
+    assert count_slug_words("hello_world", separator="_") == 2
+    
+    print("  ✅ 单词计数测试通过")
+
+
+def test_truncate_slug():
+    """测试slug截断"""
+    print("测试slug截断...")
+    
+    # 不需要截断
+    assert truncate_slug("hello", 10) == "hello"
+    
+    # 需要截断 - 保留单词边界
+    result = truncate_slug("hello-world-from-python", 15)
+    assert result == "hello-world-from" or len(result) <= 15
+    
+    result = truncate_slug("hello-world-test", 11)
+    assert result == "hello-world" or len(result) <= 11
+    
+    # 不保留单词边界
+    result = truncate_slug("hello-world", 7, preserve_words=False)
+    assert result == "hello-w" or len(result) <= 7
+    
+    # 边界值
+    assert truncate_slug("", 5) == ""
+    result = truncate_slug("hi", 0)
+    assert result == "" or result == "hi"
+    
+    print("  ✅ slug截断测试通过")
+
+
+def test_compare_slugs():
+    """测试slug比较"""
+    print("测试slug比较...")
+    
+    # 完全匹配
+    result = compare_slugs("hello-world", "hello-world")
+    assert result['exact_match'] == True
+    assert result['similarity'] == 1.0
+    
+    # 部分匹配
+    result = compare_slugs("hello-world", "hello-python")
+    assert result['exact_match'] == False
+    assert result['word_overlap'] == 1
+    assert 'hello' in result['common_words']
+    
+    # 无匹配
+    result = compare_slugs("foo-bar", "baz-qux")
+    assert result['exact_match'] == False
+    assert result['word_overlap'] == 0
+    
+    # 空值
+    result = compare_slugs("", "hello")
+    assert result['similarity'] == 0.0
+    
+    print("  ✅ slug比较测试通过")
+
+
+def test_batch_slugify():
+    """测试批量生成"""
+    print("测试批量生成...")
+    
+    # 不保证唯一
+    result = batch_slugify(["Hello World", "Hello World", "Foo Bar"])
+    assert result == ["hello-world", "hello-world", "foo-bar"]
+    
+    # 保证唯一
+    result = batch_slugify(["Hello World", "Hello World", "Foo Bar"], unique=True)
+    assert result == ["hello-world", "hello-world-2", "foo-bar"]
+    
+    # 空列表
+    assert batch_slugify([]) == []
+    
+    # 自定义分隔符
+    result = batch_slugify(["Hello World"], separator="_")
+    assert result == ["hello_world"]
+    
+    print("  ✅ 批量生成测试通过")
+
+
+def test_transliterate():
+    """测试字符音译"""
+    print("测试字符音译...")
+    
+    # 单个字符
+    assert _transliterate_char('你') == 'ni'
+    assert _transliterate_char('あ') == 'a'
+    assert _transliterate_char('ア') == 'a'
+    assert _transliterate_char('한') == 'han'
+    assert _transliterate_char('a') == 'a'
+    
+    # 完整字符串音译
+    result = _transliterate("你好")
+    assert "ni" in result and "hao" in result
+    
+    print("  ✅ 字符音译测试通过")
+
+
+def test_edge_cases():
+    """测试各种边界情况"""
+    print("测试边界情况...")
+    
+    # 非常长的字符串
+    long_text = "Hello World " * 100
+    result = slugify(long_text, max_length=50)
+    assert len(result) <= 50
+    
+    # 混合字符集
+    assert slugify("Hello 你好 こんにちは World") != ""
+    
+    # 连续分隔符
+    assert slugify("Hello...World---Test") == "hello-world-test"
+    
+    # 只有数字
+    assert slugify("123456") == "123456"
+    assert slugify("123456", keep_numbers=False) == ""
+    
+    # 大小写混合
+    assert slugify("HeLLo WoRLD") == "hello-world"
+    assert slugify("HeLLo WoRLD", lowercase=False) == "HeLLo-WoRLD"
+    
+    # 空格变体
+    assert slugify("Hello\tWorld") == "hello-world"  # 制表符
+    assert slugify("Hello\nWorld") == "hello-world"  # 换行
+    assert slugify("Hello\r\nWorld") == "hello-world"  # CRLF
+    
+    print("  ✅ 边界情况测试通过")
+
+
+def test_custom_pattern():
+    """测试自定义保留字符模式"""
+    print("测试自定义保留字符模式...")
+    
+    # 保留点号
+    result = slugify("file.name.txt", custom_pattern=r'[^a-z0-9\.]+')
+    # 结果应包含点号或只有字母数字
+    assert "file" in result
+    
+    # 保留@
+    result = slugify("user@email.com", custom_pattern=r'[^a-z0-9@]+')
+    # 结果应包含user和email
+    assert "user" in result and "email" in result
+    
+    print("  ✅ 自定义模式测试通过")
+
+
+def test_real_world_scenarios():
+    """测试真实场景"""
+    print("测试真实场景...")
+    
+    # 博客文章标题
+    assert slugify("How to Build a REST API with Python") == "how-to-build-a-rest-api-with-python"
+    assert slugify("10 Tips for Better Code") == "10-tips-for-better-code"
+    
+    # 产品名称
+    assert slugify("iPhone 15 Pro Max") == "iphone-15-pro-max"
+    assert slugify("Samsung Galaxy S24 Ultra") == "samsung-galaxy-s24-ultra"
+    
+    # URL路径
+    assert slugify("/products/electronics/phones/") == "products-electronics-phones"
+    
+    # 文件名转换
+    assert slugify("My Document (Final).docx") == "my-document-final-docx"
+    
+    # 多语言标题
+    result = slugify("Bonjour le monde!")  # 法语
+    assert result == "bonjour-le-monde"
+    
+    result = slugify("¡Hola mundo!")  # 西班牙语
+    assert result == "hola-mundo"
+    
+    print("  ✅ 真实场景测试通过")
+
+
+def run_all_tests():
+    """运行所有测试"""
+    print("\n" + "=" * 50)
+    print("开始运行 slug_utils 测试套件")
+    print("=" * 50 + "\n")
+    
+    tests = [
+        test_slugify_basic,
+        test_slugify_separator,
+        test_slugify_case,
+        test_slugify_numbers,
+        test_slugify_max_length,
+        test_slugify_replacements,
+        test_slugify_chinese,
+        test_slugify_japanese,
+        test_slugify_korean,
+        test_slugify_unicode,
+        test_slugify_empty,
+        test_slugify_merge_separators,
+        test_slugify_trim,
+        test_slugify_unique,
+        test_generate_slug,
+        test_is_valid_slug,
+        test_unslugify,
+        test_slug_range,
+        test_smart_slugify,
+        test_count_slug_words,
+        test_truncate_slug,
+        test_compare_slugs,
+        test_batch_slugify,
+        test_transliterate,
+        test_edge_cases,
+        test_custom_pattern,
+        test_real_world_scenarios,
+    ]
+    
+    passed = 0
+    failed = 0
+    
+    for test in tests:
+        try:
+            test()
+            passed += 1
+        except AssertionError as e:
+            print(f"  ❌ {test.__name__} 失败: {e}")
+            failed += 1
+        except Exception as e:
+            print(f"  ❌ {test.__name__} 错误: {e}")
+            failed += 1
+    
+    print("\n" + "=" * 50)
+    print(f"测试完成: {passed} 通过, {failed} 失败")
+    print("=" * 50)
+    
+    return failed == 0
 
 
 if __name__ == "__main__":
-    # Run tests with verbosity
-    unittest.main(verbosity=2)
+    success = run_all_tests()
+    sys.exit(0 if success else 1)

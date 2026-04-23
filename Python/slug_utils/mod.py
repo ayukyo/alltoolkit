@@ -1,867 +1,751 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-AllToolkit - Slug Utilities Module
+slug_utils - URL友好slug生成工具
 ===================================
-A comprehensive URL slug generation utility module for Python with zero external dependencies.
 
-Features:
-    - Generate URL-friendly slugs from strings
-    - Support for multiple languages (Chinese, Japanese, Korean, etc.)
-    - Transliteration for non-Latin scripts
-    - Custom separators and character mappings
-    - Case conversion options
-    - Duplicate slug handling
-    - Batch slug generation
-    - SEO-friendly output
+零依赖的slug生成工具库，支持多语言、自定义分隔符、大小写转换等功能。
 
-Author: AllToolkit Contributors
-License: MIT
+功能特性：
+- slugify: 将字符串转换为URL友好的slug
+- 自定义分隔符（默认连字符）
+- 大小写转换选项
+- 去除特殊字符
+- 数字保留选项
+- 最大长度限制
+- 自定义替换规则
+- 多语言支持（ASCII音译）
+- 重复分隔符合并
+
+使用示例：
+    >>> from slug_utils import slugify
+    >>> slugify("Hello World!")
+    'hello-world'
+    >>> slugify("你好世界", separator="_")
+    'ni-hao-shi-jie'
 """
 
 import re
 import unicodedata
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Optional, Dict, List, Union, Callable
 
 
-# ============================================================================
-# Character Mapping Tables
-# ============================================================================
+# 默认保留字符（字母、数字、连字符）
+DEFAULT_PATTERN = r'[^a-zA-Z0-9\-]+'
 
-# Latin character transliteration mappings
-LATIN_MAP: Dict[str, str] = {
-    'À': 'A', 'Á': 'A', 'Â': 'A', 'Ã': 'A', 'Ä': 'A', 'Å': 'A',
-    'à': 'a', 'á': 'a', 'â': 'a', 'ã': 'a', 'ä': 'a', 'å': 'a',
-    'Æ': 'AE', 'æ': 'ae',
-    'Ç': 'C', 'ç': 'c',
-    'Ð': 'D', 'ð': 'd',
-    'È': 'E', 'É': 'E', 'Ê': 'E', 'Ë': 'E',
-    'è': 'e', 'é': 'e', 'ê': 'e', 'ë': 'e',
-    'Ì': 'I', 'Í': 'I', 'Î': 'I', 'Ï': 'I',
-    'ì': 'i', 'í': 'i', 'î': 'i', 'ï': 'i',
-    'Ñ': 'N', 'ñ': 'n',
-    'Ò': 'O', 'Ó': 'O', 'Ô': 'O', 'Õ': 'O', 'Ö': 'O', 'Ø': 'O',
-    'ò': 'o', 'ó': 'o', 'ô': 'o', 'õ': 'o', 'ö': 'o', 'ø': 'o',
-    'Ù': 'U', 'Ú': 'U', 'Û': 'U', 'Ü': 'U',
-    'ù': 'u', 'ú': 'u', 'û': 'u', 'ü': 'u',
-    'Ý': 'Y', 'ý': 'y', 'ÿ': 'y',
-    'ß': 'ss',
-    'Þ': 'Th', 'þ': 'th',
+# 中文拼音映射表（常用字，去除重复键）
+PINYIN_MAP = {
+    '你': 'ni', '好': 'hao', '世': 'shi', '界': 'jie',
+    '中': 'zhong', '国': 'guo', '人': 'ren', '大': 'da',
+    '小': 'xiao', '天': 'tian', '地': 'di', '日': 'ri',
+    '月': 'yue', '年': 'nian', '新': 'xin', '闻': 'wen',
+    '学': 'xue', '习': 'xi', '工': 'gong', '作': 'zuo',
+    '生': 'sheng', '活': 'huo', '家': 'jia', '庭': 'ting',
+    '朋': 'peng', '友': 'you', '爱': 'ai', '情': 'qing',
+    '心': 'xin', '思': 'si', '想': 'xiang', '念': 'nian',
+    '时': 'shi', '间': 'jian', '今': 'jin', '明': 'ming',
+    '昨': 'zuo', '前': 'qian', '后': 'hou',
+    '上': 'shang', '下': 'xia', '左': 'zuo', '右': 'you',
+    '东': 'dong', '西': 'xi', '南': 'nan', '北': 'bei',
+    '春': 'chun', '夏': 'xia', '秋': 'qiu', '冬': 'dong',
+    '风': 'feng', '雨': 'yu', '雪': 'xue', '云': 'yun',
+    '山': 'shan', '水': 'shui', '火': 'huo', '木': 'mu',
+    '金': 'jin', '土': 'tu', '花': 'hua', '草': 'cao',
+    '树': 'shu', '林': 'lin', '森': 'sen', '海': 'hai',
+    '河': 'he', '湖': 'hu', '江': 'jiang', '鱼': 'yu',
+    '鸟': 'niao', '马': 'ma', '牛': 'niu', '羊': 'yang',
+    '猪': 'zhu', '狗': 'gou', '猫': 'mao', '兔': 'tu',
+    '龙': 'long', '虎': 'hu', '蛇': 'she', '鼠': 'shu',
+    '鸡': 'ji', '蛋': 'dan', '肉': 'rou', '菜': 'cai',
+    '果': 'guo', '茶': 'cha', '酒': 'jiu', '饭': 'fan',
+    '书': 'shu', '笔': 'bi', '纸': 'zhi', '画': 'hua',
+    '音': 'yin', '乐': 'le', '歌': 'ge', '舞': 'wu',
+    '电': 'dian', '脑': 'nao', '手': 'shou', '机': 'ji',
+    '网': 'wang', '络': 'luo', '信': 'xin', '息': 'xi',
+    '科': 'ke', '技': 'ji', '发': 'fa', '展': 'zhan',
+    '经': 'jing', '济': 'ji', '商': 'shang', '业': 'ye',
+    '公': 'gong', '司': 'si', '企': 'qi', '事': 'shi',
+    '单': 'dan', '位': 'wei', '部': 'bu',
+    '门': 'men', '组': 'zu', '织': 'zhi', '团': 'tuan',
+    '队': 'dui', '员': 'yuan', '长': 'zhang', '老': 'lao',
+    '师': 'shi', '先': 'xian',
+    '女': 'nv', '男': 'nan', '孩': 'hai', '童': 'tong',
+    '子': 'zi', '父': 'fu', '母': 'mu', '兄': 'xiong',
+    '弟': 'di', '姐': 'jie', '妹': 'mei', '爷': 'ye',
+    '奶': 'nai', '叔': 'shu', '姨': 'yi', '姑': 'gu',
+    '舅': 'jiu', '表': 'biao', '堂': 'tang', '亲': 'qin',
+    '戚': 'qi', '邻': 'lin', '居': 'ju', '客': 'ke',
+    '主': 'zhu', '仆': 'pu', '王': 'wang', '皇': 'huang',
+    '帝': 'di', '将': 'jiang', '军': 'jun', '兵': 'bing',
+    '士': 'shi', '官': 'guan', '民': 'min',
+    '众': 'zhong', '群': 'qun', '族': 'zu',
+    '城': 'cheng', '市': 'shi', '镇': 'zhen', '村': 'cun',
+    '乡': 'xiang', '街': 'jie', '道': 'dao', '路': 'lu',
+    '桥': 'qiao', '楼': 'lou', '房': 'fang', '屋': 'wu',
+    '窗': 'chuang', '墙': 'qiang', '壁': 'bi',
+    '板': 'ban', '顶': 'ding', '底': 'di',
+    '智': 'zhi', '能': 'neng',
 }
 
-# Cyrillic to Latin transliteration
-CYRILLIC_MAP: Dict[str, str] = {
-    'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd',
-    'е': 'e', 'ё': 'yo', 'ж': 'zh', 'з': 'z', 'и': 'i',
-    'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n',
-    'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't',
-    'у': 'u', 'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch',
-    'ш': 'sh', 'щ': 'sch', 'ъ': '', 'ы': 'y', 'ь': '',
-    'э': 'e', 'ю': 'yu', 'я': 'ya',
-    'А': 'A', 'Б': 'B', 'В': 'V', 'Г': 'G', 'Д': 'D',
-    'Е': 'E', 'Ё': 'Yo', 'Ж': 'Zh', 'З': 'Z', 'И': 'I',
-    'Й': 'Y', 'К': 'K', 'Л': 'L', 'М': 'M', 'Н': 'N',
-    'О': 'O', 'П': 'P', 'Р': 'R', 'С': 'S', 'Т': 'T',
-    'У': 'U', 'Ф': 'F', 'Х': 'Kh', 'Ц': 'Ts', 'Ч': 'Ch',
-    'Ш': 'Sh', 'Щ': 'Sch', 'Ъ': '', 'Ы': 'Y', 'Ь': '',
-    'Э': 'E', 'Ю': 'Yu', 'Я': 'Ya',
+# 日文假名转罗马音映射
+HIRAGANA_MAP = {
+    'あ': 'a', 'い': 'i', 'う': 'u', 'え': 'e', 'お': 'o',
+    'か': 'ka', 'き': 'ki', 'く': 'ku', 'け': 'ke', 'こ': 'ko',
+    'さ': 'sa', 'し': 'shi', 'す': 'su', 'せ': 'se', 'そ': 'so',
+    'た': 'ta', 'ち': 'chi', 'つ': 'tsu', 'て': 'te', 'と': 'to',
+    'な': 'na', 'に': 'ni', 'ぬ': 'nu', 'ね': 'ne', 'の': 'no',
+    'は': 'ha', 'ひ': 'hi', 'ふ': 'fu', 'へ': 'he', 'ほ': 'ho',
+    'ま': 'ma', 'み': 'mi', 'む': 'mu', 'め': 'me', 'も': 'mo',
+    'や': 'ya', 'ゆ': 'yu', 'よ': 'yo',
+    'ら': 'ra', 'り': 'ri', 'る': 'ru', 'れ': 're', 'ろ': 'ro',
+    'わ': 'wa', 'を': 'wo', 'ん': 'n',
+    'が': 'ga', 'ぎ': 'gi', 'ぐ': 'gu', 'げ': 'ge', 'ご': 'go',
+    'ざ': 'za', 'じ': 'ji', 'ず': 'zu', 'ぜ': 'ze', 'ぞ': 'zo',
+    'だ': 'da', 'ぢ': 'ji', 'づ': 'zu', 'で': 'de', 'ど': 'do',
+    'ば': 'ba', 'び': 'bi', 'ぶ': 'bu', 'べ': 'be', 'ぼ': 'bo',
+    'ぱ': 'pa', 'ぴ': 'pi', 'ぷ': 'pu', 'ぺ': 'pe', 'ぽ': 'po',
 }
 
-# Greek to Latin transliteration
-GREEK_MAP: Dict[str, str] = {
-    'α': 'a', 'ά': 'a', 'β': 'b', 'γ': 'g', 'δ': 'd', 'ε': 'e', 'έ': 'e',
-    'ζ': 'z', 'η': 'i', 'ή': 'i', 'θ': 'th', 'ι': 'i', 'ί': 'i', 'ϊ': 'i',
-    'κ': 'k', 'λ': 'l', 'μ': 'm', 'ν': 'n', 'ξ': 'x', 'ο': 'o', 'ό': 'o',
-    'π': 'p', 'ρ': 'r', 'σ': 's', 'ς': 's', 'τ': 't', 'υ': 'y', 'ύ': 'y',
-    'φ': 'f', 'χ': 'ch', 'ψ': 'ps', 'ω': 'o', 'ώ': 'o',
-    'Α': 'A', 'Ά': 'A', 'Β': 'B', 'Γ': 'G', 'Δ': 'D', 'Ε': 'E', 'Έ': 'E',
-    'Ζ': 'Z', 'Η': 'I', 'Ή': 'I', 'Θ': 'Th', 'Ι': 'I', 'Ί': 'I', 'Ϊ': 'I',
-    'Κ': 'K', 'Λ': 'L', 'Μ': 'M', 'Ν': 'N', 'Ξ': 'X', 'Ο': 'O', 'Ό': 'O',
-    'Π': 'P', 'Ρ': 'R', 'Σ': 'S', 'Τ': 'T', 'Υ': 'Y', 'Ύ': 'Y',
-    'Φ': 'F', 'Χ': 'Ch', 'Ψ': 'Ps', 'Ω': 'O', 'Ώ': 'O',
+KATAKANA_MAP = {
+    'ア': 'a', 'イ': 'i', 'ウ': 'u', 'エ': 'e', 'オ': 'o',
+    'カ': 'ka', 'キ': 'ki', 'ク': 'ku', 'ケ': 'ke', 'コ': 'ko',
+    'サ': 'sa', 'シ': 'shi', 'ス': 'su', 'セ': 'se', 'ソ': 'so',
+    'タ': 'ta', 'チ': 'chi', 'ツ': 'tsu', 'テ': 'te', 'ト': 'to',
+    'ナ': 'na', 'ニ': 'ni', 'ヌ': 'nu', 'ネ': 'ne', 'ノ': 'no',
+    'ハ': 'ha', 'ヒ': 'hi', 'フ': 'fu', 'ヘ': 'he', 'ホ': 'ho',
+    'マ': 'ma', 'ミ': 'mi', 'ム': 'mu', 'メ': 'me', 'モ': 'mo',
+    'ヤ': 'ya', 'ユ': 'yu', 'ヨ': 'yo',
+    'ラ': 'ra', 'リ': 'ri', 'ル': 'ru', 'レ': 're', 'ロ': 'ro',
+    'ワ': 'wa', 'ヲ': 'wo', 'ン': 'n',
+    'ガ': 'ga', 'ギ': 'gi', 'グ': 'gu', 'ゲ': 'ge', 'ゴ': 'go',
+    'ザ': 'za', 'ジ': 'ji', 'ズ': 'zu', 'ゼ': 'ze', 'ゾ': 'zo',
+    'ダ': 'da', 'ヂ': 'ji', 'ヅ': 'zu', 'デ': 'de', 'ド': 'do',
+    'バ': 'ba', 'ビ': 'bi', 'ブ': 'bu', 'ベ': 'be', 'ボ': 'bo',
+    'パ': 'pa', 'ピ': 'pi', 'プ': 'pu', 'ペ': 'pe', 'ポ': 'po',
 }
 
-# Common word mappings for SEO-friendly slugs
-WORD_MAP: Dict[str, str] = {
-    '&': ' and ',
-    '+': ' plus ',
-    '=': ' equals ',
+# 韩文元音和辅音映射（简化版）
+KOREAN_MAP = {
+    '가': 'ga', '나': 'na', '다': 'da', '라': 'ra', '마': 'ma',
+    '바': 'ba', '사': 'sa', '아': 'a', '자': 'ja', '차': 'cha',
+    '카': 'ka', '타': 'ta', '파': 'pa', '하': 'ha',
+    '한': 'han', '국': 'guk', '안': 'an', '녕': 'nyeong',
 }
 
 
-# ============================================================================
-# Core Slug Functions
-# ============================================================================
-
-def transliterate(text: str) -> str:
+def _transliterate_char(char: str) -> str:
     """
-    Transliterate non-Latin characters to Latin.
+    将单个字符转换为ASCII字符。
     
     Args:
-        text: Input text to transliterate
-    
+        char: 要转换的字符
+        
     Returns:
-        Transliterated text
+        转换后的ASCII字符串
+    """
+    # 优先使用自定义映射
+    if char in PINYIN_MAP:
+        return PINYIN_MAP[char]
+    if char in HIRAGANA_MAP:
+        return HIRAGANA_MAP[char]
+    if char in KATAKANA_MAP:
+        return KATAKANA_MAP[char]
+    if char in KOREAN_MAP:
+        return KOREAN_MAP[char]
     
-    Example:
-        >>> transliterate("Héllo Wörld")
-        'Hello World'
-        >>> transliterate("Привет")
-        'Privet'
-        >>> transliterate("Γειά σου")
-        'Geia sou'
+    # 尝试NFKD分解
+    try:
+        decomposed = unicodedata.normalize('NFKD', char)
+        # 过滤掉组合字符（音标等）
+        result = ''.join(
+            c for c in decomposed 
+            if not unicodedata.combining(c) and ord(c) < 128
+        )
+        if result:
+            return result
+    except (ValueError, TypeError):
+        pass
+    
+    # 无法转换则返回空
+    return ''
+
+
+def _transliterate(text: str, keep_untranslated: bool = False, separator: str = '-') -> str:
+    """
+    将Unicode文本音译为ASCII字符。
+    
+    Args:
+        text: 要转换的文本
+        keep_untranslated: 是否保留无法音译的字符
+        separator: 音译字符之间使用的分隔符
+        
+    Returns:
+        音译后的字符串
     """
     result = []
+    last_was_multi_char_translit = False  # 上一个是否是多字符音译
     
     for char in text:
-        # Check Latin map first
-        if char in LATIN_MAP:
-            result.append(LATIN_MAP[char])
-        # Check Cyrillic map
-        elif char in CYRILLIC_MAP:
-            result.append(CYRILLIC_MAP[char])
-        # Check Greek map
-        elif char in GREEK_MAP:
-            result.append(GREEK_MAP[char])
-        # Try Unicode normalization for other characters
+        if ord(char) < 128:
+            # ASCII字符：如果之前是多字符音译，添加分隔符
+            if last_was_multi_char_translit and result and result[-1] != separator:
+                result.append(separator)
+            result.append(char)
+            last_was_multi_char_translit = False
         else:
-            # Normalize and check if it's a combining character
-            normalized = unicodedata.normalize('NFKD', char)
-            # Filter out combining characters
-            filtered = ''.join(c for c in normalized 
-                             if not unicodedata.combining(c))
-            if filtered and filtered != char:
-                result.append(filtered)
-            else:
+            transliterated = _transliterate_char(char)
+            if transliterated:
+                # 判断是否是多字符音译（如拼音）
+                is_multi_char = len(transliterated) > 1
+                
+                if is_multi_char:
+                    # 多字符音译：如果之前不是分隔符，添加分隔符
+                    if result and result[-1] != separator and result[-1] not in ' \t\n\r-_.':
+                        result.append(separator)
+                    result.append(transliterated)
+                    last_was_multi_char_translit = True
+                else:
+                    # 单字符音译（如重音字符）：直接添加，不加分隔符
+                    result.append(transliterated)
+                    last_was_multi_char_translit = False
+            elif keep_untranslated:
                 result.append(char)
+                last_was_multi_char_translit = True
     
     return ''.join(result)
 
 
-def normalize(text: str, lowercase: bool = True) -> str:
-    """
-    Normalize text for slug generation.
-    
-    Args:
-        text: Input text
-        lowercase: Convert to lowercase
-    
-    Returns:
-        Normalized text
-    
-    Example:
-        >>> normalize("Héllo Wörld!")
-        'hello world'
-    """
-    # Transliterate
-    text = transliterate(text)
-    
-    # Convert to lowercase if needed
-    if lowercase:
-        text = text.lower()
-    
-    return text
-
-
-def generate_slug(
+def slugify(
     text: str,
     separator: str = '-',
     lowercase: bool = True,
+    keep_numbers: bool = True,
     max_length: Optional[int] = None,
-    word_boundary: bool = True,
-    custom_map: Optional[Dict[str, str]] = None,
-    allowed_chars: Optional[str] = None,
-    strip_common_words: bool = False,
-    common_words: Optional[List[str]] = None
+    replacements: Optional[Dict[str, str]] = None,
+    keep_untranslated: bool = False,
+    word_boundary: bool = False,
+    custom_pattern: Optional[str] = None,
+    trim_separator: bool = True,
+    merge_separators: bool = True,
 ) -> str:
     """
-    Generate a URL-friendly slug from text.
+    将字符串转换为URL友好的slug。
     
     Args:
-        text: Input text to convert
-        separator: Character to separate words (default: '-')
-        lowercase: Convert to lowercase (default: True)
-        max_length: Maximum slug length (default: None)
-        word_boundary: Truncate at word boundary (default: True)
-        custom_map: Custom character mappings
-        allowed_chars: Additional allowed characters (regex pattern)
-        strip_common_words: Remove common words like 'a', 'the', etc.
-        common_words: List of common words to strip
-    
+        text: 要转换的字符串
+        separator: 分隔符，默认为连字符
+        lowercase: 是否转换为小写，默认为True
+        keep_numbers: 是否保留数字，默认为True
+        max_length: 最大长度限制，None表示无限制
+        replacements: 自定义替换规则，例如 {'&': 'and', '@': 'at'}
+        keep_untranslated: 是否保留无法音译的非ASCII字符
+        word_boundary: 是否在单词边界处添加分隔符
+        custom_pattern: 自定义保留字符的正则表达式模式
+        trim_separator: 是否去除首尾的分隔符
+        merge_separators: 是否合并连续的分隔符
+        
     Returns:
-        URL-friendly slug
-    
-    Example:
-        >>> generate_slug("Hello World!")
+        URL友好的slug字符串
+        
+    Examples:
+        >>> slugify("Hello World!")
         'hello-world'
-        >>> generate_slug("Héllo Wörld!", separator='_')
+        >>> slugify("你好世界")
+        'ni-hao-shi-jie'
+        >>> slugify("Hello   World", separator="_")
         'hello_world'
-        >>> generate_slug("This is a Long Title", max_length=15)
-        'this-is-a-long'
+        >>> slugify("Product #123", keep_numbers=True)
+        'product-123'
+        >>> slugify("Café & Restaurant", replacements={'&': 'and'})
+        'cafe-and-restaurant'
     """
     if not text:
         return ''
     
-    # Apply custom mappings first
-    if custom_map:
-        for old, new in custom_map.items():
-            text = text.replace(old, new)
+    # 应用自定义替换
+    if replacements:
+        for old, new in replacements.items():
+            text = text.replace(old, f' {new} ')
     
-    # Apply word mappings
-    for word, replacement in WORD_MAP.items():
-        text = text.replace(word, f' {replacement} ')
+    # 音译非ASCII字符
+    text = _transliterate(text, keep_untranslated, separator)
     
-    # Transliterate and normalize
-    text = normalize(text, lowercase)
+    # 大小写转换
+    if lowercase:
+        text = text.lower()
     
-    # Strip common words if requested
-    if strip_common_words:
-        default_common = ['a', 'an', 'the', 'is', 'are', 'was', 'were', 
-                         'be', 'been', 'being', 'have', 'has', 'had', 
-                         'do', 'does', 'did', 'will', 'would', 'could', 
-                         'should', 'may', 'might', 'must', 'shall', 
-                         'can', 'need', 'dare', 'ought', 'used', 'to',
-                         'of', 'in', 'for', 'on', 'with', 'at', 'by',
-                         'from', 'as', 'into', 'through', 'during',
-                         'before', 'after', 'above', 'below', 'between']
-        words_to_strip = common_words or default_common
-        words = text.split()
-        words = [w for w in words if w not in words_to_strip]
-        text = ' '.join(words)
-    
-    # Build allowed character pattern
-    if allowed_chars:
-        pattern = f'[^a-z0-9{re.escape(allowed_chars)}]'
+    # 构建保留字符模式
+    if custom_pattern:
+        pattern = custom_pattern
+    elif keep_numbers:
+        pattern = r'[^a-z0-9]' if lowercase else r'[^a-zA-Z0-9]'
     else:
-        pattern = r'[^a-z0-9]'
+        pattern = r'[^a-z]' if lowercase else r'[^a-zA-Z]'
     
-    # Replace non-alphanumeric with separator
+    # 替换非保留字符为分隔符
     slug = re.sub(pattern, separator, text)
     
-    # Remove duplicate separators
-    if separator:
-        dup_pattern = re.escape(separator) + '+'
-        slug = re.sub(dup_pattern, separator, slug)
-        # Strip separators from ends
+    # 合并连续的分隔符
+    if merge_separators and separator:
+        escaped_sep = re.escape(separator)
+        slug = re.sub(f'{escaped_sep}+', separator, slug)
+    
+    # 去除首尾分隔符
+    if trim_separator and separator:
         slug = slug.strip(separator)
     
-    # Handle max length
-    if max_length and len(slug) > max_length:
-        if word_boundary and separator:
-            # Truncate at last complete word
+    # 限制最大长度
+    if max_length is not None:
+        if max_length <= 0:
+            return ''
+        # 尝试在分隔符处截断，避免截断单词
+        if len(slug) > max_length:
+            # 找到最后一个分隔符的位置
             truncated = slug[:max_length]
             last_sep = truncated.rfind(separator)
-            if last_sep > 0:
+            if separator and last_sep > max_length // 2:
                 slug = truncated[:last_sep]
             else:
-                slug = truncated.rstrip(separator)
-        else:
-            slug = slug[:max_length].rstrip(separator)
+                slug = truncated.rstrip(separator) if separator else truncated
     
     return slug
 
 
-def generate_unique_slug(
+def slugify_unique(
     text: str,
-    existing: List[str],
+    existing: Optional[List[str]] = None,
     separator: str = '-',
-    lowercase: bool = True,
-    max_length: Optional[int] = None,
-    max_attempts: int = 1000
+    max_attempts: int = 100,
+    **kwargs
 ) -> str:
     """
-    Generate a unique slug that doesn't conflict with existing slugs.
+    生成唯一的slug，自动添加数字后缀避免冲突。
     
     Args:
-        text: Input text
-        existing: List of existing slugs to avoid
-        separator: Word separator
-        lowercase: Convert to lowercase
-        max_length: Maximum slug length
-        max_attempts: Maximum attempts before raising error
-    
+        text: 要转换的字符串
+        existing: 已存在的slug列表
+        separator: 分隔符
+        max_attempts: 最大尝试次数
+        **kwargs: 传递给slugify的其他参数
+        
     Returns:
-        Unique slug
-    
-    Example:
-        >>> generate_unique_slug("Hello World", ["hello-world"])
+        唯一的slug字符串
+        
+    Examples:
+        >>> slugify_unique("Hello World", existing=["hello-world"])
         'hello-world-2'
-        >>> generate_unique_slug("Hello World", ["hello-world", "hello-world-2"])
+        >>> slugify_unique("Hello World", existing=["hello-world", "hello-world-2"])
         'hello-world-3'
     """
-    base_slug = generate_slug(text, separator, lowercase, max_length)
+    existing = existing or []
+    existing_set = set(existing)
     
-    if base_slug not in existing:
+    base_slug = slugify(text, separator=separator, **kwargs)
+    
+    if base_slug not in existing_set:
         return base_slug
     
-    # Find a unique slug by appending a number
-    counter = 2
-    while counter < max_attempts:
-        suffix = f"{separator}{counter}"
-        
-        # Adjust max_length to accommodate suffix
-        if max_length:
-            adjusted_length = max_length - len(suffix)
-            if adjusted_length > 0:
-                candidate = generate_slug(text, separator, lowercase, adjusted_length) + suffix
-            else:
-                candidate = base_slug[:max_length - len(suffix)] + suffix
-        else:
-            candidate = base_slug + suffix
-        
-        if candidate not in existing:
+    # 尝试添加数字后缀
+    for i in range(2, max_attempts + 2):
+        candidate = f"{base_slug}{separator}{i}"
+        if candidate not in existing_set:
             return candidate
-        
-        counter += 1
     
-    raise ValueError(f"Could not generate unique slug after {max_attempts} attempts")
+    # 如果所有尝试都失败，使用时间戳
+    import time
+    return f"{base_slug}{separator}{int(time.time())}"
 
 
-def generate_sequential_slug(
+def generate_slug(
     text: str,
-    index: int = 1,
-    separator: str = '-',
-    lowercase: bool = True,
-    max_length: Optional[int] = None,
-    index_width: int = 0
+    prefix: str = '',
+    suffix: str = '',
+    **kwargs
 ) -> str:
     """
-    Generate a slug with sequential numbering.
+    生成带有前缀和后缀的slug。
     
     Args:
-        text: Input text
-        index: Sequence number
-        separator: Word separator
-        lowercase: Convert to lowercase
-        max_length: Maximum slug length
-        index_width: Zero-pad index to this width (0 = no padding)
-    
-    Returns:
-        Slug with sequential number
-    
-    Example:
-        >>> generate_sequential_slug("Blog Post", 1)
-        'blog-post-1'
-        >>> generate_sequential_slug("Blog Post", 5, index_width=3)
-        'blog-post-005'
-    """
-    base_slug = generate_slug(text, separator, lowercase, max_length)
-    
-    if index_width > 0:
-        index_str = str(index).zfill(index_width)
-    else:
-        index_str = str(index)
-    
-    # Adjust max_length to accommodate index
-    if max_length:
-        suffix = separator + index_str
-        available = max_length - len(suffix)
-        if available > 0:
-            base_slug = generate_slug(text, separator, lowercase, available)
-    
-    return f"{base_slug}{separator}{index_str}" if base_slug else index_str
-
-
-# ============================================================================
-# Specialized Slug Functions
-# ============================================================================
-
-def generate_date_slug(
-    text: str,
-    date_str: Optional[str] = None,
-    separator: str = '-',
-    lowercase: bool = True,
-    date_format: str = "%Y-%m-%d",
-    max_length: Optional[int] = None
-) -> str:
-    """
-    Generate a slug with date prefix.
-    
-    Args:
-        text: Input text
-        date_str: Date string (ISO format) or None for today
-        separator: Word separator
-        lowercase: Convert to lowercase
-        date_format: strftime format for date
-        max_length: Maximum slug length
-    
-    Returns:
-        Date-prefixed slug
-    
-    Example:
-        >>> generate_date_slug("My Blog Post", "2024-01-15")
-        '2024-01-15-my-blog-post'
-    """
-    import datetime
-    
-    if date_str:
-        # Try common date formats (Python 3.6 compatible)
-        formats = ["%Y-%m-%d", "%Y/%m/%d", "%d-%m-%Y", "%d/%m/%Y"]
-        for fmt in formats:
-            try:
-                date = datetime.datetime.strptime(date_str, fmt).date()
-                break
-            except ValueError:
-                continue
-        else:
-            raise ValueError(f"Cannot parse date: {date_str}")
-    else:
-        date = datetime.date.today()
-    
-    date_prefix = date.strftime(date_format)
-    text_slug = generate_slug(text, separator, lowercase, max_length)
-    
-    return f"{date_prefix}{separator}{text_slug}" if text_slug else date_prefix
-
-
-def generate_category_slug(
-    text: str,
-    category: str,
-    separator: str = '-',
-    lowercase: bool = True,
-    max_length: Optional[int] = None
-) -> str:
-    """
-    Generate a slug with category prefix.
-    
-    Args:
-        text: Input text
-        category: Category name
-        separator: Word separator
-        lowercase: Convert to lowercase
-        max_length: Maximum slug length
-    
-    Returns:
-        Category-prefixed slug
-    
-    Example:
-        >>> generate_category_slug("My Post", "Tech")
-        'tech-my-post'
-    """
-    cat_slug = generate_slug(category, separator, lowercase)
-    text_slug = generate_slug(text, separator, lowercase, max_length)
-    
-    return f"{cat_slug}{separator}{text_slug}" if text_slug else cat_slug
-
-
-def generate_hierarchical_slug(
-    parts: List[str],
-    separator: str = '-',
-    lowercase: bool = True,
-    path_separator: str = '/'
-) -> str:
-    """
-    Generate a hierarchical slug from multiple parts.
-    
-    Args:
-        parts: List of path components
-        separator: Word separator within parts
-        lowercase: Convert to lowercase
-        path_separator: Separator between parts
-    
-    Returns:
-        Hierarchical slug
-    
-    Example:
-        >>> generate_hierarchical_slug(["Tech", "Programming", "Python Tutorial"])
-        'tech/programming/python-tutorial'
-    """
-    slugs = [generate_slug(part, separator, lowercase) for part in parts]
-    # Filter out empty parts
-    slugs = [s for s in slugs if s]
-    return path_separator.join(slugs)
-
-
-# ============================================================================
-# Batch Operations
-# ============================================================================
-
-def generate_slug_batch(
-    texts: List[str],
-    separator: str = '-',
-    lowercase: bool = True,
-    max_length: Optional[int] = None,
-    ensure_unique: bool = True
-) -> List[str]:
-    """
-    Generate slugs for multiple texts, ensuring uniqueness.
-    
-    Args:
-        texts: List of input texts
-        separator: Word separator
-        lowercase: Convert to lowercase
-        max_length: Maximum slug length
-        ensure_unique: Add numbers to ensure unique slugs
-    
-    Returns:
-        List of generated slugs
-    
-    Example:
-        >>> generate_slug_batch(["Hello", "Hello", "Hello World"])
-        ['hello', 'hello-2', 'hello-world']
-    """
-    if not ensure_unique:
-        return [generate_slug(text, separator, lowercase, max_length) for text in texts]
-    
-    result = []
-    seen = set()
-    
-    for text in texts:
-        base_slug = generate_slug(text, separator, lowercase, max_length)
+        text: 要转换的字符串
+        prefix: 前缀
+        suffix: 后缀
+        **kwargs: 传递给slugify的其他参数
         
-        if base_slug in seen:
-            counter = 2
-            while True:
-                candidate = f"{base_slug}{separator}{counter}"
-                if candidate not in seen:
-                    slug = candidate
-                    break
-                counter += 1
-        else:
-            slug = base_slug
-        
-        result.append(slug)
-        seen.add(slug)
-    
-    return result
-
-
-def slug_from_filename(
-    filename: str,
-    separator: str = '-',
-    lowercase: bool = True,
-    max_length: Optional[int] = None,
-    remove_extension: bool = True
-) -> str:
-    """
-    Generate a slug from a filename.
-    
-    Args:
-        filename: Input filename
-        separator: Word separator
-        lowercase: Convert to lowercase
-        max_length: Maximum slug length
-        remove_extension: Remove file extension
-    
     Returns:
-        Filename-based slug
-    
-    Example:
-        >>> slug_from_filename("My Document.pdf")
-        'my-document'
-        >>> slug_from_filename("2024-01-15-Report.docx", remove_extension=True)
-        '2024-01-15-report'
+        带前缀和后缀的slug
+        
+    Examples:
+        >>> generate_slug("Hello World", prefix="blog", suffix="2024")
+        'blog-hello-world-2024'
     """
-    import os
+    slug = slugify(text, **kwargs)
+    separator = kwargs.get('separator', '-')
     
-    if remove_extension:
-        name = os.path.splitext(filename)[0]
-    else:
-        name = filename
+    parts = []
+    if prefix:
+        parts.append(slugify(prefix, **kwargs))
+    parts.append(slug)
+    if suffix:
+        parts.append(slugify(suffix, **kwargs))
     
-    return generate_slug(name, separator, lowercase, max_length)
+    return separator.join(parts)
 
-
-# ============================================================================
-# Validation and Utilities
-# ============================================================================
 
 def is_valid_slug(
     slug: str,
-    separator: str = '-',
     allow_uppercase: bool = False,
-    max_length: Optional[int] = None
+    allow_numbers: bool = True,
+    separator: str = '-',
+    min_length: int = 1,
+    max_length: int = 2083,  # URL最大长度限制
 ) -> bool:
     """
-    Check if a string is a valid slug.
+    验证字符串是否为有效的slug。
     
     Args:
-        slug: String to validate
-        separator: Allowed separator character
-        allow_uppercase: Allow uppercase letters
-        max_length: Maximum allowed length
-    
+        slug: 要验证的字符串
+        allow_uppercase: 是否允许大写字母
+        allow_numbers: 是否允许数字
+        separator: 允许的分隔符
+        min_length: 最小长度
+        max_length: 最大长度
+        
     Returns:
-        True if valid slug
-    
-    Example:
+        是否为有效的slug
+        
+    Examples:
         >>> is_valid_slug("hello-world")
         True
-        >>> is_valid_slug("hello world")
-        False
-        >>> is_valid_slug("")
+        >>> is_valid_slug("hello_world", separator="_")
+        True
+        >>> is_valid_slug("Hello World")
         False
     """
     if not slug:
         return False
     
-    if max_length and len(slug) > max_length:
+    if len(slug) < min_length or len(slug) > max_length:
         return False
     
+    # 检查是否以分隔符开头或结尾
+    if slug.startswith(separator) or slug.endswith(separator):
+        return False
+    
+    # 构建验证模式
     if allow_uppercase:
-        pattern = f'^[a-zA-Z0-9{re.escape(separator)}]+$'
+        char_class = 'a-zA-Z'
     else:
-        pattern = f'^[a-z0-9{re.escape(separator)}]+$'
+        char_class = 'a-z'
+    
+    if allow_numbers:
+        char_class += '0-9'
+    
+    escaped_sep = re.escape(separator)
+    pattern = f'^[{char_class}{escaped_sep}]+$'
     
     return bool(re.match(pattern, slug))
 
 
-def fix_slug(
+def unslugify(
     slug: str,
     separator: str = '-',
-    lowercase: bool = True,
-    max_length: Optional[int] = None
+    title_case: bool = False,
+    space_replacement: str = ' ',
 ) -> str:
     """
-    Fix and normalize an existing slug.
+    将slug转换回可读的字符串。
     
     Args:
-        slug: Slug to fix
-        separator: Word separator
-        lowercase: Convert to lowercase
-        max_length: Maximum slug length
-    
+        slug: slug字符串
+        separator: 分隔符
+        title_case: 是否转换为标题格式（首字母大写）
+        space_replacement: 用于替换分隔符的字符
+        
     Returns:
-        Fixed slug
-    
-    Example:
-        >>> fix_slug("Hello___World")
-        'hello-world'
-        >>> fix_slug("hello world")
-        'hello-world'
-    """
-    if lowercase:
-        slug = slug.lower()
-    
-    # Replace spaces and underscores with separator
-    slug = re.sub(r'[\s_]+', separator, slug)
-    
-    # Replace invalid characters with separator (to preserve word boundaries)
-    slug = re.sub(r'[^a-z0-9]', separator, slug)
-    
-    # Remove duplicate separators
-    dup_pattern = re.escape(separator) + '+'
-    slug = re.sub(dup_pattern, separator, slug)
-    
-    # Strip separators from ends
-    slug = slug.strip(separator)
-    
-    # Apply max length
-    if max_length and len(slug) > max_length:
-        slug = slug[:max_length].rstrip(separator)
-    
-    return slug
-
-
-def slug_to_text(slug: str, separator: str = '-') -> str:
-    """
-    Convert a slug back to readable text.
-    
-    Args:
-        slug: Slug to convert
-        separator: Separator used in slug
-    
-    Returns:
-        Human-readable text
-    
-    Example:
-        >>> slug_to_text("hello-world")
+        可读的字符串
+        
+    Examples:
+        >>> unslugify("hello-world")
+        'hello world'
+        >>> unslugify("hello-world", title_case=True)
         'Hello World'
-        >>> slug_to_text("my-blog-post-2024")
-        'My Blog Post 2024'
+        >>> unslugify("hello_world", separator="_")
+        'hello world'
     """
-    words = slug.split(separator)
-    return ' '.join(word.capitalize() for word in words)
+    if not slug:
+        return ''
+    
+    text = slug.replace(separator, space_replacement)
+    
+    if title_case:
+        text = text.title()
+    
+    return text
 
 
-def compare_slugs(slug1: str, slug2: str, ignore_case: bool = True) -> bool:
+def slug_range(
+    text: str,
+    start: int,
+    end: int,
+    separator: str = '-',
+    **kwargs
+) -> List[str]:
     """
-    Compare two slugs for equality.
+    生成一系列带数字后缀的slug。
     
     Args:
-        slug1: First slug
-        slug2: Second slug
-        ignore_case: Ignore case differences
-    
+        text: 基础字符串
+        start: 起始数字
+        end: 结束数字（包含）
+        separator: 分隔符
+        **kwargs: 传递给slugify的其他参数
+        
     Returns:
-        True if slugs are equal
+        slug列表
+        
+    Examples:
+        >>> slug_range("Chapter", 1, 3)
+        ['chapter-1', 'chapter-2', 'chapter-3']
+    """
+    base = slugify(text, separator=separator, **kwargs)
+    return [f"{base}{separator}{i}" for i in range(start, end + 1)]
+
+
+def smart_slugify(
+    text: str,
+    **kwargs
+) -> str:
+    """
+    智能slug生成，自动处理特殊场景。
     
-    Example:
-        >>> compare_slugs("Hello-World", "hello-world")
-        True
-        >>> compare_slugs("hello-world", "hello_world")
-        False
-    """
-    if ignore_case:
-        return slug1.lower() == slug2.lower()
-    return slug1 == slug2
-
-
-def get_slug_words(slug: str, separator: str = '-') -> List[str]:
-    """
-    Extract words from a slug.
+    自动处理：
+    - HTML实体解码
+    - 多种引号类型
+    - 常见符号替换
+    - 表情符号移除
     
     Args:
-        slug: Slug to parse
-        separator: Separator used in slug
-    
+        text: 要转换的字符串
+        **kwargs: 传递给slugify的其他参数
+        
     Returns:
-        List of words
-    
-    Example:
-        >>> get_slug_words("hello-world-2024")
-        ['hello', 'world', '2024']
+        智能生成的slug
+        
+    Examples:
+        >>> smart_slugify("What's Up?!")
+        'whats-up'
+        >>> smart_slugify("Hello™ World®")
+        'hello-tm-world-r'
     """
-    return [w for w in slug.split(separator) if w]
+    if not text:
+        return ''
+    
+    # 预处理：移除撇号和引号
+    for char in ["'", "'", '"', '"', '`']:
+        text = text.replace(char, '')
+    
+    # 常见符号替换
+    smart_replacements = {
+        '&': 'and',
+        '@': 'at',
+        '+': 'plus',
+        '=': 'equals',
+        '%': 'percent',
+        '#': 'number',
+        '$': 'dollar',
+        '€': 'euro',
+        '£': 'pound',
+        '¥': 'yen',
+        '©': 'c',
+        '®': 'r',
+        '™': 'tm',
+        '°': 'deg',
+        '×': 'x',
+        '÷': 'div',
+        '±': 'plus-minus',
+        '≈': 'approx',
+        '≠': 'not-equal',
+        '≤': 'le',
+        '≥': 'ge',
+        '√': 'sqrt',
+        '∞': 'infinity',
+        'π': 'pi',
+        'α': 'alpha',
+        'β': 'beta',
+        'γ': 'gamma',
+        'δ': 'delta',
+        'ε': 'epsilon',
+    }
+    
+    # 合并用户自定义替换
+    user_replacements = kwargs.pop('replacements', None) or {}
+    replacements = {**smart_replacements, **user_replacements}
+    
+    return slugify(text, replacements=replacements, **kwargs)
 
 
 def count_slug_words(slug: str, separator: str = '-') -> int:
     """
-    Count the number of words in a slug.
+    统计slug中的单词数量。
     
     Args:
-        slug: Slug to count
-        separator: Separator used in slug
-    
+        slug: slug字符串
+        separator: 分隔符
+        
     Returns:
-        Number of words
-    
-    Example:
-        >>> count_slug_words("hello-world")
-        2
+        单词数量
+        
+    Examples:
+        >>> count_slug_words("hello-world-foo")
+        3
+        >>> count_slug_words("single")
+        1
     """
-    return len(get_slug_words(slug, separator))
+    if not slug:
+        return 0
+    
+    # 去除首尾分隔符后分割
+    clean_slug = slug.strip(separator)
+    if not clean_slug:
+        return 0
+    
+    return len(clean_slug.split(separator))
 
 
-# ============================================================================
-# Custom Slug Generator
-# ============================================================================
-
-class SlugGenerator:
+def truncate_slug(
+    slug: str,
+    max_length: int,
+    separator: str = '-',
+    preserve_words: bool = True,
+) -> str:
     """
-    Configurable slug generator with persistent settings.
+    截断slug到指定长度。
     
-    Example:
-        >>> gen = SlugGenerator(separator='_', max_length=50)
-        >>> gen.generate("Hello World!")
-        'hello_world'
-        >>> gen.generate_unique("Hello World!", ['hello_world'])
-        'hello_world_2'
+    Args:
+        slug: 原始slug
+        max_length: 最大长度
+        separator: 分隔符
+        preserve_words: 是否尽量保留完整单词
+        
+    Returns:
+        截断后的slug
+        
+    Examples:
+        >>> truncate_slug("hello-world-from-python", 15)
+        'hello-world-from'
+        >>> truncate_slug("hello-world-from-python", 10, preserve_words=False)
+        'hello-worl'
     """
-    
-    def __init__(
-        self,
-        separator: str = '-',
-        lowercase: bool = True,
-        max_length: Optional[int] = None,
-        word_boundary: bool = True,
-        custom_map: Optional[Dict[str, str]] = None,
-        strip_common_words: bool = False,
-        common_words: Optional[List[str]] = None
-    ):
-        """Initialize slug generator with custom settings."""
-        self.separator = separator
-        self.lowercase = lowercase
-        self.max_length = max_length
-        self.word_boundary = word_boundary
-        self.custom_map = custom_map or {}
-        self.strip_common_words = strip_common_words
-        self.common_words = common_words
-        self._existing: List[str] = []
-    
-    def generate(self, text: str) -> str:
-        """Generate a slug with current settings."""
-        return generate_slug(
-            text,
-            separator=self.separator,
-            lowercase=self.lowercase,
-            max_length=self.max_length,
-            word_boundary=self.word_boundary,
-            custom_map=self.custom_map,
-            strip_common_words=self.strip_common_words,
-            common_words=self.common_words
-        )
-    
-    def generate_unique(self, text: str, existing: Optional[List[str]] = None) -> str:
-        """Generate a unique slug."""
-        existing = existing or self._existing
-        slug = generate_unique_slug(
-            text,
-            existing=existing,
-            separator=self.separator,
-            lowercase=self.lowercase,
-            max_length=self.max_length
-        )
-        self._existing.append(slug)
+    if not slug or len(slug) <= max_length:
         return slug
     
-    def generate_batch(self, texts: List[str], ensure_unique: bool = True) -> List[str]:
-        """Generate slugs for multiple texts."""
-        return generate_slug_batch(
-            texts,
-            separator=self.separator,
-            lowercase=self.lowercase,
-            max_length=self.max_length,
-            ensure_unique=ensure_unique
-        )
+    if not preserve_words:
+        return slug[:max_length].rstrip(separator)
     
-    def reset(self) -> None:
-        """Reset the list of existing slugs."""
-        self._existing = []
+    # 在最后一个分隔符处截断
+    truncated = slug[:max_length]
+    last_sep = truncated.rfind(separator)
+    
+    if last_sep > 0:
+        return truncated[:last_sep]
+    
+    return truncated.rstrip(separator)
 
 
-# ============================================================================
-# Main Entry Point
-# ============================================================================
+def compare_slugs(
+    slug1: str,
+    slug2: str,
+    separator: str = '-',
+) -> Dict[str, any]:
+    """
+    比较两个slug的相似度。
+    
+    Args:
+        slug1: 第一个slug
+        slug2: 第二个slug
+        separator: 分隔符
+        
+    Returns:
+        包含比较结果的字典：
+        - exact_match: 是否完全匹配
+        - word_overlap: 重叠单词数
+        - similarity: 相似度（0-1）
+        - common_words: 共同单词列表
+        - unique_to_first: 只在第一个中的单词
+        - unique_to_second: 只在第二个中的单词
+        
+    Examples:
+        >>> compare_slugs("hello-world", "hello-python")
+        {'exact_match': False, 'word_overlap': 1, 'similarity': 0.5, ...}
+    """
+    words1 = set(slug1.split(separator)) if slug1 else set()
+    words2 = set(slug2.split(separator)) if slug2 else set()
+    
+    common = words1 & words2
+    unique1 = words1 - words2
+    unique2 = words2 - words1
+    
+    total_words = len(words1 | words2)
+    similarity = len(common) / total_words if total_words > 0 else 1.0
+    
+    return {
+        'exact_match': slug1 == slug2,
+        'word_overlap': len(common),
+        'similarity': round(similarity, 4),
+        'common_words': sorted(list(common)),
+        'unique_to_first': sorted(list(unique1)),
+        'unique_to_second': sorted(list(unique2)),
+    }
 
-if __name__ == "__main__":
-    print("AllToolkit - Slug Utilities Demo")
-    print("=" * 40)
+
+def batch_slugify(
+    texts: List[str],
+    unique: bool = False,
+    separator: str = '-',
+    **kwargs
+) -> List[str]:
+    """
+    批量生成slug。
     
-    # Basic slug generation
-    print("\n[Basic Slugs]")
-    print(f"'Hello World!' → {generate_slug('Hello World!')}")
-    print(f"'Héllo Wörld!' → {generate_slug('Héllo Wörld!')}")
-    print(f"'Привет Мир' → {generate_slug('Привет Мир')}")
-    print(f"'Γειά σου Κόσμε' → {generate_slug('Γειά σου Κόσμε')}")
+    Args:
+        texts: 字符串列表
+        unique: 是否保证slug唯一
+        separator: 分隔符
+        **kwargs: 传递给slugify的其他参数
+        
+    Returns:
+        slug列表
+        
+    Examples:
+        >>> batch_slugify(["Hello World", "Hello World", "Foo Bar"])
+        ['hello-world', 'hello-world', 'foo-bar']
+        >>> batch_slugify(["Hello World", "Hello World", "Foo Bar"], unique=True)
+        ['hello-world', 'hello-world-2', 'foo-bar']
+    """
+    if not unique:
+        return [slugify(text, separator=separator, **kwargs) for text in texts]
     
-    # Custom separator
-    print("\n[Custom Separator]")
-    print(f"'Hello World' with '_' → {generate_slug('Hello World', separator='_')}")
+    result = []
+    existing = []
+    for text in texts:
+        slug = slugify_unique(text, existing=existing, separator=separator, **kwargs)
+        result.append(slug)
+        existing.append(slug)
     
-    # Max length
-    print("\n[Max Length]")
-    print(f"'This is a very long title' (max=15) → {generate_slug('This is a very long title', max_length=15)}")
-    
-    # Unique slugs
-    print("\n[Unique Slugs]")
-    existing = ['hello-world', 'hello-world-2']
-    print(f"'Hello World' (existing: {existing}) → {generate_unique_slug('Hello World', existing)}")
-    
-    # Date slug
-    print("\n[Date Slug]")
-    print(f"'My Blog Post' with date → {generate_date_slug('My Blog Post', '2024-01-15')}")
-    
-    # Hierarchical slug
-    print("\n[Hierarchical Slug]")
-    print(f"['Tech', 'Python', 'Tutorial'] → {generate_hierarchical_slug(['Tech', 'Python', 'Tutorial'])}")
-    
-    # Batch generation
-    print("\n[Batch Generation]")
-    texts = ['First Post', 'First Post', 'Second Post']
-    print(f"Input: {texts}")
-    print(f"Output: {generate_slug_batch(texts)}")
-    
-    # Using SlugGenerator class
-    print("\n[SlugGenerator Class]")
-    gen = SlugGenerator(separator='_', max_length=20)
-    print(f"'Hello Beautiful World!' → {gen.generate('Hello Beautiful World!')}")
-    
-    # Validation
-    print("\n[Validation]")
-    print(f"'hello-world' is valid: {is_valid_slug('hello-world')}")
-    print(f"'hello world' is valid: {is_valid_slug('hello world')}")
-    
-    # Slug to text
-    print("\n[Slug to Text]")
-    print(f"'hello-world-2024' → '{slug_to_text('hello-world-2024')}'")
+    return result
+
+
+# 版本信息
+__version__ = '1.0.0'
+__author__ = 'AllToolkit'
+__all__ = [
+    'slugify',
+    'slugify_unique',
+    'generate_slug',
+    'is_valid_slug',
+    'unslugify',
+    'slug_range',
+    'smart_slugify',
+    'count_slug_words',
+    'truncate_slug',
+    'compare_slugs',
+    'batch_slugify',
+]

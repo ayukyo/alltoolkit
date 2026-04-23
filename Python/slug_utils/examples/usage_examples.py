@@ -1,366 +1,377 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-AllToolkit - Slug Utilities Examples
-=====================================
-Practical examples for using the slug_utils module.
+slug_utils 使用示例
+===================
+
+展示 slug_utils 库的各种使用场景。
 """
 
 import sys
 import os
-
-# Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from slug_utils.mod import (
+from mod import (
+    slugify,
+    slugify_unique,
     generate_slug,
-    generate_unique_slug,
-    generate_sequential_slug,
-    generate_date_slug,
-    generate_category_slug,
-    generate_hierarchical_slug,
-    generate_slug_batch,
-    slug_from_filename,
     is_valid_slug,
-    fix_slug,
-    slug_to_text,
-    SlugGenerator,
+    unslugify,
+    slug_range,
+    smart_slugify,
+    count_slug_words,
+    truncate_slug,
+    compare_slugs,
+    batch_slugify,
 )
 
 
-def example_basic_slugs():
-    """Basic slug generation examples."""
+def example_basic_usage():
+    """基本用法示例"""
     print("\n" + "=" * 50)
-    print("Basic Slug Generation")
+    print("基本用法示例")
     print("=" * 50)
     
-    titles = [
-        "Hello World",
-        "This is a Blog Post!",
-        "Héllo Wörld Café",
-        "2024 Annual Report",
-        "Price: $99.99 Only",
-        "Tech & Innovation Summit",
+    texts = [
+        "Hello World!",
+        "The Quick Brown Fox Jumps Over The Lazy Dog",
+        "Python 3.12 新特性",
+        "Café & Restaurant",
+        "100% Natural Product",
     ]
     
-    for title in titles:
-        slug = generate_slug(title)
-        print(f"  '{title}' → '{slug}'")
+    for text in texts:
+        slug = slugify(text)
+        print(f"  '{text}' -> '{slug}'")
 
 
 def example_custom_separator():
-    """Custom separator examples."""
+    """自定义分隔符示例"""
     print("\n" + "=" * 50)
-    print("Custom Separators")
+    print("自定义分隔符示例")
     print("=" * 50)
     
-    title = "My Awesome Blog Post"
+    text = "Hello World From Python"
     
-    print(f"  Default (-): '{generate_slug(title)}'")
-    print(f"  Underscore (_): '{generate_slug(title, separator='_')}'")
-    print(f"  Dot (.): '{generate_slug(title, separator='.')}'")
-    print(f"  None: '{generate_slug(title, separator='')}'")
+    print(f"  原文: '{text}'")
+    print(f"  默认(连字符): '{slugify(text)}'")
+    print(f"  下划线: '{slugify(text, separator='_')}'")
+    print(f"  点号: '{slugify(text, separator='.')}'")
+    print(f"  无分隔符: '{slugify(text, separator='')}'")
 
 
-def example_max_length():
-    """Maximum length examples."""
+def example_case_handling():
+    """大小写处理示例"""
     print("\n" + "=" * 50)
-    print("Maximum Length Constraints")
+    print("大小写处理示例")
     print("=" * 50)
     
-    title = "This is a very long title that needs to be shortened"
+    text = "HELLO World"
     
-    for max_len in [10, 20, 30, 50]:
-        slug = generate_slug(title, max_length=max_len)
-        print(f"  Max {max_len}: '{slug}' (len={len(slug)})")
+    print(f"  原文: '{text}'")
+    print(f"  小写(默认): '{slugify(text, lowercase=True)}'")
+    print(f"  保留原样: '{slugify(text, lowercase=False)}'")
 
 
-def example_unique_slugs():
-    """Unique slug generation examples."""
+def example_chinese_japanese():
+    """中日文处理示例"""
     print("\n" + "=" * 50)
-    print("Unique Slug Generation")
+    print("中日文处理示例")
     print("=" * 50)
     
-    existing = ["hello-world", "hello-world-2", "my-post"]
-    
-    new_titles = ["Hello World", "My Post", "Hello World"]
-    
-    for title in new_titles:
-        slug = generate_unique_slug(title, existing)
-        existing.append(slug)
-        print(f"  '{title}' → '{slug}'")
-
-
-def example_sequential_slugs():
-    """Sequential slug examples."""
-    print("\n" + "=" * 50)
-    print("Sequential Slug Generation")
-    print("=" * 50)
-    
-    base = "Chapter"
-    
-    print("  Without padding:")
-    for i in [1, 2, 3, 10, 100]:
-        slug = generate_sequential_slug(base, i)
-        print(f"    Index {i}: '{slug}'")
-    
-    print("\n  With zero-padding (3 digits):")
-    for i in [1, 2, 3, 10, 100]:
-        slug = generate_sequential_slug(base, i, index_width=3)
-        print(f"    Index {i}: '{slug}'")
-
-
-def example_date_slugs():
-    """Date-prefixed slug examples."""
-    print("\n" + "=" * 50)
-    print("Date-Prefixed Slugs")
-    print("=" * 50)
-    
-    title = "Daily Update"
-    
-    dates = ["2024-01-15", "2024-06-20", "2024-12-31"]
-    
-    for date in dates:
-        slug = generate_date_slug(title, date)
-        print(f"  '{title}' + {date} → '{slug}'")
-    
-    print(f"\n  Today's date: '{generate_date_slug(title)}'")
-
-
-def example_hierarchical_slugs():
-    """Hierarchical slug examples."""
-    print("\n" + "=" * 50)
-    print("Hierarchical Slugs")
-    print("=" * 50)
-    
-    paths = [
-        ["Blog", "Tech", "Python"],
-        ["Products", "Electronics", "Phones"],
-        ["Docs", "API", "v2", "Endpoints"],
+    texts = [
+        "你好世界",
+        "中国人工智能发展",
+        "こんにちは世界",  # 日文
+        "テストページ",  # 日文片假名
+        "한국",  # 韩文
+        "Hello世界Mixed",  # 混合
     ]
     
-    for path in paths:
-        slug = generate_hierarchical_slug(path)
-        print(f"  {path} → '{slug}'")
+    for text in texts:
+        slug = slugify(text)
+        print(f"  '{text}' -> '{slug}'")
 
 
-def example_category_slugs():
-    """Category-prefixed slug examples."""
+def example_unique_slug():
+    """唯一slug生成示例"""
     print("\n" + "=" * 50)
-    print("Category-Prefixed Slugs")
+    print("唯一slug生成示例")
     print("=" * 50)
     
-    categories = ["Tech", "Lifestyle", "Business"]
-    title = "How to Succeed"
+    existing = ["hello-world", "my-post", "hello-world-2"]
     
-    for cat in categories:
-        slug = generate_category_slug(title, cat)
-        print(f"  '{cat}' + '{title}' → '{slug}'")
-
-
-def example_batch_generation():
-    """Batch generation examples."""
-    print("\n" + "=" * 50)
-    print("Batch Generation")
-    print("=" * 50)
-    
-    titles = [
-        "First Post",
-        "Second Post",
-        "First Post",  # Duplicate
-        "Tech News",
-        "Tech News",  # Duplicate
-    ]
-    
-    print("  Input titles:", titles)
-    
-    print("\n  With unique enforcement:")
-    slugs = generate_slug_batch(titles, ensure_unique=True)
-    print(f"  Output: {slugs}")
-    
-    print("\n  Without unique enforcement:")
-    slugs = generate_slug_batch(titles, ensure_unique=False)
-    print(f"  Output: {slugs}")
-
-
-def example_filename_slugs():
-    """Filename-based slug examples."""
-    print("\n" + "=" * 50)
-    print("Filename-Based Slugs")
-    print("=" * 50)
-    
-    filenames = [
-        "My Document.pdf",
-        "Report 2024.docx",
-        "Presentation (Final).pptx",
-        "data-analysis_v2.xlsx",
-    ]
-    
-    for filename in filenames:
-        slug = slug_from_filename(filename)
-        print(f"  '{filename}' → '{slug}'")
-
-
-def example_slug_generator_class():
-    """SlugGenerator class examples."""
-    print("\n" + "=" * 50)
-    print("SlugGenerator Class")
-    print("=" * 50)
-    
-    # Create generator with custom settings
-    gen = SlugGenerator(separator="_", max_length=30)
-    
-    print("  Settings: separator='_', max_length=30")
-    
-    titles = ["Hello World", "Tech Blog Post", "A Very Very Long Title"]
+    titles = ["Hello World", "My New Post", "Hello World"]
     
     for title in titles:
-        slug = gen.generate(title)
-        print(f"    '{title}' → '{slug}'")
+        slug = slugify_unique(title, existing=existing)
+        existing.append(slug)
+        print(f"  '{title}' -> '{slug}'")
+
+
+def example_prefix_suffix():
+    """前缀后缀示例"""
+    print("\n" + "=" * 50)
+    print("前缀后缀示例")
+    print("=" * 50)
     
-    print("\n  Unique generation:")
-    gen2 = SlugGenerator()
-    for title in ["Hello", "Hello", "Hello"]:
-        slug = gen2.generate_unique(title)
-        print(f"    '{title}' → '{slug}'")
+    title = "My Blog Post"
+    
+    print(f"  原文: '{title}'")
+    with_prefix = generate_slug(title, prefix="blog")
+    print(f"  带分类前缀: '{with_prefix}'")
+    with_suffix = generate_slug(title, suffix="2024-01-15")
+    print(f"  带日期后缀: '{with_suffix}'")
+    with_both = generate_slug(title, prefix="blog", suffix="2024")
+    print(f"  同时添加: '{with_both}'")
 
 
 def example_validation():
-    """Slug validation examples."""
+    """验证示例"""
     print("\n" + "=" * 50)
-    print("Slug Validation")
+    print("验证示例")
     print("=" * 50)
     
     test_slugs = [
         "hello-world",
-        "Hello-World",
-        "hello world",
-        "hello_world",
-        "",
-        "test-123",
+        "Hello-World",  # 大写
+        "hello_world",  # 下划线
+        "hello world",  # 空格
+        "-hello",  # 开头分隔符
+        "hello-",  # 结尾分隔符
+        "",  # 空字符串
     ]
     
     for slug in test_slugs:
-        is_valid = is_valid_slug(slug)
-        print(f"  '{slug}' → Valid: {is_valid}")
+        valid = is_valid_slug(slug)
+        valid_upper = is_valid_slug(slug, allow_uppercase=True)
+        valid_underscore = is_valid_slug(slug, separator="_")
+        
+        print(f"  '{slug}':")
+        print(f"    默认: {'✅' if valid else '❌'}")
+        print(f"    允许大写: {'✅' if valid_upper else '❌'}")
 
 
-def example_fixing():
-    """Slug fixing examples."""
+def example_unslugify():
+    """slug还原示例"""
     print("\n" + "=" * 50)
-    print("Fixing Invalid Slugs")
-    print("=" * 50)
-    
-    bad_slugs = [
-        "hello world",
-        "Hello_World",
-        "hello---world",
-        "-hello-world-",
-        "hello!@#world",
-    ]
-    
-    for bad in bad_slugs:
-        fixed = fix_slug(bad)
-        print(f"  '{bad}' → '{fixed}'")
-
-
-def example_slug_to_text():
-    """Slug to text conversion examples."""
-    print("\n" + "=" * 50)
-    print("Slug to Text Conversion")
+    print("slug还原示例")
     print("=" * 50)
     
     slugs = [
         "hello-world",
         "my-blog-post-2024",
-        "tech-news-today",
+        "product_review",
     ]
     
     for slug in slugs:
-        text = slug_to_text(slug)
-        print(f"  '{slug}' → '{text}'")
+        normal = unslugify(slug)
+        title = unslugify(slug, title_case=True)
+        underscore = unslugify(slug, separator="_", space_replacement="_")
+        
+        print(f"  '{slug}':")
+        print(f"    普通还原: '{normal}'")
+        print(f"    标题格式: '{title}'")
 
 
-def example_real_world_scenario():
-    """Real-world scenario: Blog system."""
+def example_smart_slug():
+    """智能slug示例"""
     print("\n" + "=" * 50)
-    print("Real-World Scenario: Blog System")
+    print("智能slug示例")
     print("=" * 50)
     
-    # Simulate a blog post creation workflow
-    print("\n  Creating blog posts:")
-    
-    posts = [
-        ("Understanding Python Decorators", "Tech", "2024-01-15"),
-        ("10 Tips for Better Sleep", "Lifestyle", "2024-01-16"),
-        ("Python Decorators Deep Dive", "Tech", "2024-01-17"),
+    texts = [
+        "What's the Best Way?",
+        "Price: $100 + Tax",
+        "100% Natural™ Product",
+        "α + β = γ",
+        "user@email.com",
+        "Café & Restaurant",
     ]
     
-    existing_slugs = []
-    
-    for title, category, date in posts:
-        # Generate base slug
-        base = generate_slug(title)
-        
-        # Add category and date
-        with_cat = generate_category_slug(title, category)
-        with_date = generate_date_slug(title, date)
-        
-        # Ensure uniqueness
-        unique = generate_unique_slug(title, existing_slugs)
-        existing_slugs.append(unique)
-        
-        print(f"\n  Post: '{title}'")
-        print(f"    Category: '{category}' → Slug: '{with_cat}'")
-        print(f"    With date: '{with_date}'")
-        print(f"    Unique: '{unique}'")
+    for text in texts:
+        slug = smart_slugify(text)
+        print(f"  '{text}' -> '{slug}'")
 
 
-def example_international():
-    """International character support."""
+def example_slug_range():
+    """slug范围生成示例"""
     print("\n" + "=" * 50)
-    print("International Character Support")
+    print("slug范围生成示例")
+    print("=" * 50)
+    
+    # 生成章节编号
+    chapters = slug_range("Chapter", 1, 5)
+    print(f"  章节: {chapters}")
+    
+    # 生成页码
+    pages = slug_range("Page", 0, 10, separator="_")
+    print(f"  页码: {pages}")
+    
+    # 生成版本号
+    versions = slug_range("v", 1, 3)
+    print(f"  版本: {versions}")
+
+
+def example_truncate():
+    """截断示例"""
+    print("\n" + "=" * 50)
+    print("截断示例")
+    print("=" * 50)
+    
+    slug = "this-is-a-very-long-blog-post-title-that-needs-to-be-truncated"
+    
+    print(f"  原始: '{slug}'")
+    print(f"  保留单词边界 (max=40): '{truncate_slug(slug, 40)}'")
+    print(f"  硬截断 (max=40): '{truncate_slug(slug, 40, preserve_words=False)}'")
+    print(f"  短截断 (max=20): '{truncate_slug(slug, 20)}'")
+
+
+def example_compare():
+    """比较示例"""
+    print("\n" + "=" * 50)
+    print("比较示例")
+    print("=" * 50)
+    
+    pairs = [
+        ("hello-world", "hello-world"),
+        ("hello-world", "hello-python"),
+        ("my-blog-post", "your-blog-post"),
+        ("product-123", "product-456"),
+    ]
+    
+    for slug1, slug2 in pairs:
+        result = compare_slugs(slug1, slug2)
+        print(f"\n  比较 '{slug1}' vs '{slug2}':")
+        print(f"    完全匹配: {'是' if result['exact_match'] else '否'}")
+        print(f"    相似度: {result['similarity'] * 100:.1f}%")
+        print(f"    共同词: {result['common_words']}")
+
+
+def example_batch():
+    """批量处理示例"""
+    print("\n" + "=" * 50)
+    print("批量处理示例")
     print("=" * 50)
     
     titles = [
-        "Café de Paris",
-        "Привет Мир",  # Russian
-        "Γειά σου",  # Greek
-        "東京の天気",  # Japanese (will be transliterated or stripped)
+        "Introduction to Python",
+        "Introduction to Python",  # 重复
+        "Advanced Python Techniques",
+        "Python for Data Science",
     ]
     
-    for title in titles:
-        slug = generate_slug(title)
-        print(f"  '{title}' → '{slug}'")
+    # 不保证唯一
+    slugs = batch_slugify(titles)
+    print(f"  普通批量生成: {slugs}")
+    
+    # 保证唯一
+    unique_slugs = batch_slugify(titles, unique=True)
+    print(f"  唯一批量生成: {unique_slugs}")
 
 
-def main():
-    """Run all examples."""
+def example_real_world():
+    """真实场景示例"""
+    print("\n" + "=" * 50)
+    print("真实场景示例")
+    print("=" * 50)
+    
+    # 博客系统
+    print("\n  📝 博客系统:")
+    blog_title = "10 Tips for Writing Clean Python Code"
+    blog_slug = slugify(blog_title, max_length=50)
+    print(f"    标题: '{blog_title}'")
+    print(f"    Slug: '{blog_slug}'")
+    
+    # 电商产品
+    print("\n  🛒 电商产品:")
+    product = "iPhone 15 Pro Max 256GB 紫色"
+    product_slug = slugify(product)
+    print(f"    产品: '{product}'")
+    print(f"    Slug: '{product_slug}'")
+    
+    # 用户名生成
+    print("\n  👤 用户名生成:")
+    email = "john.doe@example.com"
+    username = slugify(email.split('@')[0])
+    print(f"    邮箱: '{email}'")
+    print(f"    用户名: '{username}'")
+    
+    # URL路径
+    print("\n  🌐 URL路径:")
+    category = "电子产品 > 手机 > 智能手机"
+    path_slug = slugify(category)
+    print(f"    分类: '{category}'")
+    print(f"    路径: '/products/{path_slug}'")
+    
+    # 文件名
+    print("\n  📄 文件名转换:")
+    filename = "My Document (Final Version).docx"
+    file_slug = slugify(filename)
+    print(f"    原文件名: '{filename}'")
+    print(f"    安全文件名: '{file_slug}.docx'")
+
+
+def example_max_length():
+    """最大长度限制示例"""
+    print("\n" + "=" * 50)
+    print("最大长度限制示例")
+    print("=" * 50)
+    
+    long_title = "This is an extremely long blog post title that definitely needs to be truncated for SEO purposes"
+    
+    print(f"  原标题: '{long_title}'")
+    print(f"  长度: {len(long_title)}")
+    
+    for max_len in [30, 50, 80]:
+        truncated = slugify(long_title, max_length=max_len)
+        print(f"  max={max_len}: '{truncated}' ({len(truncated)} 字符)")
+
+
+def example_word_count():
+    """单词计数示例"""
+    print("\n" + "=" * 50)
+    print("单词计数示例")
+    print("=" * 50)
+    
+    slugs = [
+        "hello-world",
+        "the-quick-brown-fox",
+        "single",
+        "",
+    ]
+    
+    for slug in slugs:
+        count = count_slug_words(slug)
+        print(f"  '{slug}': {count} 个单词")
+
+
+def run_all_examples():
+    """运行所有示例"""
     print("\n" + "=" * 60)
-    print("AllToolkit - Slug Utilities Usage Examples")
+    print("slug_utils 使用示例演示")
     print("=" * 60)
     
-    example_basic_slugs()
+    example_basic_usage()
     example_custom_separator()
-    example_max_length()
-    example_unique_slugs()
-    example_sequential_slugs()
-    example_date_slugs()
-    example_hierarchical_slugs()
-    example_category_slugs()
-    example_batch_generation()
-    example_filename_slugs()
-    example_slug_generator_class()
+    example_case_handling()
+    example_chinese_japanese()
+    example_unique_slug()
+    example_prefix_suffix()
     example_validation()
-    example_fixing()
-    example_slug_to_text()
-    example_real_world_scenario()
-    example_international()
+    example_unslugify()
+    example_smart_slug()
+    example_slug_range()
+    example_truncate()
+    example_compare()
+    example_batch()
+    example_real_world()
+    example_max_length()
+    example_word_count()
     
     print("\n" + "=" * 60)
-    print("Examples completed!")
+    print("示例演示完成！")
     print("=" * 60 + "\n")
 
 
 if __name__ == "__main__":
-    main()
+    run_all_examples()
