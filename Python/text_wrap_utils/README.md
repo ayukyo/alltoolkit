@@ -1,241 +1,216 @@
-# Text Wrap Utilities
+# Text Wrap 文本换行与排版工具模块
 
-A comprehensive text wrapping, justification and alignment utility module for Python with zero external dependencies.
+强大的文本换行、对齐、排版工具，支持 Unicode、CJK（中日韩）字符、ANSI 颜色码，零外部依赖。
 
-## Features
+## 功能特性
 
-- **Word Wrapping** - Wrap text at specified width with multiple modes
-- **Text Alignment** - Left, right, center, and justified alignment
-- **Paragraph Formatting** - First-line indent, hanging indent, line spacing
-- **CJK Support** - Proper handling of Chinese, Japanese, Korean characters
-- **ANSI Code Aware** - Preserves ANSI color codes during wrapping
-- **Smart Truncation** - Shorten text with custom placeholders
-- **Unicode Support** - Full Unicode and display width calculation
+- **文本换行** - 智能换行，支持多种模式
+- **文本对齐** - 左对齐、右对齐、居中、两端对齐
+- **段落排版** - 缩进、悬挂缩进、行间距
+- **CJK 支持** - 正确处理中日韩字符宽度
+- **ANSI 支持** - 换行时保留 ANSI 颜色码
+- **文本缩略** - 智能截断，添加占位符
 
-## Installation
+## 快速使用
 
-No external dependencies required. Simply copy the module to your project.
-
-```python
-from text_wrap_utils.mod import wrap_text, align_text, justify_text
-```
-
-## Quick Start
-
-### Basic Wrapping
+### 基本换行
 
 ```python
-from text_wrap_utils.mod import wrap_text
+from text_wrap_utils import wrap, wrap_text
 
-text = "This is a sample text that will be wrapped to fit within a specified width."
+text = "这是一段很长的文本，需要自动换行处理..."
+
+# 默认宽度 80
+lines = wrap(text)
+
+# 自定义宽度
 lines = wrap_text(text, width=40)
+```
+
+### 文本对齐
+
+```python
+from text_wrap_utils import align_text, center, left_align, right_align, justify
+
+# 居中
+centered = center("Hello", width=20)
+
+# 右对齐
+right = right_align("Hello", width=20)
+
+# 两端对齐
+justified = justify("Hello World", width=20)
+```
+
+### CJK 文本处理
+
+```python
+from text_wrap_utils import wrap_text
+
+chinese_text = "这是一个测试文本，用于演示中文字符的处理能力。"
+lines = wrap_text(chinese_text, width=30)  # 正确计算中文字符宽度
+
 for line in lines:
-    print(line)
+    print(f"|{line}|")
 ```
 
-### Text Alignment
+### 段落排版
 
 ```python
-from text_wrap_utils.mod import align_text, Alignment
+from text_wrap_utils import format_paragraph
 
-# Left align
-left = align_text("Hello", 20, Alignment.LEFT)
-
-# Right align
-right = align_text("Hello", 20, Alignment.RIGHT)
-
-# Center
-centered = align_text("Hello", 20, Alignment.CENTER)
-
-# Justified
-justified = justify_text("Hello world test", 30)
-```
-
-### Wrap and Align Combined
-
-```python
-from text_wrap_utils.mod import wrap_and_align, Alignment
-
-text = "This is a sample text for wrap and align demonstration."
-lines = wrap_and_align(text, width=30, alignment=Alignment.JUSTIFY)
-for line in lines:
-    print(line)
-```
-
-### Paragraph Formatting
-
-```python
-from text_wrap_utils.mod import format_paragraph
-
-text = "This is a paragraph that will be formatted with indentation."
-formatted = format_paragraph(
-    text,
+para = format_paragraph(
+    "这是一段示例文本...",
     width=50,
-    alignment=Alignment.JUSTIFY,
-    first_line_indent=4,
-    hanging_indent=2
+    first_line_indent=4,    # 首行缩进
+    hanging_indent=2,       # 悬挂缩进
+    alignment="justify"     # 两端对齐
 )
-print(formatted)
+print(para)
 ```
 
-### Using TextWrapper Class
+### 文本缩略
 
 ```python
-from text_wrap_utils.mod import TextWrapper
+from text_wrap_utils import shorten
+
+long_text = "这是一段非常长的文本..."
+short = shorten(long_text, width=20, placeholder="...")
+print(short)
+```
+
+### TextWrapper 类
+
+```python
+from text_wrap_utils import TextWrapper
 
 wrapper = TextWrapper(
     width=40,
-    initial_indent="> ",
-    subsequent_indent="  "
+    initial_indent="> ",     # 首行前缀
+    subsequent_indent="  "   # 后续行前缀
 )
 
-# Wrap to list
 lines = wrapper.wrap(text)
-
-# Fill to string
-filled = wrapper.fill(text)
+filled = wrapper.fill(text)  # 返回单字符串
 ```
 
-### Text Shortening
+## API 参考
+
+### 核心函数
+
+| 函数 | 描述 |
+|------|------|
+| `wrap_text(text, width, ...)` | 智能换行 |
+| `align_text(text, width, alignment)` | 文本对齐 |
+| `justify_text(text, width)` | 两端对齐 |
+| `wrap_and_align(text, width, alignment)` | 换行并对齐 |
+| `format_paragraph(text, width, ...)` | 段落排版 |
+
+### 辅助函数
+
+| 函数 | 描述 |
+|------|------|
+| `is_cjk_char(char)` | 检测中日韩字符 |
+| `is_wide_char(char)` | 检测宽字符（占2格） |
+| `display_width(text)` | 计算显示宽度 |
+| `strip_ansi(text)` | 移除 ANSI 码 |
+| `shorten_text(text, width, placeholder)` | 缩略文本 |
+| `dedent_text(text)` | 移除公共缩进 |
+| `indent_text(text, prefix)` | 添加缩进 |
+| `center_block(text, width)` | 居中文本块 |
+| `fill_text(text, width, ...)` | 填充文本 |
+
+### 便捷函数
+
+| 函数 | 描述 |
+|------|------|
+| `wrap(text, width=80)` | 基本换行 |
+| `fill(text, width=80)` | 填充 |
+| `center(text, width=80)` | 居中 |
+| `left_align(text, width=80)` | 左对齐 |
+| `right_align(text, width=80)` | 右对齐 |
+| `justify(text, width=80)` | 两端对齐 |
+| `shorten(text, width, placeholder)` | 缩略 |
+
+### 枚举类型
 
 ```python
-from text_wrap_utils.mod import shorten_text
+class Alignment(Enum):
+    LEFT = "left"
+    RIGHT = "right"
+    CENTER = "center"
+    JUSTIFY = "justify"
 
-long_text = "This is a very long text that needs to be shortened."
-shortened = shorten_text(long_text, width=20, placeholder="...")
-print(shortened)  # "This is a very l..."
+class WrapMode(Enum):
+    SOFT = "soft"    # 尽量在词边界换行
+    HARD = "hard"    # 强制在宽度处换行
+    FILL = "fill"    # 尽量填充每行
 ```
 
-### CJK Text Handling
-
-```python
-from text_wrap_utils.mod import wrap_text, display_width
-
-# Chinese text
-chinese = "这是一个测试文本用于演示中文字符的换行功能。"
-lines = wrap_text(chinese, width=30)
-
-# Display width calculation (CJK chars = 2 cells)
-width = display_width("中文")  # Returns 4
-width = display_width("hello世界")  # Returns 9 (5 + 4)
-```
-
-### Convenience Functions
-
-```python
-from text_wrap_utils.mod import wrap, fill, center, justify, shorten
-
-lines = wrap(text, width=80)  # Basic wrapping
-filled = fill(text, width=80)  # Fill text
-centered = center(text[:20], width=80)  # Center
-justified = justify(text, width=80)  # Justify
-shortened = shorten(text, width=30)  # Shorten
-```
-
-## API Reference
-
-### Core Functions
-
-| Function | Description |
-|----------|-------------|
-| `wrap_text(text, width, ...)` | Wrap text to specified width |
-| `align_text(text, width, alignment)` | Align text within width |
-| `justify_text(text, width)` | Justify text with space distribution |
-| `wrap_and_align(text, width, alignment, ...)` | Combined wrap and align |
-
-### Formatting Functions
-
-| Function | Description |
-|----------|-------------|
-| `format_paragraph(text, ...)` | Format paragraph with indent |
-| `fill_text(text, width, ...)` | Fill and wrap text |
-| `shorten_text(text, width, ...)` | Shorten text to fit width |
-| `indent_text(text, prefix, ...)` | Add indentation to lines |
-| `dedent_text(text)` | Remove common indentation |
-| `center_block(text, width)` | Center a block of text |
-
-### Utility Functions
-
-| Function | Description |
-|----------|-------------|
-| `is_cjk_char(char)` | Check if CJK character |
-| `is_wide_char(char)` | Check if wide character |
-| `display_width(text)` | Calculate display width |
-| `strip_ansi(text)` | Remove ANSI escape codes |
-
-### Classes
-
-#### TextWrapper
-
-Configurable text wrapper with OO interface.
+### TextWrapper 类
 
 ```python
 wrapper = TextWrapper(
-    width=80,                  # Line width
-    alignment=Alignment.LEFT,  # Alignment mode
-    initial_indent="",         # First line indent
-    subsequent_indent="",      # Subsequent lines indent
-    break_long_words=True,     # Break words if needed
-    max_lines=None,            # Maximum lines
-    placeholder="..."          # Truncation placeholder
+    width=80,
+    alignment=Alignment.LEFT,
+    mode=WrapMode.SOFT,
+    initial_indent="",
+    subsequent_indent="",
+    break_long_words=True,
+    max_lines=None,
+    placeholder="..."
 )
 
-lines = wrapper.wrap(text)
-filled = wrapper.fill(text)
+wrapper.wrap(text)    # 返回行列表
+wrapper.fill(text)    # 返回字符串
 ```
 
-### Enums
+## CJK 字符宽度
 
-#### Alignment
-
-- `LEFT` - Left alignment
-- `RIGHT` - Right alignment
-- `CENTER` - Center alignment
-- `JUSTIFY` - Full justification
-
-#### WrapMode
-
-- `SOFT` - Wrap at word boundaries
-- `HARD` - Wrap exactly at width
-- `FILL` - Fill each line as much as possible
-
-## Examples
-
-### Console Output Formatting
+CJK 字符（中文、日文、韩文）在终端中占用 2 个字符宽度，本模块自动处理：
 
 ```python
-from text_wrap_utils.mod import wrap_text, center
-
-# Center a title
-title = center("Welcome to My App", width=60)
-print(title)
-
-# Wrap description
-description = "A wonderful application that helps you manage your daily tasks with ease."
-for line in wrap_text(description, width=60):
-    print(line)
+>>> display_width("中文")
+4
+>>> display_width("abc")
+3
+>>> display_width("中文abc")
+7
 ```
 
-### Markdown-like Indentation
+## ANSI 颜色码支持
+
+换行时保留 ANSI 颜色码：
 
 ```python
-from text_wrap_utils.mod import indent_text
-
-code = "def hello():\n    print('world')"
-indented = indent_text(code, prefix="    ", skip_first=True)
-print(f"```\n{indented}\n```")
+text = "\x1b[31m红色的文本\x1b[0m"
+lines = wrap_text(text, width=10)  # 颜色码不受影响
 ```
 
-### Truncating Titles
+## 测试
 
-```python
-from text_wrap_utils.mod import shorten_text
-
-title = "This is a Very Long Article Title That Needs to Be Shortened"
-short_title = shorten_text(title, width=30)
-print(short_title)  # "This is a Very Long Art..."
+```bash
+python Python/text_wrap_utils/text_wrap_utils_test.py
 ```
+
+测试覆盖：
+- CJK 字符检测
+- 宽字符检测
+- 显示宽度计算
+- ANSI 码处理
+- 各种换行模式
+- 文本对齐
+- 两端对齐
+- 段落排版
+- 文本缩略
+- 边界情况
+
+## 相关模块
+
+- `text_utils` - 基本文本工具
+- `markdown_utils` - Markdown 处理
+- `format_utils` - 格式化工具
 
 ## License
 
-MIT License - Part of AllToolkit project.
+MIT

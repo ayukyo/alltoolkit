@@ -198,6 +198,8 @@ perl Perl/csv_utils/csv_utils_test.pl
 - **Kotlin zip_utils**: 15 个测试用例，覆盖文件压缩、解压、目录处理、排除模式等
 - **Perl csv_utils**: 30+ 测试用例，覆盖 CSV 解析、生成、过滤、排序等
 - **Python network_utils**: 134 个测试用例，覆盖 URL/IP/MAC/端口/HTTP 等
+- **Python base58_utils**: 10 个测试用例，覆盖 Base58 编码/解码、Base58Check、比特币地址、IPFS CID、进制转换等 🔐
+- **Python text_wrap_utils**: 22 个测试用例，覆盖文本换行、对齐、CJK 字符宽度、ANSI 码处理、段落排版等 📝
 
 ### 测试覆盖详情
 
@@ -244,9 +246,11 @@ perl Perl/csv_utils/csv_utils_test.pl
 | tarot_utils | Python | 36 | ✅ 100% |
 | boyer_moore_utils | Python | 25+ | ✅ 100% |
 | chess_utils | Python | 30+ | ✅ 100% |
+| base58_utils | Python | 10 | ✅ 100% |
+| text_wrap_utils | Python | 22 | ✅ 100% |
 
-**总计**: Python 174 模块，165 测试文件，3000+ 测试用例，100% 通过率 ✅
+**总计**: Python 174 模块，181 测试文件，3000+ 测试用例，100% 通过率 ✅
 
 ---
 
-**最后更新**: 2026-04-23
+**最后更新**: 2026-04-24
