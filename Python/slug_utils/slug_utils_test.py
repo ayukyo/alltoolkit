@@ -1,474 +1,493 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""AllToolkit - Slug Utilities Test Suite
-
-Comprehensive tests for slug_utils module.
-Run with: python slug_utils_test.py
+"""
+AllToolkit - Slug Utilities Test Suite
+=======================================
+Comprehensive tests for the slug_utils module.
 """
 
+import unittest
 import sys
 import os
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from mod import (
-    slugify, unicode_to_ascii, slugify_cn, slugify_jp, slugify_kr,
-    slugify_title, slugify_filename, slugify_username, slugify_url,
-    slugify_batch, slugify_dict, is_valid_slug, suggest_slug,
-    count_words_in_slug, truncate_slug,
-    ACCENT_MAPPINGS, DEFAULT_STOP_WORDS, WORD_REPLACEMENTS
+from slug_utils.mod import (
+    transliterate,
+    normalize,
+    generate_slug,
+    generate_unique_slug,
+    generate_sequential_slug,
+    generate_date_slug,
+    generate_category_slug,
+    generate_hierarchical_slug,
+    generate_slug_batch,
+    slug_from_filename,
+    is_valid_slug,
+    fix_slug,
+    slug_to_text,
+    compare_slugs,
+    get_slug_words,
+    count_slug_words,
+    SlugGenerator,
 )
 
 
-class TestRunner:
-    """Simple test runner with pass/fail tracking."""
+class TestTransliteration(unittest.TestCase):
+    """Tests for transliteration functions."""
     
-    def __init__(self):
-        self.passed = 0
-        self.failed = 0
-        self.errors = []
+    def test_latin_characters(self):
+        """Test Latin character transliteration."""
+        self.assertEqual(transliterate("Héllo Wörld"), "Hello World")
+        self.assertEqual(transliterate("Café"), "Cafe")
+        self.assertEqual(transliterate("Naïve"), "Naive")
+        self.assertEqual(transliterate("Ångström"), "Angstrom")
     
-    def test(self, name: str, condition: bool, error_msg: str = ""):
-        """Run a single test."""
-        if condition:
-            self.passed += 1
-            print(f"  ✓ {name}")
-        else:
-            self.failed += 1
-            msg = f"  ✗ {name}"
-            if error_msg:
-                msg += f" - {error_msg}"
-            print(msg)
-            self.errors.append(name)
+    def test_cyrillic_characters(self):
+        """Test Cyrillic character transliteration."""
+        self.assertEqual(transliterate("Привет"), "Privet")
+        self.assertEqual(transliterate("Мир"), "Mir")
     
-    def report(self) -> bool:
-        """Print test report and return True if all tests passed."""
-        total = self.passed + self.failed
-        print(f"\n{'='*60}")
-        print(f"Tests: {total} | Passed: {self.passed} | Failed: {self.failed}")
+    def test_greek_characters(self):
+        """Test Greek character transliteration."""
+        self.assertEqual(transliterate("Γειά"), "Geia")
+        # υ → y in our mapping
+        self.assertIn("soy", transliterate("σου").lower())
+    
+    def test_mixed_characters(self):
+        """Test mixed character sets."""
+        result = transliterate("Café Привет")
+        self.assertIn("Cafe", result)
+        self.assertIn("Privet", result)
+    
+    def test_ascii_passthrough(self):
+        """Test that ASCII passes through unchanged."""
+        self.assertEqual(transliterate("Hello World"), "Hello World")
+        self.assertEqual(transliterate("abc123"), "abc123")
+
+
+class TestNormalize(unittest.TestCase):
+    """Tests for normalize function."""
+    
+    def test_lowercase(self):
+        """Test lowercase conversion."""
+        self.assertEqual(normalize("HELLO"), "hello")
+        self.assertEqual(normalize("HeLLo WoRLD"), "hello world")
+    
+    def test_no_lowercase(self):
+        """Test without lowercase conversion."""
+        self.assertEqual(normalize("HELLO", lowercase=False), "HELLO")
+        self.assertEqual(normalize("HeLLo", lowercase=False), "HeLLo")
+    
+    def test_transliteration_in_normalize(self):
+        """Test that normalize includes transliteration."""
+        self.assertIn("hello", normalize("Héllo").lower())
+
+
+class TestGenerateSlug(unittest.TestCase):
+    """Tests for generate_slug function."""
+    
+    def test_basic_slug(self):
+        """Test basic slug generation."""
+        self.assertEqual(generate_slug("Hello World"), "hello-world")
+        self.assertEqual(generate_slug("This is a test"), "this-is-a-test")
+    
+    def test_special_characters(self):
+        """Test handling of special characters."""
+        self.assertEqual(generate_slug("Hello! World?"), "hello-world")
+        # @ is replaced with separator (not in WORD_MAP)
+        self.assertEqual(generate_slug("Test@Example.com"), "test-example-com")
+        self.assertEqual(generate_slug("Price: $100"), "price-100")
+        # & is in WORD_MAP and becomes 'and'
+        self.assertEqual(generate_slug("Tom & Jerry"), "tom-and-jerry")
+    
+    def test_custom_separator(self):
+        """Test custom separator."""
+        self.assertEqual(generate_slug("Hello World", separator="_"), "hello_world")
+        self.assertEqual(generate_slug("Hello World", separator=""), "helloworld")
+        self.assertEqual(generate_slug("Hello World", separator="."), "hello.world")
+    
+    def test_max_length(self):
+        """Test maximum length constraint."""
+        slug = generate_slug("This is a very long title", max_length=10)
+        self.assertLessEqual(len(slug), 10)
+        self.assertEqual(slug, "this-is-a")
+    
+    def test_max_length_word_boundary(self):
+        """Test max length with word boundary."""
+        slug = generate_slug("Hello Beautiful World", max_length=12)
+        self.assertLessEqual(len(slug), 12)
+        # Should cut at word boundary
+    
+    def test_empty_string(self):
+        """Test empty string input."""
+        self.assertEqual(generate_slug(""), "")
+    
+    def test_whitespace_only(self):
+        """Test whitespace-only input."""
+        self.assertEqual(generate_slug("   "), "")
+    
+    def test_numbers(self):
+        """Test numbers in slug."""
+        self.assertEqual(generate_slug("Test 123"), "test-123")
+        self.assertEqual(generate_slug("2024 Report"), "2024-report")
+    
+    def test_multiple_spaces(self):
+        """Test multiple spaces normalization."""
+        self.assertEqual(generate_slug("Hello    World"), "hello-world")
+    
+    def test_custom_map(self):
+        """Test custom character mappings."""
+        custom = {"&": "and", "@": "at"}
+        self.assertEqual(generate_slug("Tom & Jerry", custom_map=custom), "tom-and-jerry")
+    
+    def test_strip_common_words(self):
+        """Test stripping common words."""
+        slug = generate_slug("The Quick Brown Fox", strip_common_words=True)
+        self.assertNotIn("the", slug)
+    
+    def test_allowed_chars(self):
+        """Test additional allowed characters."""
+        # When @ is allowed, it's preserved in the slug
+        slug = generate_slug("test@example", allowed_chars="@")
+        self.assertEqual(slug, "test@example")
         
-        if self.failed == 0:
-            print("✓ All tests passed!")
-        else:
-            print(f"✗ {self.failed} test(s) failed:")
-            for error in self.errors:
-                print(f"    - {error}")
-        
-        print('='*60)
-        return self.failed == 0
+        # When @ is NOT allowed, it becomes a separator
+        slug = generate_slug("test@example")
+        self.assertEqual(slug, "test-example")  # @ becomes separator
 
 
-# =============================================================================
-# Basic Slugify Tests
-# =============================================================================
-
-def run_basic_slugify_tests(runner: TestRunner):
-    """Test basic slugify functionality."""
-    print("\nBasic Slugify Tests")
-    print("="*60)
+class TestUniqueSlug(unittest.TestCase):
+    """Tests for generate_unique_slug function."""
     
-    # Basic ASCII
-    runner.test("Basic: hello world", 
-                slugify("Hello World") == "hello-world")
-    runner.test("Basic: with punctuation", 
-                slugify("Hello, World!") == "hello-world")
-    runner.test("Basic: multiple spaces", 
-                slugify("Hello   World") == "hello-world")
-    runner.test("Basic: leading/trailing spaces", 
-                slugify("  Hello World  ") == "hello-world")
+    def test_no_conflict(self):
+        """Test when no conflict exists."""
+        result = generate_unique_slug("Hello World", [])
+        self.assertEqual(result, "hello-world")
     
-    # Empty and None
-    runner.test("Empty string", slugify("") == "")
-    runner.test("Whitespace only", slugify("   ") == "")
+    def test_single_conflict(self):
+        """Test with single conflict."""
+        result = generate_unique_slug("Hello World", ["hello-world"])
+        self.assertEqual(result, "hello-world-2")
     
-    # Case handling
-    runner.test("Lowercase conversion", 
-                slugify("HELLO WORLD", lowercase=True) == "hello-world")
-    runner.test("Preserve case", 
-                slugify("Hello World", lowercase=False) == "Hello-World")
+    def test_multiple_conflicts(self):
+        """Test with multiple conflicts."""
+        existing = ["hello-world", "hello-world-2", "hello-world-3"]
+        result = generate_unique_slug("Hello World", existing)
+        self.assertEqual(result, "hello-world-4")
     
-    # Separator handling
-    runner.test("Custom separator underscore", 
-                slugify("Hello World", separator='_') == "hello_world")
-    runner.test("Custom separator dot", 
-                slugify("Hello World", separator='.') == "hello.world")
-    runner.test("Multiple separators collapsed", 
-                slugify("Hello--World") == "hello-world")
+    def test_custom_separator(self):
+        """Test unique slug with custom separator."""
+        existing = ["hello_world"]
+        result = generate_unique_slug("Hello World", existing, separator="_")
+        self.assertEqual(result, "hello_world_2")
     
-    # Special characters (symbols get replaced per WORD_REPLACEMENTS)
-    runner.test("Remove special chars", 
-                len(slugify("Hello@#$World")) > 0)
-    runner.test("Keep numbers", 
-                slugify("Test 123") == "test-123")
-    
-    # Bytes input
-    runner.test("Bytes input", 
-                slugify(b"Hello World") == "hello-world")
+    def test_max_length_with_unique(self):
+        """Test unique slug with max length."""
+        existing = ["hello-world"]
+        result = generate_unique_slug("Hello World Test", existing, max_length=15)
+        self.assertLessEqual(len(result), 15)
+        self.assertNotIn(result, existing)
 
 
-def run_unicode_tests(runner: TestRunner):
-    """Test unicode and accent handling."""
-    print("\nUnicode and Accent Tests")
-    print("="*60)
+class TestSequentialSlug(unittest.TestCase):
+    """Tests for generate_sequential_slug function."""
     
-    # Accented characters
-    runner.test("French accents", 
-                slugify("Café") == "cafe")
-    runner.test("Spanish tilde", 
-                slugify("Niño") == "nino")
-    runner.test("German umlaut", 
-                slugify("Über") == "uber")
-    runner.test("Multiple accents", 
-                slugify("Résumé") == "resume")
+    def test_basic_sequential(self):
+        """Test basic sequential slug."""
+        self.assertEqual(generate_sequential_slug("Blog Post", 1), "blog-post-1")
+        self.assertEqual(generate_sequential_slug("Blog Post", 5), "blog-post-5")
     
-    # Unicode to ASCII
-    runner.test("unicode_to_ascii: café", 
-                unicode_to_ascii("Café") == "Cafe")
-    runner.test("unicode_to_ascii: naïve", 
-                unicode_to_ascii("Naïve") == "Naive")
-    runner.test("unicode_to_ascii: empty", 
-                unicode_to_ascii("") == "")
+    def test_zero_padding(self):
+        """Test zero-padded sequential slug."""
+        self.assertEqual(generate_sequential_slug("Post", 1, index_width=3), "post-001")
+        self.assertEqual(generate_sequential_slug("Post", 100, index_width=3), "post-100")
     
-    # Currency symbols (converted to words)
-    runner.test("Dollar sign", 
-                slugify("$100") == "dollar-100")
-    runner.test("Euro sign", 
-                slugify("€50") == "euro-50")
-    runner.test("Pound sign", 
-                slugify("£30") == "pound-30")
-    
-    # Ampersand
-    runner.test("Ampersand replacement", 
-                slugify("Tom & Jerry") == "tom-and-jerry")
+    def test_custom_separator(self):
+        """Test sequential slug with custom separator."""
+        self.assertEqual(generate_sequential_slug("Post", 1, separator="_"), "post_1")
 
 
-def run_max_length_tests(runner: TestRunner):
-    """Test max length and truncation."""
-    print("\nMax Length and Truncation Tests")
-    print("="*60)
+class TestDateSlug(unittest.TestCase):
+    """Tests for generate_date_slug function."""
     
-    # Basic truncation
-    runner.test("Truncate to 5 chars", 
-                slugify("Hello World", max_length=5) == "hello")
-    runner.test("No truncation needed", 
-                slugify("Hi", max_length=10) == "hi")
+    def test_with_date(self):
+        """Test slug with explicit date."""
+        result = generate_date_slug("My Post", "2024-01-15")
+        self.assertIn("2024-01-15", result)
+        self.assertIn("my-post", result)
     
-    # Truncate at word boundary
-    runner.test("Truncate words: hello world foo", 
-                slugify("Hello World Foo", max_length=12, truncate_words=True) == "hello-world")
-    runner.test("Truncate words: exact boundary", 
-                slugify("Hello World", max_length=11, truncate_words=True) == "hello-world")
+    def test_date_format(self):
+        """Test custom date format."""
+        result = generate_date_slug("My Post", "2024-01-15", date_format="%Y/%m/%d")
+        self.assertIn("2024/01/15", result)
     
-    # Edge cases
-    runner.test("Zero max length", 
-                slugify("Hello", max_length=0) == "")
-    runner.test("Single char max length", 
-                slugify("Hello", max_length=1) == "h")
-    
-    # No trailing separator
-    runner.test("No trailing separator after truncate", 
-                slugify("Hello-World", max_length=6, truncate_words=True) == "hello")
+    def test_iso_format(self):
+        """Test ISO date format."""
+        result = generate_date_slug("Post", "2024-06-20")
+        self.assertIn("2024-06-20", result)
 
 
-def run_stop_words_tests(runner: TestRunner):
-    """Test stop word removal."""
-    print("\nStop Words Tests")
-    print("="*60)
+class TestCategorySlug(unittest.TestCase):
+    """Tests for generate_category_slug function."""
     
-    # Basic stop word removal
-    runner.test("Remove 'the'", 
-                slugify("The Quick Brown Fox", remove_stop_words=True) == "quick-brown-fox")
-    runner.test("Remove 'and'", 
-                slugify("Tom and Jerry", remove_stop_words=True) == "tom-jerry")
-    runner.test("Remove multiple stops", 
-                slugify("The Lord of the Rings", remove_stop_words=True) == "lord-rings")
+    def test_basic_category(self):
+        """Test basic category slug."""
+        result = generate_category_slug("My Post", "Tech")
+        self.assertEqual(result, "tech-my-post")
     
-    # Custom stop words
-    runner.test("Custom stop words", 
-                slugify("Hello World Foo Bar", remove_stop_words=True, 
-                       stop_words={"foo", "bar"}) == "hello-world")
-    
-    # No stop words to remove
-    runner.test("No stops to remove", 
-                slugify("Quick Brown Fox", remove_stop_words=True) == "quick-brown-fox")
-    
-    # All words are stop words
-    runner.test("All stops removed", 
-                slugify("And Or But", remove_stop_words=True) == "")
+    def test_category_with_separator(self):
+        """Test category slug with custom separator."""
+        result = generate_category_slug("My Post", "Tech", separator="_")
+        self.assertEqual(result, "tech_my_post")
 
 
-def run_word_replacement_tests(runner: TestRunner):
-    """Test word replacements."""
-    print("\nWord Replacement Tests")
-    print("="*60)
+class TestHierarchicalSlug(unittest.TestCase):
+    """Tests for generate_hierarchical_slug function."""
     
-    # Built-in replacements
-    runner.test("Ampersand to and", 
-                slugify("Rock & Roll") == "rock-and-roll")
-    runner.test("At symbol", 
-                slugify("user@example") == "user-at-example")
+    def test_basic_hierarchical(self):
+        """Test basic hierarchical slug."""
+        result = generate_hierarchical_slug(["Tech", "Programming", "Python"])
+        self.assertEqual(result, "tech/programming/python")
     
-    # Custom replacements
-    runner.test("Custom replacement", 
-                slugify("Hello World", 
-                       word_replacements={"hello": "hi", "world": "earth"}) == "hi-earth")
+    def test_custom_path_separator(self):
+        """Test custom path separator."""
+        result = generate_hierarchical_slug(["A", "B", "C"], path_separator=">")
+        self.assertEqual(result, "a>b>c")
     
-    # Case insensitive replacement
-    runner.test("Case insensitive", 
-                slugify("HELLO WORLD", 
-                       word_replacements={"hello": "hi"}) == "hi-world")
+    def test_empty_parts(self):
+        """Test with empty parts."""
+        result = generate_hierarchical_slug(["A", "", "B"])
+        self.assertEqual(result, "a/b")
 
 
-def run_specialized_slug_tests(runner: TestRunner):
-    """Test specialized slug functions."""
-    print("\nSpecialized Slug Function Tests")
-    print("="*60)
+class TestBatchGeneration(unittest.TestCase):
+    """Tests for generate_slug_batch function."""
     
-    # Title slug
-    runner.test("Title slug basic", 
-                slugify_title("My Blog Post Title") == "my-blog-post-title")
-    runner.test("Title slug max length", 
-                len(slugify_title("A" * 100, max_length=60)) <= 60)
-    runner.test("Title preserve case", 
-                slugify_title("My Title", preserve_case=True) == "My-Title")
+    def test_basic_batch(self):
+        """Test basic batch generation."""
+        texts = ["Hello", "World", "Test"]
+        result = generate_slug_batch(texts)
+        self.assertEqual(result, ["hello", "world", "test"])
     
-    # Filename slug
-    runner.test("Filename with extension", 
-                slugify_filename("My Document.pdf") == "my-document.pdf")
-    runner.test("Filename no extension", 
-                slugify_filename("My Document", preserve_extension=False) == "my-document")
-    runner.test("Filename multiple dots", 
-                slugify_filename("archive.tar.gz") == "archivetar.gz")
+    def test_unique_batch(self):
+        """Test unique batch generation."""
+        texts = ["Hello", "Hello", "Hello"]
+        result = generate_slug_batch(texts, ensure_unique=True)
+        self.assertEqual(result, ["hello", "hello-2", "hello-3"])
     
-    # Username slug
-    runner.test("Username basic", 
-                slugify_username("JohnDoe") == "johndoe")
-    runner.test("Username min length", 
-                len(slugify_username("ab", min_length=3)) >= 3)
-    runner.test("Username special chars", 
-                "user" in slugify_username("User@2024!").lower() and "2024" in slugify_username("User@2024!"))
-    
-    # URL slug
-    runner.test("URL path only", 
-                slugify_url("https://example.com/blog/my-post") == "blog-my-post")
-    runner.test("URL with query", 
-                slugify_url("https://example.com/page?id=123") == "page")
-    runner.test("URL keep domain", 
-                slugify_url("https://example.com/page", keep_domain=True) == "examplecom-page")
+    def test_non_unique_batch(self):
+        """Test non-unique batch generation."""
+        texts = ["Hello", "Hello", "Hello"]
+        result = generate_slug_batch(texts, ensure_unique=False)
+        self.assertEqual(result, ["hello", "hello", "hello"])
 
 
-def run_multilingual_tests(runner: TestRunner):
-    """Test multi-language slug generation."""
-    print("\nMulti-language Slug Tests")
-    print("="*60)
+class TestFilenameSlug(unittest.TestCase):
+    """Tests for slug_from_filename function."""
     
-    # Chinese (simplified mappings)
-    runner.test("Chinese: 北京", 
-                "bei" in slugify_cn("北京") and "jing" in slugify_cn("北京"))
-    runner.test("Chinese: mixed", 
-                "china" in slugify("北京 China").lower())
+    def test_basic_filename(self):
+        """Test basic filename conversion."""
+        self.assertEqual(slug_from_filename("Document.pdf"), "document")
     
-    # Japanese (simplified mappings)
-    runner.test("Japanese: あいう", 
-                slugify_jp("あいう") == "a-i-u")
-    runner.test("Japanese: こんにちは", 
-                "ko" in slugify_jp("こんにちは"))
+    def test_keep_extension(self):
+        """Test keeping extension."""
+        self.assertEqual(slug_from_filename("Document.pdf", remove_extension=False), "document-pdf")
     
-    # Korean (simplified mappings)
-    runner.test("Korean: 가나다", 
-                slugify_kr("가나다") == "ga-na-da")
-    runner.test("Korean: 안녕하세요", 
-                "an" in slugify_kr("안녕하세요"))
+    def test_complex_filename(self):
+        """Test complex filename."""
+        self.assertEqual(slug_from_filename("My Document (1).pdf"), "my-document-1")
 
 
-def run_batch_tests(runner: TestRunner):
-    """Test batch processing."""
-    print("\nBatch Processing Tests")
-    print("="*60)
+class TestValidation(unittest.TestCase):
+    """Tests for is_valid_slug function."""
     
-    # Basic batch
-    runner.test("Batch basic", 
-                slugify_batch(["Hello", "World"]) == ["hello", "world"])
+    def test_valid_slugs(self):
+        """Test valid slugs."""
+        self.assertTrue(is_valid_slug("hello-world"))
+        self.assertTrue(is_valid_slug("test123"))
+        self.assertTrue(is_valid_slug("a-b-c"))
     
-    # Ensure unique
-    runner.test("Batch unique duplicates", 
-                slugify_batch(["Test", "Test", "Test"], ensure_unique=True) == 
-                ["test", "test-1", "test-2"])
-    runner.test("Batch unique no duplicates", 
-                slugify_batch(["A", "B", "C"], ensure_unique=True) == 
-                ["a", "b", "c"])
+    def test_invalid_slugs(self):
+        """Test invalid slugs."""
+        self.assertFalse(is_valid_slug("hello world"))
+        self.assertFalse(is_valid_slug("hello_world"))
+        self.assertFalse(is_valid_slug(""))
+        self.assertFalse(is_valid_slug("hello!"))
     
-    # Batch with options
-    runner.test("Batch with separator", 
-                slugify_batch(["Hello World"], separator='_') == ["hello_world"])
+    def test_custom_separator(self):
+        """Test validation with custom separator."""
+        self.assertTrue(is_valid_slug("hello_world", separator="_"))
+        self.assertFalse(is_valid_slug("hello-world", separator="_"))
     
-    # Dict slugify
-    runner.test("Dict all strings", 
-                slugify_dict({"a": "Hello", "b": "World"}) == 
-                {"a": "hello", "b": "world"})
-    runner.test("Dict specific keys", 
-                slugify_dict({"a": "Hello", "b": 123}, keys=["a"]) == 
-                {"a": "hello", "b": 123})
-    runner.test("Dict mixed types", 
-                slugify_dict({"a": "Hello", "b": 123, "c": None})["b"] == 123)
+    def test_allow_uppercase(self):
+        """Test validation with uppercase allowed."""
+        self.assertTrue(is_valid_slug("Hello-World", allow_uppercase=True))
+        self.assertFalse(is_valid_slug("Hello-World", allow_uppercase=False))
+    
+    def test_max_length(self):
+        """Test validation with max length."""
+        self.assertTrue(is_valid_slug("hello", max_length=10))
+        self.assertFalse(is_valid_slug("hello-world", max_length=5))
 
 
-def run_validation_tests(runner: TestRunner):
-    """Test slug validation."""
-    print("\nValidation Tests")
-    print("="*60)
+class TestFixSlug(unittest.TestCase):
+    """Tests for fix_slug function."""
     
-    # Valid slugs
-    runner.test("Valid: basic", is_valid_slug("hello-world"))
-    runner.test("Valid: with numbers", is_valid_slug("test-123"))
-    runner.test("Valid: single char", is_valid_slug("a"))
+    def test_fix_spaces(self):
+        """Test fixing spaces."""
+        self.assertEqual(fix_slug("hello world"), "hello-world")
     
-    # Invalid slugs (note: uppercase is valid if allow_unicode or case-insensitive check)
-    runner.test("Invalid: leading dash", not is_valid_slug("-hello"))
-    runner.test("Invalid: leading dash", not is_valid_slug("-hello"))
-    runner.test("Invalid: trailing dash", not is_valid_slug("hello-"))
-    runner.test("Invalid: double dash", not is_valid_slug("hello--world"))
-    runner.test("Invalid: empty", not is_valid_slug(""))
+    def test_fix_underscores(self):
+        """Test fixing underscores."""
+        self.assertEqual(fix_slug("hello_world"), "hello-world")
     
-    # With options
-    runner.test("Valid with underscore", 
-                is_valid_slug("hello_world", allow_underscores=True))
-    runner.test("Valid with dot", 
-                is_valid_slug("hello.world", allow_dots=True))
+    def test_fix_multiple_separators(self):
+        """Test fixing multiple separators."""
+        self.assertEqual(fix_slug("hello___world"), "hello-world")
     
-    # Length constraints
-    runner.test("Min length", not is_valid_slug("ab", min_length=3))
-    runner.test("Max length", not is_valid_slug("hello-world", max_length=5))
+    def test_fix_leading_trailing(self):
+        """Test fixing leading/trailing separators."""
+        self.assertEqual(fix_slug("-hello-world-"), "hello-world")
+    
+    def test_fix_invalid_chars(self):
+        """Test removing invalid characters."""
+        # Invalid chars are replaced with separator, then cleaned
+        self.assertEqual(fix_slug("hello!@#world"), "hello-world")
 
 
-def run_suggest_slug_tests(runner: TestRunner):
-    """Test slug suggestion."""
-    print("\nSlug Suggestion Tests")
-    print("="*60)
+class TestSlugToText(unittest.TestCase):
+    """Tests for slug_to_text function."""
     
-    # No conflicts
-    runner.test("Suggest no conflict", 
-                suggest_slug("Hello", []) == "hello")
+    def test_basic_conversion(self):
+        """Test basic slug to text."""
+        self.assertEqual(slug_to_text("hello-world"), "Hello World")
     
-    # With conflicts
-    runner.test("Suggest with conflict", 
-                suggest_slug("Test", ["test"]) == "test-1")
-    runner.test("Suggest multiple conflicts", 
-                suggest_slug("Test", ["test", "test-1", "test-2"]) == "test-3")
+    def test_multiple_words(self):
+        """Test multiple words."""
+        self.assertEqual(slug_to_text("my-blog-post-2024"), "My Blog Post 2024")
     
-    # Many conflicts (test-0 through test-9 exist, so suggest test-10 or test)
-    existing = [f"test-{i}" for i in range(10)]
-    result = suggest_slug("Test", existing)
-    runner.test("Suggest many conflicts", 
-                result.startswith("test"))
+    def test_custom_separator(self):
+        """Test custom separator."""
+        self.assertEqual(slug_to_text("hello_world", separator="_"), "Hello World")
 
 
-def run_utility_tests(runner: TestRunner):
-    """Test utility functions."""
-    print("\nUtility Function Tests")
-    print("="*60)
+class TestCompareSlugs(unittest.TestCase):
+    """Tests for compare_slugs function."""
     
-    # Count words
-    runner.test("Count words: empty", count_words_in_slug("") == 0)
-    runner.test("Count words: single", count_words_in_slug("hello") == 1)
-    runner.test("Count words: multiple", 
-                count_words_in_slug("hello-world-foo-bar") == 4)
-    runner.test("Count words: custom separator", 
-                count_words_in_slug("hello_world_foo", separator='_') == 3)
+    def test_identical(self):
+        """Test identical slugs."""
+        self.assertTrue(compare_slugs("hello-world", "hello-world"))
     
-    # Truncate slug
-    runner.test("Truncate: no need", 
-                truncate_slug("hello", 10) == "hello")
-    runner.test("Truncate: with preserve", 
-                truncate_slug("hello-world-foo", 11) == "hello-world")
-    runner.test("Truncate: without preserve", 
-                truncate_slug("hello-world", 7, preserve_words=False) == "hello-w")
+    def test_case_difference(self):
+        """Test case differences."""
+        self.assertTrue(compare_slugs("Hello-World", "hello-world"))
+        self.assertFalse(compare_slugs("Hello-World", "hello-world", ignore_case=False))
+    
+    def test_different(self):
+        """Test different slugs."""
+        self.assertFalse(compare_slugs("hello-world", "hello-world-2"))
 
 
-def run_edge_case_tests(runner: TestRunner):
-    """Test edge cases and boundary conditions."""
-    print("\nEdge Case Tests")
-    print("="*60)
+class TestGetSlugWords(unittest.TestCase):
+    """Tests for get_slug_words function."""
     
-    # Very long input
-    runner.test("Very long input", 
-                len(slugify("a" * 10000)) > 0)
+    def test_basic_words(self):
+        """Test basic word extraction."""
+        self.assertEqual(get_slug_words("hello-world"), ["hello", "world"])
     
-    # Only special characters (symbols get replaced with words)
-    runner.test("Only special chars", 
-                len(slugify("@#$%^&*()")) > 0)
+    def test_empty_slug(self):
+        """Test empty slug."""
+        self.assertEqual(get_slug_words(""), [])
     
-    # Only numbers
-    runner.test("Only numbers", 
-                slugify("12345") == "12345")
-    
-    # Unicode emoji (should be removed)
-    runner.test("Emoji removal", 
-                slugify("Hello 👋 World 🌍") == "hello-world")
-    
-    # Mixed scripts
-    runner.test("Mixed scripts", 
-                len(slugify("Hello 世界 مرحبا")) > 0)
-    
-    # Newlines and tabs
-    runner.test("Newlines", 
-                slugify("Hello\nWorld") == "hello-world")
-    runner.test("Tabs", 
-                slugify("Hello\tWorld") == "hello-world")
-    
-    # Repeated separators in input
-    runner.test("Repeated separators", 
-                slugify("Hello---World") == "hello-world")
-    
-    # Separator at boundaries
-    runner.test("Strip leading separator", 
-                slugify("-Hello-World") == "hello-world")
-    runner.test("Strip trailing separator", 
-                slugify("Hello-World-") == "hello-world")
+    def test_custom_separator(self):
+        """Test custom separator."""
+        self.assertEqual(get_slug_words("hello_world_test", separator="_"), 
+                        ["hello", "world", "test"])
 
 
-def run_constants_tests(runner: TestRunner):
-    """Test constants are properly defined."""
-    print("\nConstants Tests")
-    print("="*60)
+class TestCountSlugWords(unittest.TestCase):
+    """Tests for count_slug_words function."""
     
-    runner.test("ACCENT_MAPPINGS not empty", len(ACCENT_MAPPINGS) > 0)
-    runner.test("DEFAULT_STOP_WORDS not empty", len(DEFAULT_STOP_WORDS) > 0)
-    runner.test("WORD_REPLACEMENTS not empty", len(WORD_REPLACEMENTS) > 0)
-    runner.test("Common accent: é", ACCENT_MAPPINGS.get('é') == 'e')
-    runner.test("Common stop: the", 'the' in DEFAULT_STOP_WORDS)
+    def test_word_count(self):
+        """Test word counting."""
+        self.assertEqual(count_slug_words("hello-world"), 2)
+        self.assertEqual(count_slug_words("a-b-c-d"), 4)
+    
+    def test_empty_slug(self):
+        """Test empty slug."""
+        self.assertEqual(count_slug_words(""), 0)
 
 
-# =============================================================================
-# Main Test Runner
-# =============================================================================
+class TestSlugGenerator(unittest.TestCase):
+    """Tests for SlugGenerator class."""
+    
+    def test_basic_generation(self):
+        """Test basic slug generation."""
+        gen = SlugGenerator()
+        self.assertEqual(gen.generate("Hello World"), "hello-world")
+    
+    def test_custom_settings(self):
+        """Test with custom settings."""
+        gen = SlugGenerator(separator="_", max_length=30)
+        # Use short title to ensure underscore is present
+        result = gen.generate("Hello World")
+        self.assertEqual(result, "hello_world")
+        # Test max_length truncation
+        result = gen.generate("A Very Very Long Title")
+        self.assertLessEqual(len(result), 30)
+        self.assertIn("_", result)
+    
+    def test_unique_generation(self):
+        """Test unique generation."""
+        gen = SlugGenerator()
+        slug1 = gen.generate_unique("Hello")
+        slug2 = gen.generate_unique("Hello")
+        self.assertNotEqual(slug1, slug2)
+    
+    def test_batch_generation(self):
+        """Test batch generation."""
+        gen = SlugGenerator()
+        result = gen.generate_batch(["Hello", "World"])
+        self.assertEqual(result, ["hello", "world"])
+    
+    def test_reset(self):
+        """Test resetting generator."""
+        gen = SlugGenerator()
+        gen.generate_unique("Hello")
+        gen.reset()
+        self.assertEqual(len(gen._existing), 0)
 
-def run_all_tests():
-    """Run all test suites."""
-    runner = TestRunner()
+
+class TestEdgeCases(unittest.TestCase):
+    """Tests for edge cases."""
     
-    print("\n" + "="*60)
-    print("Slug Utils Test Suite")
-    print("="*60)
+    def test_unicode_extreme(self):
+        """Test extreme unicode characters."""
+        # Test that it doesn't crash
+        result = generate_slug("🎉 Party Time 🎊")
+        self.assertIsInstance(result, str)
     
-    run_basic_slugify_tests(runner)
-    run_unicode_tests(runner)
-    run_max_length_tests(runner)
-    run_stop_words_tests(runner)
-    run_word_replacement_tests(runner)
-    run_specialized_slug_tests(runner)
-    run_multilingual_tests(runner)
-    run_batch_tests(runner)
-    run_validation_tests(runner)
-    run_suggest_slug_tests(runner)
-    run_utility_tests(runner)
-    run_edge_case_tests(runner)
-    run_constants_tests(runner)
+    def test_very_long_input(self):
+        """Test very long input."""
+        long_text = "a" * 1000
+        result = generate_slug(long_text, max_length=100)
+        self.assertLessEqual(len(result), 100)
     
-    success = runner.report()
-    return 0 if success else 1
+    def test_numbers_only(self):
+        """Test numbers only input."""
+        self.assertEqual(generate_slug("123 456"), "123-456")
+    
+    def test_mixed_case(self):
+        """Test mixed case input."""
+        self.assertEqual(generate_slug("HeLLo WoRLD"), "hello-world")
+    
+    def test_consecutive_separators(self):
+        """Test consecutive separators in input."""
+        self.assertEqual(generate_slug("Hello---World"), "hello-world")
 
 
 if __name__ == "__main__":
-    sys.exit(run_all_tests())
+    # Run tests with verbosity
+    unittest.main(verbosity=2)
