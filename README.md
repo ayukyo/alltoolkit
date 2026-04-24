@@ -200,6 +200,8 @@ perl Perl/csv_utils/csv_utils_test.pl
 - **Python network_utils**: 134 个测试用例，覆盖 URL/IP/MAC/端口/HTTP 等
 - **Python base58_utils**: 10 个测试用例，覆盖 Base58 编码/解码、Base58Check、比特币地址、IPFS CID、进制转换等 🔐
 - **Python text_wrap_utils**: 22 个测试用例，覆盖文本换行、对齐、CJK 字符宽度、ANSI 码处理、段落排版等 📝
+- **Python shell_sort_utils**: 新增 15+ 边界值测试，覆盖空列表、单元素、负数、浮点数、极值数据、Unicode 字符串、大数组（10000 元素）等 📊
+- **Python graph_utils**: 新增 23+ 边界值测试，覆盖大量节点、高密度图、星形图、链状图、环形图、负权重极限、孤立节点、超大权重、Unicode 节点等 🕸️
 
 ### 测试覆盖详情
 

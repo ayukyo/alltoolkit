@@ -795,6 +795,127 @@ def test_complex_types():
     return r.summary()
 
 
+def test_more_edge_cases():
+    """测试更多边界值情况"""
+    print("\n测试更多边界值情况...")
+    r = TestResult()
+    
+    # 测试大量节点
+    g_large = Graph[int]()
+    for i in range(1000):
+        g_large.add_edge(i, i + 1)
+    r.test(g_large.node_count() == 1001, "大量节点图应正确")
+    # 无向图每添加一条边，邻接表中存储两条记录（双向）
+    # edge_count() 返回的是边的数量（邻接表条目数/2）
+    r.test(g_large.edge_count() == 1000, f"大量边图应正确，实际 {g_large.edge_count()}")
+    
+    # 测试高密度图
+    g_dense = Graph[int]()
+    n = 50
+    for i in range(n):
+        for j in range(i + 1, n):
+            g_dense.add_edge(i, j)
+    expected_edges = n * (n - 1) // 2  # 无向完全图边数
+    r.test(g_dense.edge_count() == expected_edges, f"高密度图边数应为 {expected_edges}")
+    
+    # 测试星形图（一个中心节点连接所有其他节点）
+    g_star = Graph[int]()
+    center = 0
+    for i in range(1, 100):
+        g_star.add_edge(center, i)
+    r.test(g_star.degree(center) == 99, "星形图中心节点度应为 99")
+    r.test(g_star.degree(50) == 1, "星形图边缘节点度应为 1")
+    
+    # 测试链状图
+    g_chain = Graph[int]()
+    for i in range(100):
+        g_chain.add_edge(i, i + 1)
+    bfs_result = bfs(g_chain, 0)
+    r.test(bfs_result == list(range(101)), "链状图 BFS 应按顺序遍历")
+    
+    # 测试环形图
+    g_ring = Graph[int]()
+    n_ring = 10
+    for i in range(n_ring):
+        g_ring.add_edge(i, (i + 1) % n_ring)
+    r.test(g_ring.degree(0) == 2, "环形图每个节点度应为 2")
+    r.test(is_connected(g_ring) == True, "环形图应连通")
+    
+    # 测试负权重极限
+    g_neg = Graph[int](directed=True)
+    g_neg.add_edge(1, 2, -1e10)
+    g_neg.add_edge(2, 3, -1e10)
+    g_neg.add_edge(1, 3, -1)
+    
+    result, has_cycle = bellman_ford(g_neg, 1)
+    r.test(has_cycle == False, "无负环")
+    r.test(result[3][0] == -2e10, "负权重路径应正确计算")
+    
+    # 测试零权重图
+    g_zero = Graph[int](directed=True)
+    g_zero.add_edge(1, 2, 0)
+    g_zero.add_edge(2, 3, 0)
+    g_zero.add_edge(1, 3, 0)
+    
+    result_z = dijkstra(g_zero, 1)
+    r.test(result_z[3][0] == 0, "零权重路径距离应为 0")
+    
+    # 测试孤立节点连通性
+    g_isolated = Graph[int]()
+    g_isolated.add_edge(1, 2)
+    g_isolated.add_edge(3, 4)
+    g_isolated.add_node(5)  # 完全孤立
+    
+    components = connected_components(g_isolated)
+    r.test(len(components) == 3, f"含孤立节点的图应有 3 个连通分量")
+    r.test(any(5 in c for c in components), "孤立节点应在单独分量中")
+    
+    # 测试 BFS 从孤立节点开始
+    bfs_isolated = bfs(g_isolated, 5)
+    r.test(bfs_isolated == [5], "孤立节点 BFS 应只返回自身")
+    
+    # 测试 DFS 从孤立节点开始
+    dfs_isolated = dfs(g_isolated, 5)
+    r.test(dfs_isolated == [5], "孤立节点 DFS 应只返回自身")
+    
+    # 测试最短路径到孤立节点
+    path = shortest_path_bfs(g_isolated, 1, 5)
+    r.test(path is None, "到孤立节点应无路径")
+    
+    # 测试超大权重
+    g_big = Graph[str]()
+    g_big.add_edge("A", "B", 1e15)
+    g_big.add_edge("B", "C", 1e15)
+    
+    result_big = dijkstra(g_big, "A")
+    r.test(result_big["C"][0] == 2e15, "超大权重应正确处理")
+    
+    # 测试字符串节点排序
+    g_str = Graph[str]()
+    words = ["alpha", "beta", "gamma", "delta", "epsilon"]
+    for i in range(len(words) - 1):
+        g_str.add_edge(words[i], words[i + 1])
+    r.test(g_str.node_count() == 5, "字符串节点图应正确")
+    
+    # 测试 Unicode 节点
+    g_unicode = Graph[str]()
+    g_unicode.add_edge("节点一", "节点二")
+    g_unicode.add_edge("节点二", "节点三")
+    r.test(g_unicode.has_edge("节点一", "节点二") == True, "Unicode 节点应正确")
+    r.test(bfs(g_unicode, "节点一") == ["节点一", "节点二", "节点三"], "Unicode 节点 BFS 应正确")
+    
+    # 测试有向图的边数
+    dg = Graph[int](directed=True)
+    dg.add_edge(1, 2)
+    dg.add_edge(1, 3)
+    dg.add_edge(2, 3)
+    r.test(dg.edge_count() == 3, "有向图边数应为 3")
+    r.test(dg.has_edge(1, 2) == True, "有向图应存在边 1->2")
+    r.test(dg.has_edge(2, 1) == False, "有向图不应存在边 2->1")
+    
+    return r.summary()
+
+
 def main():
     """运行所有测试"""
     print("=" * 60)
@@ -815,6 +936,7 @@ def main():
     all_passed &= test_clustering()
     all_passed &= test_edge_cases()
     all_passed &= test_complex_types()
+    all_passed &= test_more_edge_cases()
     
     print("\n" + "=" * 60)
     if all_passed:
