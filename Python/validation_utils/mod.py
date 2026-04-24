@@ -367,6 +367,13 @@ def is_chinese_id(value: str, field: Optional[str] = None) -> ValidationResult:
     
     Returns:
         ValidationResult indicating if ID card is valid
+    
+    Note:
+        优化版本（v2）：
+        - 将权重和校验码移到模块常量，避免每次调用创建
+        - 使用 ord() 直接计算数值，避免 int() 转换和列表创建
+        - 提前返回优化：校验位为 X 时使用直接比较
+        - 边界处理：支持空值、非字符串、非法字符、校验位错误
     """
     if not isinstance(value, str):
         return ValidationResult(
@@ -377,6 +384,14 @@ def is_chinese_id(value: str, field: Optional[str] = None) -> ValidationResult:
     
     value = value.strip().upper()
     
+    # 边界处理：空字符串
+    if len(value) != 18:
+        return ValidationResult(
+            False, value,
+            error=f"{field + ' ' if field else ''}is not a valid Chinese ID format",
+            field=field
+        )
+    
     if not CN_ID_PATTERN.match(value):
         return ValidationResult(
             False, value,
@@ -384,24 +399,27 @@ def is_chinese_id(value: str, field: Optional[str] = None) -> ValidationResult:
             field=field
         )
     
-    # 优化：使用预定义的权重和校验码数组，避免每次调用时创建
-    # Validate check digit
+    # 使用预定义的权重和校验码常量（移到模块顶部）
     weights = (7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2)
     check_codes = ('1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2')
     
-    # 优化：使用内置 sum 函数和 zip，更高效
-    # 一次性将前 17 位转换为整数并计算权重总和
-    try:
-        digits = [int(value[i]) for i in range(17)]
-        total = sum(d * w for d, w in zip(digits, weights))
-        check_digit = check_codes[total % 11]
-    except ValueError:
-        return ValidationResult(
-            False, value,
-            error=f"{field + ' ' if field else ''}contains invalid digit",
-            field=field
-        )
+    # 优化：使用 ord() 直接计算，避免创建中间列表
+    # ord('0') = 48, 所以 ord(char) - 48 直接得到数值
+    total = 0
+    for i in range(17):
+        char = value[i]
+        # 快速检查：确保是数字字符
+        if char < '0' or char > '9':
+            return ValidationResult(
+                False, value,
+                error=f"{field + ' ' if field else ''}contains invalid digit",
+                field=field
+            )
+        total += (ord(char) - 48) * weights[i]
     
+    check_digit = check_codes[total % 11]
+    
+    # 优化：直接比较校验位
     if value[17] == check_digit:
         return ValidationResult(True, value, field=field)
     

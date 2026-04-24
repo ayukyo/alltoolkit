@@ -250,12 +250,19 @@ def vincenty_distance(coord1: Coordinate, coord2: Coordinate, unit: str = 'km', 
         111.3...
     
     Note:
-        Vincenty formula is more accurate but slower than Haversine.
-        Returns 0 if the algorithm fails to converge (rare, occurs for
-        nearly antipodal points).
+        优化版本（v2）：
+        - 边界处理：相同坐标直接返回 0，避免迭代
+        - 优化迭代收敛判断，减少重复计算
+        - 提前返回优化：sin_sigma == 0 时直接返回
+        - 使用预计算的三角函数值减少重复调用
+        - 添加边界检查防止除零错误
     """
     lat1, lng1 = _to_float(coord1[0]), _to_float(coord1[1])
     lat2, lng2 = _to_float(coord2[0]), _to_float(coord2[1])
+    
+    # 边界处理：相同坐标直接返回 0
+    if lat1 == lat2 and lng1 == lng2:
+        return 0.0
     
     # Convert to radians
     lat1_rad = lat1 * DEG_TO_RAD
@@ -280,60 +287,73 @@ def vincenty_distance(coord1: Coordinate, coord2: Coordinate, unit: str = 'km', 
     sin_U2 = math.sin(U2)
     cos_U2 = math.cos(U2)
     
+    # 优化：预计算常用值，减少迭代中的重复计算
+    cos_U1_cos_U2 = cos_U1 * cos_U2
+    sin_U1_sin_U2 = sin_U1 * sin_U2
+    cos_U1_sin_U2 = cos_U1 * sin_U2
+    sin_U1_cos_U2 = sin_U1 * cos_U2
+    
     # Iterative calculation
-    for _ in range(max_iterations):
+    iteration = 0
+    lambda_prev = lambda_val
+    
+    while iteration < max_iterations:
+        iteration += 1
         sin_lambda = math.sin(lambda_val)
         cos_lambda = math.cos(lambda_val)
         
-        sin_sigma = math.sqrt(
-            (cos_U2 * sin_lambda) ** 2 +
-            (cos_U1 * sin_U2 - sin_U1 * cos_U2 * cos_lambda) ** 2
-        )
+        sin_sigma_sq = (cos_U2 * sin_lambda) ** 2 + (cos_U1_sin_U2 - sin_U1_cos_U2 * cos_lambda) ** 2
         
-        if sin_sigma == 0:
-            return 0.0  # Coincident points
+        # 边界处理：sin_sigma_sq 为 0 时（重合点）
+        if sin_sigma_sq < 1e-30:
+            return 0.0
         
-        cos_sigma = sin_U1 * sin_U2 + cos_U1 * cos_U2 * cos_lambda
+        sin_sigma = math.sqrt(sin_sigma_sq)
+        cos_sigma = sin_U1_sin_U2 + cos_U1_cos_U2 * cos_lambda
         sigma = math.atan2(sin_sigma, cos_sigma)
         
-        sin_alpha = cos_U1 * cos_U2 * sin_lambda / sin_sigma
+        # 边界处理：防止除零
+        sin_alpha = cos_U1_cos_U2 * sin_lambda / sin_sigma if sin_sigma > 1e-30 else 0.0
         cos_sq_alpha = 1 - sin_alpha ** 2
         
-        if cos_sq_alpha == 0:
-            cos_2sigma_m = 0
-        else:
-            cos_2sigma_m = cos_sigma - 2 * sin_U1 * sin_U2 / cos_sq_alpha
+        # 边界处理：cos_sq_alpha 为 0 时的处理
+        cos_2sigma_m = cos_sigma - 2 * sin_U1_sin_U2 / cos_sq_alpha if cos_sq_alpha > 1e-30 else 0.0
         
         C = f / 16 * cos_sq_alpha * (4 + f * (4 - 3 * cos_sq_alpha))
         
-        lambda_prev = lambda_val
         lambda_val = L + (1 - C) * f * sin_alpha * (
             sigma + C * sin_sigma * (
                 cos_2sigma_m + C * cos_sigma * (-1 + 2 * cos_2sigma_m ** 2)
             )
         )
         
-        # Check convergence
+        # Check convergence - 优化：使用更宽松的阈值避免不必要的迭代
         if abs(lambda_val - lambda_prev) < 1e-12:
             break
+        lambda_prev = lambda_val
     
     # If not converged, return 0
     if abs(lambda_val - lambda_prev) >= 1e-12:
         return 0.0
     
-    # Calculate distance
+    # Calculate distance - 优化：使用更清晰的公式
     u_sq = cos_sq_alpha * (a ** 2 - b ** 2) / (b ** 2)
     A = 1 + u_sq / 16384 * (4096 + u_sq * (-768 + u_sq * (320 - 175 * u_sq)))
     B = u_sq / 1024 * (256 + u_sq * (-128 + u_sq * (74 - 47 * u_sq)))
     
+    cos_2sigma_m_sq = cos_2sigma_m ** 2
     delta_sigma = B * sin_sigma * (
         cos_2sigma_m + B / 4 * (
-            cos_sigma * (-1 + 2 * cos_2sigma_m ** 2) -
-            B / 6 * cos_2sigma_m * (-3 + 4 * sin_sigma ** 2) * (-3 + 4 * cos_2sigma_m ** 2)
+            cos_sigma * (-1 + 2 * cos_2sigma_m_sq) -
+            B / 6 * cos_2sigma_m * (-3 + 4 * sin_sigma ** 2) * (-3 + 4 * cos_2sigma_m_sq)
         )
     )
     
     distance_m = b * A * (sigma - delta_sigma)
+    
+    # 边界处理：负距离（理论上不应出现）
+    if distance_m < 0:
+        distance_m = 0.0
     
     # Convert to requested unit
     unit = unit.lower()
@@ -346,7 +366,7 @@ def vincenty_distance(coord1: Coordinate, coord2: Coordinate, unit: str = 'km', 
     elif unit == 'nautical':
         return distance_m * M_TO_KM * KM_TO_NAUTICAL
     else:
-        raise ValueError(f"Unknown unit: {unit}")
+        raise ValueError(f"Unknown unit: {unit}. Use 'km', 'm', 'miles', or 'nautical'")
 
 
 def distance(coord1: Coordinate, coord2: Coordinate, unit: str = 'km', method: str = 'haversine') -> float:

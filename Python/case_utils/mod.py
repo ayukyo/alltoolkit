@@ -351,51 +351,81 @@ class CaseUtils:
             'pascal'
             >>> CaseUtils.detect_case("hello_world")
             'snake'
+        
+        Note:
+            优化版本（v2）：
+            - 快速长度检查避免不必要处理
+            - 单次遍历检测分隔符和大小写特征
+            - 减少字符串 split 操作，改用字符遍历
+            - 边界处理：空字符串、单字符、纯数字
         """
         if not text:
             return None
         
-        # 检测点分隔
-        if '.' in text:
-            parts = text.split('.')
-            if all(p.islower() for p in parts):
+        # 边界处理：单字符无法确定风格
+        if len(text) == 1:
+            return 'unknown'
+        
+        # 优化：单次遍历收集特征
+        has_dot = False
+        has_dash = False
+        has_underscore = False
+        has_space = False
+        has_upper = False
+        has_lower = False
+        
+        first_char = text[0]
+        first_is_upper = first_char.isupper()
+        first_is_lower = first_char.islower()
+        
+        for char in text:
+            if char == '.':
+                has_dot = True
+            elif char == '-':
+                has_dash = True
+            elif char == '_':
+                has_underscore = True
+            elif char == ' ':
+                has_space = True
+            elif char.isupper():
+                has_upper = True
+            elif char.islower():
+                has_lower = True
+        
+        # 检测点分隔（优先检查分隔符）
+        if has_dot and not has_dash and not has_underscore and not has_space:
+            # 快速检查：是否全小写且不含其他分隔符
+            if has_lower and not has_upper:
                 return 'dot'
         
         # 检测短横线
-        if '-' in text:
+        if has_dash and not has_dot and not has_underscore and not has_space:
+            # 优化：检查第一个分隔部分来判断是 kebab 还是 train
             parts = text.split('-')
-            if all(p.islower() for p in parts):
+            if parts[0].islower() and all(p.islower() for p in parts):
                 return 'kebab'
-            if all(p.istitle() for p in parts):
+            if parts[0].istitle() and all(p.istitle() for p in parts):
                 return 'train'
         
         # 检测下划线
-        if '_' in text:
+        if has_underscore and not has_dot and not has_dash and not has_space:
             parts = text.split('_')
-            if all(p.islower() for p in parts):
+            if parts[0].islower() and all(p.islower() for p in parts):
                 return 'snake'
-            if all(p.isupper() for p in parts):
+            if parts[0].isupper() and all(p.isupper() for p in parts):
                 return 'screaming_snake'
         
         # 检测空格（标题格式）
-        if ' ' in text:
+        if has_space and not has_dot and not has_dash and not has_underscore:
             parts = text.split()
             if all(p.istitle() for p in parts):
                 return 'title'
         
-        # 检测驼峰
-        if text[0].islower() and any(c.isupper() for c in text):
-            return 'camel'
-        
-        if text[0].isupper() and any(c.islower() for c in text):
-            # 检查是否是帕斯卡命名
-            has_lower_after_upper = False
-            for i, c in enumerate(text):
-                if c.isupper() and i > 0:
-                    if text[i-1].islower():
-                        has_lower_after_upper = True
-                        break
-            if has_lower_after_upper or any(c.isupper() for c in text[1:]):
+        # 检测驼峰（无分隔符）
+        if not has_dot and not has_dash and not has_underscore and not has_space:
+            if first_is_lower and has_upper:
+                return 'camel'
+            if first_is_upper and has_lower:
                 return 'pascal'
         
         return 'unknown'

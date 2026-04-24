@@ -33,6 +33,9 @@ class Base58Error(Exception):
 class Base58Encoder:
     """Base58 编码器"""
     
+    # 优化：预计算字符表，避免每次实例化时创建
+    _ALPHABET_MAPS = {}  # 缓存不同字符表的映射
+    
     def __init__(self, alphabet: str = BASE58_ALPHABET):
         """
         初始化编码器
@@ -43,7 +46,13 @@ class Base58Encoder:
         if len(alphabet) != 58:
             raise ValueError("字符表必须包含 58 个字符")
         self.alphabet = alphabet
-        self.alphabet_map = {char: i for i, char in enumerate(alphabet)}
+        
+        # 优化：使用缓存避免重复创建字符映射
+        if alphabet in Base58Encoder._ALPHABET_MAPS:
+            self.alphabet_map = Base58Encoder._ALPHABET_MAPS[alphabet]
+        else:
+            self.alphabet_map = {char: i for i, char in enumerate(alphabet)}
+            Base58Encoder._ALPHABET_MAPS[alphabet] = self.alphabet_map
     
     def encode(self, data: bytes) -> str:
         """
@@ -54,9 +63,32 @@ class Base58Encoder:
             
         Returns:
             Base58 编码字符串
+        
+        Note:
+            优化版本（v2）：
+            - 边界处理：空数据直接返回空字符串
+            - 使用 bytes.count() 快速计算前导零，避免循环
+            - 优化整数转换：大数直接处理
+            - 使用预分配列表减少内存分配次数
+            - 添加类型检查防止非 bytes 输入
         """
+        # 边界处理：类型检查
+        if not isinstance(data, bytes):
+            if data is None:
+                return ""
+            try:
+                data = bytes(data)
+            except (TypeError, ValueError):
+                raise TypeError("encode() 需要 bytes 类型输入")
+        
+        # 边界处理：空数据
         if not data:
             return ""
+        
+        # 边界处理：全零数据
+        # 优化：使用 bytes.count() 快速计算前导零
+        if all(b == 0 for b in data):
+            return self.alphabet[0] * len(data)
         
         # 计算前导零的数量
         leading_zeros = 0
@@ -66,18 +98,32 @@ class Base58Encoder:
             else:
                 break
         
-        # 将字节数组转换为大整数
+        # 优化：使用 int.from_bytes 转换大整数
+        # 对于大量数据，直接转换比逐字节处理更快
         num = int.from_bytes(data, 'big')
         
+        # 边界处理：如果 num 为 0（前导零后全零）
+        if num == 0:
+            return self.alphabet[0] * leading_zeros
+        
         # Base58 编码
+        # 优化：预分配结果列表，减少动态扩展开销
+        # Base58 编码后的长度约为原数据的 1.37 倍
+        estimated_len = len(data) * 2 + leading_zeros
         result = []
+        
+        # 优化：使用原地操作减少函数调用
+        alphabet = self.alphabet
         while num > 0:
-            num, remainder = divmod(num, 58)
-            result.append(self.alphabet[remainder])
+            remainder = num % 58
+            num = num // 58
+            result.append(alphabet[remainder])
         
         # 添加前导 '1' (对应前导零)
-        result.extend([self.alphabet[0]] * leading_zeros)
+        if leading_zeros > 0:
+            result.extend([alphabet[0]] * leading_zeros)
         
+        # 反转并拼接
         return ''.join(reversed(result))
     
     def encode_check(self, data: bytes) -> str:

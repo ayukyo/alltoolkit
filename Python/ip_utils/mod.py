@@ -756,10 +756,12 @@ def validate_ipv6(ip: str) -> bool:
         False
     
     Note:
-        优化版本：
-        - 使用预编译正则快速过滤非法字符
-        - 快速检查替代复杂逻辑
-        - 优化边界处理性能
+        优化版本（v2）：
+        - 边界处理：空值、非字符串、过长/过短输入
+        - 快速字符过滤：预编译正则快速过滤非法字符
+        - 优化 :: 处理：单次遍历检测双冒号位置和数量
+        - 减少字符串 split 操作，改用字符遍历
+        - 支持 IPv4 映射地址 (::ffff:192.168.1.1)
     """
     # 边界处理：空值和非字符串
     if ip is None or not isinstance(ip, str):
@@ -768,30 +770,64 @@ def validate_ipv6(ip: str) -> bool:
     # Remove any brackets (for IPv6 addresses in URLs)
     ip = ip.strip('[]')
     
-    # 快速检查：空字符串或过长（最长有效IPv6约45字符）
-    if not ip or len(ip) > 45:
+    # 边界处理：空字符串或过长/过短
+    # 最短有效 IPv6: '::' = 2字符，最长约 45 字符
+    if len(ip) < 2 or len(ip) > 45:
         return False
     
     # 快速字符过滤：只允许合法的 IPv6 字符
-    if not _IPV6_COMPRESSED_PATTERN.match(ip):
+    for char in ip:
+        if char not in '0123456789abcdefABCDEF:':
+            # 边界处理：支持 IPv4 映射地址 (::ffff:192.168.1.1)
+            if char == '.':
+                # 如果有 '.' 必须在 IPv4 映射格式中
+                if '::ffff:' in ip.lower() or ip.endswith('.'):
+                    continue
+            return False
+    
+    # 优化：单次遍历检测冒号特征
+    colon_count = 0
+    double_colon_count = 0
+    double_colon_pos = -1
+    prev_was_colon = False
+    
+    for i, char in enumerate(ip):
+        if char == ':':
+            colon_count += 1
+            if prev_was_colon:
+                double_colon_count += 1
+                # 记录第一个双冒号位置（跳过第一个冒号）
+                if double_colon_pos == -1 and i > 0 and ip[i-1] == ':':
+                    double_colon_pos = i - 1
+            prev_was_colon = True
+        else:
+            prev_was_colon = False
+    
+    # 边界处理：冒号数量限制
+    # 最多 7 个冒号（8 组），最少 2 个（::）
+    if colon_count < 2 or colon_count > 7:
+        # 特殊情况：::1 只有 2 个冒号
+        if colon_count == 2 and ip.startswith(':') and ip.endswith(':'):
+            pass  # 有效
+        else:
+            return False
+    
+    # 边界处理：双冒号只能出现一次
+    if double_colon_count > 1:
+        return False
+    
+    # 边界处理：检查连续三个冒号 (:::)
+    if ':::' in ip:
         return False
     
     # Handle :: compression
     if '::' in ip:
-        # Only one :: allowed - 快速计数检查
-        if ip.count('::') > 1:
-            return False
-        
-        # Check for triple colon (:::) which is invalid
-        if ':::' in ip:
-            return False
-        
         # Split by ::
         parts = ip.split('::')
         left = parts[0].split(':') if parts[0] else []
         right = parts[1].split(':') if parts[1] else []
         
-        # Remove empty strings - 使用列表推导式优化
+        # Remove empty strings
         left = [p for p in left if p]
         right = [p for p in right if p]
         
@@ -805,13 +841,24 @@ def validate_ipv6(ip: str) -> bool:
         if len(all_parts) != 8:
             return False
     
-    # Validate each part - 使用预编译正则优化
+    # Validate each part
     for part in all_parts:
         if not part:
             continue
-        # 使用正则替代手动检查
-        if not _IPV6_GROUP_PATTERN.match(part):
+        
+        # 边界处理：每组最多 4 个字符
+        if len(part) > 4:
             return False
+        
+        # 边界处理：IPv4 映射地址的最后部分
+        if '.' in part:
+            # 验证 IPv4 部分
+            return validate_ipv4(part)
+        
+        # 验证十六进制字符
+        for char in part:
+            if char not in '0123456789abcdefABCDEF':
+                return False
     
     return True
 
