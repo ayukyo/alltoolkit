@@ -1,845 +1,1417 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-AllToolkit - JSON Utilities Module
-====================================
-A comprehensive JSON utility module for Python with zero external dependencies.
+JSON Utilities - JSON 工具集
 
-Features:
-    - Safe JSON parsing with fallback values
-    - JSON manipulation utilities (merge, filter, flatten)
-    - Pretty printing with customizable formatting
-    - JSONPath-like query support
-    - Type conversion helpers
+全面的 JSON 处理工具集，提供格式化、验证、路径查询、差异比较、合并、展平等功能。
+零外部依赖，纯 Python 实现。
 
-Author: AllToolkit Contributors
-License: MIT
+Author: AllToolkit 自动化开发
+Version: 1.0.0 (2026-04-25)
 """
 
 import json
-import os
-from typing import Any, Dict, List, Optional, Union, Callable, TypeVar
-from datetime import datetime, date
-from decimal import Decimal
+import re
+from typing import Any, Dict, List, Optional, Tuple, Union, Iterator, Callable
+from dataclasses import dataclass, field
+from enum import Enum
 from copy import deepcopy
 
-T = TypeVar('T')
 
 # ============================================================================
-# Safe Parsing Functions
+# 数据类和枚举
 # ============================================================================
 
-def safe_loads(json_str: str, default: Any = None, encoding: str = 'utf-8') -> Any:
-    """
-    Safely parse a JSON string with a fallback default value.
-    
-    Args:
-        json_str: The JSON string to parse
-        default: The default value to return if parsing fails (default: None)
-        encoding: The encoding of the string (default: 'utf-8')
-    
-    Returns:
-        The parsed JSON object, or the default value if parsing fails
-    
-    Example:
-        >>> safe_loads('{"name": "John"}', default={})
-        {'name': 'John'}
-        >>> safe_loads('invalid json', default={})
-        {}
-    """
-    if json_str is None:
-        return default
-    try:
-        if isinstance(json_str, bytes):
-            json_str = json_str.decode(encoding)
-        return json.loads(json_str)
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return default
+class JsonType(Enum):
+    """JSON 值类型"""
+    NULL = "null"
+    BOOLEAN = "boolean"
+    NUMBER = "number"
+    STRING = "string"
+    ARRAY = "array"
+    OBJECT = "object"
 
 
-def safe_load(file_path: str, default: Any = None, encoding: str = 'utf-8') -> Any:
-    """
-    Safely load JSON from a file with a fallback default value.
+@dataclass
+class JsonPath:
+    """JSON 路径表示"""
+    path: str
+    value: Any
     
-    Args:
-        file_path: Path to the JSON file
-        default: The default value to return if loading fails (default: None)
-        encoding: The file encoding (default: 'utf-8')
+    def __repr__(self):
+        return f"JsonPath(path='{self.path}', value={repr(self.value)})"
+
+
+@dataclass
+class JsonDiff:
+    """JSON 差异项"""
+    path: str
+    old_value: Any
+    new_value: Any
+    change_type: str  # 'added', 'removed', 'changed'
     
-    Returns:
-        The parsed JSON object, or the default value if loading fails
+    def __repr__(self):
+        return f"JsonDiff(path='{self.path}', type='{self.change_type}')"
+
+
+@dataclass
+class ValidationResult:
+    """验证结果"""
+    valid: bool
+    error: Optional[str] = None
+    line: Optional[int] = None
+    column: Optional[int] = None
     
-    Example:
-        >>> safe_load('config.json', default={})
-        {'setting': 'value'}
-    """
-    try:
-        with open(file_path, 'r', encoding=encoding) as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError, IOError, PermissionError):
-        return default
+    def __bool__(self):
+        return self.valid
 
 
 # ============================================================================
-# Serialization Functions
+# JSON 类型判断和获取
 # ============================================================================
 
-def dumps_compact(obj: Any, ensure_ascii: bool = False) -> str:
+def get_json_type(value: Any) -> JsonType:
     """
-    Serialize object to a compact JSON string (no whitespace).
+    获取 JSON 值的类型。
     
     Args:
-        obj: The object to serialize
-        ensure_ascii: Whether to escape non-ASCII characters (default: False)
-    
+        value: 要检查的值
+        
     Returns:
-        A compact JSON string
-    
-    Example:
-        >>> dumps_compact({'name': 'John', 'age': 30})
-        '{"name":"John","age":30}'
+        JsonType 枚举值
     """
-    return json.dumps(obj, separators=(',', ':'), ensure_ascii=ensure_ascii)
+    if value is None:
+        return JsonType.NULL
+    elif isinstance(value, bool):
+        return JsonType.BOOLEAN
+    elif isinstance(value, (int, float)):
+        return JsonType.NUMBER
+    elif isinstance(value, str):
+        return JsonType.STRING
+    elif isinstance(value, list):
+        return JsonType.ARRAY
+    elif isinstance(value, dict):
+        return JsonType.OBJECT
+    else:
+        raise ValueError(f"Invalid JSON type: {type(value)}")
 
 
-def dumps_pretty(obj: Any, indent: int = 2, ensure_ascii: bool = False, 
-                 sort_keys: bool = False) -> str:
+def is_json_serializable(value: Any) -> bool:
     """
-    Serialize object to a pretty-printed JSON string.
+    检查值是否可序列化为 JSON。
     
     Args:
-        obj: The object to serialize
-        indent: The indentation level (default: 2)
-        ensure_ascii: Whether to escape non-ASCII characters (default: False)
-        sort_keys: Whether to sort dictionary keys (default: False)
-    
+        value: 要检查的值
+        
     Returns:
-        A pretty-printed JSON string
-    
-    Example:
-        >>> print(dumps_pretty({'name': 'John', 'age': 30}))
-        {
-          "name": "John",
-          "age": 30
-        }
-    """
-    return json.dumps(obj, indent=indent, ensure_ascii=ensure_ascii, 
-                      sort_keys=sort_keys, default=_json_default)
-
-
-def save(obj: Any, file_path: str, indent: int = 2, ensure_ascii: bool = False,
-         encoding: str = 'utf-8', sort_keys: bool = False) -> bool:
-    """
-    Save an object to a JSON file.
-    
-    Args:
-        obj: The object to serialize
-        file_path: Path to the output file
-        indent: The indentation level (default: 2)
-        ensure_ascii: Whether to escape non-ASCII characters (default: False)
-        encoding: The file encoding (default: 'utf-8')
-        sort_keys: Whether to sort dictionary keys (default: False)
-    
-    Returns:
-        True if successful, False otherwise
-    
-    Example:
-        >>> save({'config': 'value'}, 'config.json')
-        True
+        是否可序列化
     """
     try:
-        dir_path = os.path.dirname(file_path)
-        if dir_path:
-            os.makedirs(dir_path, exist_ok=True)
-        with open(file_path, 'w', encoding=encoding) as f:
-            json.dump(obj, f, indent=indent, ensure_ascii=ensure_ascii,
-                     sort_keys=sort_keys, default=_json_default)
+        json.dumps(value)
         return True
-    except (IOError, PermissionError, TypeError, OSError):
+    except (TypeError, ValueError):
         return False
 
 
-def _json_default(obj: Any) -> Any:
-    """Default JSON encoder for custom types."""
-    if isinstance(obj, datetime):
-        return obj.isoformat()
-    if isinstance(obj, date):
-        return obj.isoformat()
-    if isinstance(obj, Decimal):
-        return float(obj)
-    if isinstance(obj, set):
-        return list(obj)
-    if isinstance(obj, bytes):
-        return obj.decode('utf-8', errors='replace')
-    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
-
-
 # ============================================================================
-# Query and Navigation Functions
+# JSON 验证
 # ============================================================================
 
-def get_path(obj: Dict[str, Any], path: str, default: Any = None, 
-             separator: str = '.') -> Any:
+def validate_json(json_string: str) -> ValidationResult:
     """
-    Get a value from a nested dictionary using a dot-separated path.
+    验证 JSON 字符串是否有效。
     
     Args:
-        obj: The dictionary to query
-        path: The dot-separated path (e.g., 'user.address.city')
-        default: The default value if path not found (default: None)
-        separator: The path separator (default: '.')
-    
+        json_string: JSON 字符串
+        
     Returns:
-        The value at the path, or the default value if not found
-    
-    Example:
-        >>> data = {'user': {'name': 'John', 'address': {'city': 'NYC'}}}
-        >>> get_path(data, 'user.address.city')
-        'NYC'
-        >>> get_path(data, 'user.phone', 'N/A')
-        'N/A'
+        ValidationResult 对象
     """
-    if obj is None or not path:
-        return default
+    try:
+        json.loads(json_string)
+        return ValidationResult(valid=True)
+    except json.JSONDecodeError as e:
+        return ValidationResult(
+            valid=False,
+            error=e.msg,
+            line=e.lineno,
+            column=e.colno
+        )
+
+
+def validate_json_schema(data: Dict[str, Any], schema: Dict[str, Any]) -> Tuple[bool, List[str]]:
+    """
+    简单的 JSON Schema 验证（基础实现）。
+    支持类型检查、必填字段、枚举值、最小/最大值等基本验证。
     
-    keys = path.split(separator)
-    current = obj
+    Args:
+        data: 要验证的数据
+        schema: JSON Schema（简化版）
+        
+    Returns:
+        (是否有效, 错误消息列表)
+    """
+    errors = []
     
-    for key in keys:
-        if isinstance(current, dict) and key in current:
-            current = current[key]
-        elif isinstance(current, list) and key.isdigit():
-            idx = int(key)
-            if 0 <= idx < len(current):
-                current = current[idx]
+    def validate_recursive(obj: Any, sch: Dict[str, Any], path: str = ""):
+        # 类型检查
+        if "type" in sch:
+            expected_type = sch["type"]
+            type_map = {
+                "null": type(None),
+                "boolean": bool,
+                "integer": int,
+                "number": (int, float),
+                "string": str,
+                "array": list,
+                "object": dict
+            }
+            
+            if expected_type in type_map:
+                if not isinstance(obj, type_map[expected_type]):
+                    if expected_type == "integer" and isinstance(obj, float) and obj.is_integer():
+                        pass  # 允许整数浮点数
+                    else:
+                        errors.append(f"{path}: expected {expected_type}, got {type(obj).__name__}")
+        
+        # 必填字段
+        if "required" in sch and isinstance(obj, dict):
+            for field in sch["required"]:
+                if field not in obj:
+                    errors.append(f"{path}: missing required field '{field}'")
+        
+        # 枚举值
+        if "enum" in sch:
+            if obj not in sch["enum"]:
+                errors.append(f"{path}: value must be one of {sch['enum']}")
+        
+        # 最小值/最大值
+        if isinstance(obj, (int, float)):
+            if "minimum" in sch and obj < sch["minimum"]:
+                errors.append(f"{path}: value {obj} is less than minimum {sch['minimum']}")
+            if "maximum" in sch and obj > sch["maximum"]:
+                errors.append(f"{path}: value {obj} is greater than maximum {sch['maximum']}")
+        
+        # 字符串长度
+        if isinstance(obj, str):
+            if "minLength" in sch and len(obj) < sch["minLength"]:
+                errors.append(f"{path}: string length {len(obj)} is less than minLength {sch['minLength']}")
+            if "maxLength" in sch and len(obj) > sch["maxLength"]:
+                errors.append(f"{path}: string length {len(obj)} is greater than maxLength {sch['maxLength']}")
+        
+        # 数组长度
+        if isinstance(obj, list):
+            if "minItems" in sch and len(obj) < sch["minItems"]:
+                errors.append(f"{path}: array length {len(obj)} is less than minItems {sch['minItems']}")
+            if "maxItems" in sch and len(obj) > sch["maxItems"]:
+                errors.append(f"{path}: array length {len(obj)} is greater than maxItems {sch['maxItems']}")
+            # 数组项验证
+            if "items" in sch:
+                for i, item in enumerate(obj):
+                    validate_recursive(item, sch["items"], f"{path}[{i}]")
+        
+        # 对象属性验证
+        if isinstance(obj, dict):
+            if "properties" in sch:
+                for prop, prop_schema in sch["properties"].items():
+                    if prop in obj:
+                        validate_recursive(obj[prop], prop_schema, f"{path}.{prop}" if path else prop)
+        
+        # 嵌套验证
+        if "additionalProperties" in sch and isinstance(obj, dict):
+            if isinstance(sch["additionalProperties"], dict):
+                for key, val in obj.items():
+                    if "properties" not in sch or key not in sch.get("properties", {}):
+                        validate_recursive(val, sch["additionalProperties"], f"{path}.{key}" if path else key)
+    
+    validate_recursive(data, schema)
+    return len(errors) == 0, errors
+
+
+# ============================================================================
+# JSON 格式化
+# ============================================================================
+
+def format_json(
+    data: Any,
+    indent: int = 2,
+    ensure_ascii: bool = False,
+    sort_keys: bool = False,
+    compact: bool = False
+) -> str:
+    """
+    格式化 JSON 数据。
+    
+    Args:
+        data: JSON 数据
+        indent: 缩进空格数
+        ensure_ascii: 是否转义非 ASCII 字符
+        sort_keys: 是否按键排序
+        compact: 是否压缩输出
+        
+    Returns:
+        格式化后的 JSON 字符串
+    """
+    if compact:
+        return json.dumps(data, ensure_ascii=ensure_ascii, separators=(',', ':'))
+    return json.dumps(data, indent=indent, ensure_ascii=ensure_ascii, sort_keys=sort_keys)
+
+
+def minify_json(json_string: str) -> str:
+    """
+    压缩 JSON 字符串，移除所有空白。
+    
+    Args:
+        json_string: JSON 字符串
+        
+    Returns:
+        压缩后的 JSON 字符串
+    """
+    data = json.loads(json_string)
+    return json.dumps(data, separators=(',', ':'))
+
+
+def prettify_json(json_string: str, indent: int = 2) -> str:
+    """
+    美化 JSON 字符串。
+    
+    Args:
+        json_string: JSON 字符串
+        indent: 缩进空格数
+        
+    Returns:
+        美化后的 JSON 字符串
+    """
+    data = json.loads(json_string)
+    return json.dumps(data, indent=indent, ensure_ascii=False)
+
+
+# ============================================================================
+# JSON 路径操作
+# ============================================================================
+
+def get_value(data: Union[Dict, List], path: str, default: Any = None) -> Any:
+    """
+    通过路径获取 JSON 值。
+    支持路径格式：'a.b.c' 或 'a[0].b' 或 'items[*].name'
+    
+    Args:
+        data: JSON 数据
+        path: 路径字符串
+        default: 默认值
+        
+    Returns:
+        找到的值或默认值
+    """
+    try:
+        parts = parse_json_path(path)
+        current = data
+        
+        for part in parts:
+            if isinstance(current, dict):
+                current = current[part]
+            elif isinstance(current, list):
+                if part == '*':
+                    # 通配符：返回所有值
+                    return [get_value(item, '.'.join(parts[parts.index(part)+1:]), default) for item in current]
+                index = int(part)
+                current = current[index]
             else:
                 return default
-        else:
-            return default
-    
-    return current
-
-
-def set_path(obj: Dict[str, Any], path: str, value: Any, 
-             separator: str = '.', create_intermediate: bool = True) -> bool:
-    """
-    Set a value in a nested dictionary using a dot-separated path.
-    
-    Args:
-        obj: The dictionary to modify
-        path: The dot-separated path (e.g., 'user.address.city')
-        value: The value to set
-        separator: The path separator (default: '.')
-        create_intermediate: Whether to create intermediate dictionaries (default: True)
-    
-    Returns:
-        True if successful, False otherwise
-    
-    Example:
-        >>> data = {'user': {'name': 'John'}}
-        >>> set_path(data, 'user.address.city', 'NYC')
-        True
-        >>> data
-        {'user': {'name': 'John', 'address': {'city': 'NYC'}}}
-    """
-    if obj is None or not path:
-        return False
-    
-    keys = path.split(separator)
-    current = obj
-    
-    for i, key in enumerate(keys[:-1]):
-        if key not in current:
-            if not create_intermediate:
-                return False
-            current[key] = {}
-        current = current[key]
-        if not isinstance(current, dict):
-            return False
-    
-    current[keys[-1]] = value
-    return True
-
-
-def has_path(obj: Dict[str, Any], path: str, separator: str = '.') -> bool:
-    """
-    Check if a path exists in a nested dictionary.
-    
-    Args:
-        obj: The dictionary to check
-        path: The dot-separated path
-        separator: The path separator (default: '.')
-    
-    Returns:
-        True if the path exists, False otherwise
-    
-    Example:
-        >>> data = {'user': {'name': 'John'}}
-        >>> has_path(data, 'user.name')
-        True
-        >>> has_path(data, 'user.age')
-        False
-    """
-    return get_path(obj, path, default=None, separator=separator) is not None
-
-
-def delete_path(obj: Dict[str, Any], path: str, separator: str = '.') -> bool:
-    """
-    Delete a key from a nested dictionary using a dot-separated path.
-    
-    Args:
-        obj: The dictionary to modify
-        path: The dot-separated path
-        separator: The path separator (default: '.')
-    
-    Returns:
-        True if the key was deleted, False otherwise
-    
-    Example:
-        >>> data = {'user': {'name': 'John', 'age': 30}}
-        >>> delete_path(data, 'user.age')
-        True
-        >>> data
-        {'user': {'name': 'John'}}
-    """
-    if obj is None or not path:
-        return False
-    
-    keys = path.split(separator)
-    current = obj
-    
-    for key in keys[:-1]:
-        if isinstance(current, dict) and key in current:
-            current = current[key]
-        else:
-            return False
-    
-    if isinstance(current, dict) and keys[-1] in current:
-        del current[keys[-1]]
-        return True
-    return False
-
-
-# ============================================================================
-# Merge and Manipulation Functions
-# ============================================================================
-
-def merge(base: Dict[str, Any], *updates: Dict[str, Any], 
-          deep: bool = True) -> Dict[str, Any]:
-    """
-    Merge multiple dictionaries into a new dictionary.
-    
-    Args:
-        base: The base dictionary
-        *updates: Dictionaries to merge into base
-        deep: Whether to perform deep merge (default: True)
-    
-    Returns:
-        A new merged dictionary
-    
-    Example:
-        >>> base = {'a': 1, 'b': {'c': 2}}
-        >>> update = {'b': {'d': 3}, 'e': 4}
-        >>> merge(base, update)
-        {'a': 1, 'b': {'c': 2, 'd': 3}, 'e': 4}
-    """
-    result = deepcopy(base) if deep else dict(base)
-    
-    for update in updates:
-        if deep:
-            _deep_merge(result, update)
-        else:
-            result.update(update)
-    
-    return result
-
-
-def _deep_merge(base: Dict[str, Any], update: Dict[str, Any]) -> None:
-    """Recursively merge update into base."""
-    for key, value in update.items():
-        if key in base and isinstance(base[key], dict) and isinstance(value, dict):
-            _deep_merge(base[key], value)
-        else:
-            base[key] = deepcopy(value) if isinstance(value, (dict, list)) else value
-
-
-def flatten(obj: Dict[str, Any], separator: str = '.', parent_key: str = '') -> Dict[str, Any]:
-    """
-    Flatten a nested dictionary into a single-level dictionary.
-    
-    Uses iterative approach to avoid recursion stack overflow for deeply nested structures.
-    
-    Args:
-        obj: The dictionary to flatten
-        separator: The separator for nested keys (default: '.')
-        parent_key: The parent key prefix (used internally)
-    
-    Returns:
-        A flattened dictionary
-    
-    Example:
-        >>> data = {'user': {'name': 'John', 'address': {'city': 'NYC'}}}
-        >>> flatten(data)
-        {'user.name': 'John', 'user.address.city': 'NYC'}
-    """
-    items: Dict[str, Any] = {}
-    
-    # Use iterative approach with a stack to avoid recursion depth limits
-    # Stack items: (current_dict, current_prefix)
-    stack = [(obj, parent_key)]
-    
-    while stack:
-        current_dict, current_prefix = stack.pop()
         
-        for key, value in current_dict.items():
-            new_key = f"{current_prefix}{separator}{key}" if current_prefix else key
-            
-            if isinstance(value, dict):
-                # Push nested dict to stack for later processing
-                stack.append((value, new_key))
+        return current
+    except (KeyError, IndexError, ValueError, TypeError):
+        return default
+
+
+def set_value(data: Union[Dict, List], path: str, value: Any) -> Union[Dict, List]:
+    """
+    通过路径设置 JSON 值。
+    
+    Args:
+        data: JSON 数据
+        path: 路径字符串
+        value: 要设置的值
+        
+    Returns:
+        修改后的数据（原地修改）
+    """
+    parts = parse_json_path(path)
+    current = data
+    
+    for i, part in enumerate(parts[:-1]):
+        next_part = parts[i + 1]
+        
+        if isinstance(current, dict):
+            if part not in current:
+                # 创建中间结构
+                current[part] = [] if next_part.isdigit() or next_part == '*' else {}
+            current = current[part]
+        elif isinstance(current, list):
+            index = int(part)
+            while len(current) <= index:
+                current.append(None)
+            if current[index] is None:
+                current[index] = [] if next_part.isdigit() or next_part == '*' else {}
+            current = current[index]
+    
+    # 设置最终值
+    last_part = parts[-1]
+    if isinstance(current, dict):
+        current[last_part] = value
+    elif isinstance(current, list):
+        index = int(last_part)
+        while len(current) <= index:
+            current.append(None)
+        current[index] = value
+    
+    return data
+
+
+def has_path(data: Union[Dict, List], path: str) -> bool:
+    """
+    检查路径是否存在。
+    
+    Args:
+        data: JSON 数据
+        path: 路径字符串
+        
+    Returns:
+        路径是否存在
+    """
+    try:
+        parts = parse_json_path(path)
+        current = data
+        
+        for part in parts:
+            if isinstance(current, dict):
+                if part not in current:
+                    return False
+                current = current[part]
+            elif isinstance(current, list):
+                if part == '*':
+                    return True
+                index = int(part)
+                if index < 0 or index >= len(current):
+                    return False
+                current = current[index]
             else:
-                items[new_key] = value
-    
-    return items
-
-
-def unflatten(obj: Dict[str, Any], separator: str = '.') -> Dict[str, Any]:
-    """
-    Unflatten a single-level dictionary into a nested dictionary.
-    
-    Args:
-        obj: The dictionary to unflatten
-        separator: The separator for nested keys (default: '.')
-    
-    Returns:
-        An unflattened dictionary
-    
-    Example:
-        >>> data = {'user.name': 'John', 'user.age': 30}
-        >>> unflatten(data)
-        {'user': {'name': 'John', 'age': 30}}
-    """
-    result: Dict[str, Any] = {}
-    for key, value in obj.items():
-        set_path(result, key, value, separator=separator)
-    return result
-
-
-def filter_by_key(obj: Dict[str, Any], predicate: Callable[[str], bool]) -> Dict[str, Any]:
-    """
-    Filter dictionary entries by key using a predicate function.
-    
-    Args:
-        obj: The dictionary to filter
-        predicate: A function that takes a key and returns True to keep it
-    
-    Returns:
-        A new filtered dictionary
-    
-    Example:
-        >>> data = {'name': 'John', 'age': 30, 'email': 'john@example.com'}
-        >>> filter_by_key(data, lambda k: k.startswith('a'))
-        {'age': 30}
-    """
-    return {k: v for k, v in obj.items() if predicate(k)}
-
-
-def filter_by_value(obj: Dict[str, Any], predicate: Callable[[Any], bool]) -> Dict[str, Any]:
-    """
-    Filter dictionary entries by value using a predicate function.
-    
-    Args:
-        obj: The dictionary to filter
-        predicate: A function that takes a value and returns True to keep it
-    
-    Returns:
-        A new filtered dictionary
-    
-    Example:
-        >>> data = {'a': 1, 'b': 2, 'c': 3}
-        >>> filter_by_value(data, lambda v: v > 1)
-        {'b': 2, 'c': 3}
-    """
-    return {k: v for k, v in obj.items() if predicate(v)}
-
-
-def pick(obj: Dict[str, Any], keys: List[str]) -> Dict[str, Any]:
-    """
-    Pick specific keys from a dictionary.
-    
-    Args:
-        obj: The dictionary to pick from
-        keys: List of keys to pick
-    
-    Returns:
-        A new dictionary with only the picked keys
-    
-    Example:
-        >>> data = {'name': 'John', 'age': 30, 'email': 'john@example.com'}
-        >>> pick(data, ['name', 'email'])
-        {'name': 'John', 'email': 'john@example.com'}
-    """
-    return {k: obj[k] for k in keys if k in obj}
-
-
-def omit(obj: Dict[str, Any], keys: List[str]) -> Dict[str, Any]:
-    """
-    Omit specific keys from a dictionary.
-    
-    Args:
-        obj: The dictionary to omit from
-        keys: List of keys to omit
-    
-    Returns:
-        A new dictionary without the omitted keys
-    
-    Example:
-        >>> data = {'name': 'John', 'age': 30, 'email': 'john@example.com'}
-        >>> omit(data, ['age'])
-        {'name': 'John', 'email': 'john@example.com'}
-    """
-    keys_set = set(keys)
-    return {k: v for k, v in obj.items() if k not in keys_set}
-
-
-# ============================================================================
-# Validation Functions
-# ============================================================================
-
-def is_valid(json_str: str) -> bool:
-    """
-    Check if a string is valid JSON.
-    
-    Args:
-        json_str: The string to validate
-    
-    Returns:
-        True if valid JSON, False otherwise
-    
-    Example:
-        >>> is_valid('{"name": "John"}')
-        True
-        >>> is_valid('invalid')
-        False
-    """
-    try:
-        json.loads(json_str)
+                return False
+        
         return True
-    except (json.JSONDecodeError, TypeError):
+    except (KeyError, IndexError, ValueError, TypeError):
         return False
 
 
-def is_valid_file(file_path: str, encoding: str = 'utf-8') -> bool:
+def delete_value(data: Union[Dict, List], path: str) -> bool:
     """
-    Check if a file contains valid JSON.
+    删除指定路径的值。
     
     Args:
-        file_path: Path to the file to validate
-        encoding: The file encoding (default: 'utf-8')
-    
+        data: JSON 数据
+        path: 路径字符串
+        
     Returns:
-        True if valid JSON, False otherwise
-    
-    Example:
-        >>> is_valid_file('config.json')
-        True
+        是否成功删除
     """
     try:
-        with open(file_path, 'r', encoding=encoding) as f:
-            json.load(f)
+        parts = parse_json_path(path)
+        current = data
+        
+        for part in parts[:-1]:
+            if isinstance(current, dict):
+                current = current[part]
+            elif isinstance(current, list):
+                index = int(part)
+                current = current[index]
+        
+        last_part = parts[-1]
+        if isinstance(current, dict):
+            del current[last_part]
+        elif isinstance(current, list):
+            index = int(last_part)
+            del current[index]
+        
         return True
-    except (FileNotFoundError, json.JSONDecodeError, IOError, PermissionError):
+    except (KeyError, IndexError, ValueError, TypeError):
         return False
 
 
+def parse_json_path(path: str) -> List[str]:
+    """
+    解析 JSON 路径字符串为部分列表。
+    支持：'a.b.c', 'a[0].b', 'a.b[2]', 'items[*].name'
+    
+    Args:
+        path: 路径字符串
+        
+    Returns:
+        路径部分列表
+    """
+    if not path or path == '$':
+        return []
+    
+    # 移除开头的 $
+    if path.startswith('$.'):
+        path = path[2:]
+    elif path.startswith('$'):
+        path = path[1:]
+    
+    parts = []
+    current = ""
+    i = 0
+    
+    while i < len(path):
+        char = path[i]
+        
+        if char == '.':
+            if current:
+                parts.append(current)
+                current = ""
+            i += 1
+        elif char == '[':
+            if current:
+                parts.append(current)
+                current = ""
+            # 找到对应的 ]
+            j = i + 1
+            while j < len(path) and path[j] != ']':
+                j += 1
+            bracket_content = path[i+1:j]
+            parts.append(bracket_content.strip("'\"") if bracket_content not in ('*', '') else bracket_content)
+            i = j + 1
+        else:
+            current += char
+            i += 1
+    
+    if current:
+        parts.append(current)
+    
+    return parts
+
+
 # ============================================================================
-# Type Checking Functions
+# JSON 展平和嵌套
 # ============================================================================
 
-def is_json_object(obj: Any) -> bool:
+def flatten_json(
+    data: Dict[str, Any],
+    separator: str = '.',
+    array_separator: str = '[',
+    array_end: str = ']',
+    preserve_arrays: bool = False
+) -> Dict[str, Any]:
     """
-    Check if an object is a JSON object (dictionary).
+    将嵌套 JSON 展平为单层字典。
     
     Args:
-        obj: The object to check
-    
+        data: 嵌套的 JSON 对象
+        separator: 键分隔符
+        array_separator: 数组分隔符开始
+        array_end: 数组分隔符结束
+        preserve_arrays: 是否保留数组为整体
+        
     Returns:
-        True if the object is a dictionary, False otherwise
-    """
-    return isinstance(obj, dict)
-
-
-def is_json_array(obj: Any) -> bool:
-    """
-    Check if an object is a JSON array (list).
-    
-    Args:
-        obj: The object to check
-    
-    Returns:
-        True if the object is a list, False otherwise
-    """
-    return isinstance(obj, list)
-
-
-def is_json_primitive(obj: Any) -> bool:
-    """
-    Check if an object is a JSON primitive (string, number, boolean, or null).
-    
-    Args:
-        obj: The object to check
-    
-    Returns:
-        True if the object is a JSON primitive, False otherwise
-    """
-    return obj is None or isinstance(obj, (str, int, float, bool))
-
-
-# ============================================================================
-# Utility Functions
-# ============================================================================
-
-def clone(obj: Any) -> Any:
-    """
-    Create a deep copy of a JSON-compatible object.
-    
-    Args:
-        obj: The object to clone
-    
-    Returns:
-        A deep copy of the object
-    
-    Example:
-        >>> data = {'user': {'name': 'John'}}
-        >>> cloned = clone(data)
-        >>> cloned['user']['name'] = 'Jane'
-        >>> data['user']['name']  # Original unchanged
-        'John'
-    """
-    return deepcopy(obj)
-
-
-def diff(obj1: Dict[str, Any], obj2: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Calculate the difference between two dictionaries.
-    
-    Args:
-        obj1: The first dictionary
-        obj2: The second dictionary
-    
-    Returns:
-        A dictionary showing added, removed, and changed keys
-    
-    Example:
-        >>> obj1 = {'a': 1, 'b': 2}
-        >>> obj2 = {'b': 3, 'c': 4}
-        >>> diff(obj1, obj2)
-        {'added': {'c': 4}, 'removed': {'a': 1}, 'changed': {'b': (2, 3)}}
-    """
-    result = {'added': {}, 'removed': {}, 'changed': {}}
-    
-    all_keys = set(obj1.keys()) | set(obj2.keys())
-    
-    for key in all_keys:
-        if key in obj1 and key not in obj2:
-            result['removed'][key] = obj1[key]
-        elif key not in obj1 and key in obj2:
-            result['added'][key] = obj2[key]
-        elif obj1[key] != obj2[key]:
-            result['changed'][key] = (obj1[key], obj2[key])
-    
-    return result
-
-
-def size(obj: Any) -> int:
-    """
-    Get the size of a JSON object or array.
-    
-    Args:
-        obj: The JSON object or array
-    
-    Returns:
-        The number of elements (for arrays) or keys (for objects)
-    
-    Example:
-        >>> size({'a': 1, 'b': 2})
-        2
-        >>> size([1, 2, 3])
-        3
-    """
-    if isinstance(obj, (dict, list)):
-        return len(obj)
-    return 0
-
-
-def sort_keys(obj: Dict[str, Any], recursive: bool = True) -> Dict[str, Any]:
-    """
-    Sort dictionary keys alphabetically.
-    
-    Args:
-        obj: The dictionary to sort
-        recursive: Whether to sort nested dictionaries (default: True)
-    
-    Returns:
-        A new dictionary with sorted keys
-    
-    Example:
-        >>> data = {'z': 1, 'a': 2, 'm': 3}
-        >>> sort_keys(data)
-        {'a': 2, 'm': 3, 'z': 1}
+        展平后的字典
     """
     result = {}
-    for key in sorted(obj.keys()):
-        value = obj[key]
-        if recursive and isinstance(value, dict):
-            result[key] = sort_keys(value, recursive=True)
+    
+    def flatten(obj: Any, prefix: str = ""):
+        if isinstance(obj, dict):
+            for key, value in obj.items():
+                new_key = f"{prefix}{separator}{key}" if prefix else key
+                flatten(value, new_key)
+        elif isinstance(obj, list) and not preserve_arrays:
+            for i, value in enumerate(obj):
+                new_key = f"{prefix}{array_separator}{i}{array_end}"
+                flatten(value, new_key)
         else:
-            result[key] = value
+            result[prefix] = obj
+    
+    flatten(data)
+    return result
+
+
+def unflatten_json(
+    data: Dict[str, Any],
+    separator: str = '.',
+    array_pattern: str = r'\[(\d+)\]'
+) -> Dict[str, Any]:
+    """
+    将展平的字典还原为嵌套 JSON 对象。
+    
+    Args:
+        data: 展平的字典
+        separator: 键分隔符
+        array_pattern: 数组索引匹配模式
+        
+    Returns:
+        嵌套的 JSON 对象
+    """
+    result = {}
+    
+    for key, value in data.items():
+        parts = []
+        current = ""
+        i = 0
+        
+        while i < len(key):
+            char = key[i]
+            
+            if char == separator:
+                if current:
+                    parts.append(current)
+                    current = ""
+                i += 1
+            elif char == '[':
+                if current:
+                    parts.append(current)
+                    current = ""
+                # 找到对应的 ]
+                j = i + 1
+                while j < len(key) and key[j] != ']':
+                    j += 1
+                index_str = key[i+1:j]
+                if index_str.isdigit():
+                    parts.append(int(index_str))
+                i = j + 1
+            else:
+                current += char
+                i += 1
+        
+        if current:
+            parts.append(current)
+        
+        # 构建嵌套结构
+        current_obj = result
+        for i, part in enumerate(parts[:-1]):
+            next_part = parts[i + 1]
+            
+            if isinstance(part, int):
+                # 数组索引
+                if not isinstance(current_obj, list):
+                    current_obj = []
+                while len(current_obj) <= part:
+                    current_obj.append(None)
+                if current_obj[part] is None:
+                    current_obj[part] = [] if isinstance(next_part, int) else {}
+                current_obj = current_obj[part]
+            else:
+                # 字典键
+                if part not in current_obj:
+                    current_obj[part] = [] if isinstance(next_part, int) else {}
+                current_obj = current_obj[part]
+        
+        # 设置最终值
+        last_part = parts[-1]
+        if isinstance(last_part, int):
+            while len(current_obj) <= last_part:
+                current_obj.append(None)
+            current_obj[last_part] = value
+        else:
+            current_obj[last_part] = value
+    
     return result
 
 
 # ============================================================================
-# Advanced Query Functions
+# JSON 搜索
 # ============================================================================
 
-def find_all(obj: Any, key: str) -> List[Any]:
+def find_all(
+    data: Any,
+    key: Optional[str] = None,
+    value: Any = None,
+    path_prefix: str = ""
+) -> List[JsonPath]:
     """
-    Find all values with a specific key in a nested structure.
-    
-    Uses iterative breadth-first traversal to find all matching values,
-    avoiding recursion stack overflow for deeply nested structures.
+    在 JSON 中查找所有匹配的键或值。
     
     Args:
-        obj: The object to search
-        key: The key to find
-    
+        data: JSON 数据
+        key: 要查找的键名（可选）
+        value: 要查找的值（可选）
+        path_prefix: 路径前缀
+        
     Returns:
-        A list of all values with the matching key
-    
-    Example:
-        >>> data = {'users': [{'name': 'John'}, {'name': 'Jane'}]}
-        >>> find_all(data, 'name')
-        ['John', 'Jane']
+        匹配的 JsonPath 列表
     """
     results = []
     
-    # Use iterative approach with a stack to avoid recursion depth limits
-    stack = [obj]
+    def search(obj: Any, path: str):
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                new_path = f"{path}.{k}" if path else k
+                if key is not None and k == key:
+                    results.append(JsonPath(path=new_path, value=v))
+                if value is not None and v == value:
+                    results.append(JsonPath(path=new_path, value=v))
+                search(v, new_path)
+        elif isinstance(obj, list):
+            for i, item in enumerate(obj):
+                new_path = f"{path}[{i}]"
+                if value is not None and item == value:
+                    results.append(JsonPath(path=new_path, value=item))
+                search(item, new_path)
     
-    while stack:
-        current = stack.pop()
-        
-        if isinstance(current, dict):
-            for k, v in current.items():
-                if k == key:
-                    results.append(v)
-                # Only push dict/list values for further processing
-                if isinstance(v, (dict, list)):
-                    stack.append(v)
-        elif isinstance(current, list):
-            # Iterate in reverse order to maintain original order in results
-            for item in reversed(current):
-                if isinstance(item, (dict, list)):
-                    stack.append(item)
-    
+    search(data, path_prefix)
     return results
 
 
-def find_first(obj: Any, key: str, default: Any = None) -> Any:
+def find_first(
+    data: Any,
+    key: Optional[str] = None,
+    value: Any = None,
+    path_prefix: str = ""
+) -> Optional[JsonPath]:
     """
-    Find the first value with a specific key in a nested structure.
+    在 JSON 中查找第一个匹配的键或值。
     
     Args:
-        obj: The object to search
-        key: The key to find
-        default: The default value if not found
-    
+        data: JSON 数据
+        key: 要查找的键名（可选）
+        value: 要查找的值（可选）
+        path_prefix: 路径前缀
+        
     Returns:
-        The first matching value, or the default
+        匹配的 JsonPath 或 None
+    """
+    def search(obj: Any, path: str) -> Optional[JsonPath]:
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                new_path = f"{path}.{k}" if path else k
+                if key is not None and k == key:
+                    return JsonPath(path=new_path, value=v)
+                if value is not None and v == value:
+                    return JsonPath(path=new_path, value=v)
+                result = search(v, new_path)
+                if result:
+                    return result
+        elif isinstance(obj, list):
+            for i, item in enumerate(obj):
+                new_path = f"{path}[{i}]"
+                if value is not None and item == value:
+                    return JsonPath(path=new_path, value=item)
+                result = search(item, new_path)
+                if result:
+                    return result
+        return None
     
-    Example:
-        >>> data = {'users': [{'name': 'John'}, {'name': 'Jane'}]}
-        >>> find_first(data, 'name')
-        'John'
-    """
-    results = find_all(obj, key)
-    return results[0] if results else default
+    return search(data, path_prefix)
 
 
-def map_values(obj: Dict[str, Any], func: Callable[[Any], Any]) -> Dict[str, Any]:
+def grep_json(
+    data: Any,
+    pattern: str,
+    ignore_case: bool = False,
+    search_keys: bool = True,
+    search_values: bool = True
+) -> List[JsonPath]:
     """
-    Apply a function to all values in a dictionary.
+    使用正则表达式搜索 JSON。
     
     Args:
-        obj: The dictionary to map
-        func: The function to apply to each value
-    
+        data: JSON 数据
+        pattern: 正则表达式模式
+        ignore_case: 是否忽略大小写
+        search_keys: 是否搜索键
+        search_values: 是否搜索值
+        
     Returns:
-        A new dictionary with mapped values
-    
-    Example:
-        >>> data = {'a': 1, 'b': 2}
-        >>> map_values(data, lambda x: x * 2)
-        {'a': 2, 'b': 4}
+        匹配的 JsonPath 列表
     """
-    return {k: func(v) for k, v in obj.items()}
-
-
-def map_keys(obj: Dict[str, Any], func: Callable[[str], str]) -> Dict[str, Any]:
-    """
-    Apply a function to all keys in a dictionary.
+    results = []
+    flags = re.IGNORECASE if ignore_case else 0
+    regex = re.compile(pattern, flags)
     
-    Args:
-        obj: The dictionary to map
-        func: The function to apply to each key
+    def search(obj: Any, path: str):
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                new_path = f"{path}.{k}" if path else k
+                if search_keys and regex.search(k):
+                    results.append(JsonPath(path=new_path, value=v))
+                if search_values and isinstance(v, str) and regex.search(v):
+                    results.append(JsonPath(path=new_path, value=v))
+                if not isinstance(v, str):
+                    search(v, new_path)
+        elif isinstance(obj, list):
+            for i, item in enumerate(obj):
+                new_path = f"{path}[{i}]"
+                if search_values and isinstance(item, str) and regex.search(item):
+                    results.append(JsonPath(path=new_path, value=item))
+                elif not isinstance(item, str):
+                    search(item, new_path)
     
-    Returns:
-        A new dictionary with mapped keys
-    
-    Example:
-        >>> data = {'a': 1, 'b': 2}
-        >>> map_keys(data, lambda k: k.upper())
-        {'A': 1, 'B': 2}
-    """
-    return {func(k): v for k, v in obj.items()}
+    search(data, "")
+    return results
 
 
 # ============================================================================
-# Comparison Functions
+# JSON 过滤和转换
 # ============================================================================
 
-def equals(obj1: Any, obj2: Any) -> bool:
+def filter_json(
+    data: Any,
+    predicate: Callable[[str, Any], bool],
+    path: str = ""
+) -> Any:
     """
-    Deep compare two JSON objects for equality.
+    过滤 JSON 数据，保留满足条件的键值对。
     
     Args:
-        obj1: The first object
-        obj2: The second object
-    
+        data: JSON 数据
+        predicate: 过滤函数 (path, value) -> bool
+        path: 当前路径
+        
     Returns:
-        True if the objects are equal, False otherwise
-    
-    Example:
-        >>> equals({'a': 1}, {'a': 1})
-        True
-        >>> equals({'a': 1}, {'a': 2})
-        False
+        过滤后的数据
     """
-    return obj1 == obj2
+    if isinstance(data, dict):
+        result = {}
+        for k, v in data.items():
+            new_path = f"{path}.{k}" if path else k
+            if predicate(new_path, v):
+                filtered_value = filter_json(v, predicate, new_path)
+                result[k] = filtered_value
+        return result
+    elif isinstance(data, list):
+        result = []
+        for i, item in enumerate(data):
+            new_path = f"{path}[{i}]"
+            if predicate(new_path, item):
+                filtered_item = filter_json(item, predicate, new_path)
+                result.append(filtered_item)
+        return result
+    else:
+        return data
 
 
-def hash_code(obj: Any) -> int:
+def map_json(
+    data: Any,
+    mapper: Callable[[str, Any], Any],
+    path: str = ""
+) -> Any:
     """
-    Generate a hash code for a JSON object.
+    映射转换 JSON 数据中的每个值。
     
     Args:
-        obj: The object to hash
-    
+        data: JSON 数据
+        mapper: 转换函数 (path, value) -> new_value
+        path: 当前路径
+        
     Returns:
-        A hash code for the object
-    
-    Example:
-        >>> hash_code({'a': 1})
-        -123456789  # Some integer hash value
+        转换后的数据
     """
-    return hash(json.dumps(obj, sort_keys=True, separators=(',', ':')))
+    if isinstance(data, dict):
+        result = {}
+        for k, v in data.items():
+            new_path = f"{path}.{k}" if path else k
+            if isinstance(v, (dict, list)):
+                result[k] = map_json(v, mapper, new_path)
+            else:
+                result[k] = mapper(new_path, v)
+        return result
+    elif isinstance(data, list):
+        result = []
+        for i, item in enumerate(data):
+            new_path = f"{path}[{i}]"
+            if isinstance(item, (dict, list)):
+                result.append(map_json(item, mapper, new_path))
+            else:
+                result.append(mapper(new_path, item))
+        return result
+    else:
+        return mapper(path, data)
+
+
+# ============================================================================
+# JSON 差异比较
+# ============================================================================
+
+def diff_json(
+    old_data: Any,
+    new_data: Any,
+    path: str = ""
+) -> List[JsonDiff]:
+    """
+    比较两个 JSON 的差异。
+    
+    Args:
+        old_data: 原始 JSON 数据
+        new_data: 新的 JSON 数据
+        path: 当前路径
+        
+    Returns:
+        差异列表
+    """
+    diffs = []
+    
+    # 类型不同
+    if type(old_data) != type(new_data):
+        diffs.append(JsonDiff(
+            path=path,
+            old_value=old_data,
+            new_value=new_data,
+            change_type='changed'
+        ))
+        return diffs
+    
+    # 字典比较
+    if isinstance(old_data, dict):
+        all_keys = set(old_data.keys()) | set(new_data.keys())
+        for key in all_keys:
+            new_path = f"{path}.{key}" if path else key
+            if key not in old_data:
+                diffs.append(JsonDiff(
+                    path=new_path,
+                    old_value=None,
+                    new_value=new_data[key],
+                    change_type='added'
+                ))
+            elif key not in new_data:
+                diffs.append(JsonDiff(
+                    path=new_path,
+                    old_value=old_data[key],
+                    new_value=None,
+                    change_type='removed'
+                ))
+            else:
+                diffs.extend(diff_json(old_data[key], new_data[key], new_path))
+    
+    # 列表比较
+    elif isinstance(old_data, list):
+        max_len = max(len(old_data), len(new_data))
+        for i in range(max_len):
+            new_path = f"{path}[{i}]"
+            if i >= len(old_data):
+                diffs.append(JsonDiff(
+                    path=new_path,
+                    old_value=None,
+                    new_value=new_data[i],
+                    change_type='added'
+                ))
+            elif i >= len(new_data):
+                diffs.append(JsonDiff(
+                    path=new_path,
+                    old_value=old_data[i],
+                    new_value=None,
+                    change_type='removed'
+                ))
+            else:
+                diffs.extend(diff_json(old_data[i], new_data[i], new_path))
+    
+    # 基本类型比较
+    elif old_data != new_data:
+        diffs.append(JsonDiff(
+            path=path,
+            old_value=old_data,
+            new_value=new_data,
+            change_type='changed'
+        ))
+    
+    return diffs
+
+
+def diff_summary(diffs: List[JsonDiff]) -> Dict[str, int]:
+    """
+    生成差异摘要统计。
+    
+    Args:
+        diffs: 差异列表
+        
+    Returns:
+        统计字典
+    """
+    summary = {'added': 0, 'removed': 0, 'changed': 0}
+    for diff in diffs:
+        summary[diff.change_type] = summary.get(diff.change_type, 0) + 1
+    return summary
+
+
+# ============================================================================
+# JSON 合并
+# ============================================================================
+
+def merge_json(
+    base: Dict[str, Any],
+    *overlays: Dict[str, Any],
+    deep: bool = True,
+    arrays: str = 'replace'  # 'replace', 'concat', 'merge'
+) -> Dict[str, Any]:
+    """
+    合并多个 JSON 对象。
+    
+    Args:
+        base: 基础对象
+        overlays: 要覆盖的对象
+        deep: 是否深度合并
+        arrays: 数组合并策略
+        
+    Returns:
+        合并后的对象
+    """
+    result = deepcopy(base)
+    
+    for overlay in overlays:
+        result = _merge_two(result, overlay, deep, arrays)
+    
+    return result
+
+
+def _merge_two(
+    base: Dict[str, Any],
+    overlay: Dict[str, Any],
+    deep: bool,
+    arrays: str
+) -> Dict[str, Any]:
+    """合并两个对象"""
+    result = deepcopy(base)
+    
+    for key, value in overlay.items():
+        if key in result and deep:
+            base_value = result[key]
+            
+            if isinstance(base_value, dict) and isinstance(value, dict):
+                result[key] = _merge_two(base_value, value, deep, arrays)
+            elif isinstance(base_value, list) and isinstance(value, list):
+                if arrays == 'concat':
+                    result[key] = base_value + value
+                elif arrays == 'merge':
+                    max_len = max(len(base_value), len(value))
+                    merged = []
+                    for i in range(max_len):
+                        if i < len(base_value) and i < len(value):
+                            if isinstance(base_value[i], dict) and isinstance(value[i], dict):
+                                merged.append(_merge_two(base_value[i], value[i], deep, arrays))
+                            else:
+                                merged.append(value[i])
+                        elif i < len(value):
+                            merged.append(value[i])
+                        else:
+                            merged.append(base_value[i])
+                    result[key] = merged
+                else:  # replace
+                    result[key] = deepcopy(value)
+            else:
+                result[key] = deepcopy(value)
+        else:
+            result[key] = deepcopy(value)
+    
+    return result
+
+
+# ============================================================================
+# JSON 统计
+# ============================================================================
+
+def json_stats(data: Any) -> Dict[str, Any]:
+    """
+    统计 JSON 数据的信息。
+    
+    Args:
+        data: JSON 数据
+        
+    Returns:
+        统计信息字典
+    """
+    stats = {
+        'total_keys': 0,
+        'total_values': 0,
+        'max_depth': 0,
+        'types': {t.value: 0 for t in JsonType},
+        'size_bytes': len(json.dumps(data, ensure_ascii=False).encode('utf-8'))
+    }
+    
+    def count(obj: Any, depth: int):
+        stats['max_depth'] = max(stats['max_depth'], depth)
+        stats['types'][get_json_type(obj).value] += 1
+        
+        if isinstance(obj, dict):
+            stats['total_keys'] += len(obj)
+            stats['total_values'] += len(obj)
+            for v in obj.values():
+                count(v, depth + 1)
+        elif isinstance(obj, list):
+            stats['total_values'] += len(obj)
+            for item in obj:
+                count(item, depth + 1)
+    
+    count(data, 1)
+    return stats
+
+
+# ============================================================================
+# JSON 提取和选择
+# ============================================================================
+
+def select_keys(data: Dict[str, Any], keys: List[str]) -> Dict[str, Any]:
+    """
+    从 JSON 对象中选择指定的键。
+    
+    Args:
+        data: JSON 对象
+        keys: 要选择的键列表
+        
+    Returns:
+        只包含指定键的新对象
+    """
+    return {k: deepcopy(v) for k, v in data.items() if k in keys}
+
+
+def omit_keys(data: Dict[str, Any], keys: List[str]) -> Dict[str, Any]:
+    """
+    从 JSON 对象中排除指定的键。
+    
+    Args:
+        data: JSON 对象
+        keys: 要排除的键列表
+        
+    Returns:
+        不包含指定键的新对象
+    """
+    return {k: deepcopy(v) for k, v in data.items() if k not in keys}
+
+
+def pick_path(data: Any, paths: List[str]) -> Dict[str, Any]:
+    """
+    选择多个路径的值。
+    
+    Args:
+        data: JSON 数据
+        paths: 路径列表
+        
+    Returns:
+        路径到值的映射
+    """
+    return {path: get_value(data, path) for path in paths}
+
+
+# ============================================================================
+# JSON 遍历
+# ============================================================================
+
+def walk_json(data: Any) -> Iterator[Tuple[str, Any]]:
+    """
+    遍历 JSON 中的所有值。
+    
+    Args:
+        data: JSON 数据
+        
+    Yields:
+        (path, value) 元组
+    """
+    def walk(obj: Any, path: str):
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                new_path = f"{path}.{k}" if path else k
+                yield new_path, v
+                yield from walk(v, new_path)
+        elif isinstance(obj, list):
+            for i, item in enumerate(obj):
+                new_path = f"{path}[{i}]"
+                yield new_path, item
+                yield from walk(item, new_path)
+    
+    yield from walk(data, "")
+
+
+def get_all_paths(data: Any) -> List[str]:
+    """
+    获取 JSON 中所有路径列表。
+    
+    Args:
+        data: JSON 数据
+        
+    Returns:
+        路径列表
+    """
+    return [path for path, _ in walk_json(data)]
+
+
+def get_all_values(data: Any) -> List[Any]:
+    """
+    获取 JSON 中所有值列表。
+    
+    Args:
+        data: JSON 数据
+        
+    Returns:
+        值列表
+    """
+    return [value for _, value in walk_json(data)]
+
+
+# ============================================================================
+# JSON 克隆和深拷贝
+# ============================================================================
+
+def deep_clone(data: Any) -> Any:
+    """
+    深度克隆 JSON 数据。
+    
+    Args:
+        data: JSON 数据
+        
+    Returns:
+        克隆后的数据
+    """
+    return deepcopy(data)
+
+
+def deep_equals(a: Any, b: Any) -> bool:
+    """
+    深度比较两个 JSON 值是否相等。
+    
+    Args:
+        a: 第一个值
+        b: 第二个值
+        
+    Returns:
+        是否相等
+    """
+    if type(a) != type(b):
+        return False
+    
+    if isinstance(a, dict):
+        if set(a.keys()) != set(b.keys()):
+            return False
+        return all(deep_equals(a[k], b[k]) for k in a)
+    elif isinstance(a, list):
+        if len(a) != len(b):
+            return False
+        return all(deep_equals(x, y) for x, y in zip(a, b))
+    else:
+        return a == b
+
+
+# ============================================================================
+# JSON 安全操作
+# ============================================================================
+
+def safe_get(data: Any, *keys, default: Any = None) -> Any:
+    """
+    安全获取嵌套值，避免 KeyError/IndexError。
+    
+    Args:
+        data: JSON 数据
+        *keys: 键序列
+        default: 默认值
+        
+    Returns:
+        找到的值或默认值
+    """
+    current = data
+    for key in keys:
+        try:
+            current = current[key]
+        except (KeyError, IndexError, TypeError):
+            return default
+    return current
+
+
+def safe_string(json_string: str) -> Tuple[bool, Any]:
+    """
+    安全解析 JSON 字符串。
+    
+    Args:
+        json_string: JSON 字符串
+        
+    Returns:
+        (是否成功, 数据或错误消息)
+    """
+    try:
+        data = json.loads(json_string)
+        return True, data
+    except json.JSONDecodeError as e:
+        return False, f"JSON 解析错误: {e.msg} (行 {e.lineno}, 列 {e.colno})"
+
+
+# ============================================================================
+# JsonUtils 类 - 面向对象接口
+# ============================================================================
+
+class JsonUtils:
+    """
+    JSON 工具类，提供面向对象的接口。
+    
+    使用示例:
+        jutil = JsonUtils(data)
+        value = jutil.get('a.b.c')
+        jutil.set('a.b.d', 'new value')
+        flat = jutil.flatten()
+    """
+    
+    def __init__(self, data: Any = None):
+        """初始化"""
+        self._data = data if data is not None else {}
+    
+    @property
+    def data(self) -> Any:
+        """获取数据"""
+        return self._data
+    
+    @data.setter
+    def data(self, value: Any):
+        """设置数据"""
+        self._data = value
+    
+    @classmethod
+    def from_string(cls, json_string: str) -> 'JsonUtils':
+        """从 JSON 字符串创建"""
+        return cls(json.loads(json_string))
+    
+    @classmethod
+    def from_file(cls, filepath: str, encoding: str = 'utf-8') -> 'JsonUtils':
+        """从文件创建"""
+        with open(filepath, 'r', encoding=encoding) as f:
+            return cls(json.load(f))
+    
+    def to_string(self, indent: int = 2, ensure_ascii: bool = False) -> str:
+        """转换为 JSON 字符串"""
+        return format_json(self._data, indent=indent, ensure_ascii=ensure_ascii)
+    
+    def to_file(self, filepath: str, indent: int = 2, encoding: str = 'utf-8'):
+        """保存到文件"""
+        with open(filepath, 'w', encoding=encoding) as f:
+            json.dump(self._data, f, indent=indent, ensure_ascii=False)
+    
+    def get(self, path: str, default: Any = None) -> Any:
+        """获取路径值"""
+        return get_value(self._data, path, default)
+    
+    def set(self, path: str, value: Any) -> 'JsonUtils':
+        """设置路径值"""
+        set_value(self._data, path, value)
+        return self
+    
+    def has(self, path: str) -> bool:
+        """检查路径是否存在"""
+        return has_path(self._data, path)
+    
+    def delete(self, path: str) -> bool:
+        """删除路径值"""
+        return delete_value(self._data, path)
+    
+    def find(self, key: str = None, value: Any = None) -> List[JsonPath]:
+        """查找键或值"""
+        return find_all(self._data, key, value)
+    
+    def grep(self, pattern: str, ignore_case: bool = False) -> List[JsonPath]:
+        """正则搜索"""
+        return grep_json(self._data, pattern, ignore_case)
+    
+    def flatten(self, separator: str = '.') -> Dict[str, Any]:
+        """展平"""
+        return flatten_json(self._data, separator) if isinstance(self._data, dict) else {}
+    
+    def diff(self, other: Any) -> List[JsonDiff]:
+        """比较差异"""
+        return diff_json(self._data, other)
+    
+    def merge(self, *others: Dict[str, Any], deep: bool = True) -> 'JsonUtils':
+        """合并"""
+        self._data = merge_json(self._data, *others, deep=deep)
+        return self
+    
+    def stats(self) -> Dict[str, Any]:
+        """统计信息"""
+        return json_stats(self._data)
+    
+    def walk(self) -> Iterator[Tuple[str, Any]]:
+        """遍历"""
+        return walk_json(self._data)
+    
+    def paths(self) -> List[str]:
+        """所有路径"""
+        return get_all_paths(self._data)
+    
+    def clone(self) -> 'JsonUtils':
+        """克隆"""
+        return JsonUtils(deep_clone(self._data))
+    
+    def __repr__(self):
+        return f"JsonUtils({self.to_string()[:100]}...)"
+    
+    def __str__(self):
+        return self.to_string()
+
+
+# ============================================================================
+# 便捷函数
+# ============================================================================
+
+def loads(json_string: str, default: Any = None) -> Any:
+    """
+    安全的 JSON 解析，失败返回默认值。
+    
+    Args:
+        json_string: JSON 字符串
+        default: 默认值
+        
+    Returns:
+        解析后的数据或默认值
+    """
+    try:
+        return json.loads(json_string)
+    except json.JSONDecodeError:
+        return default
+
+
+def dumps(data: Any, indent: int = 2, ensure_ascii: bool = False) -> str:
+    """
+    格式化 JSON 数据为字符串。
+    
+    Args:
+        data: JSON 数据
+        indent: 缩进空格数
+        ensure_ascii: 是否转义非 ASCII 字符
+        
+    Returns:
+        JSON 字符串
+    """
+    return json.dumps(data, indent=indent, ensure_ascii=ensure_ascii)
+
+
+def load_file(filepath: str, encoding: str = 'utf-8', default: Any = None) -> Any:
+    """
+    从文件加载 JSON。
+    
+    Args:
+        filepath: 文件路径
+        encoding: 文件编码
+        default: 默认值
+        
+    Returns:
+        解析后的数据或默认值
+    """
+    try:
+        with open(filepath, 'r', encoding=encoding) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return default
+
+
+def save_file(
+    data: Any,
+    filepath: str,
+    indent: int = 2,
+    encoding: str = 'utf-8',
+    ensure_ascii: bool = False
+) -> bool:
+    """
+    保存 JSON 到文件。
+    
+    Args:
+        data: JSON 数据
+        filepath: 文件路径
+        indent: 缩进空格数
+        encoding: 文件编码
+        ensure_ascii: 是否转义非 ASCII 字符
+        
+    Returns:
+        是否成功
+    """
+    try:
+        with open(filepath, 'w', encoding=encoding) as f:
+            json.dump(data, f, indent=indent, ensure_ascii=ensure_ascii)
+        return True
+    except (IOError, TypeError):
+        return False
