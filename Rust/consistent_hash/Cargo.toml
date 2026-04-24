@@ -1,0 +1,13 @@
+[package]
+name = "consistent_hash"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "Consistent hashing implementation with zero external dependencies for distributed systems"
+license = "MIT"
+keywords = ["consistent-hashing", "distributed", "load-balancing", "hash-ring", "sharding"]
+categories = ["algorithms", "data-structures", "network-programming"]
+
+[dependencies]
+
+[dev-dependencies]
