@@ -168,6 +168,7 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ### 最近新增测试
 
+- **Python geo_distance_utils**: 132 个测试用例，覆盖 Haversine/Vincenty 距离计算、方位角、中点、目的地、边界框、多边形检测、路径操作、DMS 格式转换、单位转换、批量操作、边界值（极点、日期变更线、零距离、对称性）等 🌍
 - **Python otp_utils**: 新增 35+ 边界值测试，覆盖 TOTP/HOTP 生成、Base32 编解码、URI 构建、恢复码、空数据、极端参数等 🔐
 - **Python fractions_utils**: 143 个测试用例，覆盖分数运算、类型转换、GCD/LCM、序列生成、边界值（零、负数、大数）等 📊
 - **Python env_utils**: 65 个测试用例，覆盖环境变量操作、.env 文件、验证、快照、敏感数据脱敏等 ⚙️
@@ -250,9 +251,10 @@ perl Perl/csv_utils/csv_utils_test.pl
 | chess_utils | Python | 30+ | ✅ 100% |
 | base58_utils | Python | 10 | ✅ 100% |
 | text_wrap_utils | Python | 22 | ✅ 100% |
+| geo_distance_utils | Python | 132 | ✅ 100% |
 
-**总计**: Python 174 模块，181 测试文件，3000+ 测试用例，100% 通过率 ✅
+**总计**: Python 174 模块，182 测试文件，3100+ 测试用例，100% 通过率 ✅
 
 ---
 
-**最后更新**: 2026-04-24
+**最后更新**: 2026-04-26
