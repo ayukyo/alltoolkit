@@ -1,668 +1,489 @@
 """
-MIME 类型处理工具模块
+MIME 类型工具模块
+================
 
-提供 MIME 类型的查询、转换和判断功能。
-零外部依赖，纯 Python 标准库实现。
+提供 MIME 类型的查询、检测和判断功能。
+零外部依赖，纯 Python 实现。
 
 功能：
 - 根据文件扩展名获取 MIME 类型
 - 根据 MIME 类型获取文件扩展名
-- 判断 MIME 类型类别（图片、视频、音频、文档等）
-- 解析和生成 Content-Type 头
-- 生成 Content-Disposition 头
+- 判断文件类型（图片、视频、音频、文档、压缩包等）
+- 通过魔数（Magic Bytes）检测文件真实 MIME 类型
+- 生成安全的 Content-Disposition 头
 """
 
-import mimetypes
-from typing import Optional, Tuple, List, Dict, Set
-from urllib.parse import quote
+import struct
+from typing import Optional, Tuple, List, Dict, Set, BinaryIO
 
 
-# 初始化 mimetypes
-mimetypes.init()
+# ==================== MIME 类型映射表 ====================
 
-# 扩展 MIME 类型映射（补充标准库不包含的类型）
-EXTENDED_MIME_TYPES: Dict[str, str] = {
-    # 文档类型
-    '.md': 'text/markdown',
-    '.markdown': 'text/markdown',
-    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    '.doc': 'application/msword',
-    '.xls': 'application/vnd.ms-excel',
-    '.ppt': 'application/vnd.ms-powerpoint',
+# 扩展名 -> MIME 类型
+EXTENSION_TO_MIME: Dict[str, str] = {
+    # 图片
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+    '.svg': 'image/svg+xml',
+    '.ico': 'image/x-icon',
+    '.bmp': 'image/bmp',
+    '.tiff': 'image/tiff',
+    '.tif': 'image/tiff',
+    '.heic': 'image/heic',
+    '.heif': 'image/heif',
+    '.avif': 'image/avif',
     
-    # 压缩文件
-    '.7z': 'application/x-7z-compressed',
-    '.rar': 'application/vnd.rar',
-    '.tar': 'application/x-tar',
-    '.gz': 'application/gzip',
-    '.bz2': 'application/x-bzip2',
-    '.xz': 'application/x-xz',
-    
-    # 音频类型
-    '.m4a': 'audio/mp4',
-    '.aac': 'audio/aac',
-    '.flac': 'audio/flac',
-    '.wma': 'audio/x-ms-wma',
-    '.ogg': 'audio/ogg',
-    '.opus': 'audio/opus',
-    
-    # 视频类型
-    '.mkv': 'video/x-matroska',
+    # 视频
+    '.mp4': 'video/mp4',
+    '.mpeg': 'video/mpeg',
+    '.mpg': 'video/mpeg',
     '.avi': 'video/x-msvideo',
     '.mov': 'video/quicktime',
     '.wmv': 'video/x-ms-wmv',
     '.flv': 'video/x-flv',
     '.webm': 'video/webm',
+    '.mkv': 'video/x-matroska',
+    '.3gp': 'video/3gpp',
+    '.ts': 'video/mp2t',
     
-    # 字体类型
-    '.woff': 'font/woff',
-    '.woff2': 'font/woff2',
-    '.ttf': 'font/ttf',
-    '.otf': 'font/otf',
-    '.eot': 'application/vnd.ms-fontobject',
+    # 音频
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.ogg': 'audio/ogg',
+    '.flac': 'audio/flac',
+    '.aac': 'audio/aac',
+    '.m4a': 'audio/mp4',
+    '.wma': 'audio/x-ms-wma',
+    '.aiff': 'audio/aiff',
+    '.opus': 'audio/opus',
     
-    # 代码文件
-    '.js': 'application/javascript',
-    '.mjs': 'application/javascript',
-    '.ts': 'application/typescript',
-    '.jsx': 'text/jsx',
-    '.tsx': 'text/tsx',
-    '.vue': 'text/x-vue',
+    # 文档
+    '.pdf': 'application/pdf',
+    '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.xls': 'application/vnd.ms-excel',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.ppt': 'application/vnd.ms-powerpoint',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.odt': 'application/vnd.oasis.opendocument.text',
+    '.ods': 'application/vnd.oasis.opendocument.spreadsheet',
+    '.odp': 'application/vnd.oasis.opendocument.presentation',
+    '.rtf': 'application/rtf',
+    
+    # 文本
+    '.txt': 'text/plain',
+    '.html': 'text/html',
+    '.htm': 'text/html',
+    '.css': 'text/css',
+    '.js': 'text/javascript',
+    '.json': 'application/json',
+    '.xml': 'application/xml',
+    '.yaml': 'application/x-yaml',
+    '.yml': 'application/x-yaml',
+    '.csv': 'text/csv',
+    '.md': 'text/markdown',
+    
+    # 压缩包
+    '.zip': 'application/zip',
+    '.tar': 'application/x-tar',
+    '.gz': 'application/gzip',
+    '.bz2': 'application/x-bzip2',
+    '.7z': 'application/x-7z-compressed',
+    '.rar': 'application/vnd.rar',
+    
+    # 代码
     '.py': 'text/x-python',
-    '.rb': 'text/x-ruby',
-    '.go': 'text/x-go',
-    '.rs': 'text/x-rust',
-    '.java': 'text/x-java',
-    '.kt': 'text/x-kotlin',
-    '.swift': 'text/x-swift',
+    '.java': 'text/x-java-source',
     '.c': 'text/x-c',
     '.cpp': 'text/x-c++',
     '.h': 'text/x-c',
     '.hpp': 'text/x-c++',
     '.cs': 'text/x-csharp',
+    '.go': 'text/x-go',
+    '.rs': 'text/x-rust',
+    '.rb': 'text/x-ruby',
     '.php': 'text/x-php',
     '.sh': 'text/x-shellscript',
     '.bash': 'text/x-shellscript',
-    '.zsh': 'text/x-shellscript',
-    '.ps1': 'text/x-powershell',
-    '.lua': 'text/x-lua',
-    '.r': 'text/x-r',
-    '.sql': 'application/sql',
+    '.swift': 'text/x-swift',
+    '.kt': 'text/x-kotlin',
     
-    # 配置文件
-    '.json': 'application/json',
-    '.yaml': 'application/x-yaml',
-    '.yml': 'application/x-yaml',
-    '.toml': 'application/toml',
-    '.ini': 'text/plain',
-    '.conf': 'text/plain',
-    '.env': 'text/plain',
+    # 可执行文件
+    '.exe': 'application/x-msdownload',
+    '.dll': 'application/x-msdownload',
+    '.so': 'application/x-sharedlib',
+    '.dylib': 'application/x-mach-binary',
+    '.app': 'application/octet-stream',
+    '.dmg': 'application/x-apple-diskimage',
+    '.deb': 'application/vnd.debian.binary-package',
+    '.rpm': 'application/x-rpm',
     
-    # 数据文件
-    '.csv': 'text/csv',
-    '.xml': 'application/xml',
-    '.svg': 'image/svg+xml',
+    # 字体
+    '.ttf': 'font/ttf',
+    '.otf': 'font/otf',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+    '.eot': 'application/vnd.ms-fontobject',
     
     # 其他
-    '.wasm': 'application/wasm',
-    '.webmanifest': 'application/manifest+json',
-    '.map': 'application/json',
-    '.ics': 'text/calendar',
-    '.vcf': 'text/vcard',
-    '.epub': 'application/epub+zip',
-    '.mobi': 'application/x-mobipocket-ebook',
-    '.torrent': 'application/x-bittorrent',
-    '.dmg': 'application/x-apple-diskimage',
+    '.bin': 'application/octet-stream',
+    '.dat': 'application/octet-stream',
     '.iso': 'application/x-iso9660-image',
+    '.dmg': 'application/x-apple-diskimage',
     '.apk': 'application/vnd.android.package-archive',
     '.ipa': 'application/octet-stream',
 }
 
-# MIME 类型到扩展名的反向映射（手动指定优先顺序）
-MIME_TO_EXTENSIONS: Dict[str, List[str]] = {
-    # 图片类型（常见扩展名优先）
-    'image/jpeg': ['.jpeg', '.jpg', '.jpe'],
-    'image/png': ['.png'],
-    'image/gif': ['.gif'],
-    'image/webp': ['.webp'],
-    'image/svg+xml': ['.svg', '.svgz'],
-    'image/bmp': ['.bmp'],
-    'image/tiff': ['.tiff', '.tif'],
-    'image/x-icon': ['.ico'],
-    
-    # 文档类型
-    'application/pdf': ['.pdf'],
-    'application/json': ['.json'],
-    'text/markdown': ['.md', '.markdown'],
-    'text/plain': ['.txt'],
-    'text/html': ['.html', '.htm'],
-    'text/css': ['.css'],
-    'text/csv': ['.csv'],
-    'application/xml': ['.xml'],
-    'application/rtf': ['.rtf'],
-    
-    # Office 文档
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
-    'application/msword': ['.doc'],
-    'application/vnd.ms-excel': ['.xls'],
-    'application/vnd.ms-powerpoint': ['.ppt'],
-    
-    # 音频类型
-    'audio/mpeg': ['.mp3', '.mpeg'],
-    'audio/mp4': ['.m4a', '.mp4a'],
-    'audio/wav': ['.wav'],
-    'audio/flac': ['.flac'],
-    'audio/ogg': ['.ogg'],
-    'audio/aac': ['.aac'],
-    
-    # 视频类型
-    'video/mp4': ['.mp4', '.m4v'],
-    'video/webm': ['.webm'],
-    'video/x-matroska': ['.mkv'],
-    'video/quicktime': ['.mov'],
-    'video/x-msvideo': ['.avi'],
-    'video/x-ms-wmv': ['.wmv'],
-    'video/mpeg': ['.mpeg', '.mpg'],
-    
-    # 压缩文件
-    'application/zip': ['.zip'],
-    'application/x-7z-compressed': ['.7z'],
-    'application/vnd.rar': ['.rar'],
-    'application/x-tar': ['.tar'],
-    'application/gzip': ['.gz'],
-    'application/x-bzip2': ['.bz2'],
-    'application/x-xz': ['.xz'],
-    
-    # 代码文件
-    'application/javascript': ['.js', '.mjs'],
-    'application/typescript': ['.ts'],
-    'text/x-python': ['.py'],
-    'text/x-java': ['.java'],
-    'text/x-c': ['.c', '.h'],
-    'text/x-c++': ['.cpp', '.hpp'],
-    'text/x-csharp': ['.cs'],
-    'text/x-go': ['.go'],
-    'text/x-rust': ['.rs'],
-    'text/x-ruby': ['.rb'],
-    'text/x-php': ['.php'],
-    'text/x-shellscript': ['.sh', '.bash'],
-    'application/sql': ['.sql'],
-    
-    # 配置文件
-    'application/x-yaml': ['.yaml', '.yml'],
-    'application/toml': ['.toml'],
-    
-    # 字体
-    'font/woff': ['.woff'],
-    'font/woff2': ['.woff2'],
-    'font/ttf': ['.ttf'],
-    'font/otf': ['.otf'],
-}
-
-# 补充其他映射
-for ext, mime in EXTENDED_MIME_TYPES.items():
+# MIME 类型 -> 扩展名（优先扩展名在前）
+MIME_TO_EXTENSIONS: Dict[str, List[str]] = {}
+for ext, mime in EXTENSION_TO_MIME.items():
     if mime not in MIME_TO_EXTENSIONS:
         MIME_TO_EXTENSIONS[mime] = []
-    if ext not in MIME_TO_EXTENSIONS[mime]:
-        MIME_TO_EXTENSIONS[mime].append(ext)
+    MIME_TO_EXTENSIONS[mime].append(ext)
 
-# MIME 类别分组
+# 按 MIME 类型分类
 MIME_CATEGORIES: Dict[str, Set[str]] = {
     'image': {
         'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
-        'image/bmp', 'image/tiff', 'image/x-icon', 'image/ico', 'image/avif',
-        'image/heic', 'image/heif', 'image/jxl'
+        'image/x-icon', 'image/bmp', 'image/tiff', 'image/heic', 'image/heif', 'image/avif'
     },
     'video': {
-        'video/mp4', 'video/mpeg', 'video/quicktime', 'video/x-msvideo',
+        'video/mp4', 'video/mpeg', 'video/x-msvideo', 'video/quicktime',
         'video/x-ms-wmv', 'video/x-flv', 'video/webm', 'video/x-matroska',
-        'video/3gpp', 'video/3gpp2', 'video/mp2t'
+        'video/3gpp', 'video/mp2t'
     },
     'audio': {
-        'audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/aac', 'audio/flac',
-        'audio/wav', 'audio/x-wav', 'audio/ogg', 'audio/opus', 'audio/vorbis',
-        'audio/x-ms-wma', 'audio/midi', 'audio/x-midi'
+        'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/flac', 'audio/aac',
+        'audio/mp4', 'audio/x-ms-wma', 'audio/aiff', 'audio/opus'
     },
     'document': {
         'application/pdf', 'application/msword',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-powerpoint',
         'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        'application/vnd.ms-excel', 'application/vnd.ms-powerpoint',
-        'application/rtf', 'text/rtf', 'application/epub+zip',
-        'application/x-mobipocket-ebook'
+        'application/vnd.oasis.opendocument.text',
+        'application/vnd.oasis.opendocument.spreadsheet',
+        'application/vnd.oasis.opendocument.presentation',
+        'application/rtf'
     },
     'text': {
-        'text/plain', 'text/html', 'text/css', 'text/csv', 'text/xml',
-        'text/javascript', 'text/markdown', 'text/calendar', 'text/vcard',
-        'application/javascript', 'application/json', 'application/xml',
-        'application/x-yaml', 'application/toml', 'application/sql'
+        'text/plain', 'text/html', 'text/css', 'text/javascript', 'text/csv',
+        'text/markdown', 'text/xml', 'application/json', 'application/xml',
+        'application/x-yaml'
     },
     'archive': {
-        'application/zip', 'application/x-zip-compressed',
-        'application/x-rar-compressed', 'application/vnd.rar',
-        'application/x-7z-compressed', 'application/x-tar',
-        'application/gzip', 'application/x-bzip2', 'application/x-xz',
-        'application/x-compress'
+        'application/zip', 'application/x-tar', 'application/gzip',
+        'application/x-bzip2', 'application/x-7z-compressed', 'application/vnd.rar'
     },
     'code': {
-        'application/javascript', 'application/typescript', 'application/sql',
-        'text/x-python', 'text/x-ruby', 'text/x-go', 'text/x-rust',
-        'text/x-java', 'text/x-kotlin', 'text/x-swift', 'text/x-c',
-        'text/x-c++', 'text/x-csharp', 'text/x-php', 'text/x-shellscript',
-        'text/x-powershell', 'text/x-lua', 'text/x-r', 'text/jsx', 'text/tsx',
-        'text/x-vue'
+        'text/x-python', 'text/x-java-source', 'text/x-c', 'text/x-c++',
+        'text/x-csharp', 'text/x-go', 'text/x-rust', 'text/x-ruby',
+        'text/x-php', 'text/x-shellscript', 'text/x-swift', 'text/x-kotlin'
     },
-    'binary': {
-        'application/octet-stream', 'application/wasm',
+    'executable': {
+        'application/x-msdownload', 'application/x-sharedlib',
+        'application/x-mach-binary', 'application/octet-stream',
         'application/vnd.android.package-archive'
+    },
+    'font': {
+        'font/ttf', 'font/otf', 'font/woff', 'font/woff2',
+        'application/vnd.ms-fontobject'
     }
 }
 
+# 魔数签名表（前几字节 -> MIME 类型）
+MAGIC_SIGNATURES: List[Tuple[bytes, str, int]] = [
+    # 图片
+    (b'\xff\xd8\xff', 'image/jpeg', 3),
+    (b'\x89PNG\r\n\x1a\n', 'image/png', 8),
+    (b'GIF87a', 'image/gif', 6),
+    (b'GIF89a', 'image/gif', 6),
+    (b'RIFF', 'image/webp', 4),  # 需要进一步检查
+    (b'\x00\x00\x01\x00', 'image/x-icon', 4),
+    (b'BM', 'image/bmp', 2),
+    (b'II*\x00', 'image/tiff', 4),  # Little-endian TIFF
+    (b'MM\x00*', 'image/tiff', 4),  # Big-endian TIFF
+    
+    # 视频
+    (b'\x00\x00\x00\x1cftypisom', 'video/mp4', 12),
+    (b'\x00\x00\x00\x20ftypisom', 'video/mp4', 12),
+    (b'\x00\x00\x00\x18ftypmp42', 'video/mp4', 12),
+    (b'ftyp', 'video/mp4', 4),  # MP4 容器
+    (b'\x1aE\xdf\xa3', 'video/webm', 4),  # WebM/MKV
+    (b'RIFF', 'video/avi', 4),  # AVI 也用 RIFF
+    (b'\x00\x00\x01\xba', 'video/mpeg', 4),
+    (b'FLV\x01', 'video/x-flv', 4),
+    
+    # 音频
+    (b'ID3', 'audio/mpeg', 3),  # MP3 with ID3 tag
+    (b'\xff\xfb', 'audio/mpeg', 2),  # MP3 frame sync
+    (b'\xff\xfa', 'audio/mpeg', 2),  # MP3 frame sync
+    (b'\xff\xf3', 'audio/mpeg', 2),  # MP3 frame sync
+    (b'\xff\xf2', 'audio/mpeg', 2),  # MP3 frame sync
+    (b'RIFF', 'audio/wav', 4),  # WAV 也用 RIFF
+    (b'OggS', 'audio/ogg', 4),
+    (b'fLaC', 'audio/flac', 4),
+    
+    # 文档
+    (b'%PDF', 'application/pdf', 4),
+    (b'PK\x03\x04', 'application/zip', 4),  # ZIP (也用于 docx, xlsx 等)
+    (b'\x50\x4b\x03\x04', 'application/zip', 4),
+    
+    # 压缩包
+    (b'\x1f\x8b', 'application/gzip', 2),
+    (b'BZ', 'application/x-bzip2', 2),
+    (b'7z\xbc\xaf\x27\x1c', 'application/x-7z-compressed', 6),
+    (b'Rar!\x1a\x07', 'application/vnd.rar', 7),
+    
+    # 可执行文件
+    (b'MZ', 'application/x-msdownload', 2),  # Windows PE
+    (b'\x7fELF', 'application/x-sharedlib', 4),  # Linux ELF
+    (b'\xca\xfe\xba\xbe', 'application/x-mach-binary', 4),  # macOS Mach-O
+    (b'\xcf\xfa\xed\xfe', 'application/x-mach-binary', 4),  # macOS Mach-O 64-bit
+    
+    # 其他
+    (b'\x00\x00\x00', 'video/quicktime', 3),  # MOV 可能以此开头
+]
 
-def get_mime_type(filename_or_ext: str, default: str = 'application/octet-stream') -> str:
+
+# ==================== 核心函数 ====================
+
+def get_mime_type(extension: str, default: str = 'application/octet-stream') -> str:
     """
-    根据文件名或扩展名获取 MIME 类型
+    根据文件扩展名获取 MIME 类型
     
     Args:
-        filename_or_ext: 文件名或扩展名（带或不带点）
-        default: 未找到时的默认返回值
-        
+        extension: 文件扩展名（可以带或不带点）
+        default: 未找到时的默认值
+    
     Returns:
         MIME 类型字符串
-        
+    
     Examples:
-        >>> get_mime_type('image.png')
-        'image/png'
         >>> get_mime_type('.jpg')
         'image/jpeg'
-        >>> get_mime_type('document')
-        'application/octet-stream'
+        >>> get_mime_type('png')
+        'image/png'
+        >>> get_mime_type('.unknown', 'text/plain')
+        'text/plain'
     """
-    # 提取扩展名
-    if '.' not in filename_or_ext:
-        ext = '.' + filename_or_ext if not filename_or_ext.startswith('.') else filename_or_ext
-    else:
-        ext = '.' + filename_or_ext.rsplit('.', 1)[-1]
-    
-    ext = ext.lower()
-    
-    # 先查扩展映射
-    if ext in EXTENDED_MIME_TYPES:
-        return EXTENDED_MIME_TYPES[ext]
-    
-    # 再查标准库
-    mime_type, _ = mimetypes.guess_type(f'file{ext}')
-    
-    return mime_type if mime_type else default
-
-
-def get_extension(mime_type: str, default: str = '.bin') -> str:
-    """
-    根据 MIME 类型获取主要文件扩展名
-    
-    Args:
-        mime_type: MIME 类型字符串
-        default: 未找到时的默认返回值
-        
-    Returns:
-        文件扩展名（带点）
-        
-    Examples:
-        >>> get_extension('image/png')
-        '.png'
-        >>> get_extension('application/json')
-        '.json'
-    """
-    mime_type = mime_type.lower().split(';')[0].strip()
-    
-    # 先查扩展映射
-    if mime_type in MIME_TO_EXTENSIONS:
-        return MIME_TO_EXTENSIONS[mime_type][0]
-    
-    # 查标准库
-    ext = mimetypes.guess_extension(mime_type)
-    
-    return ext if ext else default
+    ext = extension.lower()
+    if not ext.startswith('.'):
+        ext = '.' + ext
+    return EXTENSION_TO_MIME.get(ext, default)
 
 
 def get_extensions(mime_type: str) -> List[str]:
     """
-    根据 MIME 类型获取所有可能的文件扩展名
+    根据 MIME 类型获取文件扩展名列表
     
     Args:
         mime_type: MIME 类型字符串
-        
+    
     Returns:
-        文件扩展名列表（带点）
-        
+        扩展名列表，未找到返回空列表
+    
     Examples:
         >>> get_extensions('image/jpeg')
-        ['.jpeg', '.jpg', '.jpe']
+        ['.jpg', '.jpeg']
+        >>> get_extensions('video/mp4')
+        ['.mp4']
+        >>> get_extensions('unknown/type')
+        []
     """
-    mime_type = mime_type.lower().split(';')[0].strip()
-    
-    extensions = []
-    
-    # 查扩展映射
-    if mime_type in MIME_TO_EXTENSIONS:
-        extensions.extend(MIME_TO_EXTENSIONS[mime_type])
-    
-    # 查标准库
-    std_exts = mimetypes.guess_all_extensions(mime_type)
-    for ext in std_exts:
-        if ext not in extensions:
-            extensions.append(ext)
-    
-    return extensions
+    mime = mime_type.lower()
+    return MIME_TO_EXTENSIONS.get(mime, []).copy()
 
 
-def is_category(mime_type: str, category: str) -> bool:
+def get_primary_extension(mime_type: str, default: str = '.bin') -> str:
     """
-    判断 MIME 类型是否属于某类别
+    根据 MIME 类型获取首选扩展名
     
     Args:
         mime_type: MIME 类型字符串
-        category: 类别名称（image/video/audio/document/text/archive/code/binary）
-        
+        default: 未找到时的默认值
+    
     Returns:
-        是否属于该类别
-        
+        首选扩展名
+    
     Examples:
-        >>> is_category('image/png', 'image')
-        True
-        >>> is_category('video/mp4', 'video')
-        True
-        >>> is_category('image/png', 'video')
-        False
+        >>> get_primary_extension('image/jpeg')
+        '.jpg'
+        >>> get_primary_extension('unknown/type')
+        '.bin'
     """
-    mime_type = mime_type.lower().split(';')[0].strip()
-    category = category.lower()
-    
-    if category not in MIME_CATEGORIES:
-        return False
-    
-    return mime_type in MIME_CATEGORIES[category]
+    extensions = get_extensions(mime_type)
+    return extensions[0] if extensions else default
 
 
-def get_category(mime_type: str) -> Optional[str]:
+def detect_mime_from_content(data: bytes, default: str = 'application/octet-stream') -> str:
     """
-    获取 MIME 类型的所属类别
+    通过魔数（Magic Bytes）检测文件的 MIME 类型
     
     Args:
-        mime_type: MIME 类型字符串
-        
+        data: 文件内容的前若干字节（至少 12 字节）
+        default: 未识别时的默认值
+    
     Returns:
-        类别名称，未知则返回 None
-        
+        检测到的 MIME 类型
+    
     Examples:
-        >>> get_category('image/png')
-        'image'
-        >>> get_category('application/pdf')
-        'document'
+        >>> detect_mime_from_content(b'\\xff\\xd8\\xff\\x00...')
+        'image/jpeg'
+        >>> detect_mime_from_content(b'%PDF-1.4...')
+        'application/pdf'
     """
-    mime_type = mime_type.lower().split(';')[0].strip()
+    if len(data) < 2:
+        return default
     
-    for category, types in MIME_CATEGORIES.items():
-        if mime_type in types:
-            return category
+    # 特殊处理 RIFF 格式（WAV、AVI、WebP）
+    if data[:4] == b'RIFF' and len(data) >= 12:
+        riff_type = data[8:12]
+        if riff_type == b'WAVE':
+            return 'audio/wav'
+        elif riff_type == b'AVI ':
+            return 'video/avi'
+        elif riff_type == b'WEBP':
+            return 'image/webp'
     
-    return None
+    # 特殊处理 MP4/MOV（ftyp 检查）
+    if len(data) >= 12:
+        # 检查 ftyp box
+        if data[4:8] == b'ftyp':
+            ftyp = data[8:12]
+            if ftyp in (b'isom', b'mp41', b'mp42', b'M4V ', b'M4A ', b'avc1'):
+                return 'video/mp4'
+            elif ftyp in (b'M4A ', b'f4a '):
+                return 'audio/mp4'
+            elif ftyp in (b'qt  ', b'MSNV'):
+                return 'video/quicktime'
+    
+    # 检查其他签名
+    for signature, mime, sig_len in MAGIC_SIGNATURES:
+        if len(data) >= sig_len and data[:sig_len] == signature:
+            # 跳过已经处理的 RIFF
+            if signature == b'RIFF':
+                continue
+            return mime
+    
+    return default
+
+
+def detect_mime_from_file(file_path: str, default: str = 'application/octet-stream') -> str:
+    """
+    通过读取文件内容检测 MIME 类型
+    
+    Args:
+        file_path: 文件路径
+        default: 未识别时的默认值
+    
+    Returns:
+        检测到的 MIME 类型
+    
+    Examples:
+        >>> detect_mime_from_file('/path/to/image.jpg')
+        'image/jpeg'
+    """
+    try:
+        with open(file_path, 'rb') as f:
+            data = f.read(64)  # 读取前 64 字节足够检测大多数格式
+        return detect_mime_from_content(data, default)
+    except (IOError, OSError):
+        return default
+
+
+def detect_mime_from_fileobj(file_obj: BinaryIO, default: str = 'application/octet-stream') -> str:
+    """
+    通过读取文件对象检测 MIME 类型
+    
+    Args:
+        file_obj: 二进制文件对象
+        default: 未识别时的默认值
+    
+    Returns:
+        检测到的 MIME 类型
+    """
+    try:
+        pos = file_obj.tell()
+        data = file_obj.read(64)
+        file_obj.seek(pos)
+        return detect_mime_from_content(data, default)
+    except (IOError, OSError):
+        return default
 
 
 def is_image(mime_type: str) -> bool:
     """判断是否为图片类型"""
-    return is_category(mime_type, 'image')
+    return mime_type.lower() in MIME_CATEGORIES['image']
 
 
 def is_video(mime_type: str) -> bool:
     """判断是否为视频类型"""
-    return is_category(mime_type, 'video')
+    return mime_type.lower() in MIME_CATEGORIES['video']
 
 
 def is_audio(mime_type: str) -> bool:
     """判断是否为音频类型"""
-    return is_category(mime_type, 'audio')
+    return mime_type.lower() in MIME_CATEGORIES['audio']
 
 
 def is_document(mime_type: str) -> bool:
     """判断是否为文档类型"""
-    return is_category(mime_type, 'document')
+    return mime_type.lower() in MIME_CATEGORIES['document']
 
 
 def is_text(mime_type: str) -> bool:
     """判断是否为文本类型"""
-    return is_category(mime_type, 'text')
+    return mime_type.lower() in MIME_CATEGORIES['text']
 
 
 def is_archive(mime_type: str) -> bool:
     """判断是否为压缩包类型"""
-    return is_category(mime_type, 'archive')
+    return mime_type.lower() in MIME_CATEGORIES['archive']
 
 
 def is_code(mime_type: str) -> bool:
-    """判断是否为代码文件类型"""
-    return is_category(mime_type, 'code')
+    """判断是否为代码类型"""
+    return mime_type.lower() in MIME_CATEGORIES['code']
 
 
-def is_binary(mime_type: str) -> bool:
-    """判断是否为二进制类型"""
-    return is_category(mime_type, 'binary')
+def is_executable(mime_type: str) -> bool:
+    """判断是否为可执行文件类型"""
+    return mime_type.lower() in MIME_CATEGORIES['executable']
 
 
-def parse_content_type(content_type: str) -> Tuple[str, Dict[str, str]]:
+def is_font(mime_type: str) -> bool:
+    """判断是否为字体类型"""
+    return mime_type.lower() in MIME_CATEGORIES['font']
+
+
+def get_category(mime_type: str) -> Optional[str]:
     """
-    解析 Content-Type 头
+    获取 MIME 类型所属的类别
     
     Args:
-        content_type: Content-Type 字符串，如 'text/html; charset=utf-8'
-        
+        mime_type: MIME 类型字符串
+    
     Returns:
-        元组：(mime_type, params)
-        
+        类别名称，如 'image', 'video' 等；未找到返回 None
+    
     Examples:
-        >>> parse_content_type('text/html; charset=utf-8')
-        ('text/html', {'charset': 'utf-8'})
-        >>> parse_content_type('multipart/form-data; boundary=----WebKitFormBoundary')
-        ('multipart/form-data', {'boundary': '----WebKitFormBoundary'})
+        >>> get_category('image/jpeg')
+        'image'
+        >>> get_category('application/pdf')
+        'document'
+        >>> get_category('unknown/type')
+        None
     """
-    parts = content_type.split(';')
-    mime_type = parts[0].strip().lower()
-    
-    params = {}
-    for part in parts[1:]:
-        part = part.strip()
-        if '=' in part:
-            key, value = part.split('=', 1)
-            key = key.strip().lower()
-            value = value.strip()
-            # 移除引号
-            if value.startswith('"') and value.endswith('"'):
-                value = value[1:-1]
-            elif value.startswith("'") and value.endswith("'"):
-                value = value[1:-1]
-            params[key] = value
-    
-    return mime_type, params
-
-
-def build_content_type(
-    mime_type: str,
-    charset: Optional[str] = None,
-    boundary: Optional[str] = None,
-    **params: str
-) -> str:
-    """
-    构建 Content-Type 头
-    
-    Args:
-        mime_type: MIME 类型
-        charset: 字符编码
-        boundary: multipart 边界字符串
-        **params: 其他参数
-        
-    Returns:
-        Content-Type 字符串
-        
-    Examples:
-        >>> build_content_type('text/html', charset='utf-8')
-        'text/html; charset=utf-8'
-        >>> build_content_type('multipart/form-data', boundary='----WebKitFormBoundary')
-        'multipart/form-data; boundary=----WebKitFormBoundary'
-    """
-    parts = [mime_type]
-    
-    if charset:
-        parts.append(f'charset={charset}')
-    
-    if boundary:
-        parts.append(f'boundary={boundary}')
-    
-    for key, value in params.items():
-        # 如果值包含特殊字符，用引号包裹
-        if any(c in value for c in ' ;"\''):
-            parts.append(f'{key}="{value}"')
-        else:
-            parts.append(f'{key}={value}')
-    
-    return '; '.join(parts)
-
-
-def build_content_disposition(
-    filename: str,
-    disposition: str = 'attachment',
-    encode_filename: bool = True
-) -> str:
-    """
-    构建 Content-Disposition 头
-    
-    Args:
-        filename: 文件名
-        disposition: 处置方式（attachment/inline）
-        encode_filename: 是否编码文件名（推荐 True，兼容中文等）
-        
-    Returns:
-        Content-Disposition 字符串
-        
-    Examples:
-        >>> build_content_disposition('report.pdf')
-        'attachment; filename="report.pdf"'
-        >>> build_content_disposition('报告.pdf', encode_filename=True)
-        'attachment; filename="%E6%8A%A5%E5%91%8A.pdf"; filename*=UTF-8\'\'%E6%8A%A5%E5%91%8A.pdf'
-    """
-    if encode_filename:
-        # RFC 5987 编码方式，兼容中文等
-        encoded = quote(filename, safe='')
-        return f"{disposition}; filename=\"{encoded}\"; filename*=UTF-8''{encoded}"
-    else:
-        return f'{disposition}; filename="{filename}"'
-
-
-def guess_type_from_content(content: bytes) -> Optional[str]:
-    """
-    根据文件内容前几个字节猜测 MIME 类型（魔数检测）
-    
-    Args:
-        content: 文件内容（至少前几个字节）
-        
-    Returns:
-        猜测的 MIME 类型，无法识别则返回 None
-        
-    Examples:
-        >>> guess_type_from_content(b'\\x89PNG\\r\\n\\x1a\\n')
-        'image/png'
-        >>> guess_type_from_content(b'%PDF')
-        'application/pdf'
-    """
-    if not content:
-        return None
-    
-    # 魔数签名表
-    signatures = [
-        # 图片
-        (b'\x89PNG\r\n\x1a\n', 'image/png'),
-        (b'\xff\xd8\xff', 'image/jpeg'),
-        (b'GIF87a', 'image/gif'),
-        (b'GIF89a', 'image/gif'),
-        (b'RIFF', 'image/webp'),  # 需要进一步确认，先标记为 webp
-        (b'BM', 'image/bmp'),
-        (b'II*\x00', 'image/tiff'),  # TIFF little endian
-        (b'MM\x00*', 'image/tiff'),  # TIFF big endian
-        (b'\x00\x00\x01\x00', 'image/x-icon'),  # ICO
-        
-        # 文档
-        (b'%PDF', 'application/pdf'),
-        (b'PK\x03\x04', 'application/zip'),  # ZIP, DOCX, XLSX 等
-        
-        # 视频
-        (b'\x00\x00\x00\x1cftyp', 'video/mp4'),  # MP4
-        (b'\x00\x00\x00\x20ftyp', 'video/mp4'),
-        (b'\x1aE\xdf\xa3', 'video/webm'),  # WebM/MKV
-        (b'RIFF', 'video/webp'),  # 可能是 AVI 或 WebP
-        
-        # 音频
-        (b'ID3', 'audio/mpeg'),  # MP3 with ID3
-        (b'\xff\xfb', 'audio/mpeg'),  # MP3 frame sync
-        (b'\xff\xfa', 'audio/mpeg'),
-        (b'\xff\xf3', 'audio/mpeg'),
-        (b'\xff\xf2', 'audio/mpeg'),
-        (b'fLaC', 'audio/flac'),
-        (b'OggS', 'audio/ogg'),
-        
-        # 压缩包
-        (b'Rar!\x1a\x07', 'application/vnd.rar'),
-        (b'7z\xbc\xaf\x27\x1c', 'application/x-7z-compressed'),
-        (b'\x1f\x8b', 'application/gzip'),
-        (b'BZh', 'application/x-bzip2'),
-        
-        # 可执行文件
-        (b'MZ', 'application/x-dosexec'),  # Windows EXE
-        (b'\x7fELF', 'application/x-elf'),  # Linux ELF
-        
-        # 其他
-        (b'\x00\x00\x01\x00', 'image/x-icon'),
-    ]
-    
-    # 特殊检测：SVG（XML格式）
-    if content.startswith(b'<?xml') or content.startswith(b'<svg'):
-        try:
-            text = content[:100].decode('utf-8', errors='ignore').lower()
-            if '<svg' in text:
-                return 'image/svg+xml'
-        except:
-            pass
-    
-    # 匹配签名
-    for sig, mime in signatures:
-        if content.startswith(sig):
-            # ZIP 文件进一步检测
-            if sig == b'PK\x03\x04':
-                try:
-                    # 检查是否为 Office 文档
-                    if len(content) > 100:
-                        content_str = content[:200].decode('utf-8', errors='ignore')
-                        if 'word/' in content_str or 'document.xml' in content_str:
-                            return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                        if 'xl/' in content_str or 'workbook.xml' in content_str:
-                            return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                        if 'ppt/' in content_str or 'presentation.xml' in content_str:
-                            return 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-                except:
-                    pass
-                return 'application/zip'
-            return mime
-    
-    # 检查是否为文本
-    try:
-        content[:1000].decode('utf-8')
-        return 'text/plain'
-    except:
-        pass
-    
+    mime = mime_type.lower()
+    for category, types in MIME_CATEGORIES.items():
+        if mime in types:
+            return category
     return None
 
 
@@ -672,144 +493,256 @@ def get_mime_info(mime_type: str) -> Dict[str, any]:
     
     Args:
         mime_type: MIME 类型字符串
-        
+    
     Returns:
-        包含类型信息的字典
-        
+        包含信息的字典
+    
     Examples:
-        >>> info = get_mime_info('image/png')
+        >>> info = get_mime_info('image/jpeg')
+        >>> info['extensions']
+        ['.jpg', '.jpeg']
         >>> info['category']
         'image'
-        >>> info['extensions']
-        ['.png']
     """
-    mime_type = mime_type.lower().split(';')[0].strip()
-    
-    extensions = get_extensions(mime_type)
-    category = get_category(mime_type)
-    
-    # 判断是否为文本可读
-    text_readable = category in ('text', 'code') or mime_type.startswith('text/')
-    
-    # 判断是否可内联显示
-    inline_displayable = category in ('image', 'text', 'code') or mime_type == 'application/pdf'
-    
+    mime = mime_type.lower()
     return {
-        'mime_type': mime_type,
-        'extensions': extensions,
-        'primary_extension': extensions[0] if extensions else None,
-        'category': category,
-        'is_image': is_image(mime_type),
-        'is_video': is_video(mime_type),
-        'is_audio': is_audio(mime_type),
-        'is_document': is_document(mime_type),
-        'is_text': is_text(mime_type),
-        'is_archive': is_archive(mime_type),
-        'is_code': is_code(mime_type),
-        'is_binary': is_binary(mime_type),
-        'text_readable': text_readable,
-        'inline_displayable': inline_displayable,
+        'mime_type': mime,
+        'extensions': get_extensions(mime),
+        'primary_extension': get_primary_extension(mime),
+        'category': get_category(mime),
+        'is_image': is_image(mime),
+        'is_video': is_video(mime),
+        'is_audio': is_audio(mime),
+        'is_document': is_document(mime),
+        'is_text': is_text(mime),
+        'is_archive': is_archive(mime),
+        'is_code': is_code(mime),
+        'is_executable': is_executable(mime),
+        'is_font': is_font(mime),
     }
 
 
-class MimeTypeRegistry:
+def parse_mime_type(mime_type: str) -> Tuple[str, Dict[str, str]]:
     """
-    MIME 类型注册表
+    解析 MIME 类型字符串，提取类型、子类型和参数
     
-    允许注册自定义 MIME 类型映射
+    Args:
+        mime_type: MIME 类型字符串（可能包含参数）
+    
+    Returns:
+        (主类型, 参数字典)
     
     Examples:
-        >>> registry = MimeTypeRegistry()
-        >>> registry.register('.custom', 'application/x-custom')
-        >>> registry.get_mime_type('file.custom')
-        'application/x-custom'
+        >>> parse_mime_type('text/html; charset=utf-8')
+        ('text/html', {'charset': 'utf-8'})
+        >>> parse_mime_type('application/json')
+        ('application/json', {})
+    """
+    parts = mime_type.split(';')
+    main_type = parts[0].strip().lower()
+    params = {}
+    
+    for part in parts[1:]:
+        if '=' in part:
+            key, value = part.split('=', 1)
+            params[key.strip().lower()] = value.strip().strip('"')
+    
+    return main_type, params
+
+
+def build_mime_type(mime_type: str, params: Optional[Dict[str, str]] = None) -> str:
+    """
+    构建 MIME 类型字符串
+    
+    Args:
+        mime_type: 主 MIME 类型
+        params: 参数字典
+    
+    Returns:
+        完整的 MIME 类型字符串
+    
+    Examples:
+        >>> build_mime_type('text/html', {'charset': 'utf-8'})
+        'text/html; charset=utf-8'
+    """
+    if not params:
+        return mime_type
+    
+    param_str = '; '.join(f'{k}={v}' for k, v in params.items())
+    return f'{mime_type}; {param_str}'
+
+
+def content_disposition(filename: str, inline: bool = False) -> str:
+    """
+    生成 Content-Disposition 头的值
+    
+    Args:
+        filename: 文件名
+        inline: True 为 inline，False 为 attachment
+    
+    Returns:
+        Content-Disposition 值
+    
+    Examples:
+        >>> content_disposition('report.pdf')
+        'attachment; filename="report.pdf"'
+        >>> content_disposition('image.png', inline=True)
+        'inline; filename="image.png"'
+        >>> content_disposition('中文文件.txt')
+        "attachment; filename=\"中文文件.txt\"; filename*=UTF-8''%E4%B8%AD%E6%96%87%E6%96%87%E4%BB%B6.txt"
+    """
+    from urllib.parse import quote
+    
+    disposition = 'inline' if inline else 'attachment'
+    
+    # ASCII 安全的文件名
+    safe_filename = filename.replace('"', '\\"')
+    
+    # 检查是否需要 RFC 5987 编码
+    try:
+        filename.encode('ascii')
+        return f'{disposition}; filename="{safe_filename}"'
+    except UnicodeEncodeError:
+        encoded = quote(filename, safe='')
+        return f'{disposition}; filename="{safe_filename}"; filename*=UTF-8\'\'{encoded}'
+
+
+def guess_type(filename: str, default: str = 'application/octet-stream') -> str:
+    """
+    根据文件名猜测 MIME 类型（兼容 mimetypes.guess_type）
+    
+    Args:
+        filename: 文件名或路径
+        default: 未找到时的默认值
+    
+    Returns:
+        MIME 类型字符串
+    
+    Examples:
+        >>> guess_type('document.pdf')
+        'application/pdf'
+        >>> guess_type('/path/to/image.jpg')
+        'image/jpeg'
+    """
+    import os
+    _, ext = os.path.splitext(filename)
+    return get_mime_type(ext, default)
+
+
+# 兼容标准库 mimetypes 模块的别名
+def guess_extension(mime_type: str, default: str = '.bin') -> str:
+    """
+    根据 MIME 类型猜测扩展名（兼容 mimetypes.guess_extension）
+    
+    Args:
+        mime_type: MIME 类型字符串
+        default: 未找到时的默认值
+    
+    Returns:
+        扩展名
+    
+    Examples:
+        >>> guess_extension('image/jpeg')
+        '.jpg'
+    """
+    return get_primary_extension(mime_type, default)
+
+
+# ==================== 便捷类 ====================
+
+class MimeTypeDetector:
+    """
+    MIME 类型检测器类
+    
+    提供链式调用和缓存功能
     """
     
     def __init__(self):
-        self._ext_to_mime: Dict[str, str] = {}
-        self._mime_to_ext: Dict[str, List[str]] = {}
+        self._cache: Dict[str, str] = {}
     
-    def register(self, extension: str, mime_type: str) -> None:
+    def detect(self, data: bytes, extension: Optional[str] = None) -> str:
         """
-        注册扩展名到 MIME 类型的映射
+        检测 MIME 类型，优先使用内容检测，可结合扩展名
         
         Args:
-            extension: 文件扩展名（带或不带点）
-            mime_type: MIME 类型
+            data: 文件内容字节
+            extension: 可选的文件扩展名
+        
+        Returns:
+            MIME 类型
         """
-        if not extension.startswith('.'):
-            extension = '.' + extension
+        # 先尝试内容检测
+        content_mime = detect_mime_from_content(data)
         
-        extension = extension.lower()
-        mime_type = mime_type.lower()
+        if content_mime != 'application/octet-stream':
+            return content_mime
         
-        self._ext_to_mime[extension] = mime_type
+        # 内容检测失败，尝试扩展名
+        if extension:
+            return get_mime_type(extension)
         
-        if mime_type not in self._mime_to_ext:
-            self._mime_to_ext[mime_type] = []
-        if extension not in self._mime_to_ext[mime_type]:
-            self._mime_to_ext[mime_type].append(extension)
+        return 'application/octet-stream'
     
-    def unregister_extension(self, extension: str) -> bool:
-        """注销扩展名映射"""
-        if not extension.startswith('.'):
-            extension = '.' + extension
+    def detect_file(self, file_path: str) -> str:
+        """
+        检测文件的 MIME 类型
         
-        extension = extension.lower()
+        Args:
+            file_path: 文件路径
         
-        if extension in self._ext_to_mime:
-            mime_type = self._ext_to_mime.pop(extension)
-            if mime_type in self._mime_to_ext:
-                self._mime_to_ext[mime_type] = [
-                    ext for ext in self._mime_to_ext[mime_type] if ext != extension
-                ]
-            return True
-        return False
+        Returns:
+            MIME 类型
+        """
+        if file_path in self._cache:
+            return self._cache[file_path]
+        
+        result = detect_mime_from_file(file_path)
+        self._cache[file_path] = result
+        return result
     
-    def get_mime_type(self, filename_or_ext: str, default: str = 'application/octet-stream') -> str:
-        """根据文件名或扩展名获取 MIME 类型"""
-        if '.' not in filename_or_ext:
-            ext = '.' + filename_or_ext
-        else:
-            ext = '.' + filename_or_ext.rsplit('.', 1)[-1]
-        
-        ext = ext.lower()
-        
-        # 先查注册表
-        if ext in self._ext_to_mime:
-            return self._ext_to_mime[ext]
-        
-        # 回退到全局函数
-        return get_mime_type(filename_or_ext, default)
-    
-    def get_extension(self, mime_type: str, default: str = '.bin') -> str:
-        """根据 MIME 类型获取扩展名"""
-        mime_type = mime_type.lower().split(';')[0].strip()
-        
-        # 先查注册表
-        if mime_type in self._mime_to_ext and self._mime_to_ext[mime_type]:
-            return self._mime_to_ext[mime_type][0]
-        
-        # 回退到全局函数
-        return get_extension(mime_type, default)
-    
-    def get_extensions(self, mime_type: str) -> List[str]:
-        """根据 MIME 类型获取所有扩展名"""
-        mime_type = mime_type.lower().split(';')[0].strip()
-        
-        extensions = list(self._mime_to_ext.get(mime_type, []))
-        
-        # 合并全局结果
-        for ext in get_extensions(mime_type):
-            if ext not in extensions:
-                extensions.append(ext)
-        
-        return extensions
-    
-    def list_all(self) -> Dict[str, str]:
-        """列出所有已注册的映射"""
-        return dict(self._ext_to_mime)
+    def clear_cache(self) -> None:
+        """清除缓存"""
+        self._cache.clear()
 
 
-# 模块级默认注册表实例
-default_registry = MimeTypeRegistry()
+# ==================== 导出 ====================
+
+__all__ = [
+    # 常量
+    'EXTENSION_TO_MIME',
+    'MIME_TO_EXTENSIONS',
+    'MIME_CATEGORIES',
+    
+    # 核心函数
+    'get_mime_type',
+    'get_extensions',
+    'get_primary_extension',
+    'detect_mime_from_content',
+    'detect_mime_from_file',
+    'detect_mime_from_fileobj',
+    
+    # 类型判断
+    'is_image',
+    'is_video',
+    'is_audio',
+    'is_document',
+    'is_text',
+    'is_archive',
+    'is_code',
+    'is_executable',
+    'is_font',
+    'get_category',
+    
+    # 信息函数
+    'get_mime_info',
+    'parse_mime_type',
+    'build_mime_type',
+    'content_disposition',
+    
+    # 兼容函数
+    'guess_type',
+    'guess_extension',
+    
+    # 类
+    'MimeTypeDetector',
+]
