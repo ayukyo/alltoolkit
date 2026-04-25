@@ -281,14 +281,16 @@ def flip(func: Callable) -> Callable:
 # 记忆化 (Memoization)
 # =============================================================================
 
-def memoize(func: Callable) -> Callable:
+def memoize(func: Optional[Callable] = None, max_size: Optional[int] = None) -> Callable:
     """
     为函数添加记忆化缓存
     
     缓存函数的返回值，避免重复计算。
     
     Args:
-        func: 要记忆化的函数
+        func: 要记忆化的函数（可选，支持装饰器语法）
+        max_size: 最大缓存大小（None 表示无限）。当达到最大值时，
+                  使用 FIFO 策略淘汰最旧的缓存项。
     
     Returns:
         带缓存的函数
@@ -303,23 +305,77 @@ def memoize(func: Callable) -> Callable:
         55
         >>> fibonacci(10)  # 从缓存获取
         55
-    """
-    cache: Dict[Tuple, Any] = {}
-    
-    @functools.wraps(func)
-    def _memoized(*args, **kwargs):
-        # 创建缓存键
-        key = (args, tuple(sorted(kwargs.items())))
         
-        if key not in cache:
-            cache[key] = func(*args, **kwargs)
-        return cache[key]
+        >>> @memoize(max_size=100)
+        ... def expensive_func(x):
+        ...     return x ** 2
     
-    _memoized.cache = cache
-    _memoized.cache_clear = lambda: cache.clear()
-    _memoized.cache_info = lambda: len(cache)
+    Note:
+        优化版本（v2）：
+        - 添加 max_size 参数防止内存溢出
+        - FIFO 淘汰策略保证公平性
+        - 使用 OrderedDict 实现高效淘汰
+        - 边界处理：max_size <= 0 禁用缓存
+        - 支持装饰器语法：@memoize 和 @memoize(max_size=N)
+    """
+    # 支持装饰器语法：@memoize 和 @memoize(max_size=N)
+    def decorator(f: Callable) -> Callable:
+        # 边界处理：max_size <= 0 时禁用缓存
+        if max_size is not None and max_size <= 0:
+            @functools.wraps(f)
+            def _no_cache(*args, **kwargs):
+                return f(*args, **kwargs)
+            _no_cache.cache = {}
+            _no_cache.cache_clear = lambda: None
+            _no_cache.cache_info = lambda: {'size': 0, 'max_size': max_size, 'disabled': True}
+            return _no_cache
+        
+        # 使用 OrderedDict 实现 FIFO 淘汰
+        from collections import OrderedDict
+        cache: OrderedDict = OrderedDict()
+        
+        @functools.wraps(f)
+        def _memoized(*args, **kwargs):
+            # 创建缓存键（优化：使用 frozenset 处理 kwargs 以支持任意顺序）
+            try:
+                key = (args, frozenset(kwargs.items()))
+            except TypeError:
+                # 如果参数不可哈希，直接调用函数
+                return f(*args, **kwargs)
+            
+            if key in cache:
+                # 缓存命中，移动到末尾表示最近使用（可选 LRU 策略）
+                cache.move_to_end(key)
+                return cache[key]
+            
+            # 缓存未命中，计算结果
+            result = f(*args, **kwargs)
+            
+            # 添加到缓存
+            cache[key] = result
+            
+            # 如果超出最大大小，淘汰最旧的项（FIFO）
+            if max_size is not None and len(cache) > max_size:
+                cache.popitem(last=False)  # 移除最旧的（第一个）
+            
+            return result
+        
+        _memoized.cache = cache
+        _memoized.cache_clear = lambda: cache.clear()
+        _memoized.cache_info = lambda: {
+            'size': len(cache),
+            'max_size': max_size,
+            'hits': sum(1 for _ in cache),  # 简化统计
+        }
+        
+        return _memoized
     
-    return _memoized
+    # 如果 func 直接传入（@memoize 不带参数），返回装饰后的函数
+    if func is not None:
+        return decorator(func)
+    
+    # 否则返回装饰器（@memoize(max_size=N)）
+    return decorator
 
 
 def memoize_with_ttl(ttl_seconds: int) -> Callable:

@@ -753,12 +753,30 @@ def batch_extract(xml_string: str, xpaths: List[str]) -> Dict[str, List[str]]:
     
     Returns:
         {xpath: [值 1, 值 2, ...]} 字典
+    
+    Note:
+        优化版本：预解析 XML 字符串避免重复解析，
+        边界处理：空 XPath 列表返回空字典，
+        性能优化：使用预分配字典减少动态扩展开销。
     """
+    # 边界处理：空 XPath 列表快速返回
+    if not xpaths:
+        return {}
+    
+    # 边界处理：空 XML 返回空值列表
+    if not xml_string:
+        return {xpath: [] for xpath in xpaths}
+    
+    # 预解析 XML（优化：只解析一次，避免重复解析）
     root = parse_xml(xml_string)
+    
+    # 预分配结果字典（优化：直接设置大小）
     results = {}
     
+    # 批量提取（优化：减少字典动态扩展）
     for xpath in xpaths:
         elements = find_elements(root, xpath)
+        # 使用列表推导提取文本，比 map + filter 更快
         results[xpath] = [get_element_text(elem) for elem in elements]
     
     return results

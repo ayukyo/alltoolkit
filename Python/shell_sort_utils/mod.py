@@ -441,25 +441,72 @@ def shell_sort_optimized(
     
     # 检测是否已部分有序
     def count_inversions(arr):
-        """计算逆序对数量（采样估计）"""
-        if len(arr) <= 100:
-            # 小数据量精确计算
+        """
+        计算逆序对数量（优化版本）
+        
+        使用归并排序方法计算，时间复杂度 O(n log n)，
+        远优于暴力 O(n²) 方法。
+        
+        Args:
+            arr: 数组
+        
+        Returns:
+            逆序对数量
+        
+        Note:
+            优化版本：使用归并排序的 O(n log n) 算法，
+            边界处理：空数组、单元素数组返回 0。
+        """
+        # 边界处理：空或单元素数组
+        n = len(arr)
+        if n <= 1:
+            return 0
+        
+        # 对于小数组使用简单方法（避免递归开销）
+        if n <= 100:
             inv = 0
-            for i in range(len(arr)):
-                for j in range(i + 1, len(arr)):
+            for i in range(n):
+                for j in range(i + 1, n):
                     if arr[i] > arr[j]:
                         inv += 1
             return inv
         
-        # 大数据量采样估计
-        import random
-        samples = min(1000, n * n // 100)
-        inv = 0
-        for _ in range(samples):
-            i, j = random.randint(0, n-1), random.randint(0, n-1)
-            if i < j and arr[i] > arr[j]:
-                inv += 1
-        return inv * n * n // (samples * 2) if samples > 0 else 0
+        # 使用归并排序方法计算逆序对（O(n log n)）
+        def _merge_count(left, right):
+            """合并两个有序数组并计算跨数组逆序对"""
+            merged = []
+            i, j = 0, 0
+            inversions = 0
+            
+            while i < len(left) and j < len(right):
+                if left[i] <= right[j]:
+                    merged.append(left[i])
+                    i += 1
+                else:
+                    # left[i] > right[j]，形成逆序对
+                    # 左数组剩余元素都与 right[j] 构成逆序对
+                    merged.append(right[j])
+                    inversions += len(left) - i
+                    j += 1
+            
+            merged.extend(left[i:])
+            merged.extend(right[j:])
+            return merged, inversions
+        
+        def _sort_count(arr):
+            """递归排序并计算逆序对"""
+            if len(arr) <= 1:
+                return arr, 0
+            
+            mid = len(arr) // 2
+            left, left_inv = _sort_count(arr[:mid])
+            right, right_inv = _sort_count(arr[mid:])
+            merged, cross_inv = _merge_count(left, right)
+            
+            return merged, left_inv + right_inv + cross_inv
+        
+        _, total_inv = _sort_count(list(arr))  # 复制以避免修改原数组
+        return total_inv
     
     # 根据数据特征选择间隔序列
     if n < 50:
