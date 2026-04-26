@@ -1,0 +1,23 @@
+[package]
+name = "text_distance_utils"
+version = "0.1.0"
+edition = "2021"
+description = "A comprehensive collection of string/text distance and similarity algorithms"
+license = "MIT"
+authors = ["AllToolkit"]
+keywords = ["string", "distance", "similarity", "levenshtein", "jaro"]
+categories = ["text-processing", "algorithms"]
+
+[lib]
+name = "text_distance_utils"
+path = "mod.rs"
+
+[[bin]]
+name = "usage_examples"
+path = "examples/usage_examples.rs"
+
+[dependencies]
+# No external dependencies - uses only std
+
+[dev-dependencies]
+# No dev dependencies
