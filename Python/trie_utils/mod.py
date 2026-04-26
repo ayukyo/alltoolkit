@@ -1,62 +1,67 @@
 """
-Trie (前缀树) 工具模块
+Trie（前缀树）工具模块
 
-提供完整的 Trie 数据结构实现，支持：
-- 单词插入、删除、查找
-- 前缀搜索和自动补全
-- 拼写检查和建议
+提供高效的字符串前缀匹配、自动补全、词典查找等功能。
+零外部依赖，纯Python实现。
+
+核心功能：
+- Trie 数据结构的完整实现
+- 前缀搜索与自动补全
+- 通配符模式匹配
+- 最长前缀匹配
 - 词频统计
-- 模式匹配
-
-零外部依赖，纯 Python 标准库实现。
+- 序列化与反序列化
 """
 
-from typing import List, Optional, Dict, Set, Tuple, Callable, Iterator
+from typing import Dict, List, Optional, Set, Tuple, Any, Iterator
 from collections import defaultdict
+import json
 
 
 class TrieNode:
-    """Trie 节点类"""
+    """Trie 节点"""
     
     __slots__ = ['children', 'is_end', 'count', 'data']
     
     def __init__(self):
         self.children: Dict[str, 'TrieNode'] = {}
         self.is_end: bool = False
-        self.count: int = 0  # 词频统计
-        self.data: Optional[dict] = None  # 附加数据
+        self.count: int = 0  # 以该节点结尾的单词出现次数
+        self.data: Any = None  # 可存储额外数据
+    
+    def __repr__(self) -> str:
+        return f"TrieNode(end={self.is_end}, count={self.count}, children={len(self.children)})"
 
 
 class Trie:
     """
-    Trie (前缀树) 实现
+    Trie（前缀树）数据结构
     
-    用于高效的字符串存储、检索和前缀匹配。
-    
-    时间复杂度：
-    - 插入：O(m)，m 为字符串长度
-    - 查找：O(m)
-    - 前缀搜索：O(m + k)，k 为匹配数量
-    
-    空间复杂度：O(n * m)，n 为字符串数量，m 为平均长度
+    适用于：
+    - 自动补全
+    - 拼写检查
+    - IP路由
+    - 词典实现
+    - 词频统计
     
     示例:
         >>> trie = Trie()
         >>> trie.insert("hello")
-        >>> trie.insert("world")
+        >>> trie.insert("help")
         >>> trie.search("hello")
         True
         >>> trie.starts_with("hel")
-        ['hello']
+        ['hello', 'help']
     """
     
     def __init__(self):
         self.root = TrieNode()
-        self._size: int = 0
+        self._size = 0
+        self._total_chars = 0  # 所有插入字符串的总字符数
     
-    def insert(self, word: str, data: Optional[dict] = None) -> None:
+    def insert(self, word: str, data: Any = None) -> None:
         """
-        插入单词到 Trie
+        插入一个单词到Trie中
         
         Args:
             word: 要插入的单词
@@ -73,34 +78,36 @@ class Trie:
         
         if not node.is_end:
             self._size += 1
+            self._total_chars += len(word)
+        
         node.is_end = True
         node.count += 1
-        if data:
+        if data is not None:
             node.data = data
     
     def search(self, word: str) -> bool:
         """
-        查找单词是否存在于 Trie
+        精确搜索一个单词是否存在
         
         Args:
-            word: 要查找的单词
+            word: 要搜索的单词
             
         Returns:
-            bool: 单词是否存在
+            是否存在
         """
         node = self._find_node(word)
         return node is not None and node.is_end
     
-    def starts_with(self, prefix: str, limit: Optional[int] = None) -> List[str]:
+    def starts_with(self, prefix: str, limit: int = 10) -> List[str]:
         """
         查找所有以指定前缀开头的单词
         
         Args:
-            prefix: 前缀字符串
+            prefix: 前缀
             limit: 返回结果的最大数量
             
         Returns:
-            List[str]: 匹配的单词列表
+            匹配的单词列表
         """
         node = self._find_node(prefix)
         if node is None:
@@ -119,130 +126,88 @@ class Trie:
             node = node.children[char]
         return node
     
-    def _collect_words(self, node: TrieNode, prefix: str, 
-                       results: List[str], limit: Optional[int] = None) -> None:
-        """收集所有从该节点开始的完整单词"""
-        if limit is not None and len(results) >= limit:
+    def _collect_words(self, node: TrieNode, prefix: str, results: List[str], 
+                       limit: int, min_count: int = 0) -> None:
+        """收集以prefix开头的所有单词"""
+        if len(results) >= limit:
             return
-            
-        if node.is_end:
+        
+        if node.is_end and node.count >= min_count:
             results.append(prefix)
         
-        for char, child in node.children.items():
-            self._collect_words(child, prefix + char, results, limit)
+        # 按词频排序，优先返回高频词
+        sorted_children = sorted(node.children.items(), 
+                                key=lambda x: x[1].count, reverse=True)
+        
+        for char, child in sorted_children:
+            if len(results) >= limit:
+                break
+            self._collect_words(child, prefix + char, results, limit, min_count)
     
     def delete(self, word: str) -> bool:
         """
-        从 Trie 中删除单词
+        删除一个单词
         
         Args:
             word: 要删除的单词
             
         Returns:
-            bool: 是否成功删除
+            是否成功删除
         """
         if not word:
             return False
         
-        # 使用栈记录路径
+        # 使用栈记录路径：(节点, 字符)
         path = []
         node = self.root
         
         for char in word:
             if char not in node.children:
                 return False
-            path.append((char, node))
+            path.append((node, char))
             node = node.children[char]
         
         if not node.is_end:
             return False
         
+        self._size -= 1
         node.is_end = False
         node.count = 0
         node.data = None
-        self._size -= 1
         
-        # 清理空节点
-        for char, parent in reversed(path):
+        # 清理无用节点（从叶子向根）
+        for parent, char in reversed(path):
             child = parent.children[char]
-            if not child.children and not child.is_end:
+            if not child.is_end and not child.children:
                 del parent.children[char]
             else:
                 break
         
         return True
     
-    def get_data(self, word: str) -> Optional[dict]:
+    def longest_prefix(self, text: str) -> str:
         """
-        获取单词关联的数据
+        查找文本中最长匹配的前缀单词
         
         Args:
-            word: 单词
+            text: 输入文本
             
         Returns:
-            Optional[dict]: 关联的数据，不存在则返回 None
+            最长匹配的单词，无匹配返回空字符串
         """
-        node = self._find_node(word)
-        if node and node.is_end:
-            return node.data
-        return None
-    
-    def get_count(self, word: str) -> int:
-        """
-        获取单词的词频
-        
-        Args:
-            word: 单词
-            
-        Returns:
-            int: 词频计数
-        """
-        node = self._find_node(word)
-        if node and node.is_end:
-            return node.count
-        return 0
-    
-    def count_prefix(self, prefix: str) -> int:
-        """
-        统计以指定前缀开头的单词数量
-        
-        Args:
-            prefix: 前缀
-            
-        Returns:
-            int: 单词数量
-        """
-        node = self._find_node(prefix)
-        if node is None:
-            return 0
-        return self._count_words(node)
-    
-    def _count_words(self, node: TrieNode) -> int:
-        """统计从该节点开始的单词数量"""
-        count = 1 if node.is_end else 0
-        for child in node.children.values():
-            count += self._count_words(child)
-        return count
-    
-    def longest_common_prefix(self) -> str:
-        """
-        查找 Trie 中所有单词的最长公共前缀
-        
-        Returns:
-            str: 最长公共前缀
-        """
-        if self._size == 0:
-            return ""
-        
-        prefix = []
         node = self.root
+        longest = ""
+        current = ""
         
-        while len(node.children) == 1 and not node.is_end:
-            char = next(iter(node.children))
-            prefix.append(char)
+        for char in text:
+            if char not in node.children:
+                break
             node = node.children[char]
+            current += char
+            if node.is_end:
+                longest = current
         
-        return "".join(prefix)
+        return longest
     
     def contains_prefix(self, prefix: str) -> bool:
         """
@@ -252,47 +217,352 @@ class Trie:
             prefix: 前缀
             
         Returns:
-            bool: 是否存在
+            是否存在
         """
         return self._find_node(prefix) is not None
     
-    def autocomplete(self, prefix: str, limit: int = 10, 
-                     sort_by: str = 'alphabetical') -> List[str]:
+    def pattern_match(self, pattern: str, wildcard: str = '?') -> List[str]:
         """
-        自动补全功能
+        模式匹配（支持通配符）
+        
+        Args:
+            pattern: 模式字符串
+            wildcard: 通配符字符，默认'?'
+            
+        Returns:
+            匹配的单词列表
+        """
+        results = []
+        self._pattern_match_recursive(self.root, "", pattern, wildcard, results)
+        return results
+    
+    def _pattern_match_recursive(self, node: TrieNode, current: str, 
+                                  pattern: str, wildcard: str, 
+                                  results: List[str]) -> None:
+        """递归实现模式匹配"""
+        if not pattern:
+            if node.is_end:
+                results.append(current)
+            return
+        
+        char = pattern[0]
+        remaining = pattern[1:]
+        
+        if char == wildcard:
+            # 通配符匹配任意字符
+            for child_char, child_node in node.children.items():
+                self._pattern_match_recursive(child_node, current + child_char, 
+                                              remaining, wildcard, results)
+        else:
+            if char in node.children:
+                self._pattern_match_recursive(node.children[char], 
+                                             current + char, remaining, 
+                                             wildcard, results)
+    
+    def get_data(self, word: str) -> Optional[Any]:
+        """
+        获取单词关联的数据
+        
+        Args:
+            word: 单词
+            
+        Returns:
+            关联的数据，不存在返回None
+        """
+        node = self._find_node(word)
+        if node and node.is_end:
+            return node.data
+        return None
+    
+    def set_data(self, word: str, data: Any) -> bool:
+        """
+        设置单词关联的数据
+        
+        Args:
+            word: 单词
+            data: 要设置的数据
+            
+        Returns:
+            是否成功
+        """
+        node = self._find_node(word)
+        if node and node.is_end:
+            node.data = data
+            return True
+        return False
+    
+    def get_count(self, word: str) -> int:
+        """
+        获取单词的出现次数
+        
+        Args:
+            word: 单词
+            
+        Returns:
+            出现次数，不存在返回0
+        """
+        node = self._find_node(word)
+        if node and node.is_end:
+            return node.count
+        return 0
+    
+    def autocomplete(self, prefix: str, max_suggestions: int = 5) -> List[Tuple[str, int]]:
+        """
+        自动补全，返回建议及其频率
         
         Args:
             prefix: 输入前缀
-            limit: 返回结果数量限制
-            sort_by: 排序方式 ('alphabetical', 'frequency')
+            max_suggestions: 最大建议数量
             
         Returns:
-            List[str]: 补全建议列表
+            (单词, 频率) 元组列表，按频率排序
         """
         node = self._find_node(prefix)
         if node is None:
             return []
         
-        # 收集所有匹配单词及其频率
-        words_with_count = []
-        self._collect_words_with_count(node, prefix, words_with_count)
-        
-        # 排序
-        if sort_by == 'frequency':
-            words_with_count.sort(key=lambda x: (-x[1], x[0]))
-        else:
-            words_with_count.sort(key=lambda x: x[0])
-        
-        return [word for word, _ in words_with_count[:limit]]
+        results = []
+        self._collect_with_count(node, prefix, results)
+        results.sort(key=lambda x: x[1], reverse=True)
+        return results[:max_suggestions]
     
-    def _collect_words_with_count(self, node: TrieNode, prefix: str,
-                                   results: List[Tuple[str, int]]) -> None:
-        """收集单词及其词频"""
+    def _collect_with_count(self, node: TrieNode, prefix: str, 
+                            results: List[Tuple[str, int]]) -> None:
+        """收集单词及其频率"""
         if node.is_end:
             results.append((prefix, node.count))
         
         for char, child in node.children.items():
-            self._collect_words_with_count(child, prefix + char, results)
+            self._collect_with_count(child, prefix + char, results)
+    
+    def all_words(self) -> Iterator[str]:
+        """
+        迭代所有单词
+        
+        Yields:
+            所有插入的单词
+        """
+        yield from self._iterate_words(self.root, "")
+    
+    def _iterate_words(self, node: TrieNode, prefix: str) -> Iterator[str]:
+        """递归迭代单词"""
+        if node.is_end:
+            yield prefix
+        
+        for char, child in node.children.items():
+            yield from self._iterate_words(child, prefix + char)
+    
+    def suggest_corrections(self, word: str, max_distance: int = 2) -> List[Tuple[str, int]]:
+        """
+        建议拼写纠正（基于编辑距离）
+        
+        Args:
+            word: 输入单词
+            max_distance: 最大编辑距离
+            
+        Returns:
+            (建议词, 编辑距离) 列表
+        """
+        # 生成所有可能的编辑
+        candidates = set()
+        alphabet = 'abcdefghijklmnopqrstuvwxyz'
+        
+        # 原词
+        candidates.add(word)
+        
+        # 删除一个字符
+        for i in range(len(word)):
+            candidates.add(word[:i] + word[i+1:])
+        
+        # 替换一个字符
+        for i in range(len(word)):
+            for c in alphabet:
+                candidates.add(word[:i] + c + word[i+1:])
+        
+        # 插入一个字符
+        for i in range(len(word) + 1):
+            for c in alphabet:
+                candidates.add(word[:i] + c + word[i:])
+        
+        # 交换相邻字符
+        for i in range(len(word) - 1):
+            candidates.add(word[:i] + word[i+1] + word[i] + word[i+2:])
+        
+        # 在Trie中查找并计算编辑距离
+        results = []
+        for candidate in candidates:
+            if self.search(candidate):
+                dist = self._edit_distance(word, candidate)
+                if dist <= max_distance:
+                    results.append((candidate, dist))
+        
+        results.sort(key=lambda x: x[1])
+        return results
+    
+    def _edit_distance(self, s1: str, s2: str) -> int:
+        """计算编辑距离（Levenshtein距离）"""
+        if len(s1) < len(s2):
+            s1, s2 = s2, s1
+        
+        if len(s2) == 0:
+            return len(s1)
+        
+        prev_row = range(len(s2) + 1)
+        
+        for i, c1 in enumerate(s1):
+            curr_row = [i + 1]
+            for j, c2 in enumerate(s2):
+                insertions = prev_row[j + 1] + 1
+                deletions = curr_row[j] + 1
+                substitutions = prev_row[j] + (c1 != c2)
+                curr_row.append(min(insertions, deletions, substitutions))
+            prev_row = curr_row
+        
+        return prev_row[-1]
+    
+    def word_exists_with_path(self, word: str) -> Tuple[bool, List[str]]:
+        """
+        检查单词是否存在，并返回路径
+        
+        Args:
+            word: 要检查的单词
+            
+        Returns:
+            (是否存在, 路径节点列表)
+        """
+        path = []
+        node = self.root
+        
+        for char in word:
+            if char not in node.children:
+                return False, path
+            node = node.children[char]
+            path.append(char)
+        
+        return node.is_end, path
+    
+    def count_words_with_prefix(self, prefix: str) -> int:
+        """
+        统计以指定前缀开头的单词数量
+        
+        Args:
+            prefix: 前缀
+            
+        Returns:
+            单词数量
+        """
+        node = self._find_node(prefix)
+        if node is None:
+            return 0
+        
+        return self._count_words(node)
+    
+    def _count_words(self, node: TrieNode) -> int:
+        """递归统计节点下的单词数"""
+        count = 1 if node.is_end else 0
+        for child in node.children.values():
+            count += self._count_words(child)
+        return count
+    
+    def to_dict(self) -> Dict:
+        """
+        将Trie序列化为字典
+        
+        Returns:
+            序列化后的字典
+        """
+        return {
+            'root': self._node_to_dict(self.root),
+            'size': self._size,
+            'total_chars': self._total_chars
+        }
+    
+    def _node_to_dict(self, node: TrieNode) -> Dict:
+        """将节点转换为字典"""
+        result = {
+            'is_end': node.is_end,
+            'count': node.count,
+        }
+        if node.data is not None:
+            result['data'] = node.data
+        if node.children:
+            result['children'] = {
+                char: self._node_to_dict(child) 
+                for char, child in node.children.items()
+            }
+        return result
+    
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'Trie':
+        """
+        从字典反序列化Trie
+        
+        Args:
+            data: 序列化的字典
+            
+        Returns:
+            Trie实例
+        """
+        trie = cls()
+        if 'root' in data:
+            trie.root = trie._dict_to_node(data['root'])
+        if 'size' in data:
+            trie._size = data['size']
+        if 'total_chars' in data:
+            trie._total_chars = data['total_chars']
+        return trie
+    
+    def _dict_to_node(self, data: Dict) -> TrieNode:
+        """从字典创建节点"""
+        node = TrieNode()
+        node.is_end = data.get('is_end', False)
+        node.count = data.get('count', 0)
+        node.data = data.get('data')
+        
+        if 'children' in data:
+            for char, child_data in data['children'].items():
+                node.children[char] = self._dict_to_node(child_data)
+        
+        return node
+    
+    def to_json(self, indent: int = 2) -> str:
+        """
+        导出为JSON字符串
+        
+        Args:
+            indent: 缩进空格数
+            
+        Returns:
+            JSON字符串
+        """
+        return json.dumps(self.to_dict(), ensure_ascii=False, indent=indent)
+    
+    @classmethod
+    def from_json(cls, json_str: str) -> 'Trie':
+        """
+        从JSON字符串加载
+        
+        Args:
+            json_str: JSON字符串
+            
+        Returns:
+            Trie实例
+        """
+        return cls.from_dict(json.loads(json_str))
+    
+    def size(self) -> int:
+        """返回Trie中的单词数量"""
+        return self._size
+    
+    def is_empty(self) -> bool:
+        """检查Trie是否为空"""
+        return self._size == 0
+    
+    def clear(self) -> None:
+        """清空Trie"""
+        self.root = TrieNode()
+        self._size = 0
+        self._total_chars = 0
     
     def __len__(self) -> int:
         return self._size
@@ -301,443 +571,133 @@ class Trie:
         return self.search(word)
     
     def __iter__(self) -> Iterator[str]:
-        """迭代所有单词"""
-        results = []
-        self._collect_words(self.root, "", results)
-        return iter(results)
-
-
-class SpellChecker:
-    """
-    基于 Trie 的拼写检查器
+        return self.all_words()
     
-    支持编辑距离计算和拼写建议
-    
-    示例:
-        >>> checker = SpellChecker()
-        >>> checker.load_words(["hello", "world", "help"])
-        >>> checker.suggest("helo")
-        ['hello', 'help']
-    """
-    
-    def __init__(self, max_edit_distance: int = 2):
-        """
-        初始化拼写检查器
-        
-        Args:
-            max_edit_distance: 最大编辑距离
-        """
-        self.trie = Trie()
-        self.max_edit_distance = max_edit_distance
-        self._word_set: Set[str] = set()
-    
-    def load_words(self, words: List[str]) -> None:
-        """
-        加载单词列表
-        
-        Args:
-            words: 单词列表
-        """
-        for word in words:
-            word = word.lower().strip()
-            if word:
-                self.trie.insert(word)
-                self._word_set.add(word)
-    
-    def is_correct(self, word: str) -> bool:
-        """
-        检查单词拼写是否正确
-        
-        Args:
-            word: 要检查的单词
-            
-        Returns:
-            bool: 拼写是否正确
-        """
-        return word.lower() in self._word_set
-    
-    def suggest(self, word: str, limit: int = 5) -> List[str]:
-        """
-        提供拼写建议
-        
-        Args:
-            word: 可能拼写错误的单词
-            limit: 返回建议数量
-            
-        Returns:
-            List[str]: 拼写建议列表
-        """
-        word = word.lower()
-        
-        if word in self._word_set:
-            return [word]
-        
-        suggestions = set()
-        
-        # 编辑距离为 1 的变体
-        edits1 = self._edits1(word)
-        for edit in edits1:
-            if edit in self._word_set:
-                suggestions.add(edit)
-        
-        if len(suggestions) >= limit:
-            return sorted(suggestions)[:limit]
-        
-        # 编辑距离为 2 的变体
-        edits2 = set()
-        for e1 in edits1:
-            edits2.update(self._edits1(e1))
-        
-        for edit in edits2:
-            if edit in self._word_set:
-                suggestions.add(edit)
-            if len(suggestions) >= limit * 2:
-                break
-        
-        return sorted(suggestions)[:limit]
-    
-    def _edits1(self, word: str) -> Set[str]:
-        """生成编辑距离为 1 的所有变体"""
-        letters = 'abcdefghijklmnopqrstuvwxyz'
-        splits = [(word[:i], word[i:]) for i in range(len(word) + 1)]
-        
-        deletes = [L + R[1:] for L, R in splits if R]
-        transposes = [L + R[1] + R[0] + R[2:] for L, R in splits if len(R) > 1]
-        replaces = [L + c + R[1:] for L, R in splits if R for c in letters]
-        inserts = [L + c + R for L, R in splits for c in letters]
-        
-        return set(deletes + transposes + replaces + inserts)
-    
-    def autocomplete(self, prefix: str, limit: int = 10) -> List[str]:
-        """
-        自动补全
-        
-        Args:
-            prefix: 前缀
-            limit: 返回数量
-            
-        Returns:
-            List[str]: 补全建议
-        """
-        return self.trie.autocomplete(prefix.lower(), limit)
-
-
-class WordDictionary:
-    """
-    支持通配符匹配的单词字典
-    
-    支持通配符：
-    - '.' 匹配任意单个字符
-    - '*' 匹配任意多个字符（包括零个）
-    
-    示例:
-        >>> wd = WordDictionary()
-        >>> wd.add_word("hello")
-        >>> wd.add_word("help")
-        >>> wd.search("h.llo")
-        True
-        >>> wd.search("he*")
-        True
-    """
-    
-    def __init__(self):
-        self.trie = Trie()
-        self._words: Set[str] = set()
-    
-    def add_word(self, word: str) -> None:
-        """添加单词"""
-        self.trie.insert(word)
-        self._words.add(word)
-    
-    def search(self, pattern: str) -> bool:
-        """
-        搜索匹配模式
-        
-        Args:
-            pattern: 含通配符的模式
-            
-        Returns:
-            bool: 是否存在匹配
-        """
-        return self._search_pattern(self.trie.root, pattern, 0)
-    
-    def _search_pattern(self, node: TrieNode, pattern: str, index: int) -> bool:
-        """递归搜索模式"""
-        if index == len(pattern):
-            return node.is_end
-        
-        char = pattern[index]
-        
-        if char == '.':
-            # 匹配任意单个字符
-            for child in node.children.values():
-                if self._search_pattern(child, pattern, index + 1):
-                    return True
-            return False
-        
-        elif char == '*':
-            # 匹配任意多个字符
-            # 情况1：* 匹配零个字符
-            if self._search_pattern(node, pattern, index + 1):
-                return True
-            # 情况2：* 匹配一个或多个字符
-            for child in node.children.values():
-                if self._search_pattern(child, pattern, index):
-                    return True
-            return False
-        
-        else:
-            # 精确匹配
-            if char in node.children:
-                return self._search_pattern(node.children[char], pattern, index + 1)
-            return False
-    
-    def find_all_matches(self, pattern: str) -> List[str]:
-        """
-        查找所有匹配模式的单词
-        
-        Args:
-            pattern: 含通配符的模式
-            
-        Returns:
-            List[str]: 所有匹配的单词
-        """
-        results = []
-        self._find_matches(self.trie.root, pattern, 0, "", results)
-        return results
-    
-    def _find_matches(self, node: TrieNode, pattern: str, index: int,
-                      current: str, results: List[str]) -> None:
-        """递归查找所有匹配"""
-        if index == len(pattern):
-            if node.is_end:
-                results.append(current)
-            return
-        
-        char = pattern[index]
-        
-        if char == '.':
-            for c, child in node.children.items():
-                self._find_matches(child, pattern, index + 1, current + c, results)
-        
-        elif char == '*':
-            # 匹配零个
-            self._find_matches(node, pattern, index + 1, current, results)
-            # 匹配一个或多个
-            for c, child in node.children.items():
-                self._find_matches(child, pattern, index, current + c, results)
-        
-        else:
-            if char in node.children:
-                self._find_matches(node.children[char], pattern, index + 1,
-                                 current + char, results)
+    def __repr__(self) -> str:
+        return f"Trie(size={self._size}, nodes≈{self._total_chars})"
 
 
 class SuffixTrie:
     """
-    后缀 Trie 实现
+    后缀树（简化实现）
     
-    用于高效的子字符串匹配和模式搜索
-    
-    示例:
-        >>> st = SuffixTrie("banana")
-        >>> st.contains("ana")
-        True
-        >>> st.find_all("an")
-        [1, 3]
+    用于子串匹配、最长重复子串等问题
     """
     
-    def __init__(self, text: str = ""):
-        """
-        初始化后缀 Trie
-        
-        Args:
-            text: 要构建后缀 Trie 的文本
-        """
+    def __init__(self):
         self.trie = Trie()
-        self._text = ""
-        if text:
-            self.build(text)
     
-    def build(self, text: str) -> None:
+    def build_from_string(self, text: str) -> None:
         """
-        构建后缀 Trie
+        从字符串构建后缀树
         
         Args:
-            text: 输入文本
+            text: 输入字符串
         """
-        self._text = text
+        self.trie.clear()
         for i in range(len(text)):
             self.trie.insert(text[i:])
     
-    def contains(self, pattern: str) -> bool:
+    def contains_substring(self, pattern: str) -> bool:
         """
-        检查是否包含指定模式
+        检查是否包含子串
         
         Args:
-            pattern: 要查找的模式
+            pattern: 要查找的子串
             
         Returns:
-            bool: 是否包含
+            是否包含
         """
         return self.trie.contains_prefix(pattern)
     
-    def find_all(self, pattern: str) -> List[int]:
+    def find_all_occurrences(self, pattern: str) -> List[int]:
         """
-        查找所有模式出现的位置
+        查找所有出现位置
         
         Args:
-            pattern: 要查找的模式
+            pattern: 要查找的子串
             
         Returns:
-            List[int]: 所有起始位置的列表
+            起始位置列表
         """
+        if not self.trie.contains_prefix(pattern):
+            return []
+        
+        # 获取所有以pattern开头的后缀
+        suffixes = self.trie.starts_with(pattern, limit=10000)
+        
+        # 从原始后缀长度反推位置
         positions = []
-        pattern_len = len(pattern)
+        original_length = max(len(s) for s in suffixes) if suffixes else 0
         
-        for i in range(len(self._text) - pattern_len + 1):
-            if self._text[i:i + pattern_len] == pattern:
-                positions.append(i)
+        for suffix in suffixes:
+            pos = original_length - len(suffix)
+            positions.append(pos)
         
-        return positions
+        return sorted(positions)
+
+
+class PrefixSet:
+    """
+    前缀集合
     
-    def count_occurrences(self, pattern: str) -> int:
+    高效的前缀匹配集合，适用于大量字符串的前缀检测
+    """
+    
+    def __init__(self):
+        self.trie = Trie()
+    
+    def add(self, prefix: str) -> None:
+        """添加前缀"""
+        self.trie.insert(prefix)
+    
+    def update(self, prefixes: List[str]) -> None:
+        """批量添加前缀"""
+        for prefix in prefixes:
+            self.trie.insert(prefix)
+    
+    def matches_any_prefix(self, text: str) -> bool:
         """
-        统计模式出现次数
+        检查文本是否以集合中任一前缀开头
         
         Args:
-            pattern: 要统计的模式
+            text: 输入文本
             
         Returns:
-            int: 出现次数
+            是否匹配
         """
-        return len(self.find_all(pattern))
+        return bool(self.trie.longest_prefix(text))
     
-    def longest_repeated_substring(self) -> str:
+    def get_matching_prefix(self, text: str) -> Optional[str]:
         """
-        查找最长重复子串
-        
-        Returns:
-            str: 最长重复子串
-        """
-        if not self._text:
-            return ""
-        
-        result = ""
-        n = len(self._text)
-        
-        # 检查所有可能的子串长度
-        for length in range(1, n // 2 + 1):
-            seen = set()
-            for i in range(n - length + 1):
-                substr = self._text[i:i + length]
-                if substr in seen and len(substr) > len(result):
-                    result = substr
-                seen.add(substr)
-        
-        return result
-
-
-class TrieSet:
-    """
-    基于 Trie 的字符串集合
-    
-    提供高效的集合操作
-    
-    示例:
-        >>> ts = TrieSet()
-        >>> ts.add("hello")
-        >>> ts.add("world")
-        >>> "hello" in ts
-        True
-    """
-    
-    def __init__(self, words: Optional[List[str]] = None):
-        """
-        初始化 TrieSet
+        获取匹配的最长前缀
         
         Args:
-            words: 初始单词列表
+            text: 输入文本
+            
+        Returns:
+            匹配的前缀，无匹配返回None
         """
-        self.trie = Trie()
-        if words:
-            for word in words:
-                self.add(word)
+        result = self.trie.longest_prefix(text)
+        return result if result else None
     
-    def add(self, word: str) -> None:
-        """添加单词"""
-        self.trie.insert(word)
-    
-    def remove(self, word: str) -> bool:
-        """移除单词"""
-        return self.trie.delete(word)
-    
-    def __contains__(self, word: str) -> bool:
-        return self.trie.search(word)
+    def __contains__(self, prefix: str) -> bool:
+        return prefix in self.trie
     
     def __len__(self) -> int:
         return len(self.trie)
-    
-    def __iter__(self) -> Iterator[str]:
-        return iter(self.trie)
-    
-    def starts_with(self, prefix: str) -> List[str]:
-        """查找前缀匹配的所有单词"""
-        return self.trie.starts_with(prefix)
-    
-    def union(self, other: 'TrieSet') -> 'TrieSet':
-        """并集"""
-        result = TrieSet()
-        for word in self:
-            result.add(word)
-        for word in other:
-            result.add(word)
-        return result
-    
-    def intersection(self, other: 'TrieSet') -> 'TrieSet':
-        """交集"""
-        result = TrieSet()
-        for word in self:
-            if word in other:
-                result.add(word)
-        return result
-    
-    def difference(self, other: 'TrieSet') -> 'TrieSet':
-        """差集"""
-        result = TrieSet()
-        for word in self:
-            if word not in other:
-                result.add(word)
-        return result
-    
-    def isdisjoint(self, other: 'TrieSet') -> bool:
-        """是否没有交集"""
-        for word in self:
-            if word in other:
-                return False
-        return True
-    
-    def issubset(self, other: 'TrieSet') -> bool:
-        """是否是子集"""
-        for word in self:
-            if word not in other:
-                return False
-        return True
-    
-    def issuperset(self, other: 'TrieSet') -> bool:
-        """是否是超集"""
-        return other.issubset(self)
 
 
-def build_trie_from_words(words: List[str]) -> Trie:
+# 便捷函数
+def build_trie(words: List[str]) -> Trie:
     """
-    从单词列表构建 Trie
+    从单词列表构建Trie
     
     Args:
         words: 单词列表
         
     Returns:
-        Trie: 构建好的 Trie
+        构建好的Trie
     """
     trie = Trie()
     for word in words:
@@ -753,65 +713,75 @@ def find_common_prefix(words: List[str]) -> str:
         words: 单词列表
         
     Returns:
-        str: 最长公共前缀
+        最长公共前缀
     """
     if not words:
         return ""
     
-    trie = build_trie_from_words(words)
-    return trie.longest_common_prefix()
+    prefix = words[0]
+    for word in words[1:]:
+        while not word.startswith(prefix):
+            prefix = prefix[:-1]
+            if not prefix:
+                return ""
+    
+    return prefix
 
 
-def group_by_prefix(words: List[str], prefix_len: int = 2) -> Dict[str, List[str]]:
+def word_frequency_analysis(words: List[str]) -> Dict[str, int]:
     """
-    按前缀分组单词
+    分析单词频率并返回排序结果
     
     Args:
         words: 单词列表
-        prefix_len: 前缀长度
         
     Returns:
-        Dict[str, List[str]]: 分组结果
+        {单词: 频率} 字典
     """
-    groups: Dict[str, List[str]] = defaultdict(list)
+    trie = Trie()
+    for word in words:
+        trie.insert(word)
+    
+    result = {}
+    for word in trie:
+        result[word] = trie.get_count(word)
+    
+    return dict(sorted(result.items(), key=lambda x: x[1], reverse=True))
+
+
+if __name__ == "__main__":
+    # 简单演示
+    print("=== Trie 工具模块演示 ===\n")
+    
+    # 创建Trie并插入单词
+    trie = Trie()
+    words = ["hello", "help", "helper", "helicopter", "helium", 
+             "world", "word", "work", "worker"]
     
     for word in words:
-        if len(word) >= prefix_len:
-            prefix = word[:prefix_len]
-            groups[prefix].append(word)
+        trie.insert(word)
     
-    return dict(groups)
-
-
-def autocomplete_suggestions(trie: Trie, prefix: str, 
-                            limit: int = 10,
-                            sort_by_frequency: bool = False) -> List[str]:
-    """
-    获取自动补全建议
+    print(f"Trie大小: {trie.size()} 个单词")
     
-    Args:
-        trie: Trie 对象
-        prefix: 输入前缀
-        limit: 返回数量限制
-        sort_by_frequency: 是否按词频排序
-        
-    Returns:
-        List[str]: 补全建议列表
-    """
-    sort_by = 'frequency' if sort_by_frequency else 'alphabetical'
-    return trie.autocomplete(prefix, limit, sort_by)
-
-
-# 导出公共接口
-__all__ = [
-    'Trie',
-    'TrieNode',
-    'SpellChecker',
-    'WordDictionary',
-    'SuffixTrie',
-    'TrieSet',
-    'build_trie_from_words',
-    'find_common_prefix',
-    'group_by_prefix',
-    'autocomplete_suggestions',
-]
+    # 搜索演示
+    print(f"\n搜索 'hello': {trie.search('hello')}")
+    print(f"搜索 'hel': {trie.search('hel')}")
+    
+    # 前缀搜索
+    print(f"\n以 'hel' 开头的单词: {trie.starts_with('hel')}")
+    print(f"以 'wor' 开头的单词: {trie.starts_with('wor')}")
+    
+    # 自动补全
+    trie.insert("hello", data={"meaning": "打招呼"})
+    print(f"\n自动补全 'hel': {trie.autocomplete('hel')}")
+    
+    # 模式匹配
+    print(f"\n模式匹配 'h?lp': {trie.pattern_match('h?lp')}")
+    
+    # 最长前缀
+    print(f"\n'helperworld' 的最长前缀: {trie.longest_prefix('helperworld')}")
+    
+    # 拼写建议
+    print(f"\n'helo' 的纠正建议: {trie.suggest_corrections('helo')}")
+    
+    print("\n=== 演示完成 ===")

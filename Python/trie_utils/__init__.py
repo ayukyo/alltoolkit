@@ -3,25 +3,19 @@
 from .mod import (
     Trie,
     TrieNode,
-    SpellChecker,
-    WordDictionary,
     SuffixTrie,
-    TrieSet,
-    build_trie_from_words,
+    PrefixSet,
+    build_trie,
     find_common_prefix,
-    group_by_prefix,
-    autocomplete_suggestions,
+    word_frequency_analysis,
 )
 
 __all__ = [
     'Trie',
     'TrieNode',
-    'SpellChecker',
-    'WordDictionary',
     'SuffixTrie',
-    'TrieSet',
-    'build_trie_from_words',
+    'PrefixSet',
+    'build_trie',
     'find_common_prefix',
-    'group_by_prefix',
-    'autocomplete_suggestions',
+    'word_frequency_analysis',
 ]

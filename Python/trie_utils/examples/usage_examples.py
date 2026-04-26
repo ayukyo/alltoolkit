@@ -1,312 +1,335 @@
 """
 Trie 工具模块使用示例
 
-展示核心功能：
-1. Trie 基本操作
-2. 自动补全系统
-3. 拼写检查器
-4. 通配符匹配
-5. 后缀搜索
+展示 Trie 数据结构的各种应用场景：
+1. 自动补全系统
+2. 拼写检查
+3. IP路由查找
+4. 词典实现
+5. 搜索建议
 """
 
 import sys
 import os
-
-# 直接从父目录导入 mod
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import mod
 
-# 使用 mod 模块中的类
-Trie = mod.Trie
-SpellChecker = mod.SpellChecker
-WordDictionary = mod.WordDictionary
-SuffixTrie = mod.SuffixTrie
-TrieSet = mod.TrieSet
-build_trie_from_words = mod.build_trie_from_words
-find_common_prefix = mod.find_common_prefix
-group_by_prefix = mod.group_by_prefix
-autocomplete_suggestions = mod.autocomplete_suggestions
+from mod import (
+    Trie, SuffixTrie, PrefixSet,
+    build_trie, find_common_prefix, word_frequency_analysis
+)
 
 
-def example_basic_trie():
-    """示例 1: Trie 基本操作"""
-    print("=" * 50)
-    print("示例 1: Trie 基本操作")
-    print("=" * 50)
+def example_autocomplete():
+    """示例：自动补全系统"""
+    print("=" * 60)
+    print("示例 1：自动补全系统")
+    print("=" * 60)
     
-    # 创建 Trie 并插入单词
+    # 构建词典（模拟搜索历史）
     trie = Trie()
-    words = ["apple", "application", "apply", "appetite", "banana", "band"]
-    
-    for word in words:
-        trie.insert(word)
-    
-    print(f"\n插入单词: {words}")
-    print(f"Trie 中单词数量: {len(trie)}")
-    
-    # 搜索
-    print(f"\n搜索 'apple': {trie.search('apple')}")
-    print(f"搜索 'app': {trie.search('app')}")
-    print(f"搜索 'orange': {trie.search('orange')}")
-    
-    # 前缀搜索
-    print(f"\n以 'app' 开头的单词: {trie.starts_with('app')}")
-    print(f"以 'ban' 开头的单词: {trie.starts_with('ban')}")
-    
-    # 自动补全
-    print(f"\n自动补全 'app' (按字母顺序): {trie.autocomplete('app', limit=3)}")
-    
-    # 词频统计
-    trie.insert("apple")
-    trie.insert("apple")
-    print(f"\n'apple' 出现次数: {trie.get_count('apple')}")
-    
-    # 公共前缀
-    print(f"\n最长公共前缀: {trie.longest_common_prefix()}")
-    
-    # 删除
-    print(f"\n删除 'apple': {trie.delete('apple')}")
-    print(f"删除后 'apple' 是否存在: {trie.search('apple')}")
-    
-    print()
-
-
-def example_autocomplete_system():
-    """示例 2: 自动补全系统"""
-    print("=" * 50)
-    print("示例 2: 自动补全系统")
-    print("=" * 50)
-    
-    # 构建搜索引擎的自动补全词库
-    search_trie = Trie()
-    
-    # 模拟搜索词频（多次插入增加词频）
-    common_searches = [
-        ("python", 10),
-        ("python tutorial", 8),
-        ("python for loop", 7),
-        ("python list comprehension", 6),
-        ("python dictionary", 5),
-        ("javascript", 9),
-        ("javascript async", 4),
-        ("java", 8),
-        ("java spring", 3),
+    search_history = [
+        "python tutorial",
+        "python basics",
+        "python web development",
+        "python data science",
+        "python machine learning",
+        "javascript tutorial",
+        "javascript react",
+        "java tutorial",
+        "java spring boot",
     ]
     
-    for word, count in common_searches:
-        for _ in range(count):
-            search_trie.insert(word)
+    # 插入搜索历史（多次搜索提高权重）
+    for _ in range(5):
+        trie.insert("python tutorial")
+    for _ in range(3):
+        trie.insert("python basics")
+    for _ in range(2):
+        trie.insert("python web development")
+    for _ in range(4):
+        trie.insert("javascript tutorial")
+    for _ in range(1):
+        trie.insert("python data science")
     
-    # 模拟用户输入，提供补全建议
-    user_inputs = ["py", "jav", "python "]
+    print("\n用户输入 'py'，建议：")
+    suggestions = trie.autocomplete("py", max_suggestions=5)
+    for word, count in suggestions:
+        print(f"  {word} (搜索{count}次)")
     
-    for prefix in user_inputs:
-        suggestions = search_trie.autocomplete(prefix, limit=5, sort_by='frequency')
-        print(f"\n用户输入: '{prefix}'")
-        print(f"补全建议 (按词频): {suggestions}")
+    print("\n用户输入 'jav'，建议：")
+    suggestions = trie.autocomplete("jav", max_suggestions=5)
+    for word, count in suggestions:
+        print(f"  {word} (搜索{count}次)")
     
     print()
 
 
 def example_spell_checker():
-    """示例 3: 拼写检查器"""
-    print("=" * 50)
-    print("示例 3: 拼写检查器")
-    print("=" * 50)
+    """示例：拼写检查器"""
+    print("=" * 60)
+    print("示例 2：拼写检查器")
+    print("=" * 60)
     
-    # 创建拼写检查器并加载词典
-    checker = SpellChecker(max_edit_distance=2)
-    
-    # 常见英文单词
-    dictionary = [
-        "the", "be", "to", "of", "and", "a", "in", "that", "have", "I",
-        "it", "for", "not", "on", "with", "he", "as", "you", "do", "at",
-        "this", "but", "his", "by", "from", "they", "we", "say", "her", "she",
-        "or", "an", "will", "my", "one", "all", "would", "there", "their", "what",
-        "hello", "world", "help", "held", "helder", "python", "javascript"
-    ]
-    
-    checker.load_words(dictionary)
-    
-    # 测试拼写检查
-    test_words = ["hello", "helo", "wrld", "pyton", "javascrpt"]
-    
-    for word in test_words:
-        is_correct = checker.is_correct(word)
-        suggestions = checker.suggest(word, limit=3)
-        
-        status = "✓ 正确" if is_correct else "✗ 拼写错误"
-        print(f"\n单词: '{word}' - {status}")
-        if not is_correct:
-            print(f"建议: {suggestions}")
-    
-    print()
-
-
-def example_wildcard_matching():
-    """示例 4: 通配符匹配"""
-    print("=" * 50)
-    print("示例 4: 通配符匹配")
-    print("=" * 50)
-    
-    # 创建支持通配符的字典
-    wd = WordDictionary()
-    
-    # 添加编程语言名称
-    languages = [
-        "python", "python3", "python2",
-        "javascript", "java",
-        "typescript", "typescript4",
-        "ruby", "rust", "go", "golang"
-    ]
-    
-    for lang in languages:
-        wd.add_word(lang)
-    
-    print(f"已添加编程语言: {languages}")
-    
-    # 使用通配符搜索
-    patterns = [
-        "python.",      # 匹配 python3, python2
-        "java*",        # 匹配 java, javascript
-        "type*4",       # 匹配 typescript4
-        "go",           # 精确匹配 go
-        "r.b.",         # 匹配 ruby
-    ]
-    
-    for pattern in patterns:
-        matches = wd.find_all_matches(pattern)
-        print(f"\n模式 '{pattern}' 匹配结果: {matches}")
-    
-    print()
-
-
-def example_suffix_search():
-    """示例 5: 后缀搜索"""
-    print("=" * 50)
-    print("示例 5: 后缀搜索")
-    print("=" * 50)
-    
-    # 创建后缀 Trie
-    text = "mississippi"
-    st = SuffixTrie(text)
-    
-    print(f"文本: '{text}'")
-    
-    # 子串查找
-    patterns = ["iss", "si", "ppi", "xyz"]
-    
-    for pattern in patterns:
-        contains = st.contains(pattern)
-        positions = st.find_all(pattern)
-        count = st.count_occurrences(pattern)
-        
-        print(f"\n模式 '{pattern}':")
-        print(f"  是否包含: {contains}")
-        print(f"  出现位置: {positions}")
-        print(f"  出现次数: {count}")
-    
-    # 查找最长重复子串
-    print(f"\n最长重复子串: '{st.longest_repeated_substring()}'")
-    
-    print()
-
-
-def example_trie_set():
-    """示例 6: TrieSet 集合操作"""
-    print("=" * 50)
-    print("示例 6: TrieSet 集合操作")
-    print("=" * 50)
-    
-    # 创建两个字符串集合
-    set1 = TrieSet(["apple", "banana", "cherry", "date"])
-    set2 = TrieSet(["banana", "date", "elderberry", "fig"])
-    
-    print(f"集合 1: {list(set1)}")
-    print(f"集合 2: {list(set2)}")
-    
-    # 集合操作
-    print(f"\n并集: {list(set1.union(set2))}")
-    print(f"交集: {list(set1.intersection(set2))}")
-    print(f"差集 (set1 - set2): {list(set1.difference(set2))}")
-    
-    # 集合判断
-    print(f"\n是否不相交: {set1.isdisjoint(set2)}")
-    
-    subset = TrieSet(["banana", "date"])
-    print(f"{list(subset)} 是 set1 的子集: {subset.issubset(set1)}")
-    
-    print()
-
-
-def example_prefix_analysis():
-    """示例 7: 前缀分析工具"""
-    print("=" * 50)
-    print("示例 7: 前缀分析工具")
-    print("=" * 50)
-    
-    # 文件名列表
-    filenames = [
-        "document_2023_01.txt",
-        "document_2023_02.txt",
-        "document_2023_03.txt",
-        "image_photo_001.jpg",
-        "image_photo_002.jpg",
-        "image_screenshot.png",
-        "data_export.csv",
-        "data_import.csv",
-    ]
-    
-    print("文件名列表:")
-    for f in filenames:
-        print(f"  {f}")
-    
-    # 按前缀分组
-    groups = group_by_prefix(filenames, prefix_len=4)
-    print("\n按前缀分组:")
-    for prefix, files in groups.items():
-        print(f"  '{prefix}': {files}")
-    
-    # 查找公共前缀
-    docs = [f for f in filenames if f.startswith("document")]
-    common = find_common_prefix(docs)
-    print(f"\ndocument 文件的公共前缀: '{common}'")
-    
-    print()
-
-
-def example_word_dictionary_with_data():
-    """示例 8: 带数据的单词字典"""
-    print("=" * 50)
-    print("示例 8: 带数据的单词字典")
-    print("=" * 50)
-    
-    # 创建带附加数据的 Trie
+    # 构建词典
     trie = Trie()
+    dictionary = [
+        "hello", "world", "python", "javascript", "programming",
+        "computer", "algorithm", "data", "structure", "array",
+        "string", "integer", "float", "boolean", "function"
+    ]
+    for word in dictionary:
+        trie.insert(word)
     
-    # 添加单词及其定义
-    words_data = [
-        ("python", {"type": "noun", "meaning": "a large snake", "programming": True}),
-        ("javascript", {"type": "noun", "meaning": "a programming language", "programming": True}),
-        ("java", {"type": "noun", "meaning": "coffee", "programming": True}),
-        ("trie", {"type": "noun", "meaning": "a tree data structure", "programming": False}),
+    # 检查拼写错误
+    misspelled = ["helo", "wrld", "pyton", "prgramming", "computr"]
+    
+    print("\n拼写检查结果：")
+    for word in misspelled:
+        if not trie.search(word):
+            suggestions = trie.suggest_corrections(word, max_distance=2)[:3]
+            print(f"\n'{word}' 可能是拼写错误，建议：")
+            for suggestion, distance in suggestions:
+                print(f"  {suggestion} (编辑距离: {distance})")
+        else:
+            print(f"\n'{word}' 拼写正确")
+    
+    print()
+
+
+def example_ip_router():
+    """示例：IP路由查找"""
+    print("=" * 60)
+    print("示例 3：IP路由查找")
+    print("=" * 60)
+    
+    # 构建路由表（简化示例）
+    routes = PrefixSet()
+    routes.update([
+        "10.",      # 私有网络 A
+        "192.168.", # 私有网络 C
+        "172.16.",  # 私有网络 B
+        "8.8.",     # Google DNS
+        "1.1.",     # Cloudflare DNS
+    ])
+    
+    test_ips = [
+        "10.0.0.1",
+        "192.168.1.100",
+        "8.8.8.8",
+        "172.16.0.1",
+        "93.184.216.34",  # 无匹配
     ]
     
-    for word, data in words_data:
-        trie.insert(word, data)
+    print("\nIP路由查找结果：")
+    for ip in test_ips:
+        prefix = routes.get_matching_prefix(ip)
+        if prefix:
+            print(f"  {ip} -> 匹配路由: {prefix}...")
+        else:
+            print(f"  {ip} -> 使用默认路由")
+    
+    print()
+
+
+def example_dictionary():
+    """示例：词典实现"""
+    print("=" * 60)
+    print("示例 4：词典实现")
+    print("=" * 60)
+    
+    # 构建英汉词典
+    trie = Trie()
+    dictionary = {
+        "hello": {"meaning": "你好", "pos": "int."},
+        "help": {"meaning": "帮助", "pos": "v./n."},
+        "helper": {"meaning": "助手", "pos": "n."},
+        "helicopter": {"meaning": "直升机", "pos": "n."},
+        "world": {"meaning": "世界", "pos": "n."},
+        "word": {"meaning": "单词", "pos": "n."},
+        "work": {"meaning": "工作", "pos": "v./n."},
+    }
+    
+    for word, info in dictionary.items():
+        trie.insert(word, data=info)
+    
+    print("\n词典查询示例：")
     
     # 查询单词
-    query_words = ["python", "javascript", "java", "trie", "ruby"]
+    word = "hello"
+    data = trie.get_data(word)
+    if data:
+        print(f"\n  {word}: {data['meaning']} ({data['pos']})")
     
-    for word in query_words:
-        if trie.search(word):
-            data = trie.get_data(word)
-            print(f"\n{word}:")
-            print(f"  类型: {data['type']}")
-            print(f"  含义: {data['meaning']}")
-            print(f"  编程相关: {data['programming']}")
+    # 前缀查询
+    print("\n以 'hel' 开头的单词：")
+    for word in trie.starts_with("hel"):
+        data = trie.get_data(word)
+        print(f"  {word}: {data['meaning']}")
+    
+    # 通配符查询
+    print("\n模式 'w?r?' 匹配：")
+    for word in trie.pattern_match("w?r?"):
+        data = trie.get_data(word)
+        print(f"  {word}: {data['meaning']}")
+    
+    print()
+
+
+def example_search_engine():
+    """示例：搜索引擎关键词过滤"""
+    print("=" * 60)
+    print("示例 5：关键词过滤系统")
+    print("=" * 60)
+    
+    # 构建敏感词库
+    trie = Trie()
+    sensitive_words = ["暴力", "色情", "赌博", "诈骗", "毒品"]
+    for word in sensitive_words:
+        trie.insert(word)
+    
+    # 检测文本
+    texts = [
+        "这是一个正常的内容",
+        "这里包含暴力内容",
+        "打击网络诈骗是重点",
+        "禁毒教育很重要，远离毒品",
+    ]
+    
+    print("\n内容审核结果：")
+    for text in texts:
+        found = []
+        for i in range(len(text)):
+            prefix = trie.longest_prefix(text[i:])
+            if prefix:
+                found.append(prefix)
+        
+        if found:
+            print(f"  '{text}' -> 发现敏感词: {found}")
         else:
-            print(f"\n{word}: 未找到")
+            print(f"  '{text}' -> 审核通过")
+    
+    print()
+
+
+def example_word_game():
+    """示例：单词游戏辅助"""
+    print("=" * 60)
+    print("示例 6：单词游戏辅助")
+    print("=" * 60)
+    
+    # 加载单词库
+    trie = Trie()
+    words = [
+        "cat", "car", "card", "care", "careful",
+        "bat", "bar", "bard", "bare", "barely",
+        "rat", "radar", "rare", "rate", "rather"
+    ]
+    for word in words:
+        trie.insert(word)
+    
+    print("\n游戏场景：拼字游戏")
+    
+    # 1. 给定前缀，找所有可能的单词
+    prefix = "car"
+    print(f"\n前缀 '{prefix}' 可以组成：")
+    print(f"  {trie.starts_with(prefix)}")
+    
+    # 2. 给定字母模式，找匹配单词（? 代表任意字母）
+    pattern = "?are"
+    print(f"\n模式 '{pattern}' 匹配：")
+    print(f"  {trie.pattern_match(pattern)}")
+    
+    # 3. 最长单词
+    given = "careful"
+    longest = trie.longest_prefix(given)
+    print(f"\n给定 '{given}'，最长匹配：")
+    print(f"  {longest}")
+    
+    print()
+
+
+def example_data_serialization():
+    """示例：数据序列化"""
+    print("=" * 60)
+    print("示例 7：数据持久化")
+    print("=" * 60)
+    
+    # 构建词典
+    trie = Trie()
+    words = ["apple", "application", "apply", "appreciate"]
+    for word in words:
+        trie.insert(word)
+    
+    print(f"\n原始 Trie 大小: {trie.size()} 个单词")
+    
+    # 序列化为 JSON
+    json_str = trie.to_json()
+    print(f"序列化后 JSON 长度: {len(json_str)} 字符")
+    
+    # 反序列化
+    new_trie = Trie.from_json(json_str)
+    print(f"反序列化后大小: {new_trie.size()} 个单词")
+    
+    # 验证数据完整性
+    print("\n验证数据完整性:")
+    for word in words:
+        original = trie.search(word)
+        restored = new_trie.search(word)
+        print(f"  {word}: 原={original}, 恢复={restored}, {'✓' if original == restored else '✗'}")
+    
+    print()
+
+
+def example_frequency_analysis():
+    """示例：词频分析"""
+    print("=" * 60)
+    print("示例 8：词频统计与分析")
+    print("=" * 60)
+    
+    # 模拟文本数据
+    text = """
+    python is a popular programming language
+    python is used for web development
+    python is used for data science
+    python has a simple syntax
+    python is easy to learn
+    """
+    
+    words = text.lower().split()
+    
+    # 使用工具函数分析词频
+    freq = word_frequency_analysis(words)
+    
+    print("\n词频统计结果：")
+    for word, count in list(freq.items())[:5]:
+        print(f"  {word}: {count}次")
+    
+    # 查找公共前缀
+    word_list = ["programming", "programmer", "program", "progressive"]
+    common = find_common_prefix(word_list)
+    print(f"\n单词 {word_list} 的公共前缀: '{common}'")
+    
+    print()
+
+
+def example_suffix_trie():
+    """示例：后缀树"""
+    print("=" * 60)
+    print("示例 9：后缀树（子串匹配）")
+    print("=" * 60)
+    
+    st = SuffixTrie()
+    text = "abracadabra"
+    
+    print(f"\n构建字符串 '{text}' 的后缀树...")
+    st.build_from_string(text)
+    
+    patterns = ["abra", "cad", "xyz", "bra"]
+    
+    print("\n子串匹配结果：")
+    for pattern in patterns:
+        found = st.contains_substring(pattern)
+        print(f"  '{pattern}' -> {'找到' if found else '未找到'}")
     
     print()
 
@@ -314,21 +337,22 @@ def example_word_dictionary_with_data():
 def main():
     """运行所有示例"""
     print("\n" + "=" * 60)
-    print("Trie 工具模块 - 使用示例")
+    print("    Trie 工具模块 - 使用示例")
     print("=" * 60 + "\n")
     
-    example_basic_trie()
-    example_autocomplete_system()
+    example_autocomplete()
     example_spell_checker()
-    example_wildcard_matching()
-    example_suffix_search()
-    example_trie_set()
-    example_prefix_analysis()
-    example_word_dictionary_with_data()
+    example_ip_router()
+    example_dictionary()
+    example_search_engine()
+    example_word_game()
+    example_data_serialization()
+    example_frequency_analysis()
+    example_suffix_trie()
     
     print("=" * 60)
-    print("所有示例运行完成!")
-    print("=" * 60)
+    print("    所有示例运行完成！")
+    print("=" * 60 + "\n")
 
 
 if __name__ == "__main__":
