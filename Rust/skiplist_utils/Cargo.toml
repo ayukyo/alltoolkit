@@ -1,0 +1,11 @@
+[package]
+name = "skiplist_utils"
+version = "0.1.0"
+edition = "2021"
+description = "A generic Skip List implementation in Rust"
+license = "MIT"
+authors = ["AllToolkit"]
+
+[dependencies]
+
+[dev-dependencies]
