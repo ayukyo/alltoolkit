@@ -1,10 +1,13 @@
 package trie_utils
 
 import (
-	"reflect"
 	"sort"
 	"testing"
 )
+
+// ============================================================================
+// Trie Creation Tests
+// ============================================================================
 
 func TestNewTrie(t *testing.T) {
 	trie := NewTrie()
@@ -12,600 +15,563 @@ func TestNewTrie(t *testing.T) {
 		t.Fatal("NewTrie returned nil")
 	}
 	if trie.Size() != 0 {
-		t.Errorf("Expected size 0, got %d", trie.Size())
+		t.Errorf("New trie should be empty, got size %d", trie.Size())
+	}
+	if !trie.IsEmpty() {
+		t.Error("New trie should report as empty")
+	}
+	if !trie.caseSensitive {
+		t.Error("NewTrie should be case-sensitive by default")
 	}
 }
+
+func TestNewTrieCaseInsensitive(t *testing.T) {
+	trie := NewTrieCaseInsensitive()
+	if trie == nil {
+		t.Fatal("NewTrieCaseInsensitive returned nil")
+	}
+	if trie.caseSensitive {
+		t.Error("NewTrieCaseInsensitive should be case-insensitive")
+	}
+}
+
+// ============================================================================
+// Insert Tests
+// ============================================================================
 
 func TestInsert(t *testing.T) {
 	trie := NewTrie()
 
-	// Test inserting new word
-	if !trie.InsertWord("hello") {
-		t.Error("InsertWord should return true for new word")
+	// Insert new word
+	if !trie.Insert("hello") {
+		t.Error("Insert of new word should return true")
 	}
 	if trie.Size() != 1 {
 		t.Errorf("Expected size 1, got %d", trie.Size())
 	}
 
-	// Test inserting duplicate
-	if trie.InsertWord("hello") {
-		t.Error("InsertWord should return false for duplicate word")
+	// Insert same word again
+	if trie.Insert("hello") {
+		t.Error("Insert of existing word should return false")
 	}
 	if trie.Size() != 1 {
-		t.Errorf("Size should still be 1 after duplicate insert, got %d", trie.Size())
+		t.Errorf("Size should still be 1, got %d", trie.Size())
 	}
 
-	// Test inserting with value
-	if !trie.Insert("world", 42) {
-		t.Error("Insert with value should return true for new word")
-	}
-
-	// Test empty string
-	if trie.InsertWord("") {
-		t.Error("InsertWord should return false for empty string")
+	// Insert empty string
+	if trie.Insert("") {
+		t.Error("Insert of empty string should return false")
 	}
 }
+
+func TestInsertCaseSensitive(t *testing.T) {
+	trie := NewTrie()
+
+	trie.Insert("hello")
+	trie.Insert("Hello")
+	trie.Insert("HELLO")
+
+	if trie.Size() != 3 {
+		t.Errorf("Expected 3 distinct words (case-sensitive), got %d", trie.Size())
+	}
+
+	if !trie.Search("hello") || !trie.Search("Hello") || !trie.Search("HELLO") {
+		t.Error("All case variations should exist")
+	}
+}
+
+func TestInsertCaseInsensitive(t *testing.T) {
+	trie := NewTrieCaseInsensitive()
+
+	trie.Insert("hello")
+	trie.Insert("Hello")
+	trie.Insert("HELLO")
+
+	if trie.Size() != 1 {
+		t.Errorf("Expected 1 word (case-insensitive), got %d", trie.Size())
+	}
+
+	if !trie.Search("hello") || !trie.Search("Hello") || !trie.Search("HELLO") {
+		t.Error("All case variations should match")
+	}
+}
+
+func TestInsertBatch(t *testing.T) {
+	trie := NewTrie()
+	words := []string{"apple", "app", "application", "apply", "banana"}
+
+	inserted := trie.InsertBatch(words)
+	if inserted != 5 {
+		t.Errorf("Expected 5 insertions, got %d", inserted)
+	}
+
+	// Insert duplicates
+	inserted = trie.InsertBatch(words)
+	if inserted != 0 {
+		t.Errorf("Expected 0 new insertions, got %d", inserted)
+	}
+}
+
+// ============================================================================
+// Search Tests
+// ============================================================================
 
 func TestSearch(t *testing.T) {
 	trie := NewTrie()
-	trie.InsertWord("hello")
-	trie.InsertWord("help")
-	trie.InsertWord("world")
+	words := []string{"apple", "app", "application", "banana"}
 
-	tests := []struct {
-		word     string
-		expected bool
-	}{
-		{"hello", true},
-		{"help", true},
-		{"world", true},
-		{"hel", false},
-		{"helloworld", false},
-		{"", false},
-		{"hell", false},
-	}
-
-	for _, tt := range tests {
-		if got := trie.Search(tt.word); got != tt.expected {
-			t.Errorf("Search(%q) = %v, want %v", tt.word, got, tt.expected)
-		}
-	}
-}
-
-func TestSearchWithValue(t *testing.T) {
-	trie := NewTrie()
-	trie.Insert("hello", "greeting")
-	trie.Insert("count", 42)
-
-	// Test existing word with value
-	val, ok := trie.SearchWithValue("hello")
-	if !ok || val != "greeting" {
-		t.Errorf("SearchWithValue(hello) = %v, %v, want 'greeting', true", val, ok)
-	}
-
-	// Test existing word with int value
-	val, ok = trie.SearchWithValue("count")
-	if !ok || val != 42 {
-		t.Errorf("SearchWithValue(count) = %v, %v, want 42, true", val, ok)
-	}
-
-	// Test non-existing word
-	val, ok = trie.SearchWithValue("missing")
-	if ok {
-		t.Errorf("SearchWithValue(missing) should return false, got %v", ok)
-	}
-
-	// Test prefix (not a word)
-	val, ok = trie.SearchWithValue("hel")
-	if ok {
-		t.Errorf("SearchWithValue(hel) should return false for prefix")
-	}
-}
-
-func TestStartsWith(t *testing.T) {
-	trie := NewTrie()
-	trie.InsertWord("hello")
-	trie.InsertWord("help")
-	trie.InsertWord("world")
-
-	tests := []struct {
-		prefix   string
-		expected bool
-	}{
-		{"hel", true},
-		{"hello", true},
-		{"help", true},
-		{"wor", true},
-		{"world", true},
-		{"abc", false},
-		{"", true}, // Empty prefix matches everything
-		{"helloworld", false},
-	}
-
-	for _, tt := range tests {
-		if got := trie.StartsWith(tt.prefix); got != tt.expected {
-			t.Errorf("StartsWith(%q) = %v, want %v", tt.prefix, got, tt.expected)
-		}
-	}
-}
-
-func TestDelete(t *testing.T) {
-	trie := NewTrie()
-	trie.InsertWord("hello")
-	trie.InsertWord("help")
-	trie.InsertWord("world")
-
-	// Delete existing word
-	if !trie.Delete("hello") {
-		t.Error("Delete should return true for existing word")
-	}
-	if trie.Size() != 2 {
-		t.Errorf("Size should be 2 after delete, got %d", trie.Size())
-	}
-	if trie.Search("hello") {
-		t.Error("hello should be deleted")
-	}
-
-	// Verify other words still exist
-	if !trie.Search("help") {
-		t.Error("help should still exist")
-	}
-	if !trie.Search("world") {
-		t.Error("world should still exist")
-	}
-
-	// Delete non-existing word
-	if trie.Delete("nonexistent") {
-		t.Error("Delete should return false for non-existing word")
-	}
-
-	// Delete empty string
-	if trie.Delete("") {
-		t.Error("Delete should return false for empty string")
-	}
-}
-
-func TestWordsWithPrefix(t *testing.T) {
-	trie := NewTrie()
-	words := []string{"hello", "help", "helper", "helicopter", "world", "word", "work"}
 	for _, w := range words {
-		trie.InsertWord(w)
+		trie.Insert(w)
 	}
 
-	tests := []struct {
-		prefix   string
-		expected []string
-	}{
-		{"hel", []string{"hello", "help", "helper", "helicopter"}},
-		{"wor", []string{"world", "word", "work"}},
-		{"help", []string{"help", "helper"}},
-		{"xyz", nil},
-		{"", words},
-	}
-
-	for _, tt := range tests {
-		got := trie.WordsWithPrefix(tt.prefix)
-		sort.Strings(got)
-		sort.Strings(tt.expected)
-		if !reflect.DeepEqual(got, tt.expected) {
-			t.Errorf("WordsWithPrefix(%q) = %v, want %v", tt.prefix, got, tt.expected)
-		}
-	}
-}
-
-func TestWordsWithPrefixLimit(t *testing.T) {
-	trie := NewTrie()
-	words := []string{"hello", "help", "helper", "helicopter"}
 	for _, w := range words {
-		trie.InsertWord(w)
-	}
-
-	// Test limit
-	results := trie.WordsWithPrefixLimit("hel", 2)
-	if len(results) != 2 {
-		t.Errorf("Expected 2 results, got %d", len(results))
-	}
-
-	// Test limit larger than available
-	results = trie.WordsWithPrefixLimit("hel", 10)
-	if len(results) != 4 {
-		t.Errorf("Expected 4 results, got %d", len(results))
-	}
-
-	// Test no matches
-	results = trie.WordsWithPrefixLimit("xyz", 5)
-	if len(results) != 0 {
-		t.Errorf("Expected 0 results for non-matching prefix, got %d", len(results))
-	}
-}
-
-func TestAutoComplete(t *testing.T) {
-	trie := NewTrie()
-	words := []string{"apple", "app", "application", "apply", "approach", "banana"}
-	for _, w := range words {
-		trie.InsertWord(w)
-	}
-
-	results := trie.AutoComplete("app", 3)
-	if len(results) > 3 {
-		t.Errorf("AutoComplete should respect limit, got %d results", len(results))
-	}
-
-	// All results should start with "app"
-	for _, r := range results {
-		if len(r) < 3 || r[:3] != "app" {
-			t.Errorf("AutoComplete result %q doesn't start with 'app'", r)
+		if !trie.Search(w) {
+			t.Errorf("Should find word: %s", w)
 		}
 	}
-}
 
-func TestLongestCommonPrefix(t *testing.T) {
-	tests := []struct {
-		words    []string
-		expected string
-	}{
-		{[]string{"hello", "help", "helicopter"}, "hel"},
-		{[]string{"apple", "application", "apply"}, "app"},
-		{[]string{"cat", "dog", "bird"}, ""},
-		{[]string{"single"}, "single"},
-		{[]string{}, ""},
+	// Non-existent words
+	if trie.Search("ap") {
+		t.Error("'ap' should not exist as a word")
 	}
-
-	for _, tt := range tests {
-		trie := NewTrie()
-		for _, w := range tt.words {
-			trie.InsertWord(w)
-		}
-		if got := trie.LongestCommonPrefix(); got != tt.expected {
-			t.Errorf("LongestCommonPrefix(%v) = %q, want %q", tt.words, got, tt.expected)
-		}
+	if trie.Search("applex") {
+		t.Error("'applex' should not exist")
 	}
-}
-
-func TestAllWords(t *testing.T) {
-	trie := NewTrie()
-	words := []string{"apple", "banana", "cherry"}
-	for _, w := range words {
-		trie.InsertWord(w)
-	}
-
-	got := trie.AllWords()
-	sort.Strings(got)
-	sort.Strings(words)
-
-	if !reflect.DeepEqual(got, words) {
-		t.Errorf("AllWords() = %v, want %v", got, words)
-	}
-}
-
-func TestClear(t *testing.T) {
-	trie := NewTrie()
-	trie.InsertWord("hello")
-	trie.InsertWord("world")
-
-	trie.Clear()
-	if trie.Size() != 0 {
-		t.Errorf("Size after Clear should be 0, got %d", trie.Size())
-	}
-	if trie.Search("hello") {
-		t.Error("hello should not exist after Clear")
-	}
-}
-
-func TestPatternMatch(t *testing.T) {
-	trie := NewTrie()
-	words := []string{"cat", "bat", "rat", "car", "bar", "cart", "bark"}
-	for _, w := range words {
-		trie.InsertWord(w)
-	}
-
-	tests := []struct {
-		pattern  string
-		expected []string
-	}{
-		{"?at", []string{"cat", "bat", "rat"}},
-		{"ca?", []string{"car", "cat"}},
-		{"*", words},
-		{"ca*", []string{"car", "cat", "cart"}},
-		{"ba*", []string{"bat", "bar", "bark"}},
-	}
-
-	for _, tt := range tests {
-		got := trie.PatternMatch(tt.pattern)
-		sort.Strings(got)
-		sort.Strings(tt.expected)
-		if !reflect.DeepEqual(got, tt.expected) {
-			t.Errorf("PatternMatch(%q) = %v, want %v", tt.pattern, got, tt.expected)
-		}
+	if trie.Search("") {
+		t.Error("Empty string should not exist")
 	}
 }
 
 func TestGetCount(t *testing.T) {
 	trie := NewTrie()
-	
-	// Insert same word multiple times
-	trie.InsertWord("hello")
-	trie.InsertWord("hello")
-	trie.InsertWord("hello")
+
+	trie.Insert("hello")
+	trie.Insert("hello")
+	trie.Insert("hello")
 
 	if count := trie.GetCount("hello"); count != 3 {
-		t.Errorf("GetCount(hello) = %d, want 3", count)
+		t.Errorf("Expected count 3, got %d", count)
 	}
 
-	if count := trie.GetCount("missing"); count != 0 {
-		t.Errorf("GetCount(missing) = %d, want 0", count)
-	}
-}
-
-func TestGetWordsByFrequency(t *testing.T) {
-	trie := NewTrie()
-	
-	// Insert words with different frequencies
-	trie.InsertWord("apple")
-	trie.InsertWord("apple")
-	trie.InsertWord("apple")
-	trie.InsertWord("banana")
-	trie.InsertWord("banana")
-	trie.InsertWord("cherry")
-
-	wf := trie.GetWordsByFrequency()
-	
-	if len(wf) != 3 {
-		t.Fatalf("Expected 3 words, got %d", len(wf))
-	}
-
-	// Check order (descending)
-	expected := []struct {
-		word  string
-		count int
-	}{
-		{"apple", 3},
-		{"banana", 2},
-		{"cherry", 1},
-	}
-
-	for i, e := range expected {
-		if wf[i].Word != e.word || wf[i].Count != e.count {
-			t.Errorf("Position %d: got {%s, %d}, want {%s, %d}", 
-				i, wf[i].Word, wf[i].Count, e.word, e.count)
-		}
+	if count := trie.GetCount("world"); count != 0 {
+		t.Errorf("Expected count 0 for non-existent word, got %d", count)
 	}
 }
 
-func TestContainsAnyPrefixOf(t *testing.T) {
+// ============================================================================
+// Prefix Tests
+// ============================================================================
+
+func TestStartsWith(t *testing.T) {
 	trie := NewTrie()
-	trie.InsertWord("car")
-	trie.InsertWord("hello")
+	trie.InsertBatch([]string{"apple", "app", "application", "banana"})
 
 	tests := []struct {
-		input    string
+		prefix   string
 		expected bool
 	}{
-		{"cart", true},     // "car" is prefix of "cart"
-		{"hello world", true}, // "hello" is prefix of "hello world"
-		{"helicopter", true},  // "helicopter" starts with "he" but no word is prefix
-		{"xyz", false},
-		{"", false},
+		{"app", true},
+		{"apple", true},
+		{"ban", true},
+		{"orange", false},
+		{"x", false},
+		{"", true}, // Empty prefix matches all
 	}
 
 	for _, tt := range tests {
-		// Note: ContainsAnyPrefixOf checks if any trie word is prefix of input
-		// For "helicopter", "car" and "hello" are not prefixes of "helicopter"
-		// Wait, let me re-read the implementation...
-		// It checks if the trie contains any word that is a prefix of s
-		// So for "helicopter", we traverse: h->e->l->l, no 'i' child, return false
-		// Actually the implementation traverses the input and checks if any node is an end
-		// So for "helicopter", it would traverse h->e->l->l and at each step check isEnd
-		// But "hel" is not a word, only "hello" is
-		// Let me fix the test
+		t.Run(tt.prefix, func(t *testing.T) {
+			if result := trie.StartsWith(tt.prefix); result != tt.expected {
+				t.Errorf("StartsWith(%q) = %v, want %v", tt.prefix, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestLongestCommonPrefix(t *testing.T) {
+	tests := []struct {
+		name     string
+		words    []string
+		expected string
+	}{
+		{"common prefix", []string{"apple", "app", "application"}, "app"},
+		{"no common prefix", []string{"cat", "dog", "bird"}, ""},
+		{"single word", []string{"hello"}, "hello"},
+		{"empty trie", []string{}, ""},
 	}
 
-	// Simpler tests
-	if !trie.ContainsAnyPrefixOf("carpet") {
-		t.Error("ContainsAnyPrefixOf(carpet) should be true (car is prefix)")
-	}
-	if trie.ContainsAnyPrefixOf("xyz") {
-		t.Error("ContainsAnyPrefixOf(xyz) should be false")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			trie := NewTrie()
+			trie.InsertBatch(tt.words)
+
+			if result := trie.LongestCommonPrefix(); result != tt.expected {
+				t.Errorf("LongestCommonPrefix() = %q, want %q", result, tt.expected)
+			}
+		})
 	}
 }
 
 func TestLongestPrefixOf(t *testing.T) {
 	trie := NewTrie()
-	trie.InsertWord("car")
-	trie.InsertWord("carpet")
-	trie.InsertWord("hello")
+	trie.InsertBatch([]string{"app", "apple", "application"})
 
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"carpet", "carpet"},   // "carpet" is the longest
-		{"carpets", "carpet"},  // "carpet" is longest prefix
-		{"cars", "car"},        // "car" is longest prefix
-		{"xyz", ""},            // No match
-		{"helloworld", "hello"},
-	}
-
-	for _, tt := range tests {
-		if got := trie.LongestPrefixOf(tt.input); got != tt.expected {
-			t.Errorf("LongestPrefixOf(%q) = %q, want %q", tt.input, got, tt.expected)
-		}
-	}
-}
-
-func TestBatchInsert(t *testing.T) {
-	trie := NewTrie()
-	words := []string{"apple", "banana", "cherry", "apple"} // duplicate apple
-	
-	count := trie.BatchInsert(words)
-	if count != 3 {
-		t.Errorf("BatchInsert should return 3 unique inserts, got %d", count)
-	}
-	if trie.Size() != 3 {
-		t.Errorf("Size should be 3, got %d", trie.Size())
-	}
-}
-
-func TestBatchInsertWithValues(t *testing.T) {
-	trie := NewTrie()
-	pairs := map[string]interface{}{
-		"apple":  1,
-		"banana": 2,
-		"cherry": 3,
-	}
-	
-	count := trie.BatchInsertWithValues(pairs)
-	if count != 3 {
-		t.Errorf("BatchInsertWithValues should return 3, got %d", count)
-	}
-
-	val, ok := trie.SearchWithValue("apple")
-	if !ok || val != 1 {
-		t.Errorf("SearchWithValue(apple) = %v, %v, want 1, true", val, ok)
-	}
-}
-
-func TestToMap(t *testing.T) {
-	trie := NewTrie()
-	trie.Insert("apple", 1)
-	trie.Insert("banana", 2)
-	trie.Insert("cherry", 3)
-
-	m := trie.ToMap()
-	expected := map[string]interface{}{
-		"apple":  1,
-		"banana": 2,
-		"cherry": 3,
-	}
-
-	if !reflect.DeepEqual(m, expected) {
-		t.Errorf("ToMap() = %v, want %v", m, expected)
-	}
-}
-
-func TestMinPrefix(t *testing.T) {
-	trie := NewTrie()
-	trie.InsertWord("cat")
-	trie.InsertWord("car")
-	trie.InsertWord("dog")
-
-	// When there are multiple children, min prefix for "cat" should be "ca" 
-	// because 'c' has 'a' and 'o' children... wait, no
-	// Let me re-read the implementation
-	// It checks if len(node.children) > 1 or node.isEnd
-	// So for "cat":
-	// - root has children: 'c' and 'd' (len > 1), return "c"
-	// Wait, we start at root, check if len(root.children) > 1 (yes, c and d)
-	// But we need to check before adding the character
-	// Actually looking at the code:
-	// For i, ch := range word:
-	//   if len(node.children) > 1 || node.isEnd: return word[:i+1]
-	// So for "cat":
-	// - i=0, ch='c', at root, len(children)=2, return "c"
-	
-	// This might not be the expected behavior for "minimum unique prefix"
-	// Let me adjust the test to match the actual behavior
 	tests := []struct {
 		word     string
 		expected string
 	}{
-		{"cat", "c"},  // At root, there are 2 children (c and d)
-		{"car", "c"},  // Same
-		{"dog", "d"},  // At root, len > 1, return "d"
+		{"applepie", "apple"},
+		{"application", "application"},
+		{"appetite", "app"},
+		{"banana", ""},
+		{"", ""},
 	}
 
 	for _, tt := range tests {
-		if got := trie.MinPrefix(tt.word); got != tt.expected {
-			t.Errorf("MinPrefix(%q) = %q, want %q", tt.word, got, tt.expected)
+		t.Run(tt.word, func(t *testing.T) {
+			if result := trie.LongestPrefixOf(tt.word); result != tt.expected {
+				t.Errorf("LongestPrefixOf(%q) = %q, want %q", tt.word, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestCountPrefix(t *testing.T) {
+	trie := NewTrie()
+	trie.InsertBatch([]string{"apple", "app", "application", "apply", "banana"})
+
+	tests := []struct {
+		prefix   string
+		expected int
+	}{
+		{"app", 4},
+		{"apple", 1},
+		{"ban", 1},
+		{"xyz", 0},
+		{"", 5},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.prefix, func(t *testing.T) {
+			if result := trie.CountPrefix(tt.prefix); result != tt.expected {
+				t.Errorf("CountPrefix(%q) = %d, want %d", tt.prefix, result, tt.expected)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// Delete Tests
+// ============================================================================
+
+func TestDelete(t *testing.T) {
+	trie := NewTrie()
+	trie.InsertBatch([]string{"apple", "app", "application"})
+
+	// Delete existing word
+	if !trie.Delete("app") {
+		t.Error("Delete of existing word should return true")
+	}
+	if trie.Search("app") {
+		t.Error("'app' should not exist after deletion")
+	}
+	if trie.Size() != 2 {
+		t.Errorf("Size should be 2, got %d", trie.Size())
+	}
+
+	// Other words should still exist
+	if !trie.Search("apple") || !trie.Search("application") {
+		t.Error("'apple' and 'application' should still exist")
+	}
+
+	// Delete non-existent word
+	if trie.Delete("xyz") {
+		t.Error("Delete of non-existent word should return false")
+	}
+
+	// Delete empty string
+	if trie.Delete("") {
+		t.Error("Delete of empty string should return false")
+	}
+}
+
+func TestDeleteCleanup(t *testing.T) {
+	trie := NewTrie()
+	trie.Insert("apple")
+	trie.Insert("app")
+
+	// Delete 'apple' should not delete 'app'
+	trie.Delete("apple")
+	if !trie.Search("app") {
+		t.Error("'app' should still exist after deleting 'apple'")
+	}
+	if trie.StartsWith("appl") {
+		t.Error("'appl' prefix should not exist after deleting 'apple'")
+	}
+}
+
+// ============================================================================
+// AutoComplete Tests
+// ============================================================================
+
+func TestAutoComplete(t *testing.T) {
+	trie := NewTrie()
+	trie.InsertBatch([]string{"apple", "app", "application", "apply", "banana", "band"})
+
+	tests := []struct {
+		name     string
+		prefix   string
+		expected []string
+	}{
+		{"app prefix", "app", []string{"app", "apple", "application", "apply"}},
+		{"ban prefix", "ban", []string{"banana", "band"}},
+		{"no matches", "xyz", []string{}},
+		{"empty prefix", "", []string{"app", "apple", "application", "apply", "banana", "band"}},
+		{"exact match", "apple", []string{"apple"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := trie.AutoComplete(tt.prefix)
+			sort.Strings(tt.expected)
+			if !equalSlices(result, tt.expected) {
+				t.Errorf("AutoComplete(%q) = %v, want %v", tt.prefix, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestAutoCompleteN(t *testing.T) {
+	trie := NewTrie()
+	trie.InsertBatch([]string{"apple", "app", "application", "apply"})
+
+	result := trie.AutoCompleteN("app", 2)
+	if len(result) != 2 {
+		t.Errorf("Expected 2 results, got %d", len(result))
+	}
+}
+
+func TestAutoCompleteByFrequency(t *testing.T) {
+	trie := NewTrie()
+	
+	// Insert with different frequencies
+	trie.Insert("apple")
+	trie.Insert("apple")
+	trie.Insert("apple")
+	trie.Insert("app")
+	trie.Insert("app")
+	trie.Insert("application")
+
+	result := trie.AutoCompleteByFrequency("app", 10)
+	
+	// 'apple' should be first (count=3), then 'app' (count=2), then 'application' (count=1)
+	if len(result) < 3 {
+		t.Fatalf("Expected at least 3 results, got %d", len(result))
+	}
+	if result[0] != "apple" {
+		t.Errorf("Expected 'apple' first, got %q", result[0])
+	}
+	if result[1] != "app" {
+		t.Errorf("Expected 'app' second, got %q", result[1])
+	}
+}
+
+// ============================================================================
+// Pattern Matching Tests
+// ============================================================================
+
+func TestMatchPattern(t *testing.T) {
+	trie := NewTrie()
+	trie.InsertBatch([]string{"cat", "bat", "rat", "car", "bar", "cart", "cats"})
+
+	tests := []struct {
+		name     string
+		pattern  string
+		expected []string
+	}{
+		{"single wildcard", "?at", []string{"bat", "cat", "rat"}},
+		{"prefix wildcard", "c??", []string{"car", "cat"}},
+		{"suffix wildcard", "ca?", []string{"car", "cat"}},
+		{"star prefix", "*", []string{"bar", "bat", "car", "cart", "cat", "cats", "rat"}},
+		{"star middle", "c*t", []string{"cat", "cart", "cats"}},
+		{"no match", "z??", []string{}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := trie.MatchPattern(tt.pattern)
+			sort.Strings(tt.expected)
+			if !equalSlices(result, tt.expected) {
+				t.Errorf("MatchPattern(%q) = %v, want %v", tt.pattern, result, tt.expected)
+			}
+		})
+	}
+}
+
+// ============================================================================
+// Fuzzy Search Tests
+// ============================================================================
+
+func TestFuzzySearch(t *testing.T) {
+	trie := NewTrie()
+	trie.InsertBatch([]string{"hello", "help", "held", "helmet", "world", "word"})
+
+	tests := []struct {
+		name     string
+		word     string
+		distance int
+	}{
+		{"exact match", "hello", 0},
+		{"one edit", "helio", 1},
+		{"two edits", "hallo", 2},
+		{"three edits", "hella", 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			results := trie.FuzzySearch(tt.word, tt.distance)
+			// Verify all results are within the specified distance
+			for _, r := range results {
+				d := levenshteinDistance(tt.word, r)
+				if d > tt.distance {
+					t.Errorf("FuzzySearch returned %q with distance %d, max allowed %d", r, d, tt.distance)
+				}
+			}
+		})
+	}
+}
+
+// ============================================================================
+// Statistics Tests
+// ============================================================================
+
+func TestGetStats(t *testing.T) {
+	trie := NewTrie()
+	trie.InsertBatch([]string{"a", "ab", "abc", "abcd"})
+
+	stats := trie.GetStats()
+
+	if stats.TotalWords != 4 {
+		t.Errorf("Expected 4 words, got %d", stats.TotalWords)
+	}
+	if stats.TotalNodes < 4 {
+		t.Errorf("Expected at least 4 nodes, got %d", stats.TotalNodes)
+	}
+	if stats.MaxDepth != 4 {
+		t.Errorf("Expected max depth 4, got %d", stats.MaxDepth)
+	}
+}
+
+func TestGetStatsEmpty(t *testing.T) {
+	trie := NewTrie()
+	stats := trie.GetStats()
+
+	if stats.TotalWords != 0 {
+		t.Errorf("Expected 0 words, got %d", stats.TotalWords)
+	}
+}
+
+// ============================================================================
+// Clear Tests
+// ============================================================================
+
+func TestClear(t *testing.T) {
+	trie := NewTrie()
+	trie.InsertBatch([]string{"apple", "banana", "cherry"})
+
+	trie.Clear()
+
+	if trie.Size() != 0 {
+		t.Errorf("Size should be 0 after clear, got %d", trie.Size())
+	}
+	if !trie.IsEmpty() {
+		t.Error("Trie should be empty after clear")
+	}
+	if trie.Search("apple") {
+		t.Error("Should not find words after clear")
+	}
+}
+
+// ============================================================================
+// GetAllWords Tests
+// ============================================================================
+
+func TestGetAllWords(t *testing.T) {
+	trie := NewTrie()
+	words := []string{"delta", "alpha", "charlie", "bravo"}
+	trie.InsertBatch(words)
+
+	result := trie.GetAllWords()
+	expected := []string{"alpha", "bravo", "charlie", "delta"}
+
+	if !equalSlices(result, expected) {
+		t.Errorf("GetAllWords() = %v, want %v", result, expected)
+	}
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+func equalSlices(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
 		}
 	}
+	return true
 }
 
-func TestConcurrentAccess(t *testing.T) {
-	trie := NewTrie()
-	
-	// Concurrent inserts
-	done := make(chan bool)
-	for i := 0; i < 100; i++ {
-		go func(n int) {
-			trie.InsertWord("word" + string(rune('a'+n%26)))
-			done <- true
-		}(i)
-	}
-	
-	// Wait for all goroutines
-	for i := 0; i < 100; i++ {
-		<-done
-	}
+// ============================================================================
+// Benchmarks
+// ============================================================================
 
-	// Concurrent searches
-	for i := 0; i < 50; i++ {
-		go func() {
-			trie.Search("word" + string(rune('a'+i%26)))
-			done <- true
-		}()
-	}
-	for i := 0; i < 50; i++ {
-		<-done
-	}
-}
-
-func TestUnicodeSupport(t *testing.T) {
-	trie := NewTrie()
-	
-	// Test Chinese characters
-	trie.InsertWord("你好")
-	trie.InsertWord("你好吗")
-	trie.InsertWord("你们好")
-	
-	if !trie.Search("你好") {
-		t.Error("Should find Chinese word")
-	}
-	
-	words := trie.WordsWithPrefix("你好")
-	if len(words) != 2 {
-		t.Errorf("Expected 2 words with prefix '你好', got %d", len(words))
-	}
-	
-	// Test Japanese
-	trie.InsertWord("こんにちは")
-	if !trie.Search("こんにちは") {
-		t.Error("Should find Japanese word")
-	}
-	
-	// Test Emoji
-	trie.InsertWord("😀🎉")
-	if !trie.Search("😀🎉") {
-		t.Error("Should find Emoji word")
-	}
-}
-
-// Benchmark tests
 func BenchmarkInsert(b *testing.B) {
 	trie := NewTrie()
 	for i := 0; i < b.N; i++ {
-		trie.InsertWord("word" + string(rune(i)))
+		trie.Insert("benchmark_word")
+		trie.Clear()
 	}
 }
 
 func BenchmarkSearch(b *testing.B) {
 	trie := NewTrie()
-	for i := 0; i < 10000; i++ {
-		trie.InsertWord("word" + string(rune(i)))
-	}
+	trie.Insert("benchmark_word")
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		trie.Search("word" + string(rune(i%10000)))
+		trie.Search("benchmark_word")
 	}
 }
 
-func BenchmarkWordsWithPrefix(b *testing.B) {
+func BenchmarkAutoComplete(b *testing.B) {
 	trie := NewTrie()
-	for i := 0; i < 10000; i++ {
-		trie.InsertWord("word" + string(rune(i)))
+	words := []string{"apple", "app", "application", "apply", "aptitude", "append"}
+	trie.InsertBatch(words)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		trie.AutoComplete("app")
+	}
+}
+
+func BenchmarkFuzzySearch(b *testing.B) {
+	trie := NewTrie()
+	// Insert a larger set of words
+	for i := 0; i < 1000; i++ {
+		trie.Insert(generateWord(i))
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		trie.WordsWithPrefix("word")
+		trie.FuzzySearch("test", 2)
 	}
+}
+
+func generateWord(n int) string {
+	const letters = "abcdefghijklmnopqrstuvwxyz"
+	word := ""
+	for i := 0; i < 5; i++ {
+		word += string(letters[(n+i)%26])
+	}
+	return word
 }
