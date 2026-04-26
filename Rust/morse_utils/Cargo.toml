@@ -1,0 +1,11 @@
+[package]
+name = "morse_utils"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "Morse code encoding and decoding utilities"
+license = "MIT"
+
+[dependencies]
+
+[dev-dependencies]
