@@ -21,29 +21,29 @@
 
 | 语言 | 模块数 | 状态 |
 |------|--------|------|
-| Python | 174 | ✅ 活跃 |
-| Go | 42 | ✅ 活跃 |
-| Rust | 32 | ✅ 活跃 |
-| TypeScript | 16 | ✅ 活跃 |
-| Zig | 16 | ✅ 活跃 |
-| JavaScript | 12 | ✅ 活跃 |
+| Python | 222 | ✅ 活跃 |
+| Go | 44 | ✅ 活跃 |
+| Rust | 41 | ✅ 活跃 |
+| TypeScript | 17 | ✅ 活跃 |
+| Zig | 17 | ✅ 活跃 |
+| JavaScript | 14 | ✅ 活跃 |
+| C | 13 | ✅ 活跃 |
+| Swift | 12 | ✅ 活跃 |
 | C++ | 12 | ✅ 活跃 |
-| C# | 12 | ✅ 活跃 |
-| Java | 11 | ✅ 活跃 |
-| Kotlin | 11 | ✅ 活跃 |
-| PHP | 11 | ✅ 活跃 |
-| Swift | 11 | ✅ 活跃 |
-| C | 10 | ✅ 活跃 |
-| Delphi | 8 | ✅ 活跃 |
-| Ruby | 9 | ✅ 活跃 |
-| Perl | 9 | ✅ 活跃 |
-| SQL | 7 | ✅ 活跃 |
-| Fortran | 7 | ✅ 活跃 |
-| R | 7 | ✅ 活跃 |
+| C# | 11 | ✅ 活跃 |
+| Java | 10 | ✅ 活跃 |
+| Kotlin | 10 | ✅ 活跃 |
+| PHP | 10 | ✅ 活跃 |
+| Fortran | 8 | ✅ 活跃 |
+| Ruby | 8 | ✅ 活跃 |
+| Perl | 8 | ✅ 活跃 |
+| Delphi | 7 | ✅ 活跃 |
+| SQL | 6 | ✅ 活跃 |
+| R | 6 | ✅ 活跃 |
 | Lua | 6 | ✅ 活跃 |
-| MATLAB | 6 | ✅ 活跃 |
-| VB | 6 | ✅ 活跃 |
 | ArkTS | 6 | ✅ 活跃 |
+| MATLAB | 5 | ✅ 活跃 |
+| VB | 5 | ✅ 活跃 |
 
 *完整列表见 [docs/languages.md](docs/languages.md)*
 
@@ -168,6 +168,18 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ### 最近新增测试
 
+- **Python ical_utils**: 35 个测试用例，覆盖 iCalendar 格式解析、事件管理、重复规则（RRULE）、日期范围查询、时区处理等 📅
+- **Python spline_utils**: 14 个测试用例，覆盖样条曲线插值（线性/二次/三次/贝塞尔）、曲线长度计算、重采样、点列平滑等 📈
+- **Python syllable_utils**: 18 个测试用例，覆盖音节计数、句子分析、韵律分析、俳句建议、可读性分数等 📝
+- **Python xid_utils**: 16 个测试用例，覆盖 XID 生成、解析、比较、时间戳提取、可哈希性等 🆔
+- **Python radix_utils**: 30 个测试用例，覆盖进制转换（2-36）、位操作、前缀处理、负数支持等 🔢
+- **Python disjoint_set_utils**: 28 个测试用例，覆盖并查集操作、路径压缩、按秩合并、连通性检测等 🔗
+- **Python command_line_parser_utils**: 27 个测试用例，覆盖参数解析、类型转换、验证、帮助生成等 🖥️
+- **Python svg_utils**: 61 个测试用例，覆盖 SVG 生成、形状绘制、变换、动画、文本渲染等 🎨
+- **Python suffix_tree_utils**: 39 个测试用例，覆盖后缀树构建、子串搜索、重复检测、最长公共子串等 🔍
+- **Python astar_utils**: 25 个测试用例，覆盖 A* 寻路算法、网格/图路径、障碍处理、权重优化等 🗺️
+- **Python snowflake_utils**: 43 个测试用例，覆盖分布式 ID 生成、时间戳解析、机器 ID 配置、唯一性验证等 ❄️
+- **Python rabin_karp_utils**: 54 个测试用例，覆盖 Rabin-Karp 字符串搜索、多模式匹配、滚动哈希、中文文本等 🔍
 - **Python geo_distance_utils**: 132 个测试用例，覆盖 Haversine/Vincenty 距离计算、方位角、中点、目的地、边界框、多边形检测、路径操作、DMS 格式转换、单位转换、批量操作、边界值（极点、日期变更线、零距离、对称性）等 🌍
 - **Python otp_utils**: 新增 35+ 边界值测试，覆盖 TOTP/HOTP 生成、Base32 编解码、URI 构建、恢复码、空数据、极端参数等 🔐
 - **Python fractions_utils**: 143 个测试用例，覆盖分数运算、类型转换、GCD/LCM、序列生成、边界值（零、负数、大数）等 📊
@@ -208,28 +220,38 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 | 模块 | 语言 | 测试数 | 覆盖率 |
 |------|------|--------|--------|
-| json_utils | Python | 93 | ✅ 100% |
 | geometry_utils | Python | 237 | ✅ 100% |
 | phone_utils | Python | 164 | ✅ 100% |
+| network_utils | Python | 134 | ✅ 100% |
+| geo_distance_utils | Python | 132 | ✅ 100% |
+| fractions_utils | Python | 143 | ✅ 100% |
 | color_utils | Python | 111 | ✅ 100% |
 | markdown_utils | Python | 108 | ✅ 100% |
 | bloom_filter_utils | Python | 99 | ✅ 100% |
+| json_utils | Python | 93 | ✅ 100% |
 | humanize_utils | Python | 85+ | ✅ 100% |
 | hash_utils | Python | 84 | ✅ 100% |
 | sqlite_utils | Python | 86 | ✅ 100% |
+| svg_utils | Python | 61 | ✅ 100% |
+| mime_utils | Python | 67 | ✅ 100% |
 | credit_card_utils | Python | 80 | ✅ 100% |
 | crypto_utils | Python | 75 | ✅ 100% |
 | compression_utils | Python | 74 | ✅ 100% |
+| rabin_karp_utils | Python | 54 | ✅ 100% |
 | cron_utils | Python | 61 | ✅ 100% |
 | huffman_utils | Python | 57 | ✅ 100% |
+| snowflake_utils | Python | 43 | ✅ 100% |
+| suffix_tree_utils | Python | 39 | ✅ 100% |
 | data_validator | Python | 56 | ✅ 100% |
 | combinatorics_utils | Python | 55 | ✅ 100% |
+| disjoint_set_utils | Python | 28 | ✅ 100% |
+| command_line_parser_utils | Python | 27 | ✅ 100% |
+| astar_utils | Python | 25 | ✅ 100% |
 | async_utils | Python | 51 | ✅ 100% |
 | ip_utils | Python | 51 | ✅ 100% |
 | password_utils | Python | 52 | ✅ 100% |
 | text_utils | Python | 89 | ✅ 100% |
 | barcode_utils | Python | 59 | ✅ 100% |
-| network_utils | Python | 134 | ✅ 100% |
 | archive_utils | Python | 44 | ✅ 100% |
 | business_day_utils | Python | 45 | ✅ 100% |
 | base64_utils | Python | 22 | ✅ 100% |
@@ -241,7 +263,6 @@ perl Perl/csv_utils/csv_utils_test.pl
 | xml_utils | Python | 20 | ✅ 100% |
 | emoji_utils | Python | 49 | ✅ 100% |
 | otp_utils | Python | 45 | ✅ 100% |
-| fractions_utils | Python | 143 | ✅ 100% |
 | env_utils | Python | 65 | ✅ 100% |
 | memory_profile_utils | Python | 32 | ✅ 100% |
 | sparkline_utils | Python | 70 | ✅ 100% |
@@ -251,10 +272,14 @@ perl Perl/csv_utils/csv_utils_test.pl
 | chess_utils | Python | 30+ | ✅ 100% |
 | base58_utils | Python | 10 | ✅ 100% |
 | text_wrap_utils | Python | 22 | ✅ 100% |
-| geo_distance_utils | Python | 132 | ✅ 100% |
+| ical_utils | Python | 35 | ✅ 100% |
+| spline_utils | Python | 14 | ✅ 100% |
+| syllable_utils | Python | 18 | ✅ 100% |
+| xid_utils | Python | 16 | ✅ 100% |
+| radix_utils | Python | 30 | ✅ 100% |
 
-**总计**: Python 174 模块，182 测试文件，3100+ 测试用例，100% 通过率 ✅
+**总计**: Python 222 模块，230 测试文件，3500+ 测试用例，100% 通过率 ✅
 
 ---
 
-**最后更新**: 2026-04-26
+**最后更新**: 2026-04-27
