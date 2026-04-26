@@ -1,234 +1,251 @@
 """
-cache_utils - 轻量级内存缓存工具模块
+cache_utils - 零依赖内存缓存工具
+================================
 
-提供零外部依赖的内存缓存实现，支持：
-- TTL (Time To Live) 过期
-- LRU (Least Recently Used) 淘汰策略
-- 最大容量限制
-- 缓存统计（命中/未命中/淘汰）
-- 线程安全操作
-- 装饰器模式缓存函数结果
+功能完整的内存缓存库，支持TTL、LRU淘汰、自动清理等功能。
 
-作者: AllToolkit 自动化开发
-日期: 2026-04-17
+功能特性：
+- 内存缓存：键值对存储
+- TTL过期：支持毫秒级过期时间
+- LRU淘汰：可选的最近最少使用淘汰策略
+- 自动清理：后台线程定期清理过期条目
+- 统计信息：命中率、内存使用等
+- 批量操作：get_many、set_many、delete_many
+- 装饰器：函数结果缓存
+- 线程安全：支持多线程环境
+
+使用示例：
+    >>> from cache_utils import MemoryCache
+    >>> cache = MemoryCache(max_size=1000, default_ttl=60)
+    >>> cache.set("key", "value")
+    >>> cache.get("key")
+    'value'
 """
 
-import time
 import threading
+import time
+import hashlib
+import functools
+from typing import Any, Optional, Dict, List, Callable, Tuple, Union
 from collections import OrderedDict
-from typing import Any, Callable, Optional, Dict, List, Tuple, TypeVar, Generic
-from functools import wraps
-from hashlib import sha256
-import pickle
-
-K = TypeVar('K')
-V = TypeVar('V')
 
 
-class CacheStats:
-    """缓存统计信息"""
-    
-    def __init__(self):
-        self.hits = 0
-        self.misses = 0
-        self.evictions = 0
-        self.expirations = 0
-        self._lock = threading.Lock()
-    
-    def record_hit(self):
-        with self._lock:
-            self.hits += 1
-    
-    def record_miss(self):
-        with self._lock:
-            self.misses += 1
-    
-    def record_eviction(self):
-        with self._lock:
-            self.evictions += 1
-    
-    def record_expiration(self):
-        with self._lock:
-            self.expirations += 1
-    
-    @property
-    def total_requests(self) -> int:
-        return self.hits + self.misses
-    
-    @property
-    def hit_rate(self) -> float:
-        total = self.total_requests
-        return self.hits / total if total > 0 else 0.0
-    
-    def reset(self):
-        with self._lock:
-            self.hits = 0
-            self.misses = 0
-            self.evictions = 0
-            self.expirations = 0
-    
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            'hits': self.hits,
-            'misses': self.misses,
-            'evictions': self.evictions,
-            'expirations': self.expirations,
-            'total_requests': self.total_requests,
-            'hit_rate': round(self.hit_rate, 4)
-        }
-    
-    def __repr__(self) -> str:
-        return (f"CacheStats(hits={self.hits}, misses={self.misses}, "
-                f"hit_rate={self.hit_rate:.2%}, evictions={self.evictions}, "
-                f"expirations={self.expirations})")
-
-
-class CacheEntry(Generic[V]):
+class CacheEntry:
     """缓存条目"""
     
-    __slots__ = ['value', 'created_at', 'expires_at', 'access_count', 'last_access']
+    __slots__ = ['value', 'expire_at', 'access_count', 'created_at']
     
-    def __init__(self, value: V, ttl: Optional[float] = None):
+    def __init__(self, value: Any, expire_at: Optional[float] = None):
         self.value = value
-        self.created_at = time.time()
-        self.expires_at = self.created_at + ttl if ttl else None
+        self.expire_at = expire_at
         self.access_count = 0
-        self.last_access = self.created_at
-    
-    def touch(self):
-        """更新访问时间和计数"""
-        self.last_access = time.time()
-        self.access_count += 1
+        self.created_at = time.time()
     
     def is_expired(self) -> bool:
         """检查是否过期"""
-        if self.expires_at is None:
+        if self.expire_at is None:
             return False
-        return time.time() > self.expires_at
+        return time.time() > self.expire_at
     
-    def remaining_ttl(self) -> Optional[float]:
-        """返回剩余 TTL 秒数"""
-        if self.expires_at is None:
-            return None
-        remaining = self.expires_at - time.time()
-        return max(0, remaining)
-    
-    def __repr__(self) -> str:
-        return f"CacheEntry(value={self.value!r}, ttl={self.remaining_ttl()})"
+    def touch(self):
+        """更新访问计数"""
+        self.access_count += 1
 
 
-class MemoryCache(Generic[K, V]):
+class MemoryCache:
     """
-    内存缓存实现
+    内存缓存类，支持TTL和LRU淘汰。
     
-    特性：
-    - 支持 TTL 过期
-    - 支持 LRU 淘汰策略
-    - 支持最大容量限制
-    - 线程安全
-    - 提供统计信息
-    
-    示例:
-        cache = MemoryCache(max_size=1000, default_ttl=300)
-        cache.set('key', 'value')
-        value = cache.get('key')
+    Args:
+        max_size: 最大条目数，0表示无限制
+        default_ttl: 默认过期时间（秒），None表示永不过期
+        cleanup_interval: 自动清理间隔（秒），0表示禁用自动清理
+        thread_safe: 是否线程安全
+        
+    Examples:
+        >>> cache = MemoryCache(max_size=100, default_ttl=60)
+        >>> cache.set("name", "Alice")
+        >>> cache.get("name")
+        'Alice'
     """
     
     def __init__(
         self,
-        max_size: int = 1000,
+        max_size: int = 0,
         default_ttl: Optional[float] = None,
+        cleanup_interval: float = 0,
         thread_safe: bool = True
     ):
-        """
-        初始化缓存
-        
-        Args:
-            max_size: 最大缓存条目数
-            default_ttl: 默认 TTL（秒），None 表示永不过期
-            thread_safe: 是否启用线程安全
-        """
         self._max_size = max_size
         self._default_ttl = default_ttl
+        self._cleanup_interval = cleanup_interval
         self._thread_safe = thread_safe
-        self._cache: OrderedDict[K, CacheEntry[V]] = OrderedDict()
-        self._stats = CacheStats()
+        
+        # 使用OrderedDict实现LRU
+        self._cache: OrderedDict[str, CacheEntry] = OrderedDict()
+        
+        # 线程锁
         self._lock = threading.RLock() if thread_safe else None
+        
+        # 统计信息
+        self._hits = 0
+        self._misses = 0
+        self._evictions = 0
+        self._expirations = 0
+        
+        # 自动清理线程
+        self._cleanup_thread: Optional[threading.Thread] = None
+        self._running = False
+        
+        if cleanup_interval > 0:
+            self._start_cleanup_thread()
+    
+    def _start_cleanup_thread(self):
+        """启动自动清理线程"""
+        self._running = True
+        self._cleanup_thread = threading.Thread(target=self._cleanup_loop, daemon=True)
+        self._cleanup_thread.start()
+    
+    def _cleanup_loop(self):
+        """清理循环"""
+        while self._running:
+            time.sleep(self._cleanup_interval)
+            self.cleanup_expired()
     
     def _get_lock(self):
         """获取锁上下文"""
         if self._lock:
             return self._lock
-        return _DummyLock()
-    
-    def get(self, key: K, default: Optional[V] = None) -> Optional[V]:
-        """
-        获取缓存值
-        
-        Args:
-            key: 缓存键
-            default: 未找到时的默认值
-        
-        Returns:
-            缓存值或默认值
-        """
-        with self._get_lock():
-            entry = self._cache.get(key)
-            
-            if entry is None:
-                self._stats.record_miss()
-                return default
-            
-            if entry.is_expired():
-                del self._cache[key]
-                self._stats.record_expiration()
-                self._stats.record_miss()
-                return default
-            
-            # LRU: 移到末尾（最近使用）
-            self._cache.move_to_end(key)
-            entry.touch()
-            self._stats.record_hit()
-            return entry.value
+        from contextlib import nullcontext
+        return nullcontext()
     
     def set(
         self,
-        key: K,
-        value: V,
+        key: str,
+        value: Any,
         ttl: Optional[float] = None
     ) -> None:
         """
-        设置缓存值
+        设置缓存值。
         
         Args:
             key: 缓存键
             value: 缓存值
-            ttl: 过期时间（秒），None 使用默认 TTL
+            ttl: 过期时间（秒），None使用默认值，负数表示永不过期
+            
+        Examples:
+            >>> cache.set("key", "value")
+            >>> cache.set("temp", "data", ttl=10)  # 10秒后过期
         """
+        # 计算过期时间
+        if ttl is None:
+            ttl = self._default_ttl
+        elif ttl < 0:
+            ttl = None
+        
+        expire_at = None
+        if ttl is not None:
+            expire_at = time.time() + ttl
+        
+        entry = CacheEntry(value, expire_at)
+        
         with self._get_lock():
-            # 如果键已存在，先删除
+            # 如果键已存在，先删除（重新排序）
             if key in self._cache:
                 del self._cache[key]
             
-            # 检查容量，执行 LRU 淘汰
-            while len(self._cache) >= self._max_size:
-                oldest_key = next(iter(self._cache))
-                del self._cache[oldest_key]
-                self._stats.record_eviction()
+            # 检查是否需要淘汰
+            if self._max_size > 0 and len(self._cache) >= self._max_size:
+                self._evict_lru()
             
-            # 添加新条目
-            effective_ttl = ttl if ttl is not None else self._default_ttl
-            self._cache[key] = CacheEntry(value, effective_ttl)
+            self._cache[key] = entry
     
-    def delete(self, key: K) -> bool:
+    def get(
+        self,
+        key: str,
+        default: Any = None
+    ) -> Any:
         """
-        删除缓存条目
+        获取缓存值。
         
         Args:
             key: 缓存键
+            default: 默认值
+            
+        Returns:
+            缓存值，如果不存在或过期则返回默认值
+            
+        Examples:
+            >>> cache.set("name", "Alice")
+            >>> cache.get("name")
+            'Alice'
+            >>> cache.get("missing", "default")
+            'default'
+        """
+        with self._get_lock():
+            if key not in self._cache:
+                self._misses += 1
+                return default
+            
+            entry = self._cache[key]
+            
+            # 检查是否过期
+            if entry.is_expired():
+                del self._cache[key]
+                self._misses += 1
+                self._expirations += 1
+                return default
+            
+            # LRU: 移到最后表示最近使用
+            self._cache.move_to_end(key)
+            entry.touch()
+            self._hits += 1
+            
+            return entry.value
+    
+    def has(self, key: str) -> bool:
+        """
+        检查键是否存在且未过期。
         
+        Args:
+            key: 缓存键
+            
+        Returns:
+            是否存在
+            
+        Examples:
+            >>> cache.set("key", "value")
+            >>> cache.has("key")
+            True
+        """
+        with self._get_lock():
+            if key not in self._cache:
+                return False
+            
+            entry = self._cache[key]
+            if entry.is_expired():
+                del self._cache[key]
+                self._expirations += 1
+                return False
+            
+            return True
+    
+    def delete(self, key: str) -> bool:
+        """
+        删除缓存条目。
+        
+        Args:
+            key: 缓存键
+            
         Returns:
             是否成功删除
+            
+        Examples:
+            >>> cache.set("key", "value")
+            >>> cache.delete("key")
+            True
+            >>> cache.delete("missing")
+            False
         """
         with self._get_lock():
             if key in self._cache:
@@ -236,419 +253,651 @@ class MemoryCache(Generic[K, V]):
                 return True
             return False
     
-    def exists(self, key: K) -> bool:
-        """检查键是否存在且未过期"""
-        with self._get_lock():
-            entry = self._cache.get(key)
-            if entry is None:
-                return False
-            if entry.is_expired():
-                del self._cache[key]
-                self._stats.record_expiration()
-                return False
-            return True
-    
-    def clear(self) -> None:
-        """清空缓存"""
-        with self._get_lock():
-            self._cache.clear()
-    
-    def size(self) -> int:
-        """返回当前缓存大小"""
-        with self._get_lock():
-            return len(self._cache)
-    
-    def cleanup_expired(self) -> int:
-        """
-        清理所有过期条目
-        
-        Returns:
-            清理的条目数
-        """
-        with self._get_lock():
-            # 优化：使用 dict comprehension 重建非过期条目，避免逐个删除开销
-            # 对于大量过期条目场景，重建字典比逐个删除更高效
-            current_time = time.time()
-            valid_keys = set()
-            
-            for key, entry in self._cache.items():
-                if entry.expires_at is None or current_time <= entry.expires_at:
-                    valid_keys.add(key)
-            
-            expired_count = len(self._cache) - len(valid_keys)
-            
-            if expired_count > 0:
-                # 只有有过期条目时才重建
-                self._cache = OrderedDict(
-                    (k, self._cache[k]) for k in valid_keys
-                )
-                # 更新统计
-                for _ in range(expired_count):
-                    self._stats.record_expiration()
-            
-            return expired_count
-    
     def get_or_set(
         self,
-        key: K,
-        factory: Callable[[], V],
+        key: str,
+        factory: Callable[[], Any],
         ttl: Optional[float] = None
-    ) -> V:
+    ) -> Any:
         """
-        获取缓存值，如果不存在则使用工厂函数创建并缓存
+        获取缓存值，如果不存在则通过factory创建。
         
         Args:
             key: 缓存键
-            factory: 值工厂函数
+            factory: 创建值的函数
             ttl: 过期时间
-        
+            
         Returns:
             缓存值或新创建的值
+            
+        Examples:
+            >>> cache.get_or_set("computed", lambda: expensive_computation())
         """
         with self._get_lock():
-            value = self.get(key)
-            if value is not None:
-                return value
+            if key in self._cache:
+                entry = self._cache[key]
+                if not entry.is_expired():
+                    self._cache.move_to_end(key)
+                    entry.touch()
+                    self._hits += 1
+                    return entry.value
             
-            new_value = factory()
-            self.set(key, new_value, ttl)
-            return new_value
+            self._misses += 1
+            value = factory()
+            self.set(key, value, ttl)
+            return value
     
-    def get_stats(self) -> CacheStats:
-        """获取统计信息"""
-        return self._stats
+    def get_many(self, keys: List[str]) -> Dict[str, Any]:
+        """
+        批量获取缓存值。
+        
+        Args:
+            keys: 缓存键列表
+            
+        Returns:
+            键值对字典（只包含存在且未过期的）
+            
+        Examples:
+            >>> cache.set("a", 1)
+            >>> cache.set("b", 2)
+            >>> cache.get_many(["a", "b", "c"])
+            {'a': 1, 'b': 2}
+        """
+        result = {}
+        with self._get_lock():
+            for key in keys:
+                if key in self._cache:
+                    entry = self._cache[key]
+                    if not entry.is_expired():
+                        self._cache.move_to_end(key)
+                        entry.touch()
+                        self._hits += 1
+                        result[key] = entry.value
+                    else:
+                        del self._cache[key]
+                        self._misses += 1
+                        self._expirations += 1
+                else:
+                    self._misses += 1
+        return result
     
-    def get_all_keys(self) -> List[K]:
-        """获取所有键（不包括过期的）"""
+    def set_many(
+        self,
+        items: Dict[str, Any],
+        ttl: Optional[float] = None
+    ) -> None:
+        """
+        批量设置缓存值。
+        
+        Args:
+            items: 键值对字典
+            ttl: 过期时间
+            
+        Examples:
+            >>> cache.set_many({"a": 1, "b": 2, "c": 3})
+        """
+        for key, value in items.items():
+            self.set(key, value, ttl)
+    
+    def delete_many(self, keys: List[str]) -> int:
+        """
+        批量删除缓存条目。
+        
+        Args:
+            keys: 缓存键列表
+            
+        Returns:
+            删除的数量
+            
+        Examples:
+            >>> cache.set_many({"a": 1, "b": 2})
+            >>> cache.delete_many(["a", "b", "c"])
+            2
+        """
+        count = 0
+        with self._get_lock():
+            for key in keys:
+                if key in self._cache:
+                    del self._cache[key]
+                    count += 1
+        return count
+    
+    def clear(self) -> None:
+        """
+        清空所有缓存。
+        
+        Examples:
+            >>> cache.clear()
+        """
+        with self._get_lock():
+            self._cache.clear()
+    
+    def cleanup_expired(self) -> int:
+        """
+        清理所有过期条目。
+        
+        Returns:
+            清理的数量
+            
+        Examples:
+            >>> cache.cleanup_expired()
+        """
+        count = 0
+        current_time = time.time()
+        
+        with self._get_lock():
+            expired_keys = [
+                key for key, entry in self._cache.items()
+                if entry.expire_at is not None and entry.expire_at < current_time
+            ]
+            
+            for key in expired_keys:
+                del self._cache[key]
+                count += 1
+                self._expirations += 1
+        
+        return count
+    
+    def _evict_lru(self) -> None:
+        """淘汰最近最少使用的条目"""
+        if self._cache:
+            # OrderedDict第一个元素是最早插入/最少使用的
+            self._cache.popitem(last=False)
+            self._evictions += 1
+    
+    def keys(self) -> List[str]:
+        """
+        获取所有未过期的键。
+        
+        Returns:
+            键列表
+            
+        Examples:
+            >>> cache.keys()
+            ['key1', 'key2']
+        """
         with self._get_lock():
             self.cleanup_expired()
             return list(self._cache.keys())
     
-    def get_entries_info(self) -> List[Dict[str, Any]]:
-        """获取所有条目的详细信息"""
+    def values(self) -> List[Any]:
+        """
+        获取所有未过期的值。
+        
+        Returns:
+            值列表
+        """
         with self._get_lock():
             self.cleanup_expired()
-            result = []
-            for key, entry in self._cache.items():
-                result.append({
-                    'key': str(key),
-                    'created_at': entry.created_at,
-                    'last_access': entry.last_access,
-                    'access_count': entry.access_count,
-                    'remaining_ttl': entry.remaining_ttl()
-                })
-            return result
+            return [entry.value for entry in self._cache.values()]
+    
+    def items(self) -> List[Tuple[str, Any]]:
+        """
+        获取所有未过期的键值对。
+        
+        Returns:
+            键值对列表
+        """
+        with self._get_lock():
+            self.cleanup_expired()
+            return [(key, entry.value) for key, entry in self._cache.items()]
+    
+    def size(self) -> int:
+        """
+        获取缓存条目数量（包括过期的）。
+        
+        Returns:
+            条目数量
+        """
+        return len(self._cache)
+    
+    def ttl(self, key: str) -> Optional[float]:
+        """
+        获取键的剩余过期时间。
+        
+        Args:
+            key: 缓存键
+            
+        Returns:
+            剩余秒数，None表示永不过期，-1表示不存在
+            
+        Examples:
+            >>> cache.set("key", "value", ttl=60)
+            >>> cache.ttl("key")  # 约60秒
+            >>> cache.ttl("missing")
+            -1
+        """
+        with self._get_lock():
+            if key not in self._cache:
+                return -1
+            
+            entry = self._cache[key]
+            if entry.expire_at is None:
+                return None
+            
+            remaining = entry.expire_at - time.time()
+            return max(0, remaining)
+    
+    def extend_ttl(self, key: str, ttl: float) -> bool:
+        """
+        延长键的过期时间。
+        
+        Args:
+            key: 缓存键
+            ttl: 延长的秒数
+            
+        Returns:
+            是否成功
+            
+        Examples:
+            >>> cache.set("key", "value", ttl=10)
+            >>> cache.extend_ttl("key", 30)  # 延长30秒
+        """
+        with self._get_lock():
+            if key not in self._cache:
+                return False
+            
+            entry = self._cache[key]
+            if entry.is_expired():
+                return False
+            
+            if entry.expire_at is None:
+                entry.expire_at = time.time() + ttl
+            else:
+                entry.expire_at += ttl
+            
+            return True
+    
+    def touch(self, key: str, new_ttl: Optional[float] = None) -> bool:
+        """
+        更新键的访问时间，可选更新过期时间。
+        
+        Args:
+            key: 缓存键
+            new_ttl: 新的过期时间（秒），None保持不变
+            
+        Returns:
+            是否成功
+        """
+        with self._get_lock():
+            if key not in self._cache:
+                return False
+            
+            entry = self._cache[key]
+            if entry.is_expired():
+                del self._cache[key]
+                return False
+            
+            # LRU: 移到最后
+            self._cache.move_to_end(key)
+            entry.touch()
+            
+            if new_ttl is not None:
+                if new_ttl < 0:
+                    entry.expire_at = None
+                else:
+                    entry.expire_at = time.time() + new_ttl
+            
+            return True
+    
+    def incr(self, key: str, delta: int = 1) -> int:
+        """
+        增加数值。
+        
+        Args:
+            key: 缓存键
+            delta: 增量
+            
+        Returns:
+            增加后的值
+            
+        Raises:
+            ValueError: 值不是整数
+            KeyError: 键不存在
+            
+        Examples:
+            >>> cache.set("counter", 0)
+            >>> cache.incr("counter")
+            1
+            >>> cache.incr("counter", 10)
+            11
+        """
+        with self._get_lock():
+            if key not in self._cache:
+                raise KeyError(key)
+            
+            entry = self._cache[key]
+            if entry.is_expired():
+                del self._cache[key]
+                raise KeyError(key)
+            
+            if not isinstance(entry.value, (int, float)):
+                raise ValueError(f"Value is not a number: {type(entry.value)}")
+            
+            entry.value += delta
+            self._cache.move_to_end(key)
+            entry.touch()
+            
+            return int(entry.value)
+    
+    def decr(self, key: str, delta: int = 1) -> int:
+        """减少数值"""
+        return self.incr(key, -delta)
+    
+    def stats(self) -> Dict[str, Any]:
+        """
+        获取缓存统计信息。
+        
+        Returns:
+            统计信息字典，包含：
+            - size: 当前条目数
+            - max_size: 最大条目数
+            - hits: 命中次数
+            - misses: 未命中次数
+            - hit_rate: 命中率
+            - evictions: 淘汰次数
+            - expirations: 过期次数
+            
+        Examples:
+            >>> cache.stats()
+            {'size': 100, 'hits': 500, 'misses': 50, 'hit_rate': 0.909, ...}
+        """
+        with self._get_lock():
+            total = self._hits + self._misses
+            hit_rate = self._hits / total if total > 0 else 0.0
+            
+            return {
+                'size': len(self._cache),
+                'max_size': self._max_size,
+                'hits': self._hits,
+                'misses': self._misses,
+                'hit_rate': round(hit_rate, 4),
+                'evictions': self._evictions,
+                'expirations': self._expirations,
+            }
+    
+    def reset_stats(self) -> None:
+        """重置统计信息"""
+        with self._get_lock():
+            self._hits = 0
+            self._misses = 0
+            self._evictions = 0
+            self._expirations = 0
     
     def __len__(self) -> int:
         return self.size()
     
-    def __contains__(self, key: K) -> bool:
-        return self.exists(key)
+    def __contains__(self, key: str) -> bool:
+        return self.has(key)
     
-    def __getitem__(self, key: K) -> V:
+    def __getitem__(self, key: str) -> Any:
         result = self.get(key)
-        if result is None:
+        if result is None and key not in self._cache:
             raise KeyError(key)
         return result
     
-    def __setitem__(self, key: K, value: V):
+    def __setitem__(self, key: str, value: Any) -> None:
         self.set(key, value)
     
-    def __delitem__(self, key: K):
+    def __delitem__(self, key: str) -> None:
         if not self.delete(key):
             raise KeyError(key)
     
-    def __repr__(self) -> str:
-        return f"MemoryCache(size={self.size()}, max_size={self._max_size})"
-
-
-class _DummyLock:
-    """空锁，用于非线程安全模式"""
+    def close(self) -> None:
+        """关闭缓存，停止后台线程"""
+        self._running = False
+        self.clear()
+    
     def __enter__(self):
         return self
     
-    def __exit__(self, *args):
-        pass
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+        return False
 
 
 def cached(
-    ttl: Optional[float] = None,
-    max_size: int = 1000,
+    cache: Optional[MemoryCache] = None,
     key_prefix: str = '',
-    key_builder: Optional[Callable[..., str]] = None
+    ttl: Optional[float] = None,
+    max_args_length: int = 256,
+    skip_args: Optional[List[int]] = None
 ):
     """
-    函数结果缓存装饰器
+    函数结果缓存装饰器。
     
     Args:
-        ttl: 缓存时间（秒）
-        max_size: 最大缓存条目数
+        cache: MemoryCache实例，None则创建新实例
         key_prefix: 缓存键前缀
-        key_builder: 自定义键构建函数
-    
-    示例:
-        @cached(ttl=60)
-        def expensive_function(n):
-            return n * n
+        ttl: 过期时间
+        max_args_length: 参数字符串最大长度
+        skip_args: 跳过的参数索引列表
+        
+    Returns:
+        装饰器函数
+        
+    Examples:
+        >>> cache = MemoryCache(default_ttl=60)
+        >>> @cached(cache=cache, ttl=30)
+        ... def expensive_computation(n):
+        ...     return n * n
+        >>> expensive_computation(5)  # 第一次计算
+        25
+        >>> expensive_computation(5)  # 从缓存读取
+        25
     """
-    cache = MemoryCache(max_size=max_size, default_ttl=ttl)
+    _cache = cache or MemoryCache(default_ttl=ttl)
+    _skip_args = skip_args or []
     
     def decorator(func: Callable) -> Callable:
-        @wraps(func)
+        @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            # 构建缓存键
-            if key_builder:
-                cache_key = key_builder(*args, **kwargs)
-            else:
-                # 默认键构建：基于参数哈希
-                key_data = pickle.dumps((args, sorted(kwargs.items())))
-                cache_key = key_prefix + sha256(key_data).hexdigest()[:16]
+            # 生成缓存键
+            args_str = str([
+                arg for i, arg in enumerate(args) if i not in _skip_args
+            ])
+            if len(args_str) > max_args_length:
+                # 参数太长时使用hash
+                args_str = hashlib.md5(args_str.encode()).hexdigest()
             
-            return cache.get_or_set(cache_key, lambda: func(*args, **kwargs))
+            kwargs_str = ''
+            if kwargs:
+                kwargs_str = str(sorted(kwargs.items()))
+                if len(kwargs_str) > max_args_length:
+                    kwargs_str = hashlib.md5(kwargs_str.encode()).hexdigest()
+            
+            cache_key = f"{key_prefix}{func.__name__}:{args_str}:{kwargs_str}"
+            
+            # 尝试从缓存获取
+            result = _cache.get(cache_key)
+            if result is not None:
+                return result
+            
+            # 计算结果
+            result = func(*args, **kwargs)
+            _cache.set(cache_key, result, ttl)
+            
+            return result
         
-        # 暴露缓存供外部访问
-        wrapper.cache = cache
-        wrapper.cache_clear = cache.clear
-        wrapper.cache_stats = cache.get_stats
+        # 添加缓存操作方法
+        wrapper.cache = _cache
+        wrapper.cache_clear = lambda: _cache.clear()
+        wrapper.cache_stats = lambda: _cache.stats()
         
         return wrapper
     
     return decorator
 
 
+def memoize(
+    ttl: Optional[float] = None,
+    max_size: int = 128
+):
+    """
+    简化的函数记忆装饰器。
+    
+    Args:
+        ttl: 过期时间
+        max_size: 最大缓存数
+        
+    Returns:
+        装饰器函数
+        
+    Examples:
+        >>> @memoize(ttl=60)
+        ... def fibonacci(n):
+        ...     if n < 2:
+        ...         return n
+        ...     return fibonacci(n-1) + fibonacci(n-2)
+        >>> fibonacci(40)  # 会很快，因为结果被缓存
+    """
+    cache = MemoryCache(max_size=max_size, default_ttl=ttl)
+    return cached(cache=cache)
+
+
 class TimedCache:
     """
-    基于时间窗口的缓存
+    基于时间的缓存，适合存储带时间戳的数据。
     
-    在指定时间窗口内缓存结果，窗口结束后自动刷新。
-    适用于定时数据同步场景。
+    每个条目根据访问时间自动更新过期时间。
+    
+    Examples:
+        >>> cache = TimedCache(window=3600)  # 1小时窗口
+        >>> cache.set("user:1", {"name": "Alice"})
+        >>> cache.get("user:1")
+        {'name': 'Alice'}
     """
     
-    def __init__(self, window_seconds: float = 60.0):
+    def __init__(self, window: float, max_size: int = 0):
         """
         Args:
-            window_seconds: 时间窗口（秒）
+            window: 时间窗口（秒）
+            max_size: 最大条目数
         """
-        self._window = window_seconds
-        self._cache: Dict[str, Tuple[Any, float]] = {}
-        self._lock = threading.Lock()
+        self._cache = MemoryCache(
+            max_size=max_size,
+            default_ttl=window,
+            thread_safe=True
+        )
+        self._window = window
     
-    def get_or_refresh(
-        self,
-        key: str,
-        refresh_func: Callable[[], Any]
-    ) -> Any:
+    def get(self, key: str, default: Any = None, refresh: bool = True) -> Any:
         """
-        获取值，如果过期则刷新
+        获取值，可选刷新过期时间。
         
         Args:
             key: 缓存键
-            refresh_func: 刷新函数
-        
-        Returns:
-            缓存值或刷新后的值
+            default: 默认值
+            refresh: 是否刷新过期时间
         """
-        with self._lock:
-            now = time.time()
-            cached = self._cache.get(key)
-            
-            if cached is None or (now - cached[1]) > self._window:
-                value = refresh_func()
-                self._cache[key] = (value, now)
-                return value
-            
-            return cached[0]
+        if refresh:
+            self._cache.touch(key, new_ttl=self._window)
+        return self._cache.get(key, default)
     
-    def invalidate(self, key: str) -> bool:
-        """使指定键失效"""
-        with self._lock:
-            if key in self._cache:
-                del self._cache[key]
-                return True
-            return False
+    def set(self, key: str, value: Any) -> None:
+        """设置值"""
+        self._cache.set(key, value, ttl=self._window)
     
-    def clear(self):
-        """清空所有缓存"""
-        with self._lock:
-            self._cache.clear()
+    def has(self, key: str) -> bool:
+        return self._cache.has(key)
+    
+    def delete(self, key: str) -> bool:
+        return self._cache.delete(key)
+    
+    def clear(self) -> None:
+        self._cache.clear()
+    
+    def stats(self) -> Dict[str, Any]:
+        return self._cache.stats()
 
 
-class MultiLevelCache:
+class RateLimiter:
     """
-    多级缓存
+    基于缓存的速率限制器。
     
-    实现本地缓存 + 可选远程缓存的分层架构。
-    支持 L1（本地）和 L2（远程，需自定义）两级缓存。
+    Examples:
+        >>> limiter = RateLimiter(max_requests=100, window=60)  # 60秒100次
+        >>> if limiter.allow("user:123"):
+        ...     print("Request allowed")
+        ... else:
+        ...     print("Rate limit exceeded")
     """
     
     def __init__(
         self,
-        l1_size: int = 1000,
-        l1_ttl: Optional[float] = 300
+        max_requests: int,
+        window: float,
+        cleanup_interval: float = 60
     ):
         """
         Args:
-            l1_size: L1 缓存大小
-            l1_ttl: L1 缓存 TTL
+            max_requests: 时间窗口内最大请求数
+            window: 时间窗口（秒）
+            cleanup_interval: 清理间隔
         """
-        self._l1 = MemoryCache(max_size=l1_size, default_ttl=l1_ttl)
-        self._l2_get: Optional[Callable[[str], Any]] = None
-        self._l2_set: Optional[Callable[[str, Any, Optional[float]], None]] = None
-        self._l2_delete: Optional[Callable[[str], bool]] = None
+        self._max_requests = max_requests
+        self._window = window
+        self._cache = MemoryCache(
+            default_ttl=window,
+            cleanup_interval=cleanup_interval
+        )
     
-    def set_l2_handlers(
-        self,
-        get_handler: Callable[[str], Any],
-        set_handler: Callable[[str, Any, Optional[float]], None],
-        delete_handler: Optional[Callable[[str], bool]] = None
-    ):
-        """设置 L2 缓存处理器"""
-        self._l2_get = get_handler
-        self._l2_set = set_handler
-        self._l2_delete = delete_handler
-    
-    def get(self, key: str, default: Any = None) -> Any:
-        """从缓存获取值"""
-        # 先查 L1
-        value = self._l1.get(key)
-        if value is not None:
-            return value
-        
-        # 再查 L2
-        if self._l2_get:
-            value = self._l2_get(key)
-            if value is not None:
-                # 回填 L1
-                self._l1.set(key, value)
-                return value
-        
-        return default
-    
-    def set(self, key: str, value: Any, ttl: Optional[float] = None):
-        """设置缓存"""
-        self._l1.set(key, value, ttl)
-        if self._l2_set:
-            self._l2_set(key, value, ttl)
-    
-    def delete(self, key: str) -> bool:
-        """删除缓存"""
-        l1_deleted = self._l1.delete(key)
-        l2_deleted = False
-        if self._l2_delete:
-            l2_deleted = self._l2_delete(key)
-        return l1_deleted or l2_deleted
-    
-    def get_l1_stats(self) -> CacheStats:
-        """获取 L1 缓存统计"""
-        return self._l1.get_stats()
-
-
-class CacheManager:
-    """
-    缓存管理器
-    
-    管理多个命名缓存实例。
-    """
-    
-    _instance = None
-    _lock = threading.Lock()
-    
-    def __new__(cls):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-                    cls._instance._caches: Dict[str, MemoryCache] = {}
-                    cls._instance._cache_lock = threading.Lock()
-        return cls._instance
-    
-    def get_cache(
-        self,
-        name: str,
-        max_size: int = 1000,
-        default_ttl: Optional[float] = None
-    ) -> MemoryCache:
+    def allow(self, key: str) -> bool:
         """
-        获取或创建命名缓存
+        检查是否允许请求。
         
         Args:
-            name: 缓存名称
-            max_size: 最大大小
-            default_ttl: 默认 TTL
-        
+            key: 标识符（如用户ID、IP地址）
+            
         Returns:
-            缓存实例
+            是否允许
         """
-        with self._cache_lock:
-            if name not in self._caches:
-                self._caches[name] = MemoryCache(
-                    max_size=max_size,
-                    default_ttl=default_ttl
-                )
-            return self._caches[name]
+        count_key = f"count:{key}"
+        
+        try:
+            count = self._cache.incr(count_key)
+        except KeyError:
+            count = 1
+            self._cache.set(count_key, 1, ttl=self._window)
+        
+        return count <= self._max_requests
     
-    def get_all_stats(self) -> Dict[str, Dict[str, Any]]:
-        """获取所有缓存的统计信息"""
-        with self._cache_lock:
-            return {
-                name: cache.get_stats().to_dict()
-                for name, cache in self._caches.items()
-            }
+    def remaining(self, key: str) -> int:
+        """
+        获取剩余请求次数。
+        
+        Args:
+            key: 标识符
+            
+        Returns:
+            剩余次数
+        """
+        count_key = f"count:{key}"
+        count = self._cache.get(count_key, 0)
+        return max(0, self._max_requests - count)
     
-    def clear_all(self):
-        """清空所有缓存"""
-        with self._cache_lock:
-            for cache in self._caches.values():
-                cache.clear()
+    def reset(self, key: str) -> None:
+        """
+        重置计数。
+        
+        Args:
+            key: 标识符
+        """
+        count_key = f"count:{key}"
+        self._cache.delete(count_key)
     
-    def remove_cache(self, name: str) -> bool:
-        """删除命名缓存"""
-        with self._cache_lock:
-            if name in self._caches:
-                del self._caches[name]
-                return True
-            return False
+    def stats(self) -> Dict[str, Any]:
+        return self._cache.stats()
 
 
-# 便捷函数
-def create_cache(max_size: int = 1000, ttl: Optional[float] = None) -> MemoryCache:
-    """创建缓存的便捷函数"""
-    return MemoryCache(max_size=max_size, default_ttl=ttl)
-
-
-if __name__ == '__main__':
-    # 简单测试
-    print("=== Cache Utils 测试 ===\n")
-    
-    # 基本用法
-    cache = MemoryCache(max_size=3)
-    cache.set('a', 1)
-    cache.set('b', 2)
-    cache.set('c', 3)
-    print(f"缓存内容: {cache.get_all_keys()}")
-    
-    # LRU 淘汰测试
-    cache.set('d', 4)  # 应该淘汰 'a'
-    print(f"添加 'd' 后: {cache.get_all_keys()}")
-    
-    # TTL 测试
-    ttl_cache = MemoryCache(default_ttl=1)
-    ttl_cache.set('temp', 'will expire')
-    print(f"临时值: {ttl_cache.get('temp')}")
-    time.sleep(1.1)
-    print(f"1秒后: {ttl_cache.get('temp')}")
-    
-    # 统计信息
-    stats = cache.get_stats()
-    print(f"\n统计: {stats}")
-    
-    # 装饰器测试
-    @cached(ttl=10)
-    def compute(n):
-        print(f"  计算 {n}^2...")
-        return n * n
-    
-    print(f"\n第一次调用: {compute(5)}")
-    print(f"第二次调用 (缓存): {compute(5)}")
-    
-    print("\n=== 测试完成 ===")
+# 版本信息
+__version__ = '1.0.0'
+__author__ = 'AllToolkit'
+__all__ = [
+    'MemoryCache',
+    'CacheEntry',
+    'cached',
+    'memoize',
+    'TimedCache',
+    'RateLimiter',
+]

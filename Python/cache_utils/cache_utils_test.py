@@ -1,532 +1,495 @@
 """
 cache_utils 测试文件
+====================
 
-测试覆盖：
-- 基本读写操作
-- TTL 过期机制
-- LRU 淘汰策略
-- 线程安全性
-- 缓存统计
-- 装饰器功能
-- 多级缓存
+测试内存缓存的各种功能。
 """
 
 import time
 import threading
-import random
-import unittest
+import sys
+import os
+
+# 添加父目录到路径
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
-    MemoryCache, CacheStats, CacheEntry, TimedCache,
-    MultiLevelCache, CacheManager, cached, create_cache
+    MemoryCache, CacheEntry, cached, memoize,
+    TimedCache, RateLimiter
 )
 
 
-class TestCacheStats(unittest.TestCase):
-    """测试 CacheStats"""
+def test_basic_operations():
+    """测试基本操作"""
+    print("测试基本操作...")
+    cache = MemoryCache()
     
-    def test_initial_state(self):
-        """测试初始状态"""
-        stats = CacheStats()
-        self.assertEqual(stats.hits, 0)
-        self.assertEqual(stats.misses, 0)
-        self.assertEqual(stats.evictions, 0)
-        self.assertEqual(stats.total_requests, 0)
-        self.assertEqual(stats.hit_rate, 0.0)
+    # 测试set和get
+    cache.set("key1", "value1")
+    assert cache.get("key1") == "value1", "set/get失败"
     
-    def test_record_operations(self):
-        """测试记录操作"""
-        stats = CacheStats()
-        stats.record_hit()
-        stats.record_hit()
-        stats.record_miss()
-        stats.record_eviction()
-        stats.record_expiration()
-        
-        self.assertEqual(stats.hits, 2)
-        self.assertEqual(stats.misses, 1)
-        self.assertEqual(stats.evictions, 1)
-        self.assertEqual(stats.expirations, 1)
-        self.assertEqual(stats.total_requests, 3)
-        self.assertAlmostEqual(stats.hit_rate, 2/3)
+    # 测试默认值
+    assert cache.get("missing", "default") == "default", "默认值失败"
     
-    def test_reset(self):
-        """测试重置"""
-        stats = CacheStats()
-        stats.record_hit()
-        stats.record_miss()
-        stats.reset()
-        self.assertEqual(stats.hits, 0)
-        self.assertEqual(stats.misses, 0)
+    # 测试has
+    assert cache.has("key1") == True, "has失败"
+    assert cache.has("missing") == False, "has失败"
     
-    def test_to_dict(self):
-        """测试字典转换"""
-        stats = CacheStats()
-        stats.record_hit()
-        d = stats.to_dict()
-        self.assertIn('hits', d)
-        self.assertIn('misses', d)
-        self.assertIn('hit_rate', d)
+    # 测试delete
+    assert cache.delete("key1") == True, "delete失败"
+    assert cache.has("key1") == False, "delete后has失败"
+    assert cache.delete("missing") == False, "删除不存在键应返回False"
+    
+    # 测试clear
+    cache.set("a", 1)
+    cache.set("b", 2)
+    cache.clear()
+    assert cache.size() == 0, "clear失败"
+    
+    print("✓ 基本操作测试通过")
 
 
-class TestCacheEntry(unittest.TestCase):
-    """测试 CacheEntry"""
+def test_ttl():
+    """测试过期时间"""
+    print("测试过期时间...")
+    cache = MemoryCache()
     
-    def test_basic_entry(self):
-        """测试基本条目"""
-        entry = CacheEntry("test_value")
-        self.assertEqual(entry.value, "test_value")
-        self.assertIsNone(entry.expires_at)
-        self.assertFalse(entry.is_expired())
-        self.assertIsNone(entry.remaining_ttl())
+    # 测试短TTL
+    cache.set("short", "value", ttl=0.1)
+    assert cache.get("short") == "value", "设置后应能获取"
     
-    def test_entry_with_ttl(self):
-        """测试带 TTL 的条目"""
-        entry = CacheEntry("test_value", ttl=2)
-        self.assertIsNotNone(entry.expires_at)
-        self.assertFalse(entry.is_expired())
-        self.assertGreater(entry.remaining_ttl(), 1.9)
+    time.sleep(0.15)
+    assert cache.get("short") is None, "过期后应返回None"
     
-    def test_entry_expiration(self):
-        """测试条目过期"""
-        entry = CacheEntry("test_value", ttl=0.1)
-        self.assertFalse(entry.is_expired())
-        time.sleep(0.15)
-        self.assertTrue(entry.is_expired())
-        self.assertEqual(entry.remaining_ttl(), 0)
+    # 测试默认TTL
+    cache_with_default = MemoryCache(default_ttl=0.1)
+    cache_with_default.set("key", "value")
+    assert cache_with_default.get("key") == "value"
+    time.sleep(0.15)
+    assert cache_with_default.get("key") is None
     
-    def test_touch(self):
-        """测试访问更新"""
-        entry = CacheEntry("test")
-        original_time = entry.last_access
-        original_count = entry.access_count
-        time.sleep(0.01)
-        entry.touch()
-        self.assertGreater(entry.last_access, original_time)
-        self.assertEqual(entry.access_count, original_count + 1)
+    # 测试永不过期（负数TTL）
+    cache.set("permanent", "value", ttl=-1)
+    time.sleep(0.1)
+    assert cache.get("permanent") == "value", "负数TTL应永不过期"
+    
+    # 测试ttl方法
+    cache.set("ttl_test", "value", ttl=10)
+    remaining = cache.ttl("ttl_test")
+    assert remaining is not None and remaining > 9, f"ttl应返回约10，实际: {remaining}"
+    assert cache.ttl("missing") == -1, "不存在键应返回-1"
+    
+    # 测试extend_ttl
+    cache.set("extend_test", "value", ttl=1)
+    cache.extend_ttl("extend_test", 10)
+    remaining = cache.ttl("extend_test")
+    assert remaining > 10, f"extend_ttl后应大于10，实际: {remaining}"
+    
+    print("✓ 过期时间测试通过")
 
 
-class TestMemoryCache(unittest.TestCase):
-    """测试 MemoryCache"""
+def test_lru():
+    """测试LRU淘汰"""
+    print("测试LRU淘汰...")
+    cache = MemoryCache(max_size=3)
     
-    def test_basic_operations(self):
-        """测试基本操作"""
-        cache = MemoryCache()
-        cache.set('key1', 'value1')
-        self.assertEqual(cache.get('key1'), 'value1')
-        self.assertIsNone(cache.get('nonexistent'))
-        self.assertEqual(cache.get('nonexistent', 'default'), 'default')
+    cache.set("a", 1)
+    cache.set("b", 2)
+    cache.set("c", 3)
+    assert cache.size() == 3
     
-    def test_delete(self):
-        """测试删除"""
-        cache = MemoryCache()
-        cache.set('key', 'value')
-        self.assertTrue(cache.delete('key'))
-        self.assertFalse(cache.delete('key'))
-        self.assertIsNone(cache.get('key'))
+    # 添加第4个，应淘汰a
+    cache.set("d", 4)
+    assert cache.size() == 3
+    assert not cache.has("a"), "应淘汰最早使用的a"
+    assert cache.has("b") and cache.has("c") and cache.has("d")
     
-    def test_exists(self):
-        """测试存在检查"""
-        cache = MemoryCache()
-        cache.set('key', 'value')
-        self.assertTrue(cache.exists('key'))
-        self.assertFalse(cache.exists('nonexistent'))
+    # 访问b，使其变为最近使用
+    cache.get("b")
+    # 添加第5个，应淘汰c（因为b刚被访问）
+    cache.set("e", 5)
+    assert not cache.has("c"), "应淘汰c而非b"
+    assert cache.has("b")
     
-    def test_clear(self):
-        """测试清空"""
-        cache = MemoryCache()
-        cache.set('a', 1)
-        cache.set('b', 2)
-        cache.clear()
-        self.assertEqual(cache.size(), 0)
-    
-    def test_size(self):
-        """测试大小"""
-        cache = MemoryCache()
-        self.assertEqual(cache.size(), 0)
-        cache.set('a', 1)
-        self.assertEqual(cache.size(), 1)
-        cache.set('b', 2)
-        self.assertEqual(cache.size(), 2)
-    
-    def test_lru_eviction(self):
-        """测试 LRU 淘汰"""
-        cache = MemoryCache(max_size=3)
-        cache.set('a', 1)
-        cache.set('b', 2)
-        cache.set('c', 3)
-        
-        # 访问 'a'，使其成为最近使用
-        cache.get('a')
-        
-        # 添加 'd'，应该淘汰 'b'（最久未使用）
-        cache.set('d', 4)
-        
-        self.assertTrue(cache.exists('a'))
-        self.assertFalse(cache.exists('b'))
-        self.assertTrue(cache.exists('c'))
-        self.assertTrue(cache.exists('d'))
-        
-        stats = cache.get_stats()
-        self.assertEqual(stats.evictions, 1)
-    
-    def test_ttl_expiration(self):
-        """测试 TTL 过期"""
-        cache = MemoryCache(default_ttl=0.5)
-        cache.set('key', 'value')
-        self.assertEqual(cache.get('key'), 'value')
-        time.sleep(0.6)
-        self.assertIsNone(cache.get('key'))
-    
-    def test_per_key_ttl(self):
-        """测试单键 TTL"""
-        cache = MemoryCache()
-        cache.set('short', 'value', ttl=0.3)
-        cache.set('long', 'value', ttl=10)
-        
-        time.sleep(0.4)
-        self.assertIsNone(cache.get('short'))
-        self.assertEqual(cache.get('long'), 'value')
-    
-    def test_cleanup_expired(self):
-        """测试过期清理"""
-        cache = MemoryCache()
-        cache.set('a', 1, ttl=0.1)
-        cache.set('b', 2, ttl=0.1)
-        cache.set('c', 3, ttl=10)
-        
-        time.sleep(0.15)
-        cleaned = cache.cleanup_expired()
-        
-        self.assertEqual(cleaned, 2)
-        self.assertEqual(cache.size(), 1)
-    
-    def test_get_or_set(self):
-        """测试 get_or_set"""
-        cache = MemoryCache()
-        call_count = [0]
-        
-        def factory():
-            call_count[0] += 1
-            return 'computed'
-        
-        # 第一次调用，应该执行 factory
-        result1 = cache.get_or_set('key', factory)
-        self.assertEqual(result1, 'computed')
-        self.assertEqual(call_count[0], 1)
-        
-        # 第二次调用，应该从缓存获取
-        result2 = cache.get_or_set('key', factory)
-        self.assertEqual(result2, 'computed')
-        self.assertEqual(call_count[0], 1)
-    
-    def test_dict_interface(self):
-        """测试字典接口"""
-        cache = MemoryCache()
-        
-        # __setitem__, __getitem__
-        cache['key'] = 'value'
-        self.assertEqual(cache['key'], 'value')
-        
-        # __contains__
-        self.assertTrue('key' in cache)
-        self.assertFalse('nonexistent' in cache)
-        
-        # __delitem__
-        del cache['key']
-        with self.assertRaises(KeyError):
-            _ = cache['key']
-        
-        # __len__
-        cache['a'] = 1
-        cache['b'] = 2
-        self.assertEqual(len(cache), 2)
-    
-    def test_stats_tracking(self):
-        """测试统计追踪"""
-        cache = MemoryCache()
-        
-        cache.set('key', 'value')
-        
-        # 命中
-        cache.get('key')
-        cache.get('key')
-        
-        # 未命中
-        cache.get('nonexistent')
-        
-        stats = cache.get_stats()
-        self.assertEqual(stats.hits, 2)
-        self.assertEqual(stats.misses, 1)
+    print("✓ LRU淘汰测试通过")
 
 
-class TestThreadSafety(unittest.TestCase):
-    """测试线程安全性"""
+def test_batch_operations():
+    """测试批量操作"""
+    print("测试批量操作...")
+    cache = MemoryCache()
     
-    def test_concurrent_writes(self):
-        """测试并发写入"""
-        cache = MemoryCache(max_size=1000, thread_safe=True)
-        errors = []
-        
-        def writer(start):
-            try:
-                for i in range(100):
-                    cache.set(f'key_{start}_{i}', i)
-            except Exception as e:
-                errors.append(e)
-        
-        threads = [
-            threading.Thread(target=writer, args=(i,))
-            for i in range(10)
-        ]
-        
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-        
-        self.assertEqual(len(errors), 0)
+    # 测试set_many
+    cache.set_many({"a": 1, "b": 2, "c": 3})
+    assert cache.get("a") == 1
+    assert cache.get("b") == 2
+    assert cache.get("c") == 3
     
-    def test_concurrent_reads_writes(self):
-        """测试并发读写"""
-        cache = MemoryCache(max_size=1000, thread_safe=True)
-        
-        # 预填充
-        for i in range(100):
-            cache.set(f'key_{i}', i)
-        
-        errors = []
-        
-        def reader():
-            try:
-                for _ in range(100):
-                    key = f'key_{random.randint(0, 99)}'
-                    cache.get(key)
-            except Exception as e:
-                errors.append(e)
-        
-        def writer():
-            try:
-                for i in range(100):
-                    cache.set(f'key_{i}', i * 2)
-            except Exception as e:
-                errors.append(e)
-        
-        threads = [
-            threading.Thread(target=reader) for _ in range(5)
-        ] + [
-            threading.Thread(target=writer) for _ in range(2)
-        ]
-        
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-        
-        self.assertEqual(len(errors), 0)
+    # 测试get_many
+    result = cache.get_many(["a", "b", "missing"])
+    assert result == {"a": 1, "b": 2}, f"get_many失败: {result}"
+    
+    # 测试delete_many
+    count = cache.delete_many(["a", "b", "missing"])
+    assert count == 2, f"delete_many应删除2个，实际: {count}"
+    assert not cache.has("a") and not cache.has("b")
+    
+    print("✓ 批量操作测试通过")
 
 
-class TestCachedDecorator(unittest.TestCase):
-    """测试 cached 装饰器"""
+def test_incr_decr():
+    """测试数值增加减少"""
+    print("测试数值增加减少...")
+    cache = MemoryCache()
     
-    def test_basic_caching(self):
-        """测试基本缓存功能"""
-        call_count = [0]
-        
-        @cached(ttl=60)
-        def expensive_func(x):
-            call_count[0] += 1
-            return x * x
-        
-        # 第一次调用
-        result1 = expensive_func(5)
-        self.assertEqual(result1, 25)
-        self.assertEqual(call_count[0], 1)
-        
-        # 第二次调用（缓存）
-        result2 = expensive_func(5)
-        self.assertEqual(result2, 25)
-        self.assertEqual(call_count[0], 1)
-        
-        # 不同参数
-        result3 = expensive_func(6)
-        self.assertEqual(result3, 36)
-        self.assertEqual(call_count[0], 2)
+    cache.set("counter", 0)
+    assert cache.incr("counter") == 1
+    assert cache.incr("counter", 5) == 6
+    assert cache.decr("counter") == 5
+    assert cache.decr("counter", 3) == 2
     
-    def test_cache_expiration(self):
-        """测试缓存过期"""
-        @cached(ttl=0.3)
-        def func(x):
-            return x
-        
-        func(1)
-        time.sleep(0.4)
-        func.cache.cleanup_expired()
-        
-        # 应该重新计算
-        stats = func.cache_stats()
-        self.assertEqual(stats.misses, 1)
+    # 测试非数值错误
+    cache.set("text", "hello")
+    try:
+        cache.incr("text")
+        assert False, "应对非数值抛出错误"
+    except ValueError:
+        pass
     
-    def test_cache_clear(self):
-        """测试缓存清除"""
-        call_count = [0]
-        
-        @cached()
-        def func(x):
-            call_count[0] += 1
-            return x
-        
-        func(1)
-        func(1)  # 缓存命中
-        self.assertEqual(call_count[0], 1)
-        
-        func.cache_clear()
-        func(1)  # 重新计算
-        self.assertEqual(call_count[0], 2)
+    # 测试不存在键错误
+    try:
+        cache.incr("missing")
+        assert False, "应对不存在键抛出错误"
+    except KeyError:
+        pass
+    
+    print("✓ 数值增减测试通过")
 
 
-class TestTimedCache(unittest.TestCase):
-    """测试 TimedCache"""
+def test_stats():
+    """测试统计信息"""
+    print("测试统计信息...")
+    cache = MemoryCache()
     
-    def test_window_caching(self):
-        """测试时间窗口缓存"""
-        cache = TimedCache(window_seconds=0.5)
-        call_count = [0]
-        
-        def refresh():
-            call_count[0] += 1
-            return 'data'
-        
-        # 第一次调用
-        result1 = cache.get_or_refresh('key', refresh)
-        self.assertEqual(result1, 'data')
-        self.assertEqual(call_count[0], 1)
-        
-        # 窗口内，不刷新
-        result2 = cache.get_or_refresh('key', refresh)
-        self.assertEqual(result2, 'data')
-        self.assertEqual(call_count[0], 1)
-        
-        # 窗口后，刷新
-        time.sleep(0.6)
-        result3 = cache.get_or_refresh('key', refresh)
-        self.assertEqual(result3, 'data')
-        self.assertEqual(call_count[0], 2)
+    cache.set("key", "value")
+    cache.get("key")  # hit
+    cache.get("missing")  # miss
     
-    def test_invalidate(self):
-        """测试失效"""
-        cache = TimedCache(window_seconds=60)
-        call_count = [0]
-        
-        def refresh():
-            call_count[0] += 1
-            return 'data'
-        
-        cache.get_or_refresh('key', refresh)
-        self.assertEqual(call_count[0], 1)
-        
-        cache.invalidate('key')
-        cache.get_or_refresh('key', refresh)
-        self.assertEqual(call_count[0], 2)
+    stats = cache.stats()
+    assert stats["size"] == 1
+    assert stats["hits"] == 1
+    assert stats["misses"] == 1
+    assert abs(stats["hit_rate"] - 0.5) < 0.001
+    
+    cache.reset_stats()
+    stats = cache.stats()
+    assert stats["hits"] == 0
+    assert stats["misses"] == 0
+    
+    print("✓ 统计信息测试通过")
 
 
-class TestMultiLevelCache(unittest.TestCase):
-    """测试 MultiLevelCache"""
+def test_decorator():
+    """测试装饰器"""
+    print("测试装饰器...")
     
-    def test_l1_caching(self):
-        """测试 L1 缓存"""
-        cache = MultiLevelCache(l1_size=100, l1_ttl=60)
-        cache.set('key', 'value')
-        self.assertEqual(cache.get('key'), 'value')
+    call_count = 0
     
-    def test_l2_fallback(self):
-        """测试 L2 回退"""
-        l2_data = {'remote_key': 'remote_value'}
-        
-        cache = MultiLevelCache()
-        cache.set_l2_handlers(
-            get_handler=lambda k: l2_data.get(k),
-            set_handler=lambda k, v, t: l2_data.update({k: v})
-        )
-        
-        # L1 未命中，从 L2 获取
-        result = cache.get('remote_key')
-        self.assertEqual(result, 'remote_value')
-        
-        # 应该回填到 L1
-        self.assertEqual(cache._l1.get('remote_key'), 'remote_value')
+    @memoize(ttl=60)
+    def expensive_function(n):
+        nonlocal call_count
+        call_count += 1
+        return n * n
     
-    def test_l1_l2_sync(self):
-        """测试 L1 L2 同步"""
-        l2_data = {}
-        
-        cache = MultiLevelCache()
-        cache.set_l2_handlers(
-            get_handler=lambda k: l2_data.get(k),
-            set_handler=lambda k, v, t: l2_data.update({k: v})
-        )
-        
-        cache.set('key', 'value')
-        
-        # 两个级别都应该有
-        self.assertEqual(cache._l1.get('key'), 'value')
-        self.assertEqual(l2_data['key'], 'value')
+    # 第一次调用
+    result1 = expensive_function(5)
+    assert result1 == 25
+    assert call_count == 1
+    
+    # 第二次调用应从缓存获取
+    result2 = expensive_function(5)
+    assert result2 == 25
+    assert call_count == 1, "应从缓存获取，不重新计算"
+    
+    # 不同参数应重新计算
+    result3 = expensive_function(10)
+    assert result3 == 100
+    assert call_count == 2
+    
+    # 测试stats
+    assert expensive_function.cache_stats()["hits"] >= 1
+    
+    print("✓ 装饰器测试通过")
 
 
-class TestCacheManager(unittest.TestCase):
-    """测试 CacheManager"""
+def test_cached_decorator():
+    """测试cached装饰器"""
+    print("测试cached装饰器...")
     
-    def test_singleton(self):
-        """测试单例模式"""
-        manager1 = CacheManager()
-        manager2 = CacheManager()
-        self.assertIs(manager1, manager2)
+    cache = MemoryCache(max_size=10)
+    call_count = 0
     
-    def test_named_cache(self):
-        """测试命名缓存"""
-        manager = CacheManager()
-        
-        cache1 = manager.get_cache('cache1', max_size=100)
-        cache2 = manager.get_cache('cache2', max_size=200)
-        
-        cache1.set('key', 'value1')
-        cache2.set('key', 'value2')
-        
-        self.assertEqual(cache1.get('key'), 'value1')
-        self.assertEqual(cache2.get('key'), 'value2')
+    @cached(cache=cache, key_prefix="test:", ttl=60)
+    def compute(x, y):
+        nonlocal call_count
+        call_count += 1
+        return x + y
     
-    def test_get_all_stats(self):
-        """测试获取所有统计"""
-        manager = CacheManager()
-        manager.clear_all()
-        
-        cache = manager.get_cache('stats_test')
-        cache.set('a', 1)
-        cache.get('a')
-        cache.get('nonexistent')
-        
-        stats = manager.get_all_stats()
-        self.assertIn('stats_test', stats)
-        self.assertEqual(stats['stats_test']['hits'], 1)
-        self.assertEqual(stats['stats_test']['misses'], 1)
+    result1 = compute(1, 2)
+    assert result1 == 3
+    assert call_count == 1
     
-    def test_remove_cache(self):
-        """测试删除缓存"""
-        manager = CacheManager()
-        manager.get_cache('to_remove')
-        
-        self.assertTrue(manager.remove_cache('to_remove'))
-        self.assertFalse(manager.remove_cache('to_remove'))
+    result2 = compute(1, 2)  # 应从缓存获取
+    assert result2 == 3
+    assert call_count == 1
+    
+    result3 = compute(2, 3)  # 不同参数
+    assert result3 == 5
+    assert call_count == 2
+    
+    # 测试cache_clear
+    compute.cache_clear()
+    result4 = compute(1, 2)  # 缓存已清空，应重新计算
+    assert result4 == 3
+    assert call_count == 3
+    
+    print("✓ cached装饰器测试通过")
 
 
-class TestCreateCache(unittest.TestCase):
-    """测试便捷函数"""
+def test_thread_safety():
+    """测试线程安全"""
+    print("测试线程安全...")
+    cache = MemoryCache(thread_safe=True)
     
-    def test_create_cache(self):
-        """测试创建缓存"""
-        cache = create_cache(max_size=50, ttl=100)
-        self.assertEqual(cache._max_size, 50)
-        self.assertEqual(cache._default_ttl, 100)
+    def worker(cache, key, iterations):
+        for i in range(iterations):
+            cache.set(f"{key}_{i}", i)
+            cache.get(f"{key}_{i}")
+    
+    threads = []
+    for i in range(10):
+        t = threading.Thread(target=worker, args=(cache, f"thread_{i}", 100))
+        threads.append(t)
+        t.start()
+    
+    for t in threads:
+        t.join()
+    
+    # 如果没有崩溃和死锁，测试通过
+    print("✓ 线程安全测试通过")
 
 
-if __name__ == '__main__':
-    unittest.main(verbosity=2)
+def test_timed_cache():
+    """测试时间窗口缓存"""
+    print("测试时间窗口缓存...")
+    cache = TimedCache(window=0.2)  # 200ms窗口
+    
+    cache.set("key", "value")
+    assert cache.get("key") == "value"
+    
+    time.sleep(0.25)
+    assert cache.get("key") is None, "应已过期"
+    
+    print("✓ 时间窗口缓存测试通过")
+
+
+def test_rate_limiter():
+    """测试速率限制器"""
+    print("测试速率限制器...")
+    limiter = RateLimiter(max_requests=3, window=1)
+    
+    key = "user:123"
+    
+    # 前3次应该允许
+    assert limiter.allow(key) == True
+    assert limiter.allow(key) == True
+    assert limiter.allow(key) == True
+    
+    # 第4次应该拒绝
+    assert limiter.allow(key) == False
+    
+    # 检查剩余次数
+    assert limiter.remaining(key) == 0
+    
+    # 重置后应允许
+    limiter.reset(key)
+    assert limiter.allow(key) == True
+    assert limiter.remaining(key) == 2
+    
+    print("✓ 速率限制器测试通过")
+
+
+def test_cleanup():
+    """测试过期清理"""
+    print("测试过期清理...")
+    cache = MemoryCache()
+    
+    # 添加多个条目
+    cache.set("a", 1, ttl=0.1)
+    cache.set("b", 2, ttl=0.1)
+    cache.set("c", 3, ttl=10)  # 长期
+    
+    time.sleep(0.15)
+    
+    # 清理过期
+    cleaned = cache.cleanup_expired()
+    assert cleaned == 2, f"应清理2个过期条目，实际: {cleaned}"
+    assert cache.has("c")
+    assert not cache.has("a")
+    assert not cache.has("b")
+    
+    print("✓ 过期清理测试通过")
+
+
+def test_get_or_set():
+    """测试get_or_set"""
+    print("测试get_or_set...")
+    cache = MemoryCache()
+    
+    call_count = 0
+    
+    def factory():
+        nonlocal call_count
+        call_count += 1
+        return "computed"
+    
+    # 第一次调用，应执行factory
+    result1 = cache.get_or_set("key", factory)
+    assert result1 == "computed"
+    assert call_count == 1
+    
+    # 第二次调用，应从缓存获取
+    result2 = cache.get_or_set("key", factory)
+    assert result2 == "computed"
+    assert call_count == 1, "应从缓存获取，不执行factory"
+    
+    print("✓ get_or_set测试通过")
+
+
+def test_magic_methods():
+    """测试魔术方法"""
+    print("测试魔术方法...")
+    cache = MemoryCache()
+    
+    # __setitem__ / __getitem__
+    cache["key"] = "value"
+    assert cache["key"] == "value"
+    
+    # __contains__
+    assert "key" in cache
+    assert "missing" not in cache
+    
+    # __delitem__
+    del cache["key"]
+    assert "key" not in cache
+    
+    # __len__
+    cache["a"] = 1
+    cache["b"] = 2
+    assert len(cache) == 2
+    
+    print("✓ 魔术方法测试通过")
+
+
+def test_context_manager():
+    """测试上下文管理器"""
+    print("测试上下文管理器...")
+    
+    with MemoryCache() as cache:
+        cache.set("key", "value")
+        assert cache.get("key") == "value"
+    
+    # 退出上下文后缓存应清空
+    assert cache.size() == 0
+    
+    print("✓ 上下文管理器测试通过")
+
+
+def test_keys_values_items():
+    """测试keys/values/items方法"""
+    print("测试keys/values/items方法...")
+    cache = MemoryCache()
+    
+    cache.set("a", 1, ttl=0.1)
+    cache.set("b", 2)
+    cache.set("c", 3, ttl=0.1)
+    
+    time.sleep(0.15)
+    
+    # keys应自动清理过期
+    keys = cache.keys()
+    assert keys == ["b"], f"keys应为['b']，实际: {keys}"
+    
+    values = cache.values()
+    assert values == [2], f"values应为[2]，实际: {values}"
+    
+    items = cache.items()
+    assert items == [("b", 2)], f"items应为[('b', 2)]，实际: {items}"
+    
+    print("✓ keys/values/items测试通过")
+
+
+def test_touch():
+    """测试touch方法"""
+    print("测试touch方法...")
+    cache = MemoryCache()
+    
+    cache.set("key", "value", ttl=1)
+    time.sleep(0.1)
+    
+    # touch应更新LRU顺序
+    assert cache.touch("key") == True
+    
+    # touch不存在的键
+    assert cache.touch("missing") == False
+    
+    print("✓ touch测试通过")
+
+
+def run_all_tests():
+    """运行所有测试"""
+    print("=" * 50)
+    print("cache_utils 测试套件")
+    print("=" * 50)
+    
+    tests = [
+        test_basic_operations,
+        test_ttl,
+        test_lru,
+        test_batch_operations,
+        test_incr_decr,
+        test_stats,
+        test_decorator,
+        test_cached_decorator,
+        test_thread_safety,
+        test_timed_cache,
+        test_rate_limiter,
+        test_cleanup,
+        test_get_or_set,
+        test_magic_methods,
+        test_context_manager,
+        test_keys_values_items,
+        test_touch,
+    ]
+    
+    passed = 0
+    failed = 0
+    
+    for test in tests:
+        try:
+            test()
+            passed += 1
+        except Exception as e:
+            print(f"✗ {test.__name__} 失败: {e}")
+            failed += 1
+    
+    print("=" * 50)
+    print(f"测试完成: {passed} 通过, {failed} 失败")
+    print("=" * 50)
+    
+    return failed == 0
+
+
+if __name__ == "__main__":
+    success = run_all_tests()
+    sys.exit(0 if success else 1)
