@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="400" height="200" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+  <title>Gradient Examples</title>
+  <defs>
+    <linearGradient id="linear1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3498db" />
+      <stop offset="100%" stop-color="#e74c3c" />
+    </linearGradient>
+    <linearGradient id="linear2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2ecc71" />
+      <stop offset="100%" stop-color="#27ae60" />
+    </linearGradient>
+    <radialGradient id="radial1" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#f1c40f" />
+      <stop offset="100%" stop-color="#e67e22" />
+    </radialGradient>
+  </defs>
+  <rect x="20" y="20" width="100" height="160" fill="url(#linear1)" stroke="none" stroke-width="1" />
+  <rect x="140" y="20" width="100" height="160" fill="url(#linear2)" stroke="none" stroke-width="1" />
+  <circle cx="310" cy="100" r="70" fill="url(#radial1)" stroke="none" stroke-width="1" />
+  <text x="70" y="200" font-size="12" font-family="Arial" fill="black" text-anchor="middle">Linear H</text>
+  <text x="190" y="200" font-size="12" font-family="Arial" fill="black" text-anchor="middle">Linear V</text>
+  <text x="310" y="200" font-size="12" font-family="Arial" fill="black" text-anchor="middle">Radial</text>
+</svg>

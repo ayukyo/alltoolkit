@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="400" height="300" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+  <title>Complex Drawing - House</title>
+  <defs>
+    <linearGradient id="sky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#87CEEB" />
+      <stop offset="100%" stop-color="#E0F6FF" />
+    </linearGradient>
+    <linearGradient id="ground" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#90EE90" />
+      <stop offset="100%" stop-color="#228B22" />
+    </linearGradient>
+    <radialGradient id="sun" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFFF00" />
+      <stop offset="100%" stop-color="#FFA500" />
+    </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="400" height="250" fill="url(#sky)" stroke="none" stroke-width="1" />
+  <rect x="0" y="250" width="400" height="50" fill="url(#ground)" stroke="none" stroke-width="1" />
+  <rect x="100" y="150" width="200" height="100" fill="#DEB887" stroke="#8B4513" stroke-width="2" />
+  <polygon points="90,150 200,50 310,150" fill="#8B0000" stroke="#4a0000" stroke-width="2" />
+  <rect x="175" y="200" width="50" height="50" fill="#8B4513" stroke="#5D3A1A" stroke-width="2" />
+  <circle cx="215" cy="225" r="4" fill="#FFD700" stroke="none" stroke-width="1" />
+  <rect x="120" y="170" width="40" height="35" fill="#87CEEB" stroke="#4a4a4a" stroke-width="2" />
+  <rect x="240" y="170" width="40" height="35" fill="#87CEEB" stroke="#4a4a4a" stroke-width="2" />
+  <line x1="140" y1="170" x2="140" y2="205" stroke="#4a4a4a" stroke-width="1" />
+  <line x1="120" y1="187" x2="160" y2="187" stroke="#4a4a4a" stroke-width="1" />
+  <line x1="260" y1="170" x2="260" y2="205" stroke="#4a4a4a" stroke-width="1" />
+  <line x1="240" y1="187" x2="280" y2="187" stroke="#4a4a4a" stroke-width="1" />
+  <rect x="250" y="70" width="25" height="60" fill="#A0522D" stroke="#8B4513" stroke-width="1" />
+  <circle cx="50" cy="50" r="30" fill="url(#sun)" stroke="none" stroke-width="1" />
+  <line x1="85.0" y1="50.0" x2="100.0" y2="50.0" stroke="#FFD700" stroke-width="3" />
+  <line x1="74.74873734152916" y1="74.74873734152916" x2="85.35533905932738" y2="85.35533905932738" stroke="#FFD700" stroke-width="3" />
+  <line x1="50.0" y1="85.0" x2="50.0" y2="100.0" stroke="#FFD700" stroke-width="3" />
+  <line x1="25.25126265847084" y1="74.74873734152916" x2="14.64466094067263" y2="85.35533905932738" stroke="#FFD700" stroke-width="3" />
+  <line x1="15.0" y1="50.00000000000001" x2="0.0" y2="50.00000000000001" stroke="#FFD700" stroke-width="3" />
+  <line x1="25.251262658470832" y1="25.25126265847084" x2="14.644660940672615" y2="14.64466094067263" stroke="#FFD700" stroke-width="3" />
+  <line x1="49.99999999999999" y1="15.0" x2="49.99999999999999" y2="0.0" stroke="#FFD700" stroke-width="3" />
+  <line x1="74.74873734152916" y1="25.251262658470832" x2="85.35533905932738" y2="14.644660940672615" stroke="#FFD700" stroke-width="3" />
+</svg>

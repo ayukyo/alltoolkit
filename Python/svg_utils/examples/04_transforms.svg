@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="400" height="200" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+  <title>Transform Examples</title>
+  <rect x="20" y="80" width="50" height="40" fill="#bdc3c7" stroke="none" stroke-width="1" />
+  <text x="45" y="145" font-size="10" font-family="Arial" fill="black" text-anchor="middle">Original</text>
+  <rect x="0" y="0" width="50" height="40" fill="#3498db" stroke="none" stroke-width="1" transform="translate(140, 80)" />
+  <text x="165" y="145" font-size="10" font-family="Arial" fill="black" text-anchor="middle">Translated</text>
+  <rect x="0" y="0" width="50" height="40" fill="#e74c3c" stroke="none" stroke-width="1" transform="translate(270, 100) rotate(45, 25, 20)" />
+  <text x="295" y="145" font-size="10" font-family="Arial" fill="black" text-anchor="middle">Rotated</text>
+  <rect x="0" y="0" width="50" height="40" fill="#2ecc71" stroke="none" stroke-width="1" transform="translate(360, 60) scale(0.75)" />
+  <text x="380" y="145" font-size="10" font-family="Arial" fill="black" text-anchor="middle">Scaled</text>
+</svg>
