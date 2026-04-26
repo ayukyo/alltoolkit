@@ -1,0 +1,9 @@
+[package]
+name = "terminal_utils"
+version = "0.1.0"
+edition = "2021"
+description = "Terminal utilities for Rust - colors, cursor control, progress bars, and tables"
+authors = ["AllToolkit"]
+license = "MIT"
+
+[dependencies]
