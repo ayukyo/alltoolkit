@@ -1,531 +1,497 @@
-#!/usr/bin/env python3
 """
-JSON Utilities 使用示例
+JSON 工具集使用示例
+JSON Utilities Usage Examples
 
-演示 json_utils 模块的主要功能。
+本文件展示了 json_utils 模块的所有主要功能
 """
 
 import sys
-sys.path.insert(0, '..')
+import os
 
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from mod import (
-    # 格式化
-    format_json, prettify_json, minify_json,
-    # 验证
-    validate_json, validate_json_schema,
-    # 路径操作
-    get_value, set_value, has_path, delete_value,
-    # 展平和嵌套
-    flatten_json, unflatten_json,
-    # 搜索
-    find_all, find_first, grep_json,
-    # 过滤和映射
-    filter_json, map_json,
-    # 差异比较
-    diff_json, diff_summary,
-    # 合并
-    merge_json,
-    # 统计
-    json_stats,
-    # 选择和排除
-    select_keys, omit_keys,
-    # 遍历
-    walk_json, get_all_paths,
-    # 克隆和比较
-    deep_clone, deep_equals,
-    # 安全操作
-    safe_get, safe_string,
-    # 类和便捷函数
-    JsonUtils, loads, dumps,
+    json_validate, json_prettify, json_minify,
+    safe_json_loads, safe_json_dumps,
+    json_flatten, json_unflatten,
+    json_merge, json_diff, json_patch,
+    json_get, json_set, json_delete, json_has,
+    json_query, json_schema_validate,
+    json_to_xml, xml_to_json,
+    json_to_csv, csv_to_json,
+    json_transform, json_filter, json_map,
+    json_deepclone, json_pick, json_omit,
+    json_stats, json_size,
 )
 
 
-def print_section(title):
-    """打印分节标题"""
-    print(f"\n{'='*60}")
-    print(f"  {title}")
-    print('='*60)
-
-
-def example_formatting():
-    """格式化示例"""
-    print_section("JSON 格式化")
+def example_basic_operations():
+    """基础操作示例"""
+    print("=" * 60)
+    print("基础操作示例")
+    print("=" * 60)
     
-    data = {"name": "张三", "age": 25, "city": "北京"}
+    # 1. JSON 验证
+    print("\n1. JSON 验证:")
+    valid_json = '{"name": "Alice", "age": 30}'
+    invalid_json = '{invalid json}'
     
-    # 美化输出
-    print("美化输出:")
-    print(format_json(data, indent=2))
+    valid, error = json_validate(valid_json)
+    print(f"   有效 JSON: {valid}, 错误: {error}")
     
-    # 压缩输出
-    print("\n压缩输出:")
-    print(format_json(data, compact=True))
+    valid, error = json_validate(invalid_json)
+    print(f"   无效 JSON: {valid}, 错误: {error[:50]}...")
     
-    # 从字符串美化
-    json_str = '{"name":"test","items":[1,2,3]}'
-    print("\n从字符串美化:")
-    print(prettify_json(json_str))
-
-
-def example_validation():
-    """验证示例"""
-    print_section("JSON 验证")
+    # 2. JSON 美化
+    print("\n2. JSON 美化:")
+    compact_json = '{"name":"Alice","age":30,"address":{"city":"北京","zip":"100000"}}'
+    pretty = json_prettify(compact_json, indent=2)
+    print(f"   原始: {compact_json}")
+    print(f"   美化后:")
+    print("   " + pretty.replace("\n", "\n   "))
     
-    # 验证 JSON 字符串
-    valid_json = '{"name": "test", "value": 123}'
-    invalid_json = '{"name": "test"'
+    # 3. JSON 压缩
+    print("\n3. JSON 压缩:")
+    spaces_json = '{ "name" : "Alice" , "age" : 30 }'
+    minified = json_minify(spaces_json)
+    print(f"   原始: {spaces_json}")
+    print(f"   压缩后: {minified}")
     
-    print(f"验证有效 JSON: {validate_json(valid_json).valid}")
-    print(f"验证无效 JSON: {validate_json(invalid_json).valid}")
+    # 4. 安全解析
+    print("\n4. 安全解析:")
+    result = safe_json_loads('{"a": 1}', {})
+    print(f"   有效 JSON: {result}")
     
-    if not validate_json(invalid_json).valid:
-        result = validate_json(invalid_json)
-        print(f"  错误: {result.error}")
-        print(f"  位置: 行 {result.line}, 列 {result.column}")
-    
-    # Schema 验证
-    print("\nSchema 验证:")
-    data = {"name": "John", "age": 25}
-    schema = {
-        "type": "object",
-        "required": ["name", "age"],
-        "properties": {
-            "name": {"type": "string"},
-            "age": {"type": "integer", "minimum": 0, "maximum": 150}
-        }
-    }
-    
-    valid, errors = validate_json_schema(data, schema)
-    print(f"数据: {data}")
-    print(f"验证结果: {'通过' if valid else '失败'}")
-    if errors:
-        print(f"错误: {errors}")
-
-
-def example_path_operations():
-    """路径操作示例"""
-    print_section("路径操作")
-    
-    data = {
-        "name": "测试项目",
-        "user": {
-            "id": 1,
-            "profile": {
-                "email": "test@example.com",
-                "level": "gold"
-            }
-        },
-        "items": [
-            {"id": 1, "name": "商品A", "price": 100},
-            {"id": 2, "name": "商品B", "price": 200}
-        ]
-    }
-    
-    print("原始数据:")
-    print(format_json(data))
-    
-    # 获取值
-    print("\n获取值:")
-    print(f"  name: {get_value(data, 'name')}")
-    print(f"  user.id: {get_value(data, 'user.id')}")
-    print(f"  user.profile.email: {get_value(data, 'user.profile.email')}")
-    print(f"  items[0].name: {get_value(data, 'items[0].name')}")
-    print(f"  items[1].price: {get_value(data, 'items[1].price')}")
-    
-    # 设置值
-    print("\n设置值:")
-    set_value(data, "user.profile.level", "platinum")
-    print(f"  user.profile.level: {get_value(data, 'user.profile.level')}")
-    
-    # 检查路径
-    print("\n检查路径存在:")
-    print(f"  user.id 存在: {has_path(data, 'user.id')}")
-    print(f"  user.missing 存在: {has_path(data, 'user.missing')}")
+    result = safe_json_loads('invalid', {"default": "value"})
+    print(f"   无效 JSON (返回默认值): {result}")
 
 
 def example_flatten_unflatten():
-    """展平和嵌套示例"""
-    print_section("展平和嵌套")
+    """扁平化/反扁平化示例"""
+    print("\n" + "=" * 60)
+    print("扁平化/反扁平化示例")
+    print("=" * 60)
     
-    data = {
+    # 1. 扁平化
+    print("\n1. JSON 扁平化:")
+    nested = {
         "user": {
-            "name": "张三",
+            "name": "Alice",
             "profile": {
-                "email": "zhangsan@example.com",
-                "age": 30
+                "age": 30,
+                "city": "北京"
             }
         },
-        "items": [
-            {"id": 1, "name": "商品A"},
-            {"id": 2, "name": "商品B"}
-        ]
+        "tags": ["developer", "python"]
     }
     
-    print("原始数据:")
-    print(format_json(data))
-    
-    # 展平
-    print("\n展平后:")
-    flat = flatten_json(data)
+    flat = json_flatten(nested)
+    print(f"   原始 JSON: {nested}")
+    print(f"   扁平化后:")
     for key, value in flat.items():
-        print(f"  {key}: {value}")
+        print(f"      {key}: {value}")
     
-    # 还原
-    print("\n还原后:")
-    restored = unflatten_json(flat)
-    print(format_json(restored))
-
-
-def example_search():
-    """搜索示例"""
-    print_section("JSON 搜索")
-    
-    data = {
-        "name": "主项目",
-        "manager": {
-            "name": "李四",
-            "email": "lisi@example.com"
-        },
-        "members": [
-            {"name": "张三", "role": "developer"},
-            {"name": "王五", "role": "designer"}
-        ]
-    }
-    
-    print("原始数据:")
-    print(format_json(data))
-    
-    # 按键名搜索
-    print("\n搜索键 'name':")
-    results = find_all(data, key="name")
-    for r in results:
-        print(f"  {r.path}: {r.value}")
-    
-    # 按值搜索
-    print("\n搜索值 '张三':")
-    results = find_all(data, value="张三")
-    for r in results:
-        print(f"  {r.path}: {r.value}")
-    
-    # 正则搜索
-    print("\n正则搜索邮箱:")
-    results = grep_json(data, r'\w+@example\.com')
-    for r in results:
-        print(f"  {r.path}: {r.value}")
-
-
-def example_filter_map():
-    """过滤和映射示例"""
-    print_section("过滤和映射")
-    
-    data = {
-        "name": "项目A",
-        "public_info": "可见",
-        "secret": "密码123",
-        "user": {
-            "name": "张三",
-            "secret": "另一个密码"
-        }
-    }
-    
-    print("原始数据:")
-    print(format_json(data))
-    
-    # 过滤
-    print("\n过滤掉包含 'secret' 的字段:")
-    filtered = filter_json(data, lambda path, value: "secret" not in path)
-    print(format_json(filtered))
-    
-    # 映射
-    print("\n数值翻倍:")
-    numbers = {"a": 1, "b": 2, "c": 3, "nested": {"x": 10, "y": 20}}
-    doubled = map_json(numbers, lambda path, value: value * 2 if isinstance(value, (int, float)) else value)
-    print(format_json(doubled))
-
-
-def example_diff():
-    """差异比较示例"""
-    print_section("差异比较")
-    
-    old_data = {
-        "name": "项目A",
-        "version": "1.0",
-        "users": [
-            {"id": 1, "name": "张三"},
-            {"id": 2, "name": "李四"}
-        ],
-        "config": {
-            "debug": True,
-            "timeout": 30
-        }
-    }
-    
-    new_data = {
-        "name": "项目A（新）",
-        "version": "2.0",
-        "users": [
-            {"id": 1, "name": "张三"},
-            {"id": 2, "name": "王五"}  # 名字变了
-        ],
-        "config": {
-            "debug": False,  # 值变了
-            "timeout": 30
-        }
-    }
-    
-    print("旧数据:")
-    print(format_json(old_data))
-    print("\n新数据:")
-    print(format_json(new_data))
-    
-    # 比较
-    print("\n差异:")
-    diffs = diff_json(old_data, new_data)
-    for diff in diffs:
-        print(f"  [{diff.change_type}] {diff.path}")
-        print(f"    旧值: {diff.old_value}")
-        print(f"    新值: {diff.new_value}")
-    
-    # 摘要
-    print("\n摘要:")
-    print(format_json(diff_summary(diffs)))
+    # 2. 反扁平化
+    print("\n2. JSON 反扁平化:")
+    flat_data = {"user.name": "Alice", "user.profile.age": 30, "items.0": 1, "items.1": 2}
+    unflat = json_unflatten(flat_data)
+    print(f"   扁平数据: {flat_data}")
+    print(f"   反扁平化后: {unflat}")
 
 
 def example_merge():
     """合并示例"""
-    print_section("JSON 合并")
+    print("\n" + "=" * 60)
+    print("JSON 合并示例")
+    print("=" * 60)
     
-    base = {
-        "name": "项目",
-        "version": "1.0",
+    # 1. 深度合并
+    print("\n1. 深度合并:")
+    obj1 = {"user": {"name": "Alice", "age": 30}, "settings": {"theme": "dark"}}
+    obj2 = {"user": {"email": "alice@example.com"}, "settings": {"lang": "zh"}}
+    
+    merged = json_merge(obj1, obj2)
+    print(f"   对象 1: {obj1}")
+    print(f"   对象 2: {obj2}")
+    print(f"   合并结果: {merged}")
+    
+    # 2. 数组合并策略
+    print("\n2. 数组合并策略:")
+    arr1 = {"items": [1, 2, 3]}
+    arr2 = {"items": [4, 5]}
+    
+    # concat 策略
+    concat_result = json_merge(arr1, arr2, array_strategy="concat")
+    print(f"   concat 策略: {concat_result}")
+    
+    # replace 策略
+    replace_result = json_merge(arr1, arr2, array_strategy="replace")
+    print(f"   replace 策略: {replace_result}")
+
+
+def example_diff_patch():
+    """差异比较和补丁示例"""
+    print("\n" + "=" * 60)
+    print("JSON 差异比较和补丁示例")
+    print("=" * 60)
+    
+    # 1. 差异比较
+    print("\n1. JSON 差异比较:")
+    old = {"name": "Alice", "age": 30, "city": "北京"}
+    new = {"name": "Alice", "age": 31, "email": "alice@example.com"}
+    
+    diffs = json_diff(old, new)
+    print(f"   旧对象: {old}")
+    print(f"   新对象: {new}")
+    print(f"   差异:")
+    for diff in diffs:
+        print(f"      {diff}")
+    
+    # 2. JSON Patch
+    print("\n2. JSON Patch 应用:")
+    target = {"name": "Alice", "age": 30}
+    patches = [
+        {"op": "add", "path": "/email", "value": "alice@example.com"},
+        {"op": "replace", "path": "/age", "value": 31}
+    ]
+    
+    result = json_patch(target, patches)
+    print(f"   原对象: {target}")
+    print(f"   补丁: {patches}")
+    print(f"   结果: {result}")
+
+
+def example_path_operations():
+    """路径操作示例"""
+    print("\n" + "=" * 60)
+    print("JSON 路径操作示例")
+    print("=" * 60)
+    
+    data = {
+        "user": {
+            "name": "Alice",
+            "profile": {
+                "age": 30,
+                "skills": ["Python", "JavaScript", "Go"]
+            }
+        },
         "config": {
-            "debug": True,
-            "timeout": 30
+            "debug": True
         }
     }
     
-    overlay1 = {
-        "version": "2.0",
-        "config": {
-            "timeout": 60
+    # 1. 获取值
+    print("\n1. 获取指定路径值:")
+    print(f"   $.user.name: {json_get(data, 'user.name')}")
+    print(f"   $.user.profile.age: {json_get(data, 'user.profile.age')}")
+    print(f"   $.user.profile.skills.0: {json_get(data, 'user.profile.skills.0')}")
+    print(f"   $.user.profile.skills[1]: {json_get(data, 'user.profile.skills[1]}')")  # 方括号语法
+    print(f"   $.missing (默认值): {json_get(data, 'missing', 'N/A')}")
+    
+    # 2. 设置值
+    print("\n2. 设置指定路径值:")
+    new_data = json_set(data, "user.profile.city", "上海")
+    print(f"   设置 user.profile.city = '上海'")
+    print(f"   新数据: {new_data}")
+    
+    # 3. 删除值
+    print("\n3. 删除指定路径值:")
+    deleted_data = json_delete(data, "config.debug")
+    print(f"   删除 config.debug")
+    print(f"   新数据: {deleted_data}")
+    
+    # 4. 检查路径存在
+    print("\n4. 检查路径是否存在:")
+    print(f"   user.name 存在: {json_has(data, 'user.name')}")
+    print(f"   user.phone 存在: {json_has(data, 'user.phone')}")
+
+
+def example_jsonpath_query():
+    """JSONPath 查询示例"""
+    print("\n" + "=" * 60)
+    print("JSONPath 查询示例")
+    print("=" * 60)
+    
+    data = {
+        "store": {
+            "book": [
+                {"category": "fiction", "title": "小说1", "price": 10},
+                {"category": "tech", "title": "技术书", "price": 20},
+                {"category": "fiction", "title": "小说2", "price": 15}
+            ],
+            "bicycle": {"color": "red", "price": 100}
         }
     }
     
-    overlay2 = {
-        "author": "张三",
-        "config": {
-            "logLevel": "info"
+    print("\n1. 查询所有书籍价格:")
+    prices = json_query(data, "$.store.book[*].price")
+    print(f"   查询: $.store.book[*].price")
+    print(f"   结果: {prices}")
+    
+    print("\n2. 查询自行车颜色:")
+    color = json_query(data, "$.store.bicycle.color")
+    print(f"   查询: $.store.bicycle.color")
+    print(f"   结果: {color}")
+    
+    print("\n3. 查询第一本书:")
+    first_book = json_query(data, "$.store.book[0]")
+    print(f"   查询: $.store.book[0]")
+    print(f"   结果: {first_book}")
+
+
+def example_schema_validation():
+    """JSON Schema 验证示例"""
+    print("\n" + "=" * 60)
+    print("JSON Schema 验证示例")
+    print("=" * 60)
+    
+    schema = {
+        "type": "object",
+        "required": ["name", "email"],
+        "properties": {
+            "name": {"type": "string", "minLength": 2},
+            "email": {"type": "string", "pattern": "^[\\w.-]+@[\\w.-]+\\.[\\w]+$"},
+            "age": {"type": "integer", "minimum": 0, "maximum": 150},
+            "tags": {"type": "array", "items": {"type": "string"}, "minItems": 1}
         }
     }
     
-    print("基础数据:")
-    print(format_json(base))
-    print("\n覆盖数据1:")
-    print(format_json(overlay1))
-    print("\n覆盖数据2:")
-    print(format_json(overlay2))
+    print(f"\n   Schema:")
+    print(f"   - 类型: object")
+    print(f"   - 必填: name, email")
+    print(f"   - name: 字符串，最小长度 2")
+    print(f"   - email: 字符串，需匹配邮箱格式")
+    print(f"   - age: 整数，范围 0-150")
+    print(f"   - tags: 字符串数组，至少 1 个元素")
     
-    # 深度合并
-    print("\n合并结果:")
-    result = merge_json(base, overlay1, overlay2, deep=True)
-    print(format_json(result))
+    # 有效数据
+    valid_data = {
+        "name": "Alice",
+        "email": "alice@example.com",
+        "age": 30,
+        "tags": ["developer"]
+    }
+    
+    valid, errors = json_schema_validate(valid_data, schema)
+    print(f"\n   有效数据: {valid_data}")
+    print(f"   验证结果: {valid}, 错误: {errors}")
+    
+    # 无效数据
+    invalid_data = {
+        "name": "A",  # 长度太短
+        "email": "invalid-email",  # 格式错误
+        "age": -1,  # 超出范围
+    }
+    
+    valid, errors = json_schema_validate(invalid_data, schema)
+    print(f"\n   无效数据: {invalid_data}")
+    print(f"   验证结果: {valid}")
+    print(f"   错误列表:")
+    for error in errors:
+        print(f"      - {error}")
+
+
+def example_conversions():
+    """转换示例"""
+    print("\n" + "=" * 60)
+    print("JSON 转换示例")
+    print("=" * 60)
+    
+    # 1. JSON 转 XML
+    print("\n1. JSON 转 XML:")
+    json_data = {"person": {"name": "Alice", "age": 30, "skills": ["Python", "Go"]}}
+    xml = json_to_xml(json_data)
+    print(f"   JSON: {json_data}")
+    print(f"   XML: {xml}")
+    
+    # 2. XML 转 JSON
+    print("\n2. XML 转 JSON:")
+    xml_str = '<root><person><name>Alice</name><age>30</age></person></root>'
+    json_result = xml_to_json(xml_str)
+    print(f"   XML: {xml_str}")
+    print(f"   JSON: {json_result}")
+    
+    # 3. JSON 转 CSV
+    print("\n3. JSON 转 CSV:")
+    json_list = [
+        {"name": "Alice", "age": 30, "city": "北京"},
+        {"name": "Bob", "age": 25, "city": "上海"},
+        {"name": "Charlie", "age": 35, "city": "广州"}
+    ]
+    csv = json_to_csv(json_list)
+    print(f"   JSON 列表:")
+    for item in json_list:
+        print(f"      {item}")
+    print(f"   CSV:")
+    print("   " + csv.replace("\n", "\n   "))
+    
+    # 4. CSV 转 JSON
+    print("\n4. CSV 转 JSON:")
+    csv_str = "name,age,city\nAlice,30,北京\nBob,25,上海"
+    json_result = csv_to_json(csv_str)
+    print(f"   CSV:")
+    print("   " + csv_str.replace("\n", "\n   "))
+    print(f"   JSON: {json_result}")
+
+
+def example_transformations():
+    """变换示例"""
+    print("\n" + "=" * 60)
+    print("JSON 变换示例")
+    print("=" * 60)
+    
+    # 1. 键名变换
+    print("\n1. 键名变换（驼峰转下划线）:")
+    data = {"firstName": "Alice", "lastName": "Smith", "userProfile": {"userId": 123}}
+    
+    def camel_to_snake(key):
+        return ''.join(['_' + c.lower() if c.isupper() else c for c in key]).lstrip('_')
+    
+    result = json_transform(data, key_transform=camel_to_snake)
+    print(f"   原始: {data}")
+    print(f"   变换后: {result}")
+    
+    # 2. 值变换
+    print("\n2. 值变换（字符串数字转整数）:")
+    data = {"age": "30", "score": "95", "name": "Alice"}
+    
+    def to_int_if_possible(value):
+        if isinstance(value, str) and value.isdigit():
+            return int(value)
+        return value
+    
+    result = json_transform(data, value_transform=to_int_if_possible)
+    print(f"   原始: {data}")
+    print(f"   变换后: {result}")
+    
+    # 3. 过滤
+    print("\n3. JSON 过滤:")
+    data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    result = json_filter(data, lambda x: x % 2 == 0)
+    print(f"   原始: {data}")
+    print(f"   过滤偶数: {result}")
+    
+    # 4. 映射
+    print("\n4. JSON 映射:")
+    data = [1, 2, 3, 4, 5]
+    result = json_map(data, lambda x: x ** 2)
+    print(f"   原始: {data}")
+    print(f"   平方映射: {result}")
+
+
+def example_pick_omit():
+    """选取/排除示例"""
+    print("\n" + "=" * 60)
+    print("JSON 选取/排除示例")
+    print("=" * 60)
+    
+    user = {
+        "id": 123,
+        "name": "Alice",
+        "email": "alice@example.com",
+        "password": "secret123",
+        "internal_token": "abc123",
+        "created_at": "2024-01-01"
+    }
+    
+    # 选取公开字段
+    print("\n1. 选取公开字段:")
+    public_fields = ["id", "name", "email", "created_at"]
+    public_user = json_pick(user, public_fields)
+    print(f"   原始: {user}")
+    print(f"   选取字段: {public_fields}")
+    print(f"   结果: {public_user}")
+    
+    # 排除敏感字段
+    print("\n2. 排除敏感字段:")
+    sensitive_fields = ["password", "internal_token"]
+    safe_user = json_omit(user, sensitive_fields)
+    print(f"   原始: {user}")
+    print(f"   排除字段: {sensitive_fields}")
+    print(f"   结果: {safe_user}")
+
+
+def example_deepclone():
+    """深度克隆示例"""
+    print("\n" + "=" * 60)
+    print("JSON 深度克隆示例")
+    print("=" * 60)
+    
+    original = {
+        "user": {"name": "Alice", "profile": {"tags": ["python", "go"]}},
+        "settings": {"theme": "dark"}
+    }
+    
+    cloned = json_deepclone(original)
+    
+    # 修改克隆不影响原始
+    cloned["user"]["profile"]["tags"].append("rust")
+    cloned["settings"]["theme"] = "light"
+    
+    print(f"   原始数据: {original}")
+    print(f"   克隆并修改后: {cloned}")
+    print(f"   原始数据 (未受影响): {original}")
 
 
 def example_stats():
     """统计示例"""
-    print_section("JSON 统计")
+    print("\n" + "=" * 60)
+    print("JSON 统计示例")
+    print("=" * 60)
     
     data = {
-        "name": "大型项目",
-        "version": "1.0.0",
-        "contributors": [
-            {"name": "张三", "commits": 100},
-            {"name": "李四", "commits": 50},
-            {"name": "王五", "commits": 25}
+        "users": [
+            {"name": "Alice", "age": 30, "active": True},
+            {"name": "Bob", "age": 25, "active": False},
+            {"name": None, "age": None, "active": True}
         ],
         "config": {
             "debug": True,
-            "features": {
-                "auth": True,
-                "api": True
-            }
+            "version": "1.0.0"
         }
     }
     
-    print("数据:")
-    print(format_json(data))
-    
-    print("\n统计信息:")
     stats = json_stats(data)
-    print(f"  总键数: {stats['total_keys']}")
-    print(f"  总值数: {stats['total_values']}")
-    print(f"  最大深度: {stats['max_depth']}")
-    print(f"  字节数: {stats['size_bytes']}")
-    print(f"  类型分布: {stats['types']}")
-
-
-def example_select_omit():
-    """选择和排除示例"""
-    print_section("选择和排除键")
+    print(f"   数据: {data}")
+    print(f"   统计:")
+    print(f"      - 深度: {stats['depth']}")
+    print(f"      - 键数量: {stats['keys']}")
+    print(f"      - 数组数量: {stats['arrays']}")
+    print(f"      - 对象数量: {stats['objects']}")
+    print(f"      - 基本类型数量: {stats['primitives']}")
+    print(f"      - null 数量: {stats['nulls']}")
+    print(f"      - 布尔值数量: {stats['booleans']}")
+    print(f"      - 数字数量: {stats['numbers']}")
+    print(f"      - 字符串数量: {stats['strings']}")
     
-    data = {
-        "id": 1,
-        "name": "张三",
-        "email": "zhangsan@example.com",
-        "password": "secret123",
-        "created_at": "2024-01-01"
-    }
-    
-    print("原始数据:")
-    print(format_json(data))
-    
-    # 选择特定键
-    print("\n选择 id, name, email:")
-    selected = select_keys(data, ["id", "name", "email"])
-    print(format_json(selected))
-    
-    # 排除特定键
-    print("\n排除 password:")
-    omitted = omit_keys(data, ["password"])
-    print(format_json(omitted))
-
-
-def example_walk():
-    """遍历示例"""
-    print_section("JSON 遍历")
-    
-    data = {
-        "a": 1,
-        "b": {"x": 2, "y": 3},
-        "c": [4, 5, 6]
-    }
-    
-    print("数据:")
-    print(format_json(data))
-    
-    print("\n遍历所有路径和值:")
-    for path, value in walk_json(data):
-        print(f"  {path}: {value}")
-    
-    print("\n所有路径:")
-    print(f"  {get_all_paths(data)}")
-
-
-def example_json_utils_class():
-    """JsonUtils 类示例"""
-    print_section("JsonUtils 类")
-    
-    # 创建实例
-    jutil = JsonUtils({
-        "name": "测试",
-        "user": {
-            "id": 1,
-            "tags": ["a", "b", "c"]
-        }
-    })
-    
-    print("初始数据:")
-    print(jutil.to_string())
-    
-    # 路径操作
-    print("\n路径操作:")
-    print(f"  get('name'): {jutil.get('name')}")
-    print(f"  get('user.id'): {jutil.get('user.id')}")
-    print(f"  has('user.tags'): {jutil.has('user.tags')}")
-    
-    # 设置值
-    print("\n设置值:")
-    jutil.set("user.email", "test@example.com")
-    print(f"  set('user.email', 'test@example.com')")
-    print(f"  get('user.email'): {jutil.get('user.email')}")
-    
-    # 查找
-    print("\n查找:")
-    results = jutil.find(key="id")
-    for r in results:
-        print(f"  找到 id: {r.path} = {r.value}")
-    
-    # 统计
-    print("\n统计:")
-    stats = jutil.stats()
-    print(f"  最大深度: {stats['max_depth']}")
-    print(f"  总键数: {stats['total_keys']}")
-
-
-def example_safe_operations():
-    """安全操作示例"""
-    print_section("安全操作")
-    
-    data = {
-        "user": {
-            "profile": {
-                "name": "张三"
-            }
-        }
-    }
-    
-    print("数据:")
-    print(format_json(data))
-    
-    # 安全获取
-    print("\n安全获取:")
-    print(f"  safe_get(data, 'user', 'profile', 'name'): {safe_get(data, 'user', 'profile', 'name')}")
-    print(f"  safe_get(data, 'user', 'missing', 'field', default='默认'): {safe_get(data, 'user', 'missing', 'field', default='默认')}")
-    
-    # 安全解析
-    print("\n安全解析:")
-    success, result = safe_string('{"valid": true}')
-    print(f"  解析有效 JSON: 成功={success}, 结果={result}")
-    
-    success, result = safe_string('{"invalid": }')
-    print(f"  解析无效 JSON: 成功={success}, 错误={result}")
-
-
-def example_clone_equals():
-    """克隆和比较示例"""
-    print_section("克隆和比较")
-    
-    data = {
-        "name": "项目",
-        "items": [1, 2, {"x": 10}]
-    }
-    
-    # 深度克隆
-    print("深度克隆:")
-    cloned = deep_clone(data)
-    cloned["items"][2]["x"] = 100
-    print(f"  原始数据 items[2].x: {data['items'][2]['x']}")
-    print(f"  克隆数据 items[2].x: {cloned['items'][2]['x']}")
-    
-    # 深度比较
-    print("\n深度比较:")
-    a = {"x": [1, 2, {"y": 3}]}
-    b = {"x": [1, 2, {"y": 3}]}
-    c = {"x": [1, 2, {"y": 4}]}
-    print(f"  a == b: {deep_equals(a, b)}")
-    print(f"  a == c: {deep_equals(a, c)}")
+    # 大小
+    size = json_size(data)
+    print(f"      - 字节大小: {size}")
 
 
 def main():
     """运行所有示例"""
-    example_formatting()
-    example_validation()
-    example_path_operations()
-    example_flatten_unflatten()
-    example_search()
-    example_filter_map()
-    example_diff()
-    example_merge()
-    example_stats()
-    example_select_omit()
-    example_walk()
-    example_json_utils_class()
-    example_safe_operations()
-    example_clone_equals()
+    print("\n" + "#" * 60)
+    print("# JSON 工具集使用示例")
+    print("# JSON Utilities Usage Examples")
+    print("#" * 60)
     
-    print("\n" + "="*60)
-    print("  所有示例运行完成!")
-    print("="*60 + "\n")
+    example_basic_operations()
+    example_flatten_unflatten()
+    example_merge()
+    example_diff_patch()
+    example_path_operations()
+    example_jsonpath_query()
+    example_schema_validation()
+    example_conversions()
+    example_transformations()
+    example_pick_omit()
+    example_deepclone()
+    example_stats()
+    
+    print("\n" + "#" * 60)
+    print("# 示例演示完成!")
+    print("#" * 60)
 
 
 if __name__ == '__main__':
