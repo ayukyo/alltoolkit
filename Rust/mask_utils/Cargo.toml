@@ -1,0 +1,16 @@
+[package]
+name = "mask_utils"
+version = "1.0.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "敏感数据脱敏工具库 - 支持手机号、邮箱、身份证号、银行卡号等多种数据脱敏"
+license = "MIT"
+keywords = ["mask", "privacy", "security", "sensitive-data", "desensitization"]
+categories = ["development-tools", "security"]
+
+[lib]
+path = "mod.rs"
+
+[[example]]
+name = "basic"
+path = "examples/basic.rs"
