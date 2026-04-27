@@ -23,9 +23,9 @@ import sys
 import os
 
 # 添加模块路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from kmp_utils.mod import (
+from mod import (
     build_failure_function,
     build_next_array,
     search,

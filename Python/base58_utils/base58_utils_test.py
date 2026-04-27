@@ -12,9 +12,9 @@ Base58 编码/解码工具测试
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from base58_utils.mod import (
+from mod import (
     Base58Encoder,
     Base58Validator,
     Base58Error,

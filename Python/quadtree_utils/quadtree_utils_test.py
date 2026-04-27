@@ -16,9 +16,9 @@ import random
 import math
 
 # 添加父目录到路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from quadtree_utils.mod import (
+from mod import (
     Point, Rectangle, Circle, QuadTree, QuadTreeNode,
     create_quadtree, from_points
 )

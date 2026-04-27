@@ -12,9 +12,14 @@
 日期: 2026-04-17
 """
 
+import sys
+import os
 import unittest
 import random
 from typing import List
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     HeapItem, MinHeap, MaxHeap, MinMaxHeap, PriorityQueue,
     heap_sort, nth_smallest, nth_largest, k_smallest, k_largest,

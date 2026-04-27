@@ -26,9 +26,9 @@ import unittest
 from typing import List, Tuple
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from secrets_utils.mod import (
+from mod import (
     # Password generation
     generate_password,
     generate_passphrase,
@@ -616,7 +616,7 @@ class TestIntegration(unittest.TestCase):
         api_key = generate_api_key(prefix='test')
         
         # Store in environment
-        from secrets_utils.mod import store_secret_env, get_secret_env
+        from mod import store_secret_env, get_secret_env
         store_secret_env('TEST_API_KEY', api_key)
         
         # Retrieve from environment

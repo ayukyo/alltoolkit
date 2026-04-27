@@ -12,9 +12,9 @@ import asyncio
 from typing import List, Tuple, Any
 
 # Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from observable_utils.mod import (
+from mod import (
     Observable, EventEmitter, PropertyObservable,
     ComputedObservable, Subject, BehaviorSubject, ReplaySubject,
     Subscription, Priority, EventRecord,

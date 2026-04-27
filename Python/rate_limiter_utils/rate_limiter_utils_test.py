@@ -4,11 +4,16 @@ rate_limiter_utils 测试套件
 测试所有速率限制算法的正确性和边界情况。
 """
 
+import sys
+import os
 import unittest
 import time
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     RateLimitResult,
     RateLimiterBase,

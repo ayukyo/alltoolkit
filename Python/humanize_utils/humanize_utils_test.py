@@ -2,8 +2,13 @@
 humanize_utils 测试文件
 """
 
+import sys
+import os
 import unittest
 import time
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     format_bytes, parse_size,
     format_number, format_percentage, format_with_commas,

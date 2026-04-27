@@ -14,9 +14,9 @@ import os
 import math
 
 # 添加父目录到路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from morse_decoder_utils.mod import (
+from mod import (
     MorseDecoder, decode_morse, decode_signal, 
     analyze_signal, quick_decode, COMMON_PHRASES
 )

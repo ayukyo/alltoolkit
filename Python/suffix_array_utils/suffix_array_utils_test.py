@@ -4,7 +4,12 @@ Suffix Array Utils 测试模块
 测试后缀数组工具的所有核心功能。
 """
 
+import sys
+import os
 import unittest
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     SuffixArray,
     SuffixArrayAdvanced,

@@ -3,7 +3,12 @@ URL Utilities 测试套件
 全面的单元测试覆盖所有功能
 """
 
+import sys
+import os
 import unittest
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     URLParser, URLBuilder, URLEncoder, URLNormalizer, URLValidator, URLUtils,
     QueryStringParser,

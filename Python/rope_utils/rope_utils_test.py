@@ -9,6 +9,7 @@ Run with: python rope_utils_test.py
 """
 
 import sys
+import os
 import time
 import random
 import string

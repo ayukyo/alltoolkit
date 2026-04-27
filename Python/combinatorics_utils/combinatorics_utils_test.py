@@ -4,7 +4,12 @@ Combinatorics Utils - 测试文件
 测试组合数学工具集的所有功能。
 """
 
+import sys
+import os
 import unittest
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     # 基础计算
     factorial, factorial_range, binomial, multinomial,

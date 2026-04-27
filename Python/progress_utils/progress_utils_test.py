@@ -4,6 +4,7 @@
 
 import io
 import sys
+import os
 import time
 import unittest
 from unittest.mock import patch
@@ -11,7 +12,7 @@ from unittest.mock import patch
 # 添加模块路径
 sys.path.insert(0, '..')
 
-from progress_utils.mod import (
+from mod import (
     ProgressBar,
     ProgressTracker,
     Spinner,

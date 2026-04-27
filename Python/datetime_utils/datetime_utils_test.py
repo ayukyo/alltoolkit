@@ -3,9 +3,14 @@ DateTime Utilities Test Suite
 时间日期工具模块测试套件
 """
 
+import sys
+import os
 import unittest
 import time
 from datetime import datetime, timedelta
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import DateTimeUtils, now, format_datetime, parse_datetime, days_between, is_leap_year, get_age, relative_time
 
 

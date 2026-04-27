@@ -9,9 +9,9 @@ import sys
 import os
 
 # 添加父目录到路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from pluralize_utils.mod import (
+from mod import (
     singular_to_plural,
     plural_to_singular,
     is_plural,

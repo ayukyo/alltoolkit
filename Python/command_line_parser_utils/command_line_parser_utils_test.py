@@ -5,12 +5,16 @@
 测试所有功能：选项解析、位置参数、子命令、帮助生成等。
 """
 
+import os
 import unittest
 import sys
 from io import StringIO
 from typing import List
 
 # 导入模块
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     CommandLineParser,
     Argument,

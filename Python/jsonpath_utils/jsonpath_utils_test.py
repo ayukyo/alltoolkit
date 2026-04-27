@@ -4,11 +4,16 @@ AllToolkit - JSONPath Utilities Tests
 Comprehensive test suite covering all JSONPath functionality.
 """
 
+import sys
+import os
 import unittest
 import json
 from typing import Any, Dict, List
 
 # Import the module
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     JSONPath, JSONPathError, JSONPathSyntaxError,
     find, find_one, compile, validate,

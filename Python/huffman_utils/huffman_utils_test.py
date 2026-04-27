@@ -9,8 +9,13 @@ Author: AllToolkit Contributors
 License: MIT
 """
 
+import sys
+import os
 import unittest
 import math
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     HuffmanNode, HuffmanTree,
     build_frequency_table, build_huffman_tree,

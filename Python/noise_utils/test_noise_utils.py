@@ -11,7 +11,7 @@ import sys
 import os
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from noise_utils.perlin import PerlinNoise, perlin_noise, perlin_noise_2d, perlin_noise_3d
 from noise_utils.simplex import SimplexNoise, simplex_noise_2d, simplex_noise_3d

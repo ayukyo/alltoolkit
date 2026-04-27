@@ -4,7 +4,12 @@ Emoji Utils 测试文件
 测试所有 emoji_utils 功能
 """
 
+import sys
+import os
 import unittest
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     detect_emoji,
     extract_emoji,

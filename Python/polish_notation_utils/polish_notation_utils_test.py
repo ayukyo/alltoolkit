@@ -9,7 +9,11 @@ Author: AllToolkit Contributors
 License: MIT
 """
 
+import os
 import unittest
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     PolishNotation,
     Tokenizer,

@@ -5,9 +5,14 @@ Author: AllToolkit
 Date: 2026-04-23
 """
 
+import sys
+import os
 import time
 import threading
 import unittest
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     MemoCache,
     memoize,

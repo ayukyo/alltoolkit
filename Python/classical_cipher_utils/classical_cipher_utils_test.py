@@ -14,7 +14,12 @@ Classical Cipher Utils Test Suite - 古典密码工具测试集
 - Polybius Square Cipher (波利比乌斯方阵密码)
 """
 
+import sys
+import os
 import unittest
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     CaesarCipher, ROT13, AtbashCipher, VigenereCipher,
     AffineCipher, PlayfairCipher, RailFenceCipher,

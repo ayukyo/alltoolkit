@@ -2,8 +2,13 @@
 Moving Average Utils 单元测试
 """
 
+import sys
+import os
 import unittest
 import math
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     simple_moving_average,
     exponential_moving_average,

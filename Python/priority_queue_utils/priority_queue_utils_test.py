@@ -5,11 +5,16 @@ Tests for Priority Queue Utilities
 Comprehensive test suite for all priority queue components.
 """
 
+import sys
+import os
 import threading
 import time
 import unittest
 from datetime import datetime, timedelta
 
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     PriorityQueue,
     PriorityTaskExecutor,

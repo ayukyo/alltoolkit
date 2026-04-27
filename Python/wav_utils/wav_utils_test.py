@@ -11,9 +11,9 @@ import tempfile
 import unittest
 
 # 添加模块路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from wav_utils.mod import (
+from mod import (
     WavReader, WavWriter, WavProcessor,
     WavInfo, WavFormat,
     read_wav, write_wav, get_wav_info, create_sine_wav

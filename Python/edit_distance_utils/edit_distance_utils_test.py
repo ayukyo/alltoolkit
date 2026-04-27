@@ -7,9 +7,9 @@ import sys
 import os
 
 # 添加父目录到路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from edit_distance_utils.mod import (
+from mod import (
     levenshtein_distance,
     damerau_levenshtein_distance,
     hamming_distance,

@@ -2,12 +2,17 @@
 Snowflake ID Generator 单元测试
 """
 
+import sys
+import os
 import unittest
 import time
 import threading
 from datetime import datetime, timezone, timedelta
 from typing import List
 
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     SnowflakeGenerator,
     SnowflakeConfig,

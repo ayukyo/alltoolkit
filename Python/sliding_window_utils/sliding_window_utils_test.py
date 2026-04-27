@@ -4,9 +4,14 @@
 测试所有滑动窗口数据结构和统计计算功能。
 """
 
+import sys
+import os
 import unittest
 import time
 import math
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     SlidingWindowMax, SlidingWindowMin, SlidingWindowStats,
     SlidingWindowMedian, SlidingWindowPercentile, TimeWindowStats,

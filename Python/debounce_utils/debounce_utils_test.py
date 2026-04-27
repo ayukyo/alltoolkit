@@ -4,9 +4,14 @@ AllToolkit - Python Debounce Utilities Tests
 Comprehensive tests for debounce and throttle utilities.
 """
 
+import sys
+import os
 import time
 import threading
 import unittest
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     Debouncer,
     Throttler,

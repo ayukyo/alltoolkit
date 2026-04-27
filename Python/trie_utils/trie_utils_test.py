@@ -14,9 +14,9 @@ import sys
 import os
 
 # 添加模块路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from trie_utils.mod import (
+from mod import (
     Trie, TrieNode, SuffixTrie, PrefixSet,
     build_trie, find_common_prefix, word_frequency_analysis
 )

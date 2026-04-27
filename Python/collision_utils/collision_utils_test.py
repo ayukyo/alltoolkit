@@ -5,8 +5,13 @@ Author: AllToolkit
 Version: 1.0.0
 """
 
+import sys
+import os
 import unittest
 import math
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     CollisionUtils, Rectangle, Circle, Line, Polygon, Ray, RaycastHit,
     point_in_circle, point_in_rect, circles_collide, rects_collide,

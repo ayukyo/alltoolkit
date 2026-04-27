@@ -4,11 +4,15 @@ Base85 Utilities Test Suite
 Comprehensive tests for all Base85 encoding/decoding functionality.
 """
 
+import sys
 import unittest
 import tempfile
 import os
 from io import StringIO
 
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     Base85Encoder,
     Base85Error,

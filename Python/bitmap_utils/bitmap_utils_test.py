@@ -11,6 +11,7 @@ Bitmap Utils 测试套件
 """
 
 import sys
+import os
 sys.path.insert(0, '..')
 
 from mod import (

@@ -8,11 +8,15 @@ Comprehensive test suite for the data structures utilities module.
 Run with: python data_structures_utils_test.py
 """
 
+import os
 import sys
 import unittest
 from typing import List
 
 # Import the module under test
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     Stack, Queue, PriorityQueue, CircularQueue,
     LinkedList, DoublyLinkedList,

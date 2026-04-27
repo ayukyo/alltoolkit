@@ -4,9 +4,14 @@ StopWatch Utils 测试文件
 测试秒表计时工具的所有核心功能。
 """
 
+import sys
+import os
 import time
 import threading
 import unittest
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     StopWatch,
     LapTimer,

@@ -10,11 +10,15 @@ iCalendar Utilities 测试文件
 - 文件读写
 """
 
+import sys
 import unittest
 from datetime import datetime, date, timedelta
 import os
 import tempfile
 
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     VCalendar, VEvent, VTodo, VJournal, RecurrenceRule,
     Frequency, WeekDay,

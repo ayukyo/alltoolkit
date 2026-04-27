@@ -4,7 +4,12 @@ RLE Utilities 测试套件
 测试游程编码工具的所有功能。
 """
 
+import sys
+import os
 import unittest
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     RLEEncoder, RLEDecoder, RLE, RLERun,
     StreamingRLEEncoder,

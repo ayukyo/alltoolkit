@@ -12,9 +12,9 @@
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from polynomial_utils.mod import (
+from mod import (
     Polynomial, from_roots, lagrange_interpolation, newton_interpolation,
     chebyshev_polynomial, legendre_polynomial, hermite_polynomial,
     bernstein_polynomial, parse, horner, synthetic_division,

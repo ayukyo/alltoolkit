@@ -7,8 +7,13 @@ Safe Expression Evaluator - 测试套件
 日期：2026-04-16
 """
 
+import sys
+import os
 import pytest
 import math
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     SafeEvaluator,
     safe_eval,

@@ -15,6 +15,8 @@ AllToolkit - Python Async Utilities Test Suite
 运行：python async_utils_test.py -v
 """
 
+import sys
+import os
 import asyncio
 import unittest
 import time
@@ -26,6 +28,9 @@ def run_async(coro):
     loop = asyncio.get_event_loop()
     return loop.run_until_complete(coro)
 
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     # 异常
     AsyncUtilsError,

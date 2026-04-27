@@ -4,7 +4,12 @@ Fibonacci Utils 测试套件
 测试所有斐波那契工具函数
 """
 
+import sys
+import os
 import unittest
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import FibonacciUtils, generate, nth, is_fibonacci, zeckendorf, golden_ratio
 
 

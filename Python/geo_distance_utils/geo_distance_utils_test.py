@@ -20,9 +20,9 @@ import sys
 import os
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from geo_distance_utils.mod import (
+from mod import (
     # Constants
     EARTH_RADIUS_KM, EARTH_RADIUS_M, EARTH_RADIUS_MILES, EARTH_RADIUS_NAUTICAL,
     WGS84_SEMI_MAJOR, WGS84_SEMI_MINOR, WGS84_FLATTENING,

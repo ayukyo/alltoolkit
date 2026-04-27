@@ -13,9 +13,9 @@ import sys
 import os
 
 # Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from weighted_random_utils.mod import (
+from mod import (
     weighted_choice,
     weighted_choice_with_index,
     weighted_sample,

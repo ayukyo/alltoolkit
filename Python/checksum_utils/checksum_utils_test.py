@@ -8,9 +8,9 @@ import os
 import sys
 
 # 添加父目录到路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from checksum_utils.mod import (
+from mod import (
     CRC32, CRC64, Adler32, Fletcher, InternetChecksum, SimpleChecksum,
     ChecksumCalculator, crc32, crc64, adler32, fletcher16, fletcher32,
     fletcher64, internet_checksum

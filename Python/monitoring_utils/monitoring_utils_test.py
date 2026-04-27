@@ -13,9 +13,9 @@ import time
 from typing import Optional
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from monitoring_utils.mod import (
+from mod import (
     # Main monitor class
     SystemMonitor,
     # Data classes

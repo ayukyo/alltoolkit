@@ -8,10 +8,15 @@ Reservoir Sampling Utils 测试套件
 - 加权采样测试
 """
 
+import sys
+import os
 import unittest
 import math
 import random
 from collections import Counter
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     ReservoirSampler,
     FastReservoirSampler,

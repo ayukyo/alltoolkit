@@ -4,9 +4,9 @@ Tests for JSON Patch Utils
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from json_patch_utils.mod import (
+from mod import (
     JsonPatch, JsonPointer, JsonPatchError, JsonPatchTestError,
     JsonPointerError, diff, patch_document, create_patch, merge_patches,
     op_add, op_remove, op_replace, op_move, op_copy, op_test

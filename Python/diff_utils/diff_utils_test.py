@@ -12,9 +12,9 @@ import sys
 import os
 
 # 添加父目录到路径以便导入
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from diff_utils.mod import (
+from mod import (
     # 差异比较
     diff_lines, diff_chars, diff_words, compute_diff_result,
     DiffType, DiffOp, DiffResult,

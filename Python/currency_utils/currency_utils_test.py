@@ -6,6 +6,7 @@ Currency Utils 测试文件
 """
 
 import sys
+import os
 sys.path.insert(0, '/home/admin/.openclaw/workspace/AllToolkit/Python/currency_utils')
 
 from decimal import Decimal

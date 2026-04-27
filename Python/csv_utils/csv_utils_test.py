@@ -13,6 +13,9 @@ import shutil
 from pathlib import Path
 
 # 导入被测试模块
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     CSVHandler,
     read_csv, read_csv_rows, parse_csv_string, parse_csv_string_rows,

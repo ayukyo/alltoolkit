@@ -10,8 +10,13 @@ expression_evaluator_utils 测试套件
 - 边界情况
 """
 
+import sys
+import os
 import math
 import unittest
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     ExpressionEvaluator,
     evaluate,

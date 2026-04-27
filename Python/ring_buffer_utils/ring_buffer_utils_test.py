@@ -4,10 +4,15 @@ Ring Buffer Utils 测试套件
 测试循环缓冲区的各项功能。
 """
 
+import sys
+import os
 import unittest
 import threading
 import time
 from collections.abc import Sequence
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     RingBuffer, NumericRingBuffer, EventBuffer,
     create_ring_buffer, create_numeric_buffer,

@@ -5,9 +5,9 @@
 import math
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from bezier_utils.mod import (
+from mod import (
     Point, BezierCurve, LinearBezier, QuadraticBezier, CubicBezier,
     create_bezier, linear_bezier, quadratic_bezier, cubic_bezier,
     smooth_path, interpolate_points, find_t_for_x, distance_to_point

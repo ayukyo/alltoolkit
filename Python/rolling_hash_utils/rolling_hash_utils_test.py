@@ -13,7 +13,12 @@ Rolling Hash Utils 测试模块
 - 边界情况
 """
 
+import sys
+import os
 import unittest
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     RollingHash,
     DoubleRollingHash,

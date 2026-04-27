@@ -3,7 +3,12 @@
 Text Diff Utilities Test Suite
 """
 
+import sys
+import os
 import unittest
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     diff_lines, diff_words, diff_chars,
     unified_diff, context_diff, html_diff, inline_diff,

@@ -2,9 +2,14 @@
 KD树工具模块测试
 """
 
+import sys
+import os
 import unittest
 import math
 import random
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     KDTree, KDNode, create_kd_tree, nearest_neighbor_search,
     KDTreeBuilder

@@ -14,9 +14,9 @@ import sys
 import os
 
 # 添加模块路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from roman_numeral_utils.mod import (
+from mod import (
     to_roman, from_roman, convert,
     is_valid_roman, is_roman_numeral,
     batch_to_roman, batch_from_roman, get_roman_range,

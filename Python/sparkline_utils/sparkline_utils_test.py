@@ -10,9 +10,9 @@ import sys
 import os
 
 # Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from sparkline_utils.mod import (
+from mod import (
     sparkline,
     sparkline_braille,
     sparkline_multiline,

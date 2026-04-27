@@ -14,6 +14,7 @@ AllToolkit - Git Utils 测试套件
 - 错误处理
 """
 
+import sys
 import unittest
 import subprocess
 import tempfile
@@ -23,6 +24,9 @@ from pathlib import Path
 from datetime import datetime
 
 # 导入被测试模块
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     GitUtils,
     GitError,

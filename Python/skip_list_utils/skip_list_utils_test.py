@@ -4,6 +4,8 @@ Tests for Skip List Utilities
 Run with: python skip_list_utils_test.py
 """
 
+import sys
+import os
 import unittest
 import threading
 import time
@@ -11,6 +13,9 @@ import random
 from typing import List, Tuple
 
 # Import the module
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     SkipList, ConcurrentSkipList, SkipListSet,
     SkipListError, DuplicateKeyError,

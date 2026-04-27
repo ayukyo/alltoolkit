@@ -4,7 +4,12 @@ Unit tests for BST Utilities
 Comprehensive tests for Binary Search Tree operations.
 """
 
+import sys
+import os
 import unittest
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     BST, BSTNode, create_bst, create_balanced_bst, 
     merge_bsts, are_identical, lowest_common_ancestor

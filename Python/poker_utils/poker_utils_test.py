@@ -11,7 +11,12 @@
 - 游戏辅助类测试
 """
 
+import sys
+import os
 import unittest
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     Card, Deck, Hand, PokerGame,
     Suit, Rank, HandRank,

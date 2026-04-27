@@ -13,10 +13,10 @@ Count-Min Sketch 工具模块测试
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import unittest
-from count_min_sketch_utils.mod import (
+from mod import (
     CountMinSketch,
     CountMinSketchBuilder,
     TopKTracker,

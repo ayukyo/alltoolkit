@@ -13,9 +13,9 @@ import os
 import sys
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from bencode_utils.mod import (
+from mod import (
     Bencoder, BencodeError, BencodeEncodeError, BencodeDecodeError, BencodeTypeError,
     encode, decode, decode_to_str_dict, encode_to_file, decode_file,
     decode_file_to_str_dict, bencode_size, validate_bencode, is_bencodable,

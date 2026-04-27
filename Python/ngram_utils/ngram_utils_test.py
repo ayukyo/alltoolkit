@@ -9,9 +9,9 @@ import sys
 import os
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from ngram_utils.mod import (
+from mod import (
     char_ngrams, word_ngrams, token_ngrams, ngram_frequencies,
     all_ngrams, jaccard_similarity, dice_similarity, cosine_similarity,
     ngram_profile, language_distance, build_language_profiles,

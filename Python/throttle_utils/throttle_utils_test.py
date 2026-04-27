@@ -4,9 +4,14 @@ Tests for throttle_utils module.
 Run with: python -m pytest throttle_utils_test.py -v
 """
 
+import sys
+import os
 import pytest
 import time
 import asyncio
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     ThrottleMode,
     ThrottledFunction,

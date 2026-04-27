@@ -15,9 +15,9 @@ import os
 from typing import Optional
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from http_utils.mod import (
+from mod import (
     # Client and Server
     HTTPClient, HTTPServer, ServerConfig, BaseRequestHandler,
     # Data classes

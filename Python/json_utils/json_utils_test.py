@@ -6,7 +6,12 @@ Author: AllToolkit 自动化开发
 Version: 1.0.0 (2026-04-25)
 """
 
+import sys
+import os
 import unittest
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     # 类型判断
     get_json_type, is_json_serializable, JsonType,

@@ -6,9 +6,9 @@ Span Utils 测试文件
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from span_utils.mod import (
+from mod import (
     Span, BoundType,
     span, closed_span, open_span, point_span,
     empty_span, infinite_span, positive_span, negative_span, non_negative_span,

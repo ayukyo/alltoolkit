@@ -14,9 +14,9 @@ import sys
 import os
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from simhash_utils.mod import (
+from mod import (
     # Core functions
     compute_simhash, compute_simhash_text,
     hamming_distance, hamming_distance_normalized, similarity, are_similar,

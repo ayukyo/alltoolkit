@@ -12,9 +12,9 @@ import sys
 import os
 
 # 添加父目录到路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from solar_utils.mod import (
+from mod import (
     _julian_day,
     _julian_century,
     _solar_mean_anomaly,
@@ -613,7 +613,7 @@ class TestConvenience(unittest.TestCase):
     
     def test_default_date(self):
         """测试默认日期为今天"""
-        from solar_utils.mod import get_sunrise
+        from mod import get_sunrise
         # 不传日期应该使用今天
         sunrise = get_sunrise(40.0, 0.0)
         self.assertIsNotNone(sunrise)

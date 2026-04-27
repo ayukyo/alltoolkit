@@ -12,9 +12,9 @@ import os
 from urllib.parse import quote
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from otp_utils.mod import (
+from mod import (
     # Constants
     DEFAULT_DIGITS, DEFAULT_PERIOD, DEFAULT_WINDOW,
     SUPPORTED_DIGITS, SUPPORTED_ALGORITHMS,

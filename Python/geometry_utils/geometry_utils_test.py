@@ -8,11 +8,15 @@ Comprehensive test suite for the geometry_utils module.
 Run: python3 geometry_utils_test.py
 """
 
+import os
 import sys
 import math
 from typing import Tuple
 
 # Import the module under test
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import *
 
 

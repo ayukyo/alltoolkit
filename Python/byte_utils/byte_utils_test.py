@@ -14,9 +14,9 @@ import sys
 import os
 
 # 添加父目录到路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from byte_utils.mod import ByteUtils, to_little_endian, to_big_endian, from_little_endian, from_big_endian, to_hex, from_hex, xor_bytes
+from mod import ByteUtils, to_little_endian, to_big_endian, from_little_endian, from_big_endian, to_hex, from_hex, xor_bytes
 
 
 class TestByteEndian:

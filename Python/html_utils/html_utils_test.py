@@ -6,11 +6,15 @@ Comprehensive tests for HTML parsing, manipulation, and generation utilities.
 Zero dependencies - uses only Python standard library.
 """
 
+import os
 import sys
 import unittest
 from typing import List, Dict, Any
 
 # Import the module under test
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     parse_html, find_elements, find_by_id, find_by_class,
     extract_links, extract_images, sanitize_html, html_to_text,

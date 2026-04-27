@@ -11,9 +11,14 @@ LRU Cache Utils 测试文件
 - 特殊缓存类型（TTLCache, BoundedLRUCache, WeightedLRUCache, ExpiringPriorityCache）
 """
 
+import sys
+import os
 import time
 import threading
 import unittest
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     LRUCache, TTLCache, BoundedLRUCache, WeightedLRUCache, 
     ExpiringPriorityCache, lru_cache, CacheEntry

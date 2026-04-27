@@ -15,9 +15,9 @@ import random
 import time
 
 # 添加父目录到路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from red_black_tree_utils.mod import (
+from mod import (
     RedBlackTree, RedBlackTreeSet, RedBlackTreeMap,
     Color, create_tree, create_set, create_map
 )

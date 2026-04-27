@@ -4,8 +4,13 @@ json_diff_utils 单元测试
 测试 JSON 差异比较、JSON Patch 生成与应用等功能。
 """
 
+import sys
+import os
 import unittest
 import json
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     JsonDiffer,
     JsonPatcher,

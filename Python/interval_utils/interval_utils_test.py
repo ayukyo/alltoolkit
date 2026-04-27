@@ -9,7 +9,12 @@
 - RangeSet 类：范围集合
 """
 
+import sys
+import os
 import unittest
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     Interval, IntervalSet, IntervalMap, RangeSet,
     merge_intervals, interval_intersection, interval_difference,

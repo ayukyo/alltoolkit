@@ -8,7 +8,12 @@ XOR Utils 测试文件
 运行方式: python test_mod.py
 """
 
+import sys
+import os
 import unittest
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     xor_byte, xor_bytes, xor_single_pass, xor_rolling_key, xor_chain,
     xor_checksum, xor_checksum_range, xor_checksum_blocks, verify_xor_checksum,

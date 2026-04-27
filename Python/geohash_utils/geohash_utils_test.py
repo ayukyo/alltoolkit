@@ -13,8 +13,13 @@ Geohash Utilities 单元测试
 9. 方位角计算
 """
 
+import sys
+import os
 import unittest
 import math
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     encode, decode, get_neighbors, distance, get_precision_info,
     get_common_precision, get_bounding_box, get_geohashes_in_bbox,

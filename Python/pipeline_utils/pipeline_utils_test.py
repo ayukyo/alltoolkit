@@ -21,9 +21,9 @@ import sys
 import os
 
 # 添加父目录到路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from pipeline_utils.mod import (
+from mod import (
     Pipeline, PipelineBuilder, PipelineError, StepError,
     MapStep, FilterStep, ReduceStep, FlatMapStep, TakeStep, SkipStep,
     GroupByStep, SortStep, UniqueStep, ChunkStep, ZipStep, EnumerateStep,

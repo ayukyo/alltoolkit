@@ -11,9 +11,9 @@ import sys
 import os
 
 # Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from number_words_utils.mod import (
+from mod import (
     number_to_words,
     words_to_number,
     number_to_currency_words,

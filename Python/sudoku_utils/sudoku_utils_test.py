@@ -15,9 +15,9 @@ import unittest
 import random
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from sudoku_utils.mod import (
+from mod import (
     SudokuGrid, SudokuSolver, SudokuGenerator, SudokuValidator,
     SudokuHint, SudokuDifficultyEstimator, SudokuFormatter,
     Difficulty, create_puzzle, solve_puzzle, is_valid_puzzle,

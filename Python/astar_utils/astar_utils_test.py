@@ -4,8 +4,13 @@ A* Pathfinding Utils 测试
 测试 A* 寻路算法的各项功能。
 """
 
+import sys
+import os
 import unittest
 import math
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     AStar, GridAStar, PathNode, BidirectionalAStar,
     astar_path, grid_path, create_grid_from_string, visualize_path

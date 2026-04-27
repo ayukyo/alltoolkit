@@ -16,9 +16,9 @@ import os
 import struct
 
 # 添加模块路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from morse_utils.mod import (
+from mod import (
     MORSE_CODE,
     MORSE_DECODE,
     MORSE_ABBREVIATIONS,

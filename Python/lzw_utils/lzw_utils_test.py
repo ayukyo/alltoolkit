@@ -13,9 +13,9 @@ LZW 工具库测试套件
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from lzw_utils.mod import (
+from mod import (
     compress, decompress,
     compress_string, decompress_string,
     compress_to_hex, decompress_from_hex,

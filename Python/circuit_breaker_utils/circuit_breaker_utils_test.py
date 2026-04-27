@@ -17,9 +17,9 @@ import os
 from unittest.mock import patch, MagicMock
 
 # Import the module
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from circuit_breaker_utils.mod import (
+from mod import (
     CircuitBreaker, CircuitState, CircuitEvent, CircuitBreakerError,
     CircuitOpenError, CircuitTimeoutError, CircuitStats, CircuitConfig,
     EventRecord, EventEmitter, CircuitBreakerRegistry, AsyncCircuitBreaker,

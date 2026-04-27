@@ -10,9 +10,9 @@ import unittest
 from io import StringIO
 
 # 添加父目录到路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from terminal_utils.mod import (
+from mod import (
     Color, Style, Ansi, Cursor, ProgressBar, Spinner, Table, Box,
     TerminalSize, TerminalMenu, supports_color, get_terminal_size,
     clear_line, strip_ansi, visible_length, hidden_cursor, saved_cursor,

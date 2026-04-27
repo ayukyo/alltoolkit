@@ -7,10 +7,14 @@ Covers normal scenarios, edge cases, and error conditions.
 Compatible with Python 3.6+
 """
 
+import os
 import sys
 from datetime import datetime, timedelta
 
 # Import module
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     TimeZoneError, InvalidTimeZoneError, InvalidTimeError,
     convert_time, convert_time_string,

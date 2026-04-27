@@ -10,9 +10,9 @@ import os
 import math
 
 # 添加模块路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from easing_utils.mod import (
+from mod import (
     # 枚举
     EasingType, EasingMode,
     

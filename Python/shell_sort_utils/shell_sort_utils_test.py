@@ -8,9 +8,9 @@ Shell Sort Utils 测试文件
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from shell_sort_utils.mod import (
+from mod import (
     shell_sort,
     shell_sort_with_trace,
     shell_sort_optimized,

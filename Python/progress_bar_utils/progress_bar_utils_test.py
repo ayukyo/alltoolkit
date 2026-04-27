@@ -4,10 +4,15 @@ Progress Bar Utils 测试套件
 测试进度条的各项功能。
 """
 
+import sys
+import os
 import unittest
 import time
 import io
 import threading
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     ProgressBarStyle,
     ProgressBar,

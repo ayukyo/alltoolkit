@@ -19,10 +19,10 @@
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from datetime import date, datetime
-from lunar_calendar_utils.mod import (
+from mod import (
     LunarDate, LunarCalendar,
     solar_to_lunar, lunar_to_solar,
     get_year_ganzhi, get_month_ganzhi, get_day_ganzhi, get_hour_ganzhi,

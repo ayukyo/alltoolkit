@@ -5,9 +5,10 @@ Cellular Automata Utils - Test Suite
 """
 
 import sys
+import os
 sys.path.insert(0, '/home/admin/.openclaw/workspace/AllToolkit/Python')
 
-from cellular_automata_utils.mod import (
+from mod import (
     CellularAutomaton,
     GameOfLife,
     ElementaryCA,

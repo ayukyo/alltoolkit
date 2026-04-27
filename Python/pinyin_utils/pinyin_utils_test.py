@@ -11,9 +11,9 @@ License: MIT
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from pinyin_utils.mod import (
+from mod import (
     is_hanzi,
     get_pinyin,
     get_pinyin_with_tone,

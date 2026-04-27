@@ -4,7 +4,12 @@ Suffix Tree Utils 测试文件
 测试后缀树的各项功能
 """
 
+import sys
+import os
 import unittest
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
     SuffixTree, GeneralizedSuffixTree,
     build_suffix_tree,

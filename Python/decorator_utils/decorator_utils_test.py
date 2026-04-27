@@ -16,9 +16,9 @@ import io
 from contextlib import redirect_stdout, redirect_stderr
 
 # Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from decorator_utils.mod import (
+from mod import (
     timer, timer_verbose, retry, memoize, singleton,
     deprecated, validate_types, rate_limit, log_calls,
     timeout, count_calls, once, throttle, wrap_exceptions,

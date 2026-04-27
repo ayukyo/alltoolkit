@@ -15,6 +15,7 @@ Example: 490154203237518 is a valid IMEI (Luhn verified).
 
 import unittest
 import sys
+import os
 sys.path.insert(0, '..')
 from mod import (
     validate, parse, format_imei, generate_random, generate_batch,

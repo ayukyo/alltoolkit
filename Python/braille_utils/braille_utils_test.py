@@ -13,9 +13,9 @@ import sys
 import os
 
 # 添加模块路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from braille_utils.mod import (
+from mod import (
     BrailleCell, BrailleEncoder, BrailleUtils, BrailleGrade,
     text_to_braille, braille_to_text, dots_to_unicode, unicode_to_dots,
     display_braille, ENGLISH_LETTERS, NUMBERS, PUNCTUATION,

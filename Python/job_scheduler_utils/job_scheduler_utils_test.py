@@ -14,7 +14,7 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from job_scheduler_utils.mod import (
+from mod import (
     Job, JobStatus, JobPriority, ScheduleType, JobResult,
     JobScheduler, JobBuilder,
     schedule, schedule_interval, scheduled, periodic, run_in_thread

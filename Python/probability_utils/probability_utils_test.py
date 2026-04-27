@@ -23,9 +23,9 @@ Tests cover:
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from probability_utils.mod import (
+from mod import (
     # Basic Statistics
     mean, median, mode, variance, std_dev,
     percentile, quartiles, iqr, range_, coefficient_of_variation,

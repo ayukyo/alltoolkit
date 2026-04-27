@@ -2,8 +2,13 @@
 Treap 工具模块测试
 """
 
+import sys
+import os
 import unittest
 import random
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import Treap, ImplicitTreap, create_treap, create_implicit_treap
 
 

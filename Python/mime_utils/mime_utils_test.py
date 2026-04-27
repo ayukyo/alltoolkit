@@ -11,9 +11,9 @@ import tempfile
 import unittest
 
 # 添加父目录到路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from mime_utils.mod import (
+from mod import (
     get_mime_type,
     get_extensions,
     get_primary_extension,
