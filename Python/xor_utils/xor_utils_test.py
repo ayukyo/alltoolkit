@@ -5,7 +5,7 @@ XOR Utils 测试文件
 ================
 测试 XOR 工具模块的所有功能。
 
-运行方式: python test_mod.py
+运行方式: python xor_utils_test.py
 """
 
 import sys

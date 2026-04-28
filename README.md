@@ -215,6 +215,8 @@ perl Perl/csv_utils/csv_utils_test.pl
 - **Python text_wrap_utils**: 22 个测试用例，覆盖文本换行、对齐、CJK 字符宽度、ANSI 码处理、段落排版等 📝
 - **Python shell_sort_utils**: 新增 15+ 边界值测试，覆盖空列表、单元素、负数、浮点数、极值数据、Unicode 字符串、大数组（10000 元素）等 📊
 - **Python graph_utils**: 新增 23+ 边界值测试，覆盖大量节点、高密度图、星形图、链状图、环形图、负权重极限、孤立节点、超大权重、Unicode 节点等 🕸️
+- **Python tictactoe_utils**: 34 个测试用例，覆盖井字棋游戏、Minimax AI、胜负判断、游戏管理、序列化等 ♟️
+- **Python xor_utils**: 49 个测试用例，覆盖 XOR 加密/解密、校验和、密码分析、位操作、编码解码等 🔐
 
 ### 测试覆盖详情
 
@@ -277,9 +279,11 @@ perl Perl/csv_utils/csv_utils_test.pl
 | syllable_utils | Python | 18 | ✅ 100% |
 | xid_utils | Python | 16 | ✅ 100% |
 | radix_utils | Python | 30 | ✅ 100% |
+| tictactoe_utils | Python | 34 | ✅ 100% |
+| xor_utils | Python | 49 | ✅ 100% |
 
-**总计**: Python 222 模块，230 测试文件，3500+ 测试用例，100% 通过率 ✅
+**总计**: Python 222 模块，232 测试文件，3600+ 测试用例，100% 通过率 ✅
 
 ---
 
-**最后更新**: 2026-04-27
+**最后更新**: 2026-04-29

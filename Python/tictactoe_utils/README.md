@@ -198,17 +198,17 @@ result = play_game(x_strategy='ai_hard', o_strategy='ai_medium')
 
 ```bash
 cd tictactoe_utils
-python test_mod.py
+python tictactoe_utils_test.py
 ```
 
-测试覆盖：
-- ✅ 棋盘基本操作
+测试覆盖（34 个测试用例，100% 通过）：
+- ✅ 棋盘基本操作（创建、走棋、撤销）
 - ✅ 胜负判断（横、竖、斜、平局）
 - ✅ AI 决策（获胜走法、阻止对手、抢占中心）
-- ✅ 游戏管理
-- ✅ 序列化/反序列化
-- ✅ 边缘情况
-- ✅ 性能测试
+- ✅ 游戏管理（人类走棋、AI 走棋、自动对弈）
+- ✅ 序列化/反序列化（字符串、JSON）
+- ✅ 边缘情况（满盘无胜者、无效输入、连续撤销）
+- ✅ 性能测试（AI 响应时间 < 500ms）
 
 ## 示例输出
 
@@ -276,9 +276,9 @@ python test_mod.py
 
 ```
 tictactoe_utils/
-├── mod.py        # 主模块
-├── test_mod.py   # 测试文件
-└── README.md     # 本文档
+├── mod.py                 # 主模块
+├── tictactoe_utils_test.py # 测试文件（34 测试）
+└── README.md              # 本文档
 ```
 
 ## 许可证
