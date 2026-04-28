@@ -386,6 +386,7 @@ class NumericRingBuffer(RingBuffer[float]):
     def _append_with_stats(self, item: float) -> None:
         """带统计更新的添加方法"""
         # 如果缓冲区已满，需要减去被覆盖的值
+        old_value = None
         if self._count == self._capacity:
             old_value = self._buffer[self._head]
             if old_value is not None:
@@ -402,6 +403,22 @@ class NumericRingBuffer(RingBuffer[float]):
             self._min = item
         if self._max is None or item > self._max:
             self._max = item
+        
+        # 如果被覆盖的值是当前的 min 或 max，需要重新计算
+        if old_value is not None:
+            if old_value == self._min or old_value == self._max:
+                self._recalculate_min_max()
+    
+    def _recalculate_min_max(self) -> None:
+        """重新计算 min 和 max 值"""
+        self._min = None
+        self._max = None
+        for i in range(self._count):
+            val = self._get_item(i)
+            if self._min is None or val < self._min:
+                self._min = val
+            if self._max is None or val > self._max:
+                self._max = val
     
     def clear(self) -> None:
         """清空缓冲区并重置统计"""
@@ -693,15 +710,13 @@ def sliding_window(data: Sequence[T], window_size: int) -> Iterator[List[T]]:
     if window_size <= 0:
         raise ValueError("Window size must be positive")
     
-    if len(data) < window_size:
+    data_len = len(data)
+    if data_len < window_size:
         return
     
-    buffer = RingBuffer[T](window_size)
-    
-    for item in data:
-        buffer.append(item)
-        if len(buffer) == window_size:
-            yield buffer.to_list()
+    # 优化：直接使用切片，避免创建 RingBuffer 的开销
+    for i in range(data_len - window_size + 1):
+        yield list(data[i:i + window_size])
 
 
 def batch_process(data: Sequence[T], batch_size: int, 

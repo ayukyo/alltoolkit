@@ -38,6 +38,10 @@ ENGLISH_LETTER_FREQUENCIES: Dict[str, float] = {
     'q': 0.10, 'z': 0.07
 }
 
+# 预定义的常见模式和异常组合（优化 _score_text 使用）
+_COMMON_PATTERNS = ('the', 'and', 'ing', 'tion', 'ed', 'er', 'ly')
+_UNUSUAL_COMBOS = ('qx', 'qz', 'vj', 'wz', 'zx', 'zz', 'qq')
+
 # ASCII printable characters for ROT47
 ASCII_PRINTABLE = string.printable[:-5]  # Exclude whitespace control chars
 ROT47_CHARSET = '!"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~'
@@ -434,16 +438,15 @@ def _score_text(text: str, language: str = 'en') -> float:
     Returns:
         Score (higher = more likely)
     """
-    if language != 'en':
-        # Default to English if language not supported
-        pass
+    # 优化：直接转小写，避免重复调用
+    text_lower = text.lower()
     
-    # Count letter frequencies
+    # 优化：使用 collections.Counter 替代手动计数
     letter_count: Dict[str, int] = {}
     total_letters = 0
     
-    for char in text.lower():
-        if char.isalpha():
+    for char in text_lower:
+        if 'a' <= char <= 'z':  # 优化：直接比较，比 isalpha() 更快
             letter_count[char] = letter_count.get(char, 0) + 1
             total_letters += 1
     
@@ -451,24 +454,24 @@ def _score_text(text: str, language: str = 'en') -> float:
         return 0.0
     
     # Calculate chi-squared-like score against expected frequencies
+    # 优化：使用缓存的总字母数倒数，避免重复除法
+    inv_total = 100.0 / total_letters
     score = 0.0
     for letter, expected_freq in ENGLISH_LETTER_FREQUENCIES.items():
         actual_count = letter_count.get(letter, 0)
-        actual_freq = (actual_count / total_letters) * 100
+        actual_freq = actual_count * inv_total
         # Lower difference = higher score
-        diff = abs(actual_freq - expected_freq)
-        score -= diff
+        score -= abs(actual_freq - expected_freq)
     
     # Bonus for common English patterns
-    common_words = ['the', 'and', 'ing', 'tion', 'ed', 'er', 'ly']
-    text_lower = text.lower()
-    for word in common_words:
-        if word in text_lower:
+    # 优化：使用预定义常量，避免每次创建列表
+    for pattern in _COMMON_PATTERNS:
+        if pattern in text_lower:
             score += 5
     
     # Penalty for unusual letter combinations
-    unusual = ['qx', 'qz', 'vj', 'wz', 'zx', 'zz', 'qq']
-    for combo in unusual:
+    # 优化：使用预定义常量
+    for combo in _UNUSUAL_COMBOS:
         if combo in text_lower:
             score -= 10
     

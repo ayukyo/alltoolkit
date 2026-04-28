@@ -177,7 +177,6 @@ def jaro_similarity(s1: str, s2: str) -> float:
     s2_matches = [False] * len2
     
     matches = 0
-    transpositions = 0
     
     # 查找匹配字符
     for i in range(len1):
@@ -195,7 +194,8 @@ def jaro_similarity(s1: str, s2: str) -> float:
     if matches == 0:
         return 0.0
     
-    # 计算换位数
+    # 计算换位数 - 优化：直接遍历匹配位置
+    transpositions = 0
     k = 0
     for i in range(len1):
         if not s1_matches[i]:
@@ -575,6 +575,55 @@ def diff_ratio(s1: str, s2: str) -> float:
     return 2.0 * matches / (len1 + len2)
 
 
+# Soundex 编码映射（模块级别常量，避免重复创建）
+_SOUNDEX_MAPPING = {
+    'B': '1', 'F': '1', 'P': '1', 'V': '1',
+    'C': '2', 'G': '2', 'J': '2', 'K': '2', 'Q': '2', 'S': '2', 'X': '2', 'Z': '2',
+    'D': '3', 'T': '3',
+    'L': '4',
+    'M': '5', 'N': '5',
+    'R': '6',
+}
+
+
+def _soundex_encode(name: str) -> str:
+    """
+    Soundex 编码辅助函数（模块级别）
+    
+    Args:
+        name: 要编码的字符串
+        
+    Returns:
+        4位 Soundex 编码字符串
+    """
+    if not name:
+        return ''
+    
+    name = name.upper()
+    # 保留首字母
+    soundex_code = name[0]
+    
+    # 首字母的编码（用于判断相邻重复）
+    first_char_code = _SOUNDEX_MAPPING.get(soundex_code, '')
+    prev_code = first_char_code
+    
+    for char in name[1:]:
+        code = _SOUNDEX_MAPPING.get(char, '')
+        # 元音和 H/W/Y 不编码，但它们作为分隔符（重置 prev_code）
+        if char in 'AEIOUHWY':
+            prev_code = ''
+            continue
+        # 如果当前编码不同于前一个编码，添加到结果
+        if code and code != prev_code:
+            soundex_code += code
+            if len(soundex_code) >= 4:
+                break
+        prev_code = code
+    
+    # 填充到 4 位
+    return soundex_code[:4].ljust(4, '0')
+
+
 def soundex_distance(s1: str, s2: str) -> int:
     """
     基于 Soundex 编码的语音距离
@@ -594,40 +643,11 @@ def soundex_distance(s1: str, s2: str) -> int:
         >>> soundex_distance("Robert", "Albert")
         1  # 编码不同
     """
-    def soundex(name: str) -> str:
-        name = name.upper()
-        # 保留首字母
-        soundex_code = name[0] if name else ''
-        
-        # 映射规则
-        mapping = {
-            'B': '1', 'F': '1', 'P': '1', 'V': '1',
-            'C': '2', 'G': '2', 'J': '2', 'K': '2', 'Q': '2', 'S': '2', 'X': '2', 'Z': '2',
-            'D': '3', 'T': '3',
-            'L': '4',
-            'M': '5', 'N': '5',
-            'R': '6',
-            'A': '0', 'E': '0', 'I': '0', 'O': '0', 'U': '0', 'H': '0', 'W': '0', 'Y': '0'
-        }
-        
-        prev_code = mapping.get(soundex_code, '0')
-        
-        for char in name[1:]:
-            code = mapping.get(char, '0')
-            if code != '0' and code != prev_code:
-                soundex_code += code
-            prev_code = code if code != '0' else prev_code
-        
-        # 填充或截断到 4 位
-        soundex_code = soundex_code[:4].ljust(4, '0')
-        
-        return soundex_code
-    
     if not s1 or not s2:
         return 1
     
-    code1 = soundex(s1)
-    code2 = soundex(s2)
+    code1 = _soundex_encode(s1)
+    code2 = _soundex_encode(s2)
     
     return 0 if code1 == code2 else 1
 
