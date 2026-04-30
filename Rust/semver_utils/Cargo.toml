@@ -1,0 +1,12 @@
+[package]
+name = "semver_utils"
+version = "1.0.0"
+edition = "2021"
+description = "A comprehensive semantic versioning library for parsing, comparing, and manipulating version strings"
+license = "MIT"
+authors = ["AllToolkit"]
+repository = "https://github.com/ayukyo/alltoolkit"
+keywords = ["semver", "version", "semantic", "versioning", "compare"]
+categories = ["development-tools", "parsing"]
+
+[dependencies]
