@@ -1,0 +1,18 @@
+[package]
+name = "sliding_window_utils"
+version = "1.0.0"
+edition = "2021"
+description = "A comprehensive sliding window implementation for Rust - time-based, count-based, and weighted windows"
+license = "MIT"
+authors = ["AllToolkit"]
+repository = "https://github.com/ayukyo/alltoolkit"
+keywords = ["sliding-window", "rate-limiter", "moving-average", "data-structures", "utils"]
+categories = ["algorithms", "data-structures"]
+
+[dependencies]
+
+[dev-dependencies]
+
+[[example]]
+name = "usage_examples"
+path = "examples/usage_examples.rs"
