@@ -1,0 +1,11 @@
+[package]
+name = "morse_code_utils"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "Zero-dependency Morse code encoding and decoding library"
+license = "MIT"
+keywords = ["morse", "code", "encode", "decode", "audio"]
+categories = ["encoding", "text-processing"]
+
+[dependencies]
