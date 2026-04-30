@@ -286,4 +286,11 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ---
 
-**最后更新**: 2026-04-29
+**最后更新**: 2026-05-01
+
+### 测试框架改进 (2026-05-01)
+
+- **rope_utils**: 修复 pytest fixture 问题，添加 `ResultCollector` fixture 支持 (20 tests ✅)
+- **functional_utils**: 修复 `cache_info()` 返回值比较问题 (43 tests ✅)
+- **geometry_utils**: 修复 pytest fixture 问题，添加 `ResultCollector` fixture 支持 (12 tests ✅)
+- **bloom_filter_utils**: 修复模块导入路径问题 (99 tests ✅)

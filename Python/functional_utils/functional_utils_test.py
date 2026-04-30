@@ -265,13 +265,15 @@ def test_memoize():
     all_passed &= print_test("缓存命中", passed, f"第二次调用，新增计算次数：{call_count}")
     
     # 测试 cache_info
-    passed = fibonacci.cache_info() > 0
-    all_passed &= print_test("缓存信息", passed, f"缓存大小：{fibonacci.cache_info()}")
+    cache_info = fibonacci.cache_info()
+    passed = cache_info['size'] > 0
+    all_passed &= print_test("缓存信息", passed, f"缓存大小：{cache_info['size']}")
     
     # 测试 cache_clear
     fibonacci.cache_clear()
-    passed = fibonacci.cache_info() == 0
-    all_passed &= print_test("清除缓存", passed, f"清除后缓存大小：{fibonacci.cache_info()}")
+    cache_info = fibonacci.cache_info()
+    passed = cache_info['size'] == 0
+    all_passed &= print_test("清除缓存", passed, f"清除后缓存大小：{cache_info['size']}")
     
     return all_passed
 

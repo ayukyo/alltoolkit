@@ -15,10 +15,14 @@ import unittest
 import tempfile
 import os
 import math
+import sys
 from typing import List
 
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 # 导入被测试模块
-from bloom_filter_utils import (
+from bloom_filter_utils.bloom_filter_utils import (
     murmurhash3_x86_32,
     fnv_hash_32,
     djb2_hash,

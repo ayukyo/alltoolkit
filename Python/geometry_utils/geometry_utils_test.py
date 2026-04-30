@@ -12,6 +12,7 @@ import os
 import sys
 import math
 from typing import Tuple
+import pytest
 
 # Import the module under test
 
@@ -20,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import *
 
 
-class TestResult:
+class ResultCollector:
     """Simple test result tracker."""
     
     def __init__(self):
@@ -43,12 +44,18 @@ class TestResult:
         return self.failed == 0
 
 
+@pytest.fixture
+def result():
+    """Pytest fixture for ResultCollector."""
+    return ResultCollector()
+
+
 def approx_equal(a: float, b: float, epsilon: float = 1e-10) -> bool:
     """Check if two floats are approximately equal."""
     return abs(a - b) < epsilon
 
 
-def run_test(result: TestResult, test_name: str, actual, expected, epsilon: float = 1e-10):
+def run_test(result: ResultCollector, test_name: str, actual, expected, epsilon: float = 1e-10):
     """Run a single test and update result."""
     if isinstance(actual, float) and isinstance(expected, float):
         if approx_equal(actual, expected, epsilon):
@@ -79,7 +86,7 @@ def run_test(result: TestResult, test_name: str, actual, expected, epsilon: floa
 # Angle Conversion Tests
 # ============================================================================
 
-def test_angle_conversions(result: TestResult):
+def test_angle_conversions(result: ResultCollector):
     """Test angle conversion functions."""
     
     # degrees_to_radians
@@ -112,7 +119,7 @@ def test_angle_conversions(result: TestResult):
 # Distance Tests
 # ============================================================================
 
-def test_distance_calculations(result: TestResult):
+def test_distance_calculations(result: ResultCollector):
     """Test distance calculation functions."""
     
     # distance_2d
@@ -150,7 +157,7 @@ def test_distance_calculations(result: TestResult):
 # 2D Shape Tests
 # ============================================================================
 
-def test_2d_shapes(result: TestResult):
+def test_2d_shapes(result: ResultCollector):
     """Test 2D shape calculations."""
     
     # circle_area
@@ -229,7 +236,7 @@ def test_2d_shapes(result: TestResult):
 # 3D Shape Tests
 # ============================================================================
 
-def test_3d_shapes(result: TestResult):
+def test_3d_shapes(result: ResultCollector):
     """Test 3D shape calculations."""
     
     # sphere_volume
@@ -287,7 +294,7 @@ def test_3d_shapes(result: TestResult):
 # Vector Operation Tests
 # ============================================================================
 
-def test_vector_operations(result: TestResult):
+def test_vector_operations(result: ResultCollector):
     """Test vector operation functions."""
     
     # vector_add_2d
@@ -358,7 +365,7 @@ def test_vector_operations(result: TestResult):
 # Transformation Tests
 # ============================================================================
 
-def test_transformations(result: TestResult):
+def test_transformations(result: ResultCollector):
     """Test geometric transformation functions."""
     
     # rotate_point_2d
@@ -402,7 +409,7 @@ def test_transformations(result: TestResult):
 # Collision Detection Tests
 # ============================================================================
 
-def test_collision_detection(result: TestResult):
+def test_collision_detection(result: ResultCollector):
     """Test collision detection functions."""
     
     # point_in_rectangle
@@ -435,7 +442,7 @@ def test_collision_detection(result: TestResult):
 # Coordinate Conversion Tests
 # ============================================================================
 
-def test_coordinate_conversions(result: TestResult):
+def test_coordinate_conversions(result: ResultCollector):
     """Test coordinate conversion functions."""
     
     # cartesian_to_polar
@@ -488,7 +495,7 @@ def test_coordinate_conversions(result: TestResult):
 # Triangle Tests
 # ============================================================================
 
-def test_triangle_functions(result: TestResult):
+def test_triangle_functions(result: ResultCollector):
     """Test triangle classification and calculation functions."""
     
     # triangle_type_by_sides
@@ -527,7 +534,7 @@ def test_triangle_functions(result: TestResult):
 # Miscellaneous Tests
 # ============================================================================
 
-def test_miscellaneous(result: TestResult):
+def test_miscellaneous(result: ResultCollector):
     """Test miscellaneous geometry functions."""
     
     # midpoint_2d
@@ -580,7 +587,7 @@ def test_miscellaneous(result: TestResult):
 # Edge Case Tests
 # ============================================================================
 
-def test_edge_cases(result: TestResult):
+def test_edge_cases(result: ResultCollector):
     """Test edge cases and boundary conditions."""
     
     # Zero and negative values
@@ -610,7 +617,7 @@ def test_edge_cases(result: TestResult):
 # Constants Tests
 # ============================================================================
 
-def test_constants(result: TestResult):
+def test_constants(result: ResultCollector):
     """Test mathematical constants."""
     
     run_test(result, "PI value", PI, math.pi)
@@ -626,7 +633,7 @@ def test_constants(result: TestResult):
 
 def run_all_tests():
     """Run all test suites and report results."""
-    result = TestResult()
+    result = ResultCollector()
     
     print("Running AllToolkit Geometry Utils Test Suite")
     print("=" * 50)

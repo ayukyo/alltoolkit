@@ -14,6 +14,7 @@ import time
 import random
 import string
 from typing import List
+import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, '..')
@@ -29,7 +30,7 @@ from mod import (
 # Test Framework
 # ============================================================================
 
-class TestResult:
+class ResultCollector:
     """Simple test result collector."""
     
     def __init__(self):
@@ -62,10 +63,20 @@ class TestResult:
 
 
 # ============================================================================
+# Pytest Fixture
+# ============================================================================
+
+@pytest.fixture
+def result():
+    """Pytest fixture for ResultCollector."""
+    return ResultCollector()
+
+
+# ============================================================================
 # Basic Tests
 # ============================================================================
 
-def test_creation(result: TestResult):
+def test_creation(result: ResultCollector):
     """Test rope creation."""
     print("\n[Creation Tests]")
     
@@ -87,7 +98,7 @@ def test_creation(result: TestResult):
     result.test("Large rope depth", r.depth() > 1)
 
 
-def test_char_access(result: TestResult):
+def test_char_access(result: ResultCollector):
     """Test character access."""
     print("\n[Character Access Tests]")
     
@@ -110,7 +121,7 @@ def test_char_access(result: TestResult):
         result.test("Index error raised", True)
 
 
-def test_slicing(result: TestResult):
+def test_slicing(result: ResultCollector):
     """Test slicing operations."""
     print("\n[Slicing Tests]")
     
@@ -130,7 +141,7 @@ def test_slicing(result: TestResult):
     result.test("r[::2]", r[::2] == "Hlo ol!")
 
 
-def test_insertion(result: TestResult):
+def test_insertion(result: ResultCollector):
     """Test insertion operations."""
     print("\n[Insertion Tests]")
     
@@ -157,7 +168,7 @@ def test_insertion(result: TestResult):
     result.test("Multiple insertions", str(r) == "aXbYcZ")
 
 
-def test_deletion(result: TestResult):
+def test_deletion(result: ResultCollector):
     """Test deletion operations."""
     print("\n[Deletion Tests]")
     
@@ -184,7 +195,7 @@ def test_deletion(result: TestResult):
     result.test("Delete nothing", str(r2) == "Hello, World!")
 
 
-def test_concatenation(result: TestResult):
+def test_concatenation(result: ResultCollector):
     """Test concatenation operations."""
     print("\n[Concatenation Tests]")
     
@@ -214,7 +225,7 @@ def test_concatenation(result: TestResult):
     result.test("Rope + empty", str(r2) == "test")
 
 
-def test_split(result: TestResult):
+def test_split(result: ResultCollector):
     """Test split operations."""
     print("\n[Split Tests]")
     
@@ -236,7 +247,7 @@ def test_split(result: TestResult):
     result.test("Split at end right", str(right) == "")
 
 
-def test_substring(result: TestResult):
+def test_substring(result: ResultCollector):
     """Test substring operations."""
     print("\n[Substring Tests]")
     
@@ -249,7 +260,7 @@ def test_substring(result: TestResult):
     result.test("substring(7, 12)", str(r2) == "World")
 
 
-def test_find(result: TestResult):
+def test_find(result: ResultCollector):
     """Test find operations."""
     print("\n[Find Tests]")
     
@@ -262,7 +273,7 @@ def test_find(result: TestResult):
     result.test("count('Hello')", r.count("Hello") == 2)
 
 
-def test_replace(result: TestResult):
+def test_replace(result: ResultCollector):
     """Test replace operations."""
     print("\n[Replace Tests]")
     
@@ -275,7 +286,7 @@ def test_replace(result: TestResult):
     result.test("Replace one", str(r2) == "Hi, World! Hello again!")
 
 
-def test_string_methods(result: TestResult):
+def test_string_methods(result: ResultCollector):
     """Test string-like methods."""
     print("\n[String Methods Tests]")
     
@@ -298,7 +309,7 @@ def test_string_methods(result: TestResult):
     result.test("reverse()", str(r.reverse()) == "!dlroW ,olleH")
 
 
-def test_iteration(result: TestResult):
+def test_iteration(result: ResultCollector):
     """Test iteration."""
     print("\n[Iteration Tests]")
     
@@ -313,7 +324,7 @@ def test_iteration(result: TestResult):
     result.test("'z' not in rope", 'z' not in r)
 
 
-def test_equality(result: TestResult):
+def test_equality(result: ResultCollector):
     """Test equality operations."""
     print("\n[Equality Tests]")
     
@@ -328,7 +339,7 @@ def test_equality(result: TestResult):
     result.test("hash", hash(r1) == hash("Hello"))
 
 
-def test_large_operations(result: TestResult):
+def test_large_operations(result: ResultCollector):
     """Test operations on large texts."""
     print("\n[Large Operations Tests]")
     
@@ -357,7 +368,7 @@ def test_large_operations(result: TestResult):
     result.test("Multiple insertions on large", len(r) == len(large_text) + 10)
 
 
-def test_balancing(result: TestResult):
+def test_balancing(result: ResultCollector):
     """Test rope balancing."""
     print("\n[Balancing Tests]")
     
@@ -381,7 +392,7 @@ def test_balancing(result: TestResult):
     result.test("Stats has leaf_count", 'leaf_count' in stats)
 
 
-def test_batch_editor(result: TestResult):
+def test_batch_editor(result: ResultCollector):
     """Test batch editor."""
     print("\n[Batch Editor Tests]")
     
@@ -420,7 +431,7 @@ def test_batch_editor(result: TestResult):
     result.test("Clear and new operation", str(r2) == "String")
 
 
-def test_utility_functions(result: TestResult):
+def test_utility_functions(result: ResultCollector):
     """Test utility functions."""
     print("\n[Utility Functions Tests]")
     
@@ -436,7 +447,7 @@ def test_utility_functions(result: TestResult):
     result.test("build_balanced is balanced", r.is_balanced())
 
 
-def test_performance(result: TestResult):
+def test_performance(result: ResultCollector):
     """Test performance characteristics."""
     print("\n[Performance Tests]")
     
@@ -467,7 +478,7 @@ def test_performance(result: TestResult):
     result.test("50 middle insertions", len(r) == expected_len)
 
 
-def test_edge_cases(result: TestResult):
+def test_edge_cases(result: ResultCollector):
     """Test edge cases."""
     print("\n[Edge Cases Tests]")
     
@@ -498,7 +509,7 @@ def test_edge_cases(result: TestResult):
     result.test("words()", words == ["Hello", "World", "Test"])
 
 
-def test_join(result: TestResult):
+def test_join(result: ResultCollector):
     """Test join operation."""
     print("\n[Join Tests]")
     
@@ -521,7 +532,7 @@ def main():
     print("AllToolkit - Rope Utilities Test Suite")
     print("=" * 60)
     
-    result = TestResult()
+    result = ResultCollector()
     
     test_creation(result)
     test_char_access(result)
