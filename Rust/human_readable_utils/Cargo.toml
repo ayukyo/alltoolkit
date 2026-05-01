@@ -1,0 +1,21 @@
+[package]
+name = "human_readable_utils"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "Zero-dependency library for formatting values into human-readable strings"
+license = "MIT"
+keywords = ["format", "human-readable", "bytes", "duration", "ordinal"]
+categories = ["value-formatting", "utilities"]
+
+[dependencies]
+
+[dev-dependencies]
+
+[lib]
+name = "human_readable_utils"
+path = "src/lib.rs"
+
+[[example]]
+name = "usage_examples"
+path = "examples/usage_examples.rs"
