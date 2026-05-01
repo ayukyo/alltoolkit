@@ -1,0 +1,15 @@
+[package]
+name = "roman_numeral_utils"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "A zero-dependency library for converting between Arabic numerals and Roman numerals"
+license = "MIT"
+readme = "README.md"
+keywords = ["roman", "numeral", "conversion", "number", "utility"]
+categories = ["encoding", "mathematics"]
+
+[lib]
+path = "src/lib.rs"
+
+[dev-dependencies]
