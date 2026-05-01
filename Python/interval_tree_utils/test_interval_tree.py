@@ -6,7 +6,13 @@
 """
 
 import unittest
-from .interval_tree import IntervalTree, Interval
+import sys
+import os
+
+# Add parent directory to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from interval_tree_utils.interval_tree import IntervalTree, Interval
 
 
 class TestInterval(unittest.TestCase):

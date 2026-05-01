@@ -10,6 +10,7 @@ License: MIT
 """
 
 import os
+import sys
 import unittest
 
 # Add module directory to path for imports

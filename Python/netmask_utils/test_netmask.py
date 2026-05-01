@@ -6,7 +6,13 @@ Netmask Utilities 测试模块
 """
 
 import unittest
-from .core import (
+import sys
+import os
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from netmask_utils.core import (
     IPv4Address, IPv6Address, Subnet,
     cidr_to_mask, mask_to_cidr,
     ip_to_int, int_to_ip,

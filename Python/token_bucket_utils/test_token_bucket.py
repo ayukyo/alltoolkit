@@ -13,6 +13,12 @@ Run with: python -m pytest test_token_bucket.py -v
 import time
 import threading
 import unittest
+import sys
+import os
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from token_bucket_utils import (
     TokenBucket,
     ThreadSafeTokenBucket,

@@ -12,7 +12,7 @@ import unittest
 from typing import List
 
 # 添加父目录到路径以便导入
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from memory_profile_utils import (
     # Memory Monitor

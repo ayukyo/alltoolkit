@@ -14,7 +14,7 @@ import sys
 import os
 
 # 添加父目录到路径
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from quaternion_utils.quaternion import (
     Quaternion, identity, from_axis_angle, from_euler, from_rotation_matrix,
