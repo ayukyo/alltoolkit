@@ -1,240 +1,382 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-ISBN Utils 使用示例
+AllToolkit - ISBN Utilities Usage Examples
+============================================
+Practical examples demonstrating ISBN utilities functionality.
 
-演示 ISBN 工具的各种功能：
-- 验证 ISBN
-- 格式转换
-- 解析和提取
-- 随机生成
+Run with: python usage_examples.py
 """
+
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from mod import (
-    ISBNUtils,
-    validate, validate_strict, convert_to_13, convert_to_10,
-    format_isbn, parse, generate_random, extract_from_text
+    clean_isbn,
+    is_isbn10,
+    is_isbn13,
+    is_valid_isbn,
+    get_isbn_type,
+    calculate_isbn10_check_digit,
+    calculate_isbn13_check_digit,
+    isbn10_to_isbn13,
+    isbn13_to_isbn10,
+    convert_isbn,
+    format_isbn,
+    format_isbn_compact,
+    parse_isbn,
+    generate_isbn10,
+    generate_isbn13,
+    generate_isbn,
+    validate_isbns,
+    find_isbns_in_text,
+    compare_isbns,
+    get_isbn_variants,
 )
 
 
+def print_section(title: str):
+    """Print a section header."""
+    print(f"\n{'=' * 60}")
+    print(f" {title}")
+    print('=' * 60)
+
+
 def example_basic_validation():
-    """基本验证示例"""
-    print("=" * 50)
-    print("基本验证示例")
-    print("=" * 50)
+    """Basic ISBN validation examples."""
+    print_section("Basic ISBN Validation")
     
-    # 各种格式的 ISBN
     test_isbns = [
-        "978-7-115-46985-5",  # 人民邮电出版社
-        "7-302-11756-7",      # 清华大学出版社
-        "978-0-13-235088-4",  # 《代码整洁之道》
-        "0-201-63361-2",      # 《设计模式》
+        "0306406152",      # Valid ISBN-10
+        "9780306406157",   # Valid ISBN-13
+        "0-306-40615-2",   # ISBN-10 with hyphens
+        "978-0-306-40615-7",  # ISBN-13 with hyphens
+        "030640615X",      # ISBN-10 with X check digit
+        "invalid",         # Invalid
+        "123456789",       # Too short
     ]
     
     for isbn in test_isbns:
-        is_valid = validate(isbn)
-        version = ISBNUtils.detect_version(isbn)
-        formatted = format_isbn(isbn)
-        group = ISBNUtils.get_registration_group(isbn)
-        
         print(f"\nISBN: {isbn}")
-        print(f"  有效: {is_valid}")
-        print(f"  版本: ISBN-{version}")
-        print(f"  格式化: {formatted}")
-        print(f"  注册组: {group}")
+        print(f"  Valid: {is_valid_isbn(isbn)}")
+        print(f"  Type: {get_isbn_type(isbn)}")
+        print(f"  Clean: {clean_isbn(isbn)}")
 
 
-def example_strict_validation():
-    """严格验证示例"""
-    print("\n" + "=" * 50)
-    print("严格验证示例")
-    print("=" * 50)
+def example_check_digit_calculation():
+    """Check digit calculation examples."""
+    print_section("Check Digit Calculation")
     
-    isbns = [
-        "978-7-115-46985-5",  # 有效
-        "978-7-115-46985-6",  # 无效（校验位错误）
-    ]
+    # ISBN-10 check digit
+    print("\nISBN-10 Check Digit:")
+    isbn9 = "030640615"
+    check = calculate_isbn10_check_digit(isbn9)
+    print(f"  Base: {isbn9}")
+    print(f"  Check digit: {check}")
+    print(f"  Full ISBN-10: {isbn9}{check}")
     
-    for isbn in isbns:
-        try:
-            result = validate_strict(isbn)
-            print(f"\n✓ {isbn} 是有效的")
-            print(f"  版本: ISBN-{result['version']}")
-            print(f"  校验位: {result['check_digit']}")
-            if 'prefix' in result:
-                print(f"  前缀: {result['prefix']}")
-        except Exception as e:
-            print(f"\n✗ {isbn} 是无效的: {e}")
+    # ISBN-10 with X check digit
+    isbn9_x = "080442957"
+    check_x = calculate_isbn10_check_digit(isbn9_x)
+    print(f"\n  Base: {isbn9_x}")
+    print(f"  Check digit: {check_x} (X = 10)")
+    print(f"  Full ISBN-10: {isbn9_x}{check_x}")
+    
+    # ISBN-13 check digit
+    print("\nISBN-13 Check Digit:")
+    isbn12 = "978030640615"
+    check13 = calculate_isbn13_check_digit(isbn12)
+    print(f"  Base: {isbn12}")
+    print(f"  Check digit: {check13}")
+    print(f"  Full ISBN-13: {isbn12}{check13}")
 
 
 def example_conversion():
-    """格式转换示例"""
-    print("\n" + "=" * 50)
-    print("格式转换示例")
-    print("=" * 50)
+    """ISBN conversion examples."""
+    print_section("ISBN Conversion")
     
-    # ISBN-10 转 ISBN-13
-    isbn10 = "7-302-11756-7"
-    isbn13 = convert_to_13(isbn10)
+    # ISBN-10 to ISBN-13
+    isbn10 = "0306406152"
+    isbn13 = isbn10_to_isbn13(isbn10)
     print(f"\nISBN-10 → ISBN-13:")
     print(f"  {isbn10} → {isbn13}")
-    print(f"  格式化: {format_isbn(isbn13)}")
     
-    # ISBN-13 转 ISBN-10
-    isbn13 = "978-7-115-46985-5"
-    isbn10 = convert_to_10(isbn13)
+    # ISBN-13 to ISBN-10
+    isbn13_input = "9780306406157"
+    isbn10_output = isbn13_to_isbn10(isbn13_input)
     print(f"\nISBN-13 → ISBN-10:")
-    print(f"  {isbn13} → {isbn10}")
-    print(f"  格式化: {format_isbn(isbn10)}")
+    print(f"  {isbn13_input} → {isbn10_output}")
     
-    # 979 前缀的 ISBN-13 无法转换为 ISBN-10
-    print(f"\n979 前缀的 ISBN-13 无法转换为 ISBN-10:")
-    isbn_979 = "979-10-90636-07-0"
-    try:
-        convert_to_10(isbn_979)
-    except Exception as e:
-        print(f"  {isbn_979} → 错误: {e}")
+    # 979 prefix cannot convert to ISBN-10
+    isbn13_979 = "9790306406156"  # Valid 979 ISBN
+    isbn10_from_979 = isbn13_to_isbn10(isbn13_979)
+    print(f"\n979 Prefix (cannot convert to ISBN-10):")
+    print(f"  {isbn13_979} → {isbn10_from_979}")
+    
+    # Using convert_isbn function
+    print(f"\nUsing convert_isbn():")
+    print(f"  convert_isbn('0306406152', 'ISBN-13') = {convert_isbn('0306406152', 'ISBN-13')}")
+    print(f"  convert_isbn('9780306406157', 'ISBN-10') = {convert_isbn('9780306406157', 'ISBN-10')}")
 
 
-def example_parse():
-    """解析示例"""
-    print("\n" + "=" * 50)
-    print("解析示例")
-    print("=" * 50)
+def example_formatting():
+    """ISBN formatting examples."""
+    print_section("ISBN Formatting")
     
     isbns = [
-        "978-7-115-46985-5",
-        "7-302-11756-7",
-        "0-201-63361-2",
+        "0306406152",
+        "9780306406157",
+        "0471958697",
     ]
     
     for isbn in isbns:
-        result = parse(isbn)
-        print(f"\n解析: {isbn}")
-        print(f"  清理后: {result['cleaned']}")
-        print(f"  版本: ISBN-{result['version']}")
-        print(f"  有效: {result['valid']}")
-        print(f"  格式化: {result.get('isbn_formatted', 'N/A')}")
-        if 'isbn13' in result:
-            print(f"  ISBN-13: {result['isbn13']}")
-        if 'isbn10' in result:
-            print(f"  ISBN-10: {result['isbn10']}")
+        print(f"\nISBN: {isbn}")
+        print(f"  Formatted: {format_isbn(isbn)}")
+        print(f"  Compact: {format_isbn_compact(isbn)}")
+        print(f"  Custom separator: {format_isbn(isbn, ' ')}")
 
 
-def example_generate():
-    """随机生成示例"""
-    print("\n" + "=" * 50)
-    print("随机生成示例")
-    print("=" * 50)
+def example_parsing():
+    """ISBN parsing examples."""
+    print_section("ISBN Parsing")
     
-    print("\n生成 5 个随机 ISBN-13:")
-    for _ in range(5):
-        isbn = generate_random(version=13)
-        print(f"  {isbn} (格式化: {format_isbn(isbn)})")
-    
-    print("\n生成 5 个随机 ISBN-10:")
-    for _ in range(5):
-        isbn = generate_random(version=10)
-        print(f"  {isbn} (格式化: {format_isbn(isbn)})")
-    
-    print("\n生成指定前缀的 ISBN-13:")
-    print(f"  978 前缀: {generate_random(13, prefix='978')}")
-    print(f"  979 前缀: {generate_random(13, prefix='979')}")
-    
-    print("\n批量生成:")
-    batch = ISBNUtils.generate_batch(5, version=13)
-    for isbn in batch:
-        print(f"  {isbn}")
-
-
-def example_extract():
-    """文本提取示例"""
-    print("\n" + "=" * 50)
-    print("文本提取示例")
-    print("=" * 50)
-    
-    text = """
-    推荐阅读书籍：
-    
-    1. 《代码整洁之道》ISBN: 978-0-13-235088-4
-    2. 《设计模式》ISBN: 0-201-63361-2
-    3. 《Python编程》ISBN: 978-7-115-46985-5
-    4. 《算法导论》ISBN: 7-302-11756-7
-    
-    注意：以下 ISBN 无效：
-    - 978-7-115-46985-6（校验位错误）
-    - 12345（长度错误）
-    """
-    
-    found = extract_from_text(text)
-    print(f"\n从文本中找到 {len(found)} 个有效的 ISBN:")
-    for isbn in found:
-        formatted = format_isbn(isbn)
-        group = ISBNUtils.get_registration_group(isbn)
-        print(f"  {isbn} ({formatted}) - {group}")
-
-
-def example_check_digit():
-    """校验位计算示例"""
-    print("\n" + "=" * 50)
-    print("校验位计算示例")
-    print("=" * 50)
-    
-    # ISBN-10 校验位计算
-    isbn9 = "730211756"
-    check = ISBNUtils.calculate_check_digit_10(isbn9)
-    print(f"\nISBN-10 校验位计算:")
-    print(f"  前9位: {isbn9}")
-    print(f"  校验位: {check}")
-    print(f"  完整 ISBN-10: {isbn9}{check}")
-    
-    # ISBN-13 校验位计算
-    isbn12 = "978711546985"
-    check = ISBNUtils.calculate_check_digit_12(isbn12)
-    print(f"\nISBN-13 校验位计算:")
-    print(f"  前12位: {isbn12}")
-    print(f"  校验位: {check}")
-    print(f"  完整 ISBN-13: {isbn12}{check}")
-
-
-def example_registration_groups():
-    """注册组识别示例"""
-    print("\n" + "=" * 50)
-    print("注册组识别示例")
-    print("=" * 50)
-    
-    # 不同国家/地区的 ISBN
-    examples = [
-        ("978-7-115-46985-5", "中国"),
-        ("0-201-63361-2", "英语区"),
-        ("2-1234-5678-9", "法语区"),
-        ("3-1234-5678-9", "德语区"),
-        ("4-1234-5678-9", "日本"),
-        ("5-1234-5678-9", "俄语区"),
-        ("81-1234-5678-9", "印度"),
-        ("89-1234-5678-9", "韩国"),
+    test_isbns = [
+        "0306406152",      # English ISBN-10
+        "9780306406157",   # English ISBN-13
+        "4771958697",      # Different group
+        "9790306406153",   # 979 prefix
     ]
     
-    print("\n识别不同国家/地区的 ISBN:")
-    for isbn, expected in examples:
-        group = ISBNUtils.get_registration_group(isbn)
-        status = "✓" if group == expected else "✗"
-        print(f"  {status} {isbn} → {group} (期望: {expected})")
+    for isbn in test_isbns:
+        info = parse_isbn(isbn)
+        print(f"\nISBN: {isbn}")
+        print(f"  Valid: {info['valid']}")
+        print(f"  Type: {info['type']}")
+        print(f"  Group: {info['group']} ({info['group_name']})")
+        print(f"  Check Digit: {info['check_digit']}")
+        print(f"  ISBN-10: {info['isbn10']}")
+        print(f"  ISBN-13: {info['isbn13']}")
+        print(f"  Formatted: {info['formatted']}")
+
+
+def example_generation():
+    """ISBN generation examples."""
+    print_section("ISBN Generation")
+    
+    print("\nGenerating random ISBN-10s:")
+    for i in range(5):
+        isbn = generate_isbn10()
+        print(f"  {format_isbn(isbn)} (valid: {is_isbn10(isbn)})")
+    
+    print("\nGenerating random ISBN-13s:")
+    for i in range(5):
+        isbn = generate_isbn13()
+        print(f"  {format_isbn(isbn)} (valid: {is_isbn13(isbn)})")
+    
+    print("\nGenerating with specific parameters:")
+    print(f"  ISBN-10 (English group): {format_isbn(generate_isbn10(group='0'))}")
+    print(f"  ISBN-10 (Chinese group): {format_isbn(generate_isbn10(group='7'))}")
+    print(f"  ISBN-10 (Japanese group): {format_isbn(generate_isbn10(group='4'))}")
+    print(f"  ISBN-13 (978 prefix): {format_isbn(generate_isbn13(prefix='978'))}")
+    print(f"  ISBN-13 (979 prefix): {format_isbn(generate_isbn13(prefix='979'))}")
+
+
+def example_batch_operations():
+    """Batch ISBN operations examples."""
+    print_section("Batch Operations")
+    
+    # Validate multiple ISBNs
+    print("\nValidating multiple ISBNs:")
+    isbns = [
+        "0306406152",
+        "9780306406157",
+        "invalid-isbn",
+        "0471958697",
+        "12345",
+    ]
+    
+    results = validate_isbns(isbns)
+    for isbn, result in results.items():
+        status = "✓" if result['valid'] else "✗"
+        print(f"  {status} {isbn}: {result['type'] or 'Invalid'}")
+
+
+def example_text_extraction():
+    """Extract ISBNs from text."""
+    print_section("Extract ISBNs from Text")
+    
+    text = """
+    Book Catalog:
+    - The Hitchhiker's Guide to the Galaxy (ISBN: 0-345-39180-2)
+    - Another Book referenced as ISBN 978-0-306-40615-7
+    - Classic: ISBN 0471958697
+    - Fake ISBN: 1234567890
+    - Invalid entry: not-an-isbn
+    """
+    
+    print("Text:")
+    print(text)
+    
+    found = find_isbns_in_text(text)
+    print("\nFound ISBNs:")
+    for isbn in found:
+        info = parse_isbn(isbn)
+        print(f"  {isbn} ({info['type']})")
+
+
+def example_comparison():
+    """ISBN comparison examples."""
+    print_section("ISBN Comparison")
+    
+    # Compare equivalent ISBNs
+    print("\nComparing equivalent ISBNs:")
+    isbn10 = "0306406152"
+    isbn13 = "9780306406157"
+    print(f"  {isbn10} == {isbn13}: {compare_isbns(isbn10, isbn13)}")
+    
+    # Compare with formatting
+    print("\nComparing with different formats:")
+    formatted = "0-306-40615-2"
+    print(f"  {isbn10} == {formatted}: {compare_isbns(isbn10, formatted)}")
+    
+    # Compare different books
+    print("\nComparing different books:")
+    other_isbn = "0471958697"
+    print(f"  {isbn10} == {other_isbn}: {compare_isbns(isbn10, other_isbn)}")
+
+
+def example_variants():
+    """Get all variants of an ISBN."""
+    print_section("ISBN Variants")
+    
+    isbn = "0306406152"
+    variants = get_isbn_variants(isbn)
+    
+    print(f"\nVariants for {isbn}:")
+    print(f"  ISBN-10: {variants['isbn10']}")
+    print(f"  ISBN-13: {variants['isbn13']}")
+    print(f"  Formatted ISBN-10: {variants['formatted10']}")
+    print(f"  Formatted ISBN-13: {variants['formatted13']}")
+
+
+def example_real_world_scenario():
+    """Real-world use case: Book database cleanup."""
+    print_section("Real-World Scenario: Book Database Cleanup")
+    
+    # Simulated book database with inconsistent ISBN formats
+    books = [
+        {"title": "Book A", "isbn": "0-306-40615-2"},
+        {"title": "Book B", "isbn": "9780306406157"},
+        {"title": "Book C", "isbn": "ISBN 0471958697"},
+        {"title": "Book D", "isbn": "invalid"},
+        {"title": "Book E", "isbn": "  0-345-39180-2  "},  # With spaces
+    ]
+    
+    print("\nOriginal database:")
+    for book in books:
+        print(f"  {book['title']}: '{book['isbn']}'")
+    
+    # Clean up and standardize
+    print("\nCleaned and standardized:")
+    cleaned_books = []
+    for book in books:
+        clean = clean_isbn(book['isbn'])
+        if is_valid_isbn(clean):
+            standardized = isbn10_to_isbn13(clean) if is_isbn10(clean) else clean
+            cleaned_books.append({
+                "title": book["title"],
+                "isbn10": isbn13_to_isbn10(standardized),
+                "isbn13": standardized,
+                "formatted": format_isbn(standardized)
+            })
+            print(f"  {book['title']}: {format_isbn(standardized)}")
+        else:
+            print(f"  {book['title']}: INVALID (removed)")
+    
+    # Find duplicates (same book with different ISBN formats)
+    print("\nChecking for duplicates...")
+    seen = {}
+    duplicates = []
+    for book in cleaned_books:
+        if book["isbn13"] in seen:
+            duplicates.append((book["title"], seen[book["isbn13"]]))
+        else:
+            seen[book["isbn13"]] = book["title"]
+    
+    if duplicates:
+        print("  Found duplicates:")
+        for dup, orig in duplicates:
+            print(f"    '{dup}' is a duplicate of '{orig}'")
+    else:
+        print("  No duplicates found.")
+
+
+def example_library_integration():
+    """Example: Integration with library systems."""
+    print_section("Library System Integration")
+    
+    # Search query normalization
+    def normalize_isbn_search(query: str) -> dict:
+        """Normalize ISBN search query for library lookup."""
+        clean = clean_isbn(query)
+        if not is_valid_isbn(clean):
+            return {"valid": False, "error": "Invalid ISBN format"}
+        
+        return {
+            "valid": True,
+            "isbn10": isbn13_to_isbn10(clean) if is_isbn13(clean) else clean,
+            "isbn13": isbn10_to_isbn13(clean) if is_isbn10(clean) else clean,
+            "search_terms": [
+                clean,
+                format_isbn(clean),
+                format_isbn(clean, " "),
+            ]
+        }
+    
+    # Test with various inputs
+    queries = [
+        "0306406152",
+        "978-0-306-40615-7",
+        "ISBN 0471958697",
+        "invalid",
+    ]
+    
+    print("\nSearch query normalization:")
+    for query in queries:
+        result = normalize_isbn_search(query)
+        print(f"\n  Query: '{query}'")
+        if result["valid"]:
+            print(f"    ISBN-10: {result['isbn10']}")
+            print(f"    ISBN-13: {result['isbn13']}")
+            print(f"    Search terms: {result['search_terms']}")
+        else:
+            print(f"    Error: {result['error']}")
 
 
 def main():
-    """运行所有示例"""
-    example_basic_validation()
-    example_strict_validation()
-    example_conversion()
-    example_parse()
-    example_generate()
-    example_extract()
-    example_check_digit()
-    example_registration_groups()
+    """Run all examples."""
+    print("=" * 60)
+    print(" ISBN Utilities - Usage Examples")
+    print("=" * 60)
     
-    print("\n" + "=" * 50)
-    print("示例完成！")
-    print("=" * 50)
+    example_basic_validation()
+    example_check_digit_calculation()
+    example_conversion()
+    example_formatting()
+    example_parsing()
+    example_generation()
+    example_batch_operations()
+    example_text_extraction()
+    example_comparison()
+    example_variants()
+    example_real_world_scenario()
+    example_library_integration()
+    
+    print("\n" + "=" * 60)
+    print(" All examples completed!")
+    print("=" * 60)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

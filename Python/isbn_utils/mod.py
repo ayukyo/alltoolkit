@@ -1,597 +1,792 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-ISBN Utils - 国际标准书号工具模块
+AllToolkit - ISBN Utilities Module
+===================================
+A comprehensive ISBN (International Standard Book Number) utility module for Python
+with zero external dependencies.
 
-功能：
-- ISBN-10 和 ISBN-13 验证
-- ISBN 格式转换（10位转13位，13位转10位）
-- 校验位计算
-- 随机生成有效 ISBN（用于测试）
-- ISBN 解析和格式化
+Features:
+    - ISBN-10 and ISBN-13 validation
+    - ISBN format conversion (ISBN-10 ↔ ISBN-13)
+    - Check digit calculation
+    - ISBN formatting with hyphens
+    - ISBN generation for testing
+    - ISBN parsing and component extraction
+    - Batch validation support
 
-零外部依赖，纯 Python 标准库实现。
+Author: AllToolkit Contributors
+License: MIT
 """
 
 import re
-import random
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Tuple, List, Dict, Union
+from random import randint, choice
 
 
-class ISBNError(Exception):
-    """ISBN 相关错误基类"""
-    pass
+# ============================================================================
+# Constants
+# ============================================================================
+
+# ISBN-13 prefix for book industry
+ISBN_13_PREFIX = "978"
+ISBN_13_PREFIX_ALT = "979"
+
+# Valid ISBN-10 characters (0-9 and X for check digit)
+ISBN_10_CHARS = set("0123456789X")
+
+# Valid ISBN-13 characters (0-9 only)
+ISBN_13_CHARS = set("0123456789")
+
+# Common ISBN registration group prefixes (partial list)
+REGISTRATION_GROUPS = {
+    '0': {'name': 'English', 'countries': ['US', 'UK', 'Australia', 'Canada', 'New Zealand']},
+    '1': {'name': 'English', 'countries': ['US', 'UK', 'Australia', 'Canada', 'New Zealand']},
+    '2': {'name': 'French', 'countries': ['France', 'Belgium', 'Canada', 'Switzerland']},
+    '3': {'name': 'German', 'countries': ['Germany', 'Austria', 'Switzerland']},
+    '4': {'name': 'Japanese', 'countries': ['Japan']},
+    '5': {'name': 'Russian', 'countries': ['Russia', 'Former USSR']},
+    '7': {'name': 'Chinese', 'countries': ['China']},
+    '80': {'name': 'Czech/Slovak', 'countries': ['Czech Republic', 'Slovakia']},
+    '81': {'name': 'Indian', 'countries': ['India']},
+    '82': {'name': 'Norwegian', 'countries': ['Norway']},
+    '83': {'name': 'Polish', 'countries': ['Poland']},
+    '84': {'name': 'Spanish', 'countries': ['Spain']},
+    '85': {'name': 'Brazilian', 'countries': ['Brazil']},
+    '86': {'name': 'Serbian', 'countries': ['Serbia']},
+    '87': {'name': 'Danish', 'countries': ['Denmark']},
+    '88': {'name': 'Italian', 'countries': ['Italy']},
+    '89': {'name': 'Korean', 'countries': ['South Korea']},
+    '90': {'name': 'Dutch', 'countries': ['Netherlands', 'Belgium']},
+    '91': {'name': 'Swedish', 'countries': ['Sweden']},
+    '92': {'name': 'International', 'countries': ['International organizations']},
+    '93': {'name': 'Indian', 'countries': ['India']},
+    '94': {'name': 'Dutch', 'countries': ['Netherlands']},
+    '95': {'name': 'Iranian', 'countries': ['Iran']},
+    '96': {'name': 'Turkish', 'countries': ['Turkey']},
+    '97': {'name': 'International', 'countries': ['Various']},
+    '98': {'name': 'International', 'countries': ['Various']},
+    '99': {'name': 'International', 'countries': ['Various']},
+}
 
 
-class InvalidISBNError(ISBNError):
-    """无效的 ISBN"""
-    pass
+# ============================================================================
+# Core Functions
+# ============================================================================
 
-
-class ISBNConversionError(ISBNError):
-    """ISBN 转换错误"""
-    pass
-
-
-class ISBNUtils:
-    """ISBN 工具类"""
+def clean_isbn(isbn: str) -> str:
+    """
+    Remove all non-digit and non-X characters from an ISBN.
     
-    # ISBN-13 前缀
-    ISBN_13_PREFIX = "978"
-    ISBN_13_PREFIX_ALT = "979"  # 新的前缀，用于 ISBN-10 用尽后
-    
-    @staticmethod
-    def clean(isbn: str) -> str:
-        """
-        清理 ISBN 字符串，移除所有非数字字符（保留 X）
+    Args:
+        isbn: The ISBN string to clean
         
-        Args:
-            isbn: 原始 ISBN 字符串
-            
-        Returns:
-            清理后的纯数字字符串（可能包含 X）
-        """
-        return re.sub(r'[^0-9Xx]', '', isbn).upper()
-    
-    @staticmethod
-    def detect_version(isbn: str) -> Optional[int]:
-        """
-        检测 ISBN 版本
+    Returns:
+        Cleaned ISBN string containing only digits and optionally 'X'
         
-        Args:
-            isbn: ISBN 字符串
-            
-        Returns:
-            10 或 13，如果无法识别返回 None
-        """
-        cleaned = ISBNUtils.clean(isbn)
-        if len(cleaned) == 10:
-            return 10
-        elif len(cleaned) == 13:
-            return 13
+    Examples:
+        >>> clean_isbn("978-0-306-40615-7")
+        '9780306406157'
+        >>> clean_isbn("ISBN 0-306-40615-X")
+        '030640615X'
+    """
+    if not isbn:
+        return ""
+    # Keep digits and X (for ISBN-10 check digit)
+    return ''.join(c.upper() if c.lower() == 'x' else c for c in isbn if c.isdigit() or c.lower() == 'x')
+
+
+def is_isbn10(isbn: str) -> bool:
+    """
+    Check if a string is a valid ISBN-10.
+    
+    Args:
+        isbn: The ISBN string to validate
+        
+    Returns:
+        True if valid ISBN-10, False otherwise
+        
+    Examples:
+        >>> is_isbn10("0306406152")
+        True
+        >>> is_isbn10("0-306-40615-X")
+        True
+        >>> is_isbn10("9780306406157")
+        False
+    """
+    cleaned = clean_isbn(isbn)
+    if len(cleaned) != 10:
+        return False
+    
+    # Check all characters are valid (0-9 or X at last position)
+    if not all(c in ISBN_10_CHARS for c in cleaned):
+        return False
+    
+    # Check digit can be X, but only at the end
+    if 'X' in cleaned[:-1]:
+        return False
+    
+    return calculate_isbn10_check_digit(cleaned[:9]) == cleaned[9]
+
+
+def is_isbn13(isbn: str) -> bool:
+    """
+    Check if a string is a valid ISBN-13.
+    
+    Args:
+        isbn: The ISBN string to validate
+        
+    Returns:
+        True if valid ISBN-13, False otherwise
+        
+    Examples:
+        >>> is_isbn13("9780306406157")
+        True
+        >>> is_isbn13("978-0-306-40615-7")
+        True
+        >>> is_isbn13("0306406152")
+        False
+    """
+    cleaned = clean_isbn(isbn)
+    if len(cleaned) != 13:
+        return False
+    
+    # ISBN-13 must start with 978 or 979
+    if not cleaned.startswith((ISBN_13_PREFIX, ISBN_13_PREFIX_ALT)):
+        return False
+    
+    # All characters must be digits
+    if not cleaned.isdigit():
+        return False
+    
+    return calculate_isbn13_check_digit(cleaned[:12]) == cleaned[12]
+
+
+def is_valid_isbn(isbn: str) -> bool:
+    """
+    Check if a string is a valid ISBN (either ISBN-10 or ISBN-13).
+    
+    Args:
+        isbn: The ISBN string to validate
+        
+    Returns:
+        True if valid ISBN, False otherwise
+        
+    Examples:
+        >>> is_valid_isbn("0306406152")
+        True
+        >>> is_valid_isbn("9780306406157")
+        True
+        >>> is_valid_isbn("invalid")
+        False
+    """
+    return is_isbn10(isbn) or is_isbn13(isbn)
+
+
+def get_isbn_type(isbn: str) -> Optional[str]:
+    """
+    Determine the type of an ISBN.
+    
+    Args:
+        isbn: The ISBN string to check
+        
+    Returns:
+        'ISBN-10', 'ISBN-13', or None if invalid
+        
+    Examples:
+        >>> get_isbn_type("0306406152")
+        'ISBN-10'
+        >>> get_isbn_type("9780306406157")
+        'ISBN-13'
+    """
+    if is_isbn10(isbn):
+        return "ISBN-10"
+    elif is_isbn13(isbn):
+        return "ISBN-13"
+    return None
+
+
+# ============================================================================
+# Check Digit Functions
+# ============================================================================
+
+def calculate_isbn10_check_digit(isbn9: str) -> str:
+    """
+    Calculate the ISBN-10 check digit.
+    
+    The check digit is calculated using weighted sum modulo 11.
+    Weights are 10, 9, 8, 7, 6, 5, 4, 3, 2 for positions 1-9.
+    
+    Args:
+        isbn9: First 9 digits of an ISBN-10
+        
+    Returns:
+        The check digit (0-9 or 'X' for 10)
+        
+    Raises:
+        ValueError: If isbn9 is not 9 digits
+        
+    Examples:
+        >>> calculate_isbn10_check_digit("030640615")
+        '2'
+        >>> calculate_isbn10_check_digit("047195869")
+        'X'
+    """
+    cleaned = clean_isbn(isbn9)
+    if len(cleaned) != 9 or not cleaned.isdigit():
+        raise ValueError("ISBN-9 must be exactly 9 digits")
+    
+    total = sum((10 - i) * int(d) for i, d in enumerate(cleaned))
+    remainder = total % 11
+    check = (11 - remainder) % 11
+    
+    return 'X' if check == 10 else str(check)
+
+
+def calculate_isbn13_check_digit(isbn12: str) -> str:
+    """
+    Calculate the ISBN-13 check digit.
+    
+    Uses the standard EAN-13 algorithm with alternating weights 1 and 3.
+    
+    Args:
+        isbn12: First 12 digits of an ISBN-13
+        
+    Returns:
+        The check digit (0-9)
+        
+    Raises:
+        ValueError: If isbn12 is not 12 digits
+        
+    Examples:
+        >>> calculate_isbn13_check_digit("978030640615")
+        '7'
+    """
+    cleaned = clean_isbn(isbn12)
+    if len(cleaned) != 12 or not cleaned.isdigit():
+        raise ValueError("ISBN-12 must be exactly 12 digits")
+    
+    total = sum(int(d) * (1 if i % 2 == 0 else 3) for i, d in enumerate(cleaned))
+    check = (10 - (total % 10)) % 10
+    
+    return str(check)
+
+
+# ============================================================================
+# Conversion Functions
+# ============================================================================
+
+def isbn10_to_isbn13(isbn10: str) -> str:
+    """
+    Convert an ISBN-10 to ISBN-13.
+    
+    Args:
+        isbn10: A valid ISBN-10 string
+        
+    Returns:
+        The equivalent ISBN-13
+        
+    Raises:
+        ValueError: If the input is not a valid ISBN-10
+        
+    Examples:
+        >>> isbn10_to_isbn13("0306406152")
+        '9780306406157'
+        >>> isbn10_to_isbn13("0-306-40615-X")
+        '978030640615X'
+    """
+    if not is_isbn10(isbn10):
+        raise ValueError(f"Invalid ISBN-10: {isbn10}")
+    
+    cleaned = clean_isbn(isbn10)
+    # Prefix with 978 and calculate new check digit
+    isbn13_base = ISBN_13_PREFIX + cleaned[:9]
+    check_digit = calculate_isbn13_check_digit(isbn13_base)
+    
+    return isbn13_base + check_digit
+
+
+def isbn13_to_isbn10(isbn13: str) -> Optional[str]:
+    """
+    Convert an ISBN-13 to ISBN-10.
+    
+    Note: Only ISBN-13s starting with 978 can be converted to ISBN-10.
+    ISBN-13s starting with 979 have no ISBN-10 equivalent.
+    
+    Args:
+        isbn13: A valid ISBN-13 string
+        
+    Returns:
+        The equivalent ISBN-10, or None if conversion is not possible
+        
+    Raises:
+        ValueError: If the input is not a valid ISBN-13
+        
+    Examples:
+        >>> isbn13_to_isbn10("9780306406157")
+        '0306406152'
+        >>> isbn13_to_isbn10("9790306406153")  # 979 prefix
+        None
+    """
+    if not is_isbn13(isbn13):
+        raise ValueError(f"Invalid ISBN-13: {isbn13}")
+    
+    cleaned = clean_isbn(isbn13)
+    
+    # Can only convert 978-prefixed ISBN-13s to ISBN-10
+    if not cleaned.startswith(ISBN_13_PREFIX):
         return None
     
-    @staticmethod
-    def calculate_check_digit_10(isbn9: str) -> str:
-        """
-        计算 ISBN-10 校验位
-        
-        ISBN-10 校验位计算：
-        - 前9位数字分别乘以 10, 9, 8, ..., 2
-        - 求和
-        - 对 11 取模
-        - 结果为 11 - (sum % 11)，如果为 10 则为 X
-        
-        Args:
-            isbn9: ISBN-10 的前9位数字
-            
-        Returns:
-            校验位（0-9 或 X）
-        """
-        if len(isbn9) != 9 or not isbn9.isdigit():
-            raise InvalidISBNError("需要9位数字来计算 ISBN-10 校验位")
-        
-        total = sum(int(digit) * (10 - i) for i, digit in enumerate(isbn9))
-        remainder = total % 11
-        check = (11 - remainder) % 11
-        
-        return 'X' if check == 10 else str(check)
+    # Remove 978 prefix and calculate new check digit
+    isbn10_base = cleaned[3:12]
+    check_digit = calculate_isbn10_check_digit(isbn10_base)
     
-    @staticmethod
-    def calculate_check_digit_12(isbn12: str) -> str:
-        """
-        计算 ISBN-13 校验位
-        
-        ISBN-13 校验位计算：
-        - 前12位数字，奇数位乘以1，偶数位乘以3
-        - 求和
-        - 对 10 取模
-        - 结果为 (10 - (sum % 10)) % 10
-        
-        Args:
-            isbn12: ISBN-13 的前12位数字
-            
-        Returns:
-            校验位（0-9）
-        """
-        if len(isbn12) != 12 or not isbn12.isdigit():
-            raise InvalidISBNError("需要12位数字来计算 ISBN-13 校验位")
-        
-        total = sum(int(digit) * (1 if i % 2 == 0 else 3) 
-                   for i, digit in enumerate(isbn12))
-        return str((10 - (total % 10)) % 10)
+    return isbn10_base + check_digit
+
+
+def convert_isbn(isbn: str, target_format: str = "ISBN-13") -> Optional[str]:
+    """
+    Convert an ISBN to the specified format.
     
-    @staticmethod
-    def validate(isbn: str) -> bool:
-        """
-        验证 ISBN 是否有效
+    Args:
+        isbn: A valid ISBN string
+        target_format: Target format ('ISBN-10' or 'ISBN-13')
         
-        Args:
-            isbn: ISBN 字符串（可以是 ISBN-10 或 ISBN-13）
-            
-        Returns:
-            True 如果有效，False 否则
-        """
-        try:
-            ISBNUtils.validate_strict(isbn)
-            return True
-        except InvalidISBNError:
-            return False
+    Returns:
+        The converted ISBN, or None if conversion is not possible
+        
+    Examples:
+        >>> convert_isbn("0306406152", "ISBN-13")
+        '9780306406157'
+        >>> convert_isbn("9780306406157", "ISBN-10")
+        '0306406152'
+    """
+    if not is_valid_isbn(isbn):
+        return None
     
-    @staticmethod
-    def validate_strict(isbn: str) -> Dict[str, Any]:
-        """
-        严格验证 ISBN 并返回详细信息
-        
-        Args:
-            isbn: ISBN 字符串
-            
-        Returns:
-            包含验证信息的字典
-            
-        Raises:
-            InvalidISBNError: 如果 ISBN 无效
-        """
-        cleaned = ISBNUtils.clean(isbn)
-        version = ISBNUtils.detect_version(cleaned)
-        
-        if version == 10:
-            return ISBNUtils._validate_isbn10(cleaned)
-        elif version == 13:
-            return ISBNUtils._validate_isbn13(cleaned)
-        else:
-            raise InvalidISBNError(f"无效的 ISBN 格式：{isbn}（清理后长度：{len(cleaned)}）")
+    source_type = get_isbn_type(isbn)
     
-    @staticmethod
-    def _validate_isbn10(isbn: str) -> Dict[str, Any]:
-        """验证 ISBN-10"""
-        if len(isbn) != 10:
-            raise InvalidISBNError(f"ISBN-10 长度必须为 10，当前：{len(isbn)}")
+    if source_type == target_format:
+        return clean_isbn(isbn)
+    
+    if target_format == "ISBN-13":
+        return isbn10_to_isbn13(isbn)
+    elif target_format == "ISBN-10":
+        return isbn13_to_isbn10(isbn)
+    
+    return None
+
+
+# ============================================================================
+# Formatting Functions
+# ============================================================================
+
+def format_isbn(isbn: str, separator: str = "-") -> str:
+    """
+    Format an ISBN with standard hyphen separators.
+    
+    Args:
+        isbn: A valid ISBN string
+        separator: Character to use as separator (default: '-')
         
-        # 前9位必须是数字
-        if not isbn[:9].isdigit():
-            raise InvalidISBNError("ISBN-10 前9位必须是数字")
+    Returns:
+        Formatted ISBN string
         
-        # 最后一位可以是数字或 X
-        if not (isbn[9].isdigit() or isbn[9] == 'X'):
-            raise InvalidISBNError("ISBN-10 最后一位必须是数字或 X")
+    Examples:
+        >>> format_isbn("0306406152")
+        '0-306-40615-2'
+        >>> format_isbn("9780306406157")
+        '978-0-306-40615-7'
+    """
+    if not is_valid_isbn(isbn):
+        raise ValueError(f"Invalid ISBN: {isbn}")
+    
+    cleaned = clean_isbn(isbn)
+    
+    if len(cleaned) == 10:
+        # ISBN-10: group-publisher-title-check
+        # Simple formatting based on common patterns
+        group = cleaned[0]
+        if group in ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9'):
+            # Try to identify group
+            for prefix_len in range(2, 6):
+                prefix = cleaned[:prefix_len]
+                if prefix in REGISTRATION_GROUPS:
+                    return f"{cleaned[:prefix_len]}{separator}{cleaned[prefix_len:-1]}{separator}{cleaned[-1]}"
+            
+            # Default formatting for ISBN-10
+            # Common pattern: X-XXX-XXXXX-X
+            if cleaned[0] in ('0', '1'):
+                return f"{cleaned[0]}{separator}{cleaned[1:4]}{separator}{cleaned[4:9]}{separator}{cleaned[9]}"
+            else:
+                return f"{cleaned[0]}{separator}{cleaned[1:5]}{separator}{cleaned[5:9]}{separator}{cleaned[9]}"
+    
+    elif len(cleaned) == 13:
+        # ISBN-13: prefix-group-publisher-title-check
+        prefix = cleaned[:3]
         
-        expected_check = ISBNUtils.calculate_check_digit_10(isbn[:9])
-        actual_check = isbn[9]
+        # Find group
+        for prefix_len in range(1, 6):
+            group_test = cleaned[3:3+prefix_len]
+            full_prefix = prefix + group_test
+            if group_test in REGISTRATION_GROUPS or full_prefix in REGISTRATION_GROUPS:
+                remaining = cleaned[3+prefix_len:-1]
+                # Distribute remaining digits
+                if len(remaining) >= 4:
+                    pub = remaining[:3]
+                    title = remaining[3:]
+                    return f"{prefix}{separator}{group_test}{separator}{pub}{separator}{title}{separator}{cleaned[-1]}"
         
-        if expected_check != actual_check:
-            raise InvalidISBNError(
-                f"ISBN-10 校验位错误：期望 {expected_check}，实际 {actual_check}"
-            )
+        # Default formatting: XXX-X-XXX-XXXXX-X
+        return f"{cleaned[:3]}{separator}{cleaned[3]}{separator}{cleaned[4:7]}{separator}{cleaned[7:12]}{separator}{cleaned[12]}"
+    
+    return cleaned
+
+
+def format_isbn_compact(isbn: str) -> str:
+    """
+    Return ISBN in compact format (digits only, no separators).
+    
+    Args:
+        isbn: An ISBN string (may contain separators)
         
-        return {
+    Returns:
+        Compact ISBN string
+        
+    Examples:
+        >>> format_isbn_compact("978-0-306-40615-7")
+        '9780306406157'
+    """
+    return clean_isbn(isbn)
+
+
+# ============================================================================
+# Parsing Functions
+# ============================================================================
+
+def parse_isbn(isbn: str) -> Dict[str, any]:
+    """
+    Parse an ISBN and extract its components.
+    
+    Args:
+        isbn: A valid ISBN string
+        
+    Returns:
+        Dictionary with ISBN components and metadata
+        
+    Examples:
+        >>> parse_isbn("978-0-306-40615-7")
+        {
             'valid': True,
-            'version': 10,
-            'isbn': isbn,
-            'isbn_formatted': ISBNUtils.format(isbn),
-            'check_digit': actual_check
+            'type': 'ISBN-13',
+            'clean': '9780306406157',
+            'formatted': '978-0-306-40615-7',
+            'prefix': '978',
+            'group': '0',
+            'group_name': 'English',
+            'check_digit': '7'
         }
+    """
+    result = {
+        'valid': False,
+        'type': None,
+        'clean': clean_isbn(isbn),
+        'formatted': None,
+        'prefix': None,
+        'group': None,
+        'group_name': None,
+        'publisher': None,
+        'title': None,
+        'check_digit': None,
+        'isbn10': None,
+        'isbn13': None,
+    }
     
-    @staticmethod
-    def _validate_isbn13(isbn: str) -> Dict[str, Any]:
-        """验证 ISBN-13"""
-        if len(isbn) != 13 or not isbn.isdigit():
-            raise InvalidISBNError("ISBN-13 必须是 13 位数字")
-        
-        # 检查前缀
-        if not isbn.startswith(('978', '979')):
-            raise InvalidISBNError("ISBN-13 必须以 978 或 979 开头")
-        
-        expected_check = ISBNUtils.calculate_check_digit_12(isbn[:12])
-        actual_check = isbn[12]
-        
-        if expected_check != actual_check:
-            raise InvalidISBNError(
-                f"ISBN-13 校验位错误：期望 {expected_check}，实际 {actual_check}"
-            )
-        
-        return {
-            'valid': True,
-            'version': 13,
-            'isbn': isbn,
-            'isbn_formatted': ISBNUtils.format(isbn),
-            'check_digit': actual_check,
-            'prefix': isbn[:3]
-        }
-    
-    @staticmethod
-    def convert_to_13(isbn: str) -> str:
-        """
-        将 ISBN-10 转换为 ISBN-13
-        
-        Args:
-            isbn: ISBN-10 字符串
-            
-        Returns:
-            ISBN-13 字符串
-            
-        Raises:
-            ISBNConversionError: 如果转换失败
-        """
-        cleaned = ISBNUtils.clean(isbn)
-        
-        if len(cleaned) == 13:
-            return cleaned  # 已经是 ISBN-13
-        
-        if len(cleaned) != 10:
-            raise ISBNConversionError(f"无法转换：{isbn}（不是有效的 ISBN-10）")
-        
-        # 先验证 ISBN-10
-        try:
-            ISBNUtils._validate_isbn10(cleaned)
-        except InvalidISBNError as e:
-            raise ISBNConversionError(f"无法转换无效的 ISBN-10：{e}")
-        
-        # 添加 978 前缀（去掉原校验位）
-        isbn12 = '978' + cleaned[:9]
-        
-        # 计算新的校验位
-        check_digit = ISBNUtils.calculate_check_digit_12(isbn12)
-        
-        return isbn12 + check_digit
-    
-    @staticmethod
-    def convert_to_10(isbn: str) -> str:
-        """
-        将 ISBN-13 转换为 ISBN-10
-        
-        注意：只有 978 前缀的 ISBN-13 可以转换为 ISBN-10
-        979 前缀的 ISBN-13 没有对应的 ISBN-10
-        
-        Args:
-            isbn: ISBN-13 字符串
-            
-        Returns:
-            ISBN-10 字符串
-            
-        Raises:
-            ISBNConversionError: 如果转换失败
-        """
-        cleaned = ISBNUtils.clean(isbn)
-        
-        if len(cleaned) == 10:
-            return cleaned  # 已经是 ISBN-10
-        
-        if len(cleaned) != 13:
-            raise ISBNConversionError(f"无法转换：{isbn}（不是有效的 ISBN-13）")
-        
-        # 验证 ISBN-13
-        try:
-            ISBNUtils._validate_isbn13(cleaned)
-        except InvalidISBNError as e:
-            raise ISBNConversionError(f"无法转换无效的 ISBN-13：{e}")
-        
-        # 只有 978 前缀可以转换
-        if not cleaned.startswith('978'):
-            raise ISBNConversionError(
-                f"只有 978 前缀的 ISBN-13 可以转换为 ISBN-10，当前前缀：{cleaned[:3]}"
-            )
-        
-        # 去掉前缀和校验位，得到 ISBN-10 的前9位
-        isbn9 = cleaned[3:12]
-        
-        # 计算新的校验位
-        check_digit = ISBNUtils.calculate_check_digit_10(isbn9)
-        
-        return isbn9 + check_digit
-    
-    @staticmethod
-    def format(isbn: str, separator: str = '-') -> str:
-        """
-        格式化 ISBN 为标准显示格式
-        
-        简化版格式（均匀分割）：
-        ISBN-10: X-XXXX-XXXX-X
-        ISBN-13: XXX-X-XXXX-XXXX-X
-        
-        Args:
-            isbn: ISBN 字符串
-            separator: 分隔符，默认为 '-'
-            
-        Returns:
-            格式化后的 ISBN 字符串
-        """
-        cleaned = ISBNUtils.clean(isbn)
-        version = ISBNUtils.detect_version(cleaned)
-        
-        if version == 10:
-            # ISBN-10: X-XXXX-XXXX-X
-            return separator.join([cleaned[:1], cleaned[1:5], cleaned[5:9], cleaned[9]])
-        elif version == 13:
-            # ISBN-13: XXX-X-XXXX-XXXX-X
-            return separator.join([
-                cleaned[:3], cleaned[3], cleaned[4:8], cleaned[8:12], cleaned[12]
-            ])
-        else:
-            return isbn  # 无法识别格式，返回原值
-    
-    @staticmethod
-    def parse(isbn: str) -> Dict[str, Any]:
-        """
-        解析 ISBN 并返回详细信息
-        
-        Args:
-            isbn: ISBN 字符串
-            
-        Returns:
-            包含解析信息的字典
-        """
-        cleaned = ISBNUtils.clean(isbn)
-        version = ISBNUtils.detect_version(cleaned)
-        
-        result = {
-            'original': isbn,
-            'cleaned': cleaned,
-            'version': version,
-            'valid': False
-        }
-        
-        if version is None:
-            result['error'] = f"无法识别的 ISBN 格式，长度：{len(cleaned)}"
-            return result
-        
-        try:
-            validation = ISBNUtils.validate_strict(cleaned)
-            result.update(validation)
-            result['valid'] = True
-            
-            if version == 10:
-                # 尝试转换为 ISBN-13
-                try:
-                    result['isbn13'] = ISBNUtils.convert_to_13(cleaned)
-                except:
-                    pass
-            elif version == 13:
-                # 尝试转换为 ISBN-10
-                try:
-                    result['isbn10'] = ISBNUtils.convert_to_10(cleaned)
-                except:
-                    result['isbn10'] = None  # 979 前缀无法转换
-                
-        except InvalidISBNError as e:
-            result['error'] = str(e)
-        
+    if not is_valid_isbn(isbn):
         return result
     
-    @staticmethod
-    def generate_random(version: int = 13, prefix: str = None) -> str:
-        """
-        生成随机有效 ISBN（用于测试）
-        
-        Args:
-            version: ISBN 版本，10 或 13
-            prefix: ISBN-13 的前缀（仅用于 version=13），默认随机
-            
-        Returns:
-            随机生成的有效 ISBN 字符串
-            
-        Raises:
-            ValueError: 如果版本不是 10 或 13
-        """
-        if version == 10:
-            # 生成随机的前9位
-            isbn9 = ''.join(str(random.randint(0, 9)) for _ in range(9))
-            check = ISBNUtils.calculate_check_digit_10(isbn9)
-            return isbn9 + check
-        
-        elif version == 13:
-            # 选择前缀
-            if prefix is None:
-                prefix = random.choice(['978', '979'])
-            
-            if prefix not in ('978', '979'):
-                raise ValueError("ISBN-13 前缀必须是 978 或 979")
-            
-            # 生成随机的后9位（共12位）
-            isbn12 = prefix + ''.join(str(random.randint(0, 9)) for _ in range(9))
-            check = ISBNUtils.calculate_check_digit_12(isbn12)
-            return isbn12 + check
-        
-        else:
-            raise ValueError("版本必须是 10 或 13")
+    result['valid'] = True
+    cleaned = result['clean']
+    result['check_digit'] = cleaned[-1]
     
-    @staticmethod
-    def generate_batch(count: int, version: int = 13) -> list:
-        """
-        批量生成随机有效 ISBN
-        
-        Args:
-            count: 生成数量
-            version: ISBN 版本，10 或 13
-            
-        Returns:
-            ISBN 字符串列表
-        """
-        return [ISBNUtils.generate_random(version) for _ in range(count)]
+    if len(cleaned) == 10:
+        result['type'] = 'ISBN-10'
+        result['group'] = cleaned[0]
+        result['isbn10'] = cleaned
+        result['isbn13'] = isbn10_to_isbn13(isbn)
+        result['formatted'] = format_isbn(cleaned)
+    else:
+        result['type'] = 'ISBN-13'
+        result['prefix'] = cleaned[:3]
+        result['group'] = cleaned[3]
+        result['isbn13'] = cleaned
+        result['isbn10'] = isbn13_to_isbn10(isbn)
+        result['formatted'] = format_isbn(cleaned)
     
-    @staticmethod
-    def extract_from_text(text: str) -> list:
-        """
-        从文本中提取所有 ISBN
-        
-        Args:
-            text: 要搜索的文本
-            
-        Returns:
-            找到的 ISBN 列表（已验证有效）
-        """
-        # 匹配可能的 ISBN 模式
-        # ISBN-10: 10位数字/X，可能有分隔符
-        # ISBN-13: 13位数字，可能有分隔符
-        patterns = [
-            r'\b(?:ISBN[-\s]?)?(97[89][-\s]?\d{1,5}[-\s]?\d{1,7}[-\s]?\d{1,7}[-\s]?[\dX])\b',  # ISBN-13
-            r'\b(?:ISBN[-\s]?)?(\d{1,5}[-\s]?\d{1,7}[-\s]?\d{1,7}[-\s]?[\dXx])\b',  # ISBN-10
-        ]
-        
-        found = set()
-        
-        for pattern in patterns:
-            matches = re.findall(pattern, text, re.IGNORECASE)
-            for match in matches:
-                cleaned = ISBNUtils.clean(match)
-                if ISBNUtils.validate(cleaned):
-                    found.add(cleaned)
-        
-        return list(found)
+    # Get group name
+    if result['group'] in REGISTRATION_GROUPS:
+        result['group_name'] = REGISTRATION_GROUPS[result['group']]['name']
     
-    @staticmethod
-    def get_registration_group(isbn: str) -> Optional[str]:
-        """
-        获取 ISBN 的注册组（国家/地区/语言区）
+    return result
+
+
+# ============================================================================
+# Generation Functions
+# ============================================================================
+
+def generate_isbn10(group: str = "0", publisher: str = None) -> str:
+    """
+    Generate a random valid ISBN-10.
+    
+    Args:
+        group: Registration group digit (default: '0' for English)
+        publisher: Publisher digits (random if not provided)
         
-        这是一个简化版本，只识别常见的组区号
+    Returns:
+        A valid ISBN-10 string
         
-        Args:
-            isbn: ISBN 字符串
-            
-        Returns:
-            注册组名称，如果无法识别返回 None
-        """
-        cleaned = ISBNUtils.clean(isbn)
+    Examples:
+        >>> isbn = generate_isbn10()
+        >>> is_isbn10(isbn)
+        True
+    """
+    if publisher is None:
+        # Generate random publisher (3-4 digits)
+        publisher_len = choice([3, 4])
+        publisher = ''.join(str(randint(0, 9)) for _ in range(publisher_len))
+    
+    # Generate random title digits to make total 9 digits
+    remaining = 9 - 1 - len(publisher)  # -1 for group digit
+    title = ''.join(str(randint(0, 9)) for _ in range(remaining))
+    
+    isbn9 = group + publisher + title
+    check = calculate_isbn10_check_digit(isbn9)
+    
+    return isbn9 + check
+
+
+def generate_isbn13(prefix: str = "978", group: str = "0", publisher: str = None) -> str:
+    """
+    Generate a random valid ISBN-13.
+    
+    Args:
+        prefix: ISBN-13 prefix ('978' or '979')
+        group: Registration group digit (default: '0' for English)
+        publisher: Publisher digits (random if not provided)
         
-        # 提取组区号部分
-        if len(cleaned) == 13:
-            # ISBN-13: 去掉 978/979 前缀
-            group_part = cleaned[3:]
-        elif len(cleaned) == 10:
-            group_part = cleaned
-        else:
-            return None
+    Returns:
+        A valid ISBN-13 string
         
-        # 常见组区号映射（简化版）
-        group_map = {
-            '0': '英语区',
-            '1': '英语区',
-            '2': '法语区',
-            '3': '德语区',
-            '4': '日本',
-            '5': '俄语区',
-            '7': '中国',
-            '80': '捷克/斯洛伐克',
-            '81': '印度',
-            '82': '挪威',
-            '83': '波兰',
-            '84': '西班牙',
-            '85': '巴西',
-            '86': '塞尔维亚',
-            '87': '丹麦',
-            '88': '意大利',
-            '89': '韩国',
-            '90': '荷兰/比利时',
-            '91': '瑞典',
-            '92': '国际组织',
-            '93': '印度',
-            '94': '荷兰',
-            '95': '伊朗',
-            '96': '台湾',
-            '97': '泰国',
-            '98': '伊朗',
-            '99': '其他国家'
+    Examples:
+        >>> isbn = generate_isbn13()
+        >>> is_isbn13(isbn)
+        True
+    """
+    if prefix not in (ISBN_13_PREFIX, ISBN_13_PREFIX_ALT):
+        prefix = ISBN_13_PREFIX
+    
+    if publisher is None:
+        # Generate random publisher (3-4 digits)
+        publisher_len = choice([3, 4])
+        publisher = ''.join(str(randint(0, 9)) for _ in range(publisher_len))
+    
+    # Generate random title digits to make total 12 digits
+    # prefix(3) + group(1) + publisher + title = 12
+    remaining = 12 - 3 - 1 - len(publisher)
+    title = ''.join(str(randint(0, 9)) for _ in range(remaining))
+    
+    isbn12 = prefix + group + publisher + title
+    check = calculate_isbn13_check_digit(isbn12)
+    
+    return isbn12 + check
+
+
+def generate_isbn(isbn_type: str = "ISBN-13", **kwargs) -> str:
+    """
+    Generate a random valid ISBN of specified type.
+    
+    Args:
+        isbn_type: 'ISBN-10' or 'ISBN-13' (default: 'ISBN-13')
+        **kwargs: Additional arguments passed to generate_isbn10 or generate_isbn13
+        
+    Returns:
+        A valid ISBN string
+        
+    Examples:
+        >>> is_isbn10(generate_isbn("ISBN-10"))
+        True
+        >>> is_isbn13(generate_isbn("ISBN-13"))
+        True
+    """
+    if isbn_type == "ISBN-10":
+        return generate_isbn10(**kwargs)
+    else:
+        return generate_isbn13(**kwargs)
+
+
+# ============================================================================
+# Batch Functions
+# ============================================================================
+
+def validate_isbns(isbns: List[str]) -> Dict[str, Dict]:
+    """
+    Validate multiple ISBNs at once.
+    
+    Args:
+        isbns: List of ISBN strings to validate
+        
+    Returns:
+        Dictionary mapping each ISBN to its validation result
+        
+    Examples:
+        >>> results = validate_isbns(["0306406152", "invalid", "9780306406157"])
+        >>> results["0306406152"]["valid"]
+        True
+        >>> results["invalid"]["valid"]
+        False
+    """
+    results = {}
+    for isbn in isbns:
+        results[isbn] = parse_isbn(isbn)
+    return results
+
+
+def find_isbns_in_text(text: str) -> List[str]:
+    """
+    Find all potential ISBNs in a text string.
+    
+    Args:
+        text: Text to search for ISBNs
+        
+    Returns:
+        List of valid ISBNs found in the text
+        
+    Examples:
+        >>> find_isbns_in_text("The book ISBN 978-0-306-40615-7 is great!")
+        ['9780306406157']
+    """
+    # Pattern to match potential ISBNs (with or without hyphens)
+    # ISBN-10: 10 digits with optional X at end
+    # ISBN-13: 13 digits starting with 978 or 979
+    pattern = r'\b(?:ISBN[-\s]?)?(?:(?:97[89][- ]?[0-9]{1,5}[- ]?[0-9]{1,7}[- ]?[0-9][- ]?[0-9])|(?:[0-9]{1,5}[- ]?[0-9]{1,7}[- ]?[0-9X]))\b'
+    
+    matches = re.findall(r'[\dX-]+', text, re.IGNORECASE)
+    
+    valid_isbns = []
+    for match in matches:
+        cleaned = clean_isbn(match)
+        if is_valid_isbn(cleaned) and cleaned not in valid_isbns:
+            valid_isbns.append(cleaned)
+    
+    return valid_isbns
+
+
+# ============================================================================
+# Utility Functions
+# ============================================================================
+
+def compare_isbns(isbn1: str, isbn2: str) -> bool:
+    """
+    Check if two ISBNs are equivalent (same book).
+    
+    ISBN-10 and ISBN-13 of the same book are considered equivalent.
+    
+    Args:
+        isbn1: First ISBN
+        isbn2: Second ISBN
+        
+    Returns:
+        True if ISBNs refer to the same book
+        
+    Examples:
+        >>> compare_isbns("0306406152", "9780306406157")
+        True
+        >>> compare_isbns("0306406152", "9780306406158")
+        False
+    """
+    if not is_valid_isbn(isbn1) or not is_valid_isbn(isbn2):
+        return False
+    
+    # Convert both to ISBN-13 for comparison
+    isbn1_13 = isbn10_to_isbn13(isbn1) if is_isbn10(isbn1) else clean_isbn(isbn1)
+    isbn2_13 = isbn10_to_isbn13(isbn2) if is_isbn10(isbn2) else clean_isbn(isbn2)
+    
+    return isbn1_13 == isbn2_13
+
+
+def get_isbn_variants(isbn: str) -> Dict[str, Optional[str]]:
+    """
+    Get all variants of an ISBN.
+    
+    Args:
+        isbn: A valid ISBN string
+        
+    Returns:
+        Dictionary with 'isbn10', 'isbn13', 'formatted10', 'formatted13'
+        
+    Examples:
+        >>> get_isbn_variants("0306406152")
+        {
+            'isbn10': '0306406152',
+            'isbn13': '9780306406157',
+            'formatted10': '0-306-40615-2',
+            'formatted13': '978-0-306-40615-7'
         }
-        
-        # 尝试匹配（从长到短）
-        for length in [2, 1]:
-            if len(group_part) >= length:
-                group = group_part[:length]
-                if group in group_map:
-                    return group_map[group]
-        
-        return None
-
-
-# 便捷函数
-def validate(isbn: str) -> bool:
-    """验证 ISBN 是否有效"""
-    return ISBNUtils.validate(isbn)
-
-
-def validate_strict(isbn: str) -> Dict[str, Any]:
-    """严格验证并返回详细信息"""
-    return ISBNUtils.validate_strict(isbn)
-
-
-def convert_to_13(isbn: str) -> str:
-    """转换为 ISBN-13"""
-    return ISBNUtils.convert_to_13(isbn)
-
-
-def convert_to_10(isbn: str) -> str:
-    """转换为 ISBN-10"""
-    return ISBNUtils.convert_to_10(isbn)
-
-
-def format_isbn(isbn: str, separator: str = '-') -> str:
-    """格式化 ISBN"""
-    return ISBNUtils.format(isbn, separator)
-
-
-def parse(isbn: str) -> Dict[str, Any]:
-    """解析 ISBN"""
-    return ISBNUtils.parse(isbn)
-
-
-def generate_random(version: int = 13, prefix: str = None) -> str:
-    """生成随机 ISBN"""
-    return ISBNUtils.generate_random(version, prefix)
-
-
-def extract_from_text(text: str) -> list:
-    """从文本提取 ISBN"""
-    return ISBNUtils.extract_from_text(text)
-
-
-if __name__ == '__main__':
-    # 简单演示
-    print("=== ISBN Utils 演示 ===\n")
+    """
+    if not is_valid_isbn(isbn):
+        return {
+            'isbn10': None,
+            'isbn13': None,
+            'formatted10': None,
+            'formatted13': None
+        }
     
-    # 测试有效的 ISBN-10
-    isbn10 = "0-13-235088-2"  # 《代码整洁之道》
-    print(f"ISBN-10: {isbn10}")
-    print(f"  清理后: {ISBNUtils.clean(isbn10)}")
-    print(f"  验证: {ISBNUtils.validate(isbn10)}")
-    print(f"  格式化: {ISBNUtils.format(isbn10)}")
-    print(f"  转换为 ISBN-13: {ISBNUtils.convert_to_13(isbn10)}")
-    print(f"  注册组: {ISBNUtils.get_registration_group(isbn10)}")
+    isbn10 = clean_isbn(isbn) if is_isbn10(isbn) else isbn13_to_isbn10(isbn)
+    isbn13 = clean_isbn(isbn) if is_isbn13(isbn) else isbn10_to_isbn13(isbn)
     
-    print()
+    return {
+        'isbn10': isbn10,
+        'isbn13': isbn13,
+        'formatted10': format_isbn(isbn10) if isbn10 else None,
+        'formatted13': format_isbn(isbn13) if isbn13 else None
+    }
+
+
+# ============================================================================
+# Main Entry Point
+# ============================================================================
+
+if __name__ == "__main__":
+    # Demo usage
+    print("=" * 60)
+    print("ISBN Utilities Demo")
+    print("=" * 60)
     
-    # 测试有效的 ISBN-13
-    isbn13 = "978-0-13-235088-4"  # 从 ISBN-10 转换得到
-    print(f"ISBN-13: {isbn13}")
-    print(f"  清理后: {ISBNUtils.clean(isbn13)}")
-    print(f"  验证: {ISBNUtils.validate(isbn13)}")
-    print(f"  格式化: {ISBNUtils.format(isbn13)}")
-    print(f"  转换为 ISBN-10: {ISBNUtils.convert_to_10(isbn13)}")
-    print(f"  注册组: {ISBNUtils.get_registration_group(isbn13)}")
+    # Test ISBNs
+    test_isbns = [
+        "0306406152",      # Valid ISBN-10
+        "9780306406157",   # Valid ISBN-13
+        "0-306-40615-X",   # ISBN-10 with X check digit and hyphens
+        "invalid",         # Invalid
+    ]
     
-    print()
+    for isbn in test_isbns:
+        print(f"\nISBN: {isbn}")
+        print(f"  Valid: {is_valid_isbn(isbn)}")
+        print(f"  Type: {get_isbn_type(isbn)}")
+        if is_valid_isbn(isbn):
+            info = parse_isbn(isbn)
+            print(f"  Clean: {info['clean']}")
+            print(f"  Formatted: {info['formatted']}")
+            variants = get_isbn_variants(isbn)
+            print(f"  ISBN-10: {variants['isbn10']}")
+            print(f"  ISBN-13: {variants['isbn13']}")
     
-    # 生成随机 ISBN
-    print("随机生成的 ISBN:")
+    print("\n" + "=" * 60)
+    print("Generated ISBNs:")
+    print("=" * 60)
     for _ in range(3):
-        print(f"  ISBN-13: {ISBNUtils.generate_random(13)}")
-    for _ in range(3):
-        print(f"  ISBN-10: {ISBNUtils.generate_random(10)}")
+        isbn10 = generate_isbn10()
+        isbn13 = generate_isbn13()
+        print(f"  ISBN-10: {format_isbn(isbn10)} -> {is_isbn10(isbn10)}")
+        print(f"  ISBN-13: {format_isbn(isbn13)} -> {is_isbn13(isbn13)}")
