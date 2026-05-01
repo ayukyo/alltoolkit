@@ -286,7 +286,20 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ---
 
-**最后更新**: 2026-05-01
+**最后更新**: 2026-05-02
+
+### 测试框架改进 (2026-05-02)
+
+- **polish_notation_utils**: 修复缺失的 `sys` 导入问题 (51 tests ✅)
+- **interval_tree_utils**: 修复相对导入问题，添加父目录路径 (36 tests ✅)
+- **markov_chain_utils**: 修复路径设置问题 (33 tests ✅)
+- **maze_utils**: 修复路径设置问题 (34 tests ✅)
+- **memory_profile_utils**: 修复路径设置问题 (32 tests ✅)
+- **netmask_utils**: 修复相对导入问题 (44 tests ✅)
+- **noise_utils**: 修复路径设置问题 (34 tests ✅)
+- **quaternion_utils**: 修复路径设置问题 (48 tests ✅)
+- **spline_utils**: 修复路径设置问题 (14 tests ✅)
+- **token_bucket_utils**: 添加路径设置 (38 tests ✅)
 
 ### 测试框架改进 (2026-05-01)
 
