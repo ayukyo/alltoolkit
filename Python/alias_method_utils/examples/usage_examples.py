@@ -13,6 +13,8 @@ Applications:
 """
 
 import random
+import sys
+sys.path.insert(0, '.')
 from mod import (
     AliasMethod,
     WeightedRandomPicker,
