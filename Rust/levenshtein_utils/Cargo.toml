@@ -1,0 +1,21 @@
+[package]
+name = "levenshtein_utils"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit Contributors"]
+license = "MIT"
+description = "Comprehensive Levenshtein distance and fuzzy string matching utilities with zero external dependencies"
+keywords = ["levenshtein", "edit-distance", "fuzzy", "string-matching", "algorithm"]
+categories = ["algorithms", "text-processing"]
+
+[dependencies]
+
+[dev-dependencies]
+
+[[example]]
+name = "basic"
+path = "examples/basic.rs"
+
+[[example]]
+name = "fuzzy_search"
+path = "examples/fuzzy_search.rs"
