@@ -1,688 +1,590 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-AllToolkit - Color Utilities Test Module
-=========================================
+AllToolkit - Color Utilities Test Suite
+========================================
 Comprehensive tests for the color_utils module.
 
-Author: AllToolkit Contributors
-License: MIT
+Run with: python color_utils_test.py
 """
 
-import unittest
-import math
 import sys
 import os
+import unittest
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from mod import (
-    # Types
-    Color,
-    
-    # Parsing
-    parse_color, name_to_rgb, rgb_to_name,
-    
-    # Conversions
-    rgb_to_hex, hex_to_rgb, rgb_to_hsl, hsl_to_rgb,
-    rgb_to_hsv, hsv_to_rgb, rgb_to_cmyk, cmyk_to_rgb,
-    rgb_to_lab, lab_to_rgb,
-    
-    # Manipulation
-    lighten, darken, saturate, desaturate, grayscale,
-    invert, rotate_hue, complement,
-    
-    # Mixing
-    mix, blend_multiply, blend_screen, blend_overlay,
-    
-    # Comparison
-    color_distance, color_distance_lab, calculate_luminance,
-    contrast_ratio, wcag_rating,
-    
-    # Harmony
-    complementary_palette, analogous_palette, triadic_palette,
-    split_complementary_palette, tetradic_palette,
-    
-    # Palette generation
-    random_color, random_palette, gradient_palette,
-    monochromatic_palette, shades_palette, tints_palette,
-    harmonious_palette,
-    
-    # Accessibility
-    get_accessible_text_color, find_accessible_colors,
-    
-    # Utilities
-    is_valid_hex, rgb_to_int, int_to_rgb,
-    get_color_brightness, interpolate_color,
-    temperature_to_rgb, css_gradient,
-    
-    # Convenience
-    create_color, create_color_from_hex, create_color_from_name,
-    
-    # Data
-    COLOR_NAMES,
+from color_utils.mod import (
+    RGB, HSL, HSV, CMYK,
+    parse_hex, parse_rgb, parse_hsl, parse_color,
+    color_name_to_rgb, rgb_to_color_name,
+    rgb_to_hex, hex_to_rgb,
+    rgb_to_hsl, hsl_to_rgb,
+    rgb_to_hsv, hsv_to_rgb,
+    rgb_to_cmyk, cmyk_to_rgb,
+    lighten, darken, saturate, desaturate,
+    grayscale, invert, complement, mix, blend,
+    analogous, triadic, split_complement, tetradic, monochromatic,
+    luminance, contrast_ratio, wcag_rating,
+    brightness, is_light, is_dark, text_color_for_bg,
+    color_distance, closest_color,
+    gradient, multi_gradient,
+    random_color, random_hue, random_pastel,
+    CSS_COLORS
 )
 
 
-class TestColorParsing(unittest.TestCase):
-    """Tests for color parsing functions."""
+class TestColorDataClasses(unittest.TestCase):
+    """Test color data classes."""
     
-    def test_parse_hex_with_hash(self):
-        """Test parsing HEX colors with # prefix."""
-        color = parse_color("#FF0000")
-        self.assertEqual(color.r, 255)
-        self.assertEqual(color.g, 0)
-        self.assertEqual(color.b, 0)
-        self.assertEqual(color.a, 1.0)
+    def test_rgb_creation(self):
+        """Test RGB creation and validation."""
+        rgb = RGB(255, 128, 64)
+        self.assertEqual(rgb.r, 255)
+        self.assertEqual(rgb.g, 128)
+        self.assertEqual(rgb.b, 64)
+        self.assertEqual(rgb.a, 1.0)
     
-    def test_parse_hex_without_hash(self):
-        """Test parsing HEX colors without # prefix."""
-        color = parse_color("FF0000")
-        self.assertEqual(color.rgb, (255, 0, 0))
+    def test_rgb_validation_clamping(self):
+        """Test RGB value clamping."""
+        rgb = RGB(300, -10, 500)
+        self.assertEqual(rgb.r, 255)  # Clamped
+        self.assertEqual(rgb.g, 0)    # Clamped
+        self.assertEqual(rgb.b, 255)  # Clamped
     
-    def test_parse_hex_short(self):
-        """Test parsing short HEX colors (#RGB)."""
-        color = parse_color("#F00")
-        self.assertEqual(color.rgb, (255, 0, 0))
+    def test_rgb_alpha_validation(self):
+        """Test RGB alpha validation."""
+        rgb = RGB(100, 100, 100, 2.0)
+        self.assertEqual(rgb.a, 1.0)  # Clamped
         
-        color = parse_color("#FFF")
-        self.assertEqual(color.rgb, (255, 255, 255))
-    
-    def test_parse_rgb(self):
-        """Test parsing rgb() format."""
-        color = parse_color("rgb(255, 0, 0)")
-        self.assertEqual(color.rgb, (255, 0, 0))
-        
-        color = parse_color("rgb(255,255,255)")
-        self.assertEqual(color.rgb, (255, 255, 255))
-    
-    def test_parse_rgba(self):
-        """Test parsing rgba() format."""
-        color = parse_color("rgba(255, 0, 0, 0.5)")
-        self.assertEqual(color.rgb, (255, 0, 0))
-        self.assertAlmostEqual(color.a, 0.5)
-    
-    def test_parse_hsl(self):
-        """Test parsing hsl() format."""
-        color = parse_color("hsl(0, 100%, 50%)")
-        self.assertEqual(color.rgb, (255, 0, 0))
-    
-    def test_parse_named_color(self):
-        """Test parsing named colors."""
-        color = parse_color("red")
-        self.assertEqual(color.rgb, (255, 0, 0))
-        
-        color = parse_color("cornflowerblue")
-        self.assertEqual(color.rgb, (100, 149, 237))
-    
-    def test_parse_invalid(self):
-        """Test parsing invalid color strings."""
-        with self.assertRaises(ValueError):
-            parse_color("invalidcolor")
-    
-    def test_name_to_rgb(self):
-        """Test name to RGB conversion."""
-        self.assertEqual(name_to_rgb("red"), (255, 0, 0))
-        self.assertEqual(name_to_rgb("blue"), (0, 0, 255))
-        self.assertIsNone(name_to_rgb("notacolor"))
-    
-    def test_rgb_to_name(self):
-        """Test RGB to name conversion."""
-        self.assertEqual(rgb_to_name((255, 0, 0)), "red")
-        self.assertEqual(rgb_to_name((0, 0, 255)), "blue")
-
-
-class TestColorConversions(unittest.TestCase):
-    """Tests for color format conversion functions."""
+        rgb = RGB(100, 100, 100, -0.5)
+        self.assertEqual(rgb.a, 0.0)  # Clamped
     
     def test_rgb_to_hex(self):
-        """Test RGB to HEX conversion."""
-        self.assertEqual(rgb_to_hex((255, 0, 0)), "#FF0000")
-        self.assertEqual(rgb_to_hex((0, 255, 0)), "#00FF00")
-        self.assertEqual(rgb_to_hex((0, 0, 255)), "#0000FF")
+        """Test RGB to hex conversion."""
+        rgb = RGB(255, 0, 0)
+        self.assertEqual(rgb.to_hex(), '#ff0000')
         
-        # Without hash
-        self.assertEqual(rgb_to_hex((255, 0, 0), False), "FF0000")
-    
-    def test_hex_to_rgb(self):
-        """Test HEX to RGB conversion."""
-        self.assertEqual(hex_to_rgb("#FF0000"), (255, 0, 0))
-        self.assertEqual(hex_to_rgb("FF0000"), (255, 0, 0))
-        self.assertEqual(hex_to_rgb("#F00"), (255, 0, 0))
+        rgb = RGB(255, 0, 0, 0.5)
+        self.assertEqual(rgb.to_hex(include_alpha=True), '#ff000080')
     
     def test_rgb_to_hsl(self):
         """Test RGB to HSL conversion."""
-        # Red
-        hsl = rgb_to_hsl((255, 0, 0))
-        self.assertEqual(hsl[0], 0)  # Hue
-        self.assertEqual(hsl[1], 100)  # Saturation
-        self.assertEqual(hsl[2], 50)  # Lightness
-        
-        # Gray
-        hsl = rgb_to_hsl((128, 128, 128))
-        self.assertEqual(hsl[1], 0)  # No saturation
+        rgb = RGB(255, 0, 0)
+        hsl = rgb.to_hsl()
+        self.assertEqual(hsl.h, 0)
+        self.assertEqual(hsl.s, 100)
+        self.assertEqual(hsl.l, 50)
     
-    def test_hsl_to_rgb(self):
-        """Test HSL to RGB conversion."""
-        # Red
-        rgb = hsl_to_rgb((0, 100, 50))
-        self.assertEqual(rgb, (255, 0, 0))
-        
-        # White
-        rgb = hsl_to_rgb((0, 0, 100))
-        self.assertEqual(rgb, (255, 255, 255))
-        
-        # Black
-        rgb = hsl_to_rgb((0, 0, 0))
-        self.assertEqual(rgb, (0, 0, 0))
+    def test_hsl_creation(self):
+        """Test HSL creation and validation."""
+        hsl = HSL(120, 50, 75)
+        self.assertEqual(hsl.h, 120)
+        self.assertEqual(hsl.s, 50)
+        self.assertEqual(hsl.l, 75)
     
-    def test_rgb_hsl_roundtrip(self):
-        """Test RGB-HSL roundtrip conversion."""
-        test_colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255),
-                       (255, 255, 0), (0, 255, 255), (255, 0, 255),
-                       (128, 64, 32), (50, 100, 150)]
+    def test_hsl_hue_modulo(self):
+        """Test HSL hue modulo operation."""
+        hsl = HSL(400, 50, 50)
+        self.assertEqual(hsl.h, 40)  # 400 % 360
+    
+    def test_hsv_creation(self):
+        """Test HSV creation."""
+        hsv = HSV(180, 75, 90)
+        self.assertEqual(hsv.h, 180)
+        self.assertEqual(hsv.s, 75)
+        self.assertEqual(hsv.v, 90)
+    
+    def test_cmyk_creation(self):
+        """Test CMYK creation."""
+        cmyk = CMYK(50, 30, 20, 10)
+        self.assertEqual(cmyk.c, 50)
+        self.assertEqual(cmyk.m, 30)
+        self.assertEqual(cmyk.y, 20)
+        self.assertEqual(cmyk.k, 10)
+
+
+class TestColorParsing(unittest.TestCase):
+    """Test color parsing functions."""
+    
+    def test_parse_hex_6_digit(self):
+        """Test parsing 6-digit hex."""
+        rgb = parse_hex('#ff0000')
+        self.assertEqual(rgb.r, 255)
+        self.assertEqual(rgb.g, 0)
+        self.assertEqual(rgb.b, 0)
+    
+    def test_parse_hex_3_digit(self):
+        """Test parsing 3-digit hex."""
+        rgb = parse_hex('#f00')
+        self.assertEqual(rgb.r, 255)
+        self.assertEqual(rgb.g, 0)
+        self.assertEqual(rgb.b, 0)
+    
+    def test_parse_hex_8_digit_with_alpha(self):
+        """Test parsing 8-digit hex with alpha."""
+        rgb = parse_hex('#ff000080')
+        self.assertEqual(rgb.r, 255)
+        self.assertEqual(rgb.g, 0)
+        self.assertEqual(rgb.b, 0)
+        self.assertAlmostEqual(rgb.a, 0.5, places=2)
+    
+    def test_parse_hex_without_hash(self):
+        """Test parsing hex without hash."""
+        rgb = parse_hex('ff0000')
+        self.assertEqual(rgb.r, 255)
+        self.assertEqual(rgb.g, 0)
+        self.assertEqual(rgb.b, 0)
+    
+    def test_parse_hex_invalid(self):
+        """Test parsing invalid hex."""
+        with self.assertRaises(ValueError):
+            parse_hex('#xyz')
+        with self.assertRaises(ValueError):
+            parse_hex('#ff')
+    
+    def test_parse_rgb(self):
+        """Test parsing rgb() string."""
+        rgb = parse_rgb('rgb(255, 0, 0)')
+        self.assertEqual(rgb.r, 255)
+        self.assertEqual(rgb.g, 0)
+        self.assertEqual(rgb.b, 0)
+    
+    def test_parse_rgb_with_spaces(self):
+        """Test parsing rgb() with various spacing."""
+        rgb = parse_rgb('rgb( 255, 0, 0 )')
+        self.assertEqual(rgb.r, 255)
         
-        for rgb in test_colors:
-            hsl = rgb_to_hsl(rgb)
-            rgb_back = hsl_to_rgb(hsl)
-            self.assertEqual(rgb, rgb_back, f"Roundtrip failed for {rgb}")
+        rgb = parse_rgb('rgb(255,0,0)')
+        self.assertEqual(rgb.r, 255)
+    
+    def test_parse_rgba(self):
+        """Test parsing rgba() string."""
+        rgb = parse_rgb('rgba(255, 0, 0, 0.5)')
+        self.assertEqual(rgb.r, 255)
+        self.assertEqual(rgb.g, 0)
+        self.assertEqual(rgb.b, 0)
+        self.assertAlmostEqual(rgb.a, 0.5)
+    
+    def test_parse_rgb_invalid(self):
+        """Test parsing invalid rgb."""
+        with self.assertRaises(ValueError):
+            parse_rgb('rgb(256, 0, 0)')
+    
+    def test_parse_hsl(self):
+        """Test parsing hsl() string."""
+        hsl = parse_hsl('hsl(0, 100%, 50%)')
+        self.assertEqual(hsl.h, 0)
+        self.assertEqual(hsl.s, 100)
+        self.assertEqual(hsl.l, 50)
+    
+    def test_parse_hsl_without_percent(self):
+        """Test parsing hsl() without percent signs."""
+        hsl = parse_hsl('hsl(0, 100, 50)')
+        self.assertEqual(hsl.s, 100)
+        self.assertEqual(hsl.l, 50)
+    
+    def test_parse_color_named(self):
+        """Test parsing named color."""
+        rgb = parse_color('red')
+        self.assertEqual(rgb.r, 255)
+        self.assertEqual(rgb.g, 0)
+        self.assertEqual(rgb.b, 0)
+        
+        rgb = parse_color('CORAL')
+        self.assertEqual(rgb.r, 255)
+        self.assertEqual(rgb.g, 127)
+        self.assertEqual(rgb.b, 80)
+    
+    def test_parse_color_invalid(self):
+        """Test parsing invalid color."""
+        with self.assertRaises(ValueError):
+            parse_color('nonexistentcolor')
+    
+    def test_color_name_to_rgb(self):
+        """Test color name lookup."""
+        rgb = color_name_to_rgb('aliceblue')
+        self.assertEqual(rgb.r, 240)
+        self.assertEqual(rgb.g, 248)
+        self.assertEqual(rgb.b, 255)
+        
+        rgb = color_name_to_rgb('nonexistent')
+        self.assertIsNone(rgb)
+    
+    def test_rgb_to_color_name(self):
+        """Test finding color name."""
+        name = rgb_to_color_name(RGB(255, 0, 0))
+        self.assertEqual(name, 'red')
+        
+        name = rgb_to_color_name(RGB(123, 123, 123))
+        self.assertIsNone(name)
+
+
+class TestColorConversion(unittest.TestCase):
+    """Test color conversion functions."""
+    
+    def test_rgb_to_hex(self):
+        """Test RGB to hex conversion."""
+        self.assertEqual(rgb_to_hex(255, 0, 0), '#ff0000')
+        self.assertEqual(rgb_to_hex(0, 255, 0), '#00ff00')
+        self.assertEqual(rgb_to_hex(0, 0, 255), '#0000ff')
+    
+    def test_rgb_to_hex_no_hash(self):
+        """Test RGB to hex without hash."""
+        self.assertEqual(rgb_to_hex(255, 0, 0, include_hash=False), 'ff0000')
+    
+    def test_hex_to_rgb(self):
+        """Test hex to RGB conversion."""
+        self.assertEqual(hex_to_rgb('#ff0000'), (255, 0, 0))
+        self.assertEqual(hex_to_rgb('#f00'), (255, 0, 0))
+    
+    def test_rgb_to_hsl_red(self):
+        """Test RGB to HSL for red."""
+        h, s, l = rgb_to_hsl(255, 0, 0)
+        self.assertEqual(h, 0)
+        self.assertEqual(s, 100)
+        self.assertEqual(l, 50)
+    
+    def test_rgb_to_hsl_green(self):
+        """Test RGB to HSL for green."""
+        h, s, l = rgb_to_hsl(0, 255, 0)
+        self.assertEqual(h, 120)
+        self.assertEqual(s, 100)
+        self.assertEqual(l, 50)
+    
+    def test_rgb_to_hsl_blue(self):
+        """Test RGB to HSL for blue."""
+        h, s, l = rgb_to_hsl(0, 0, 255)
+        self.assertEqual(h, 240)
+        self.assertEqual(s, 100)
+        self.assertEqual(l, 50)
+    
+    def test_rgb_to_hsl_gray(self):
+        """Test RGB to HSL for gray."""
+        h, s, l = rgb_to_hsl(128, 128, 128)
+        self.assertEqual(s, 0)
+    
+    def test_hsl_to_rgb_red(self):
+        """Test HSL to RGB for red."""
+        r, g, b = hsl_to_rgb(0, 100, 50)
+        self.assertEqual(r, 255)
+        self.assertEqual(g, 0)
+        self.assertEqual(b, 0)
+    
+    def test_hsl_to_rgb_roundtrip(self):
+        """Test HSL to RGB roundtrip."""
+        for color in [(255, 0, 0), (0, 255, 0), (0, 0, 255), (128, 64, 192)]:
+            h, s, l = rgb_to_hsl(*color)
+            r, g, b = hsl_to_rgb(h, s, l)
+            # Allow small rounding differences
+            self.assertTrue(abs(r - color[0]) <= 1)
+            self.assertTrue(abs(g - color[1]) <= 1)
+            self.assertTrue(abs(b - color[2]) <= 1)
     
     def test_rgb_to_hsv(self):
         """Test RGB to HSV conversion."""
-        # Red
-        hsv = rgb_to_hsv((255, 0, 0))
-        self.assertEqual(hsv[0], 0)  # Hue
-        self.assertEqual(hsv[1], 100)  # Saturation
-        self.assertEqual(hsv[2], 100)  # Value
+        h, s, v = rgb_to_hsv(255, 0, 0)
+        self.assertEqual(h, 0)
+        self.assertEqual(s, 100)
+        self.assertEqual(v, 100)
     
     def test_hsv_to_rgb(self):
         """Test HSV to RGB conversion."""
-        # Red
-        rgb = hsv_to_rgb((0, 100, 100))
-        self.assertEqual(rgb, (255, 0, 0))
+        r, g, b = hsv_to_rgb(0, 100, 100)
+        self.assertEqual(r, 255)
+        self.assertEqual(g, 0)
+        self.assertEqual(b, 0)
     
-    def test_rgb_to_cmyk(self):
-        """Test RGB to CMYK conversion."""
-        # Black
-        cmyk = rgb_to_cmyk((0, 0, 0))
-        self.assertEqual(cmyk[3], 100)  # K = 100%
-        
-        # White
-        cmyk = rgb_to_cmyk((255, 255, 255))
-        self.assertEqual(cmyk[0], 0)  # All zeros
+    def test_rgb_to_cmyk_red(self):
+        """Test RGB to CMYK for red."""
+        c, m, y, k = rgb_to_cmyk(255, 0, 0)
+        self.assertEqual(c, 0)
+        self.assertEqual(m, 100)
+        self.assertEqual(y, 100)
+        self.assertEqual(k, 0)
+    
+    def test_rgb_to_cmyk_black(self):
+        """Test RGB to CMYK for black."""
+        c, m, y, k = rgb_to_cmyk(0, 0, 0)
+        self.assertEqual(c, 0)
+        self.assertEqual(m, 0)
+        self.assertEqual(y, 0)
+        self.assertEqual(k, 100)
+    
+    def test_rgb_to_cmyk_white(self):
+        """Test RGB to CMYK for white."""
+        c, m, y, k = rgb_to_cmyk(255, 255, 255)
+        self.assertEqual(c, 0)
+        self.assertEqual(m, 0)
+        self.assertEqual(y, 0)
+        self.assertEqual(k, 0)
     
     def test_cmyk_to_rgb(self):
         """Test CMYK to RGB conversion."""
-        # Black
-        rgb = cmyk_to_rgb((0, 0, 0, 100))
-        self.assertEqual(rgb, (0, 0, 0))
-        
-        # White
-        rgb = cmyk_to_rgb((0, 0, 0, 0))
-        self.assertEqual(rgb, (255, 255, 255))
-    
-    def test_rgb_to_lab(self):
-        """Test RGB to LAB conversion."""
-        # White
-        lab = rgb_to_lab((255, 255, 255))
-        self.assertAlmostEqual(lab[0], 100, places=1)  # L = 100
-        
-        # Black
-        lab = rgb_to_lab((0, 0, 0))
-        self.assertAlmostEqual(lab[0], 0, places=1)  # L = 0
-    
-    def test_lab_to_rgb(self):
-        """Test LAB to RGB conversion."""
-        # White
-        rgb = lab_to_rgb((100, 0, 0))
-        self.assertEqual(rgb, (255, 255, 255))
-        
-        # Black
-        rgb = lab_to_rgb((0, 0, 0))
-        self.assertEqual(rgb, (0, 0, 0))
+        r, g, b = cmyk_to_rgb(0, 100, 100, 0)
+        self.assertEqual(r, 255)
+        self.assertEqual(g, 0)
+        self.assertEqual(b, 0)
 
 
 class TestColorManipulation(unittest.TestCase):
-    """Tests for color manipulation functions."""
+    """Test color manipulation functions."""
     
     def test_lighten(self):
-        """Test lightening colors."""
-        # Lighten black
-        lighter = lighten((0, 0, 0), 50)
-        self.assertEqual(lighter, (128, 128, 128))
-        
-        # Lighten gray
-        lighter = lighten((128, 128, 128), 25)
-        self.assertEqual(lighter, (192, 192, 192))
+        """Test lighten function."""
+        rgb = lighten('#ff0000', 20)
+        h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
+        self.assertEqual(l, 70)  # 50 + 20
     
     def test_darken(self):
-        """Test darkening colors."""
-        # Darken white
-        darker = darken((255, 255, 255), 50)
-        self.assertEqual(darker, (128, 128, 128))
-        
-        # Darken gray
-        darker = darken((128, 128, 128), 25)
-        self.assertEqual(darker, (64, 64, 64))
+        """Test darken function."""
+        rgb = darken('#ff0000', 20)
+        h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
+        self.assertEqual(l, 30)  # 50 - 20
     
     def test_saturate(self):
-        """Test saturating colors."""
-        # Cannot fully saturate pure colors
-        saturated = saturate((255, 0, 0), 50)
-        self.assertEqual(saturated, (255, 0, 0))
+        """Test saturate function."""
+        rgb = saturate('#cc6666', 20)
+        h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
+        self.assertTrue(s > 50)
     
     def test_desaturate(self):
-        """Test desaturating colors."""
-        # Desaturate red
-        desaturated = desaturate((255, 0, 0), 100)
-        self.assertEqual(desaturated, (128, 128, 128))
+        """Test desaturate function."""
+        rgb = desaturate('#ff0000', 50)
+        h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
+        self.assertEqual(s, 50)
     
     def test_grayscale(self):
-        """Test grayscale conversion."""
-        gray = grayscale((255, 0, 0))
-        self.assertEqual(gray[0], gray[1])
-        self.assertEqual(gray[1], gray[2])
-        
-        # Verify different colors give different grays
-        gray1 = grayscale((255, 0, 0))
-        gray2 = grayscale((0, 255, 0))
-        gray3 = grayscale((0, 0, 255))
-        self.assertNotEqual(gray1, gray2)
-        self.assertNotEqual(gray2, gray3)
+        """Test grayscale function."""
+        rgb = grayscale('#ff0000')
+        self.assertEqual(rgb.r, rgb.g)
+        self.assertEqual(rgb.g, rgb.b)
     
     def test_invert(self):
-        """Test color inversion."""
-        # Invert red
-        inverted = invert((255, 0, 0))
-        self.assertEqual(inverted, (0, 255, 255))
+        """Test invert function."""
+        rgb = invert('#000000')
+        self.assertEqual(rgb.r, 255)
+        self.assertEqual(rgb.g, 255)
+        self.assertEqual(rgb.b, 255)
         
-        # Invert black
-        inverted = invert((0, 0, 0))
-        self.assertEqual(inverted, (255, 255, 255))
-    
-    def test_rotate_hue(self):
-        """Test hue rotation."""
-        # Rotate red 180 degrees -> cyan
-        rotated = rotate_hue((255, 0, 0), 180)
-        self.assertEqual(rotated, (0, 255, 255))
+        rgb = invert('#ff0000')
+        self.assertEqual(rgb.r, 0)
+        self.assertEqual(rgb.g, 255)
+        self.assertEqual(rgb.b, 255)
     
     def test_complement(self):
-        """Test complementary color."""
-        comp = complement((255, 0, 0))
-        self.assertEqual(comp, (0, 255, 255))
+        """Test complement function."""
+        rgb = complement('#ff0000')  # Red
+        h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
+        self.assertEqual(h, 180)  # Cyan
+    
+    def test_mix(self):
+        """Test mix function."""
+        rgb = mix('#ff0000', '#0000ff', 0.5)
+        self.assertEqual(rgb.r, 128)
+        self.assertEqual(rgb.g, 0)
+        self.assertEqual(rgb.b, 128)
+    
+    def test_mix_weight(self):
+        """Test mix with different weights."""
+        rgb = mix('#ff0000', '#0000ff', 0.0)
+        self.assertEqual(rgb.r, 0)
+        self.assertEqual(rgb.b, 255)
         
-        comp = complement((0, 255, 0))
-        self.assertEqual(comp, (255, 0, 255))
-
-
-class TestColorMixing(unittest.TestCase):
-    """Tests for color mixing and blending functions."""
-    
-    def test_mix_equal(self):
-        """Test equal mixing of colors."""
-        # Mix red and blue -> purple
-        mixed = mix((255, 0, 0), (0, 0, 255), 0.5)
-        self.assertEqual(mixed, (128, 0, 128))
-    
-    def test_mix_unequal(self):
-        """Test unequal mixing of colors."""
-        # 75% red, 25% blue
-        mixed = mix((255, 0, 0), (0, 0, 255), 0.25)
-        self.assertEqual(mixed, (191, 0, 64))
+        rgb = mix('#ff0000', '#0000ff', 1.0)
+        self.assertEqual(rgb.r, 255)
+        self.assertEqual(rgb.b, 0)
     
     def test_blend_multiply(self):
         """Test multiply blend mode."""
-        # White * gray = gray
-        result = blend_multiply((255, 255, 255), (128, 128, 128))
-        self.assertEqual(result, (128, 128, 128))
+        rgb = blend('#ff0000', '#0000ff', 'multiply')
+        self.assertEqual(rgb.r, 0)
+        self.assertEqual(rgb.g, 0)
+        self.assertEqual(rgb.b, 0)
     
     def test_blend_screen(self):
         """Test screen blend mode."""
-        # Black screen gray = gray
-        result = blend_screen((0, 0, 0), (128, 128, 128))
-        self.assertEqual(result, (128, 128, 128))
+        rgb = blend('#000000', '#ffffff', 'screen')
+        self.assertEqual(rgb.r, 255)
+        self.assertEqual(rgb.g, 255)
+        self.assertEqual(rgb.b, 255)
     
-    def test_blend_overlay(self):
-        """Test overlay blend mode."""
-        # Gray overlay gray = gray
-        result = blend_overlay((128, 128, 128), (128, 128, 128))
-        self.assertEqual(result, (128, 128, 128))
-
-
-class TestColorComparison(unittest.TestCase):
-    """Tests for color comparison functions."""
-    
-    def test_color_distance(self):
-        """Test Euclidean color distance."""
-        # Same color = 0 distance
-        dist = color_distance((255, 0, 0), (255, 0, 0))
-        self.assertEqual(dist, 0)
-        
-        # Black to white = sqrt(3 * 255^2)
-        dist = color_distance((0, 0, 0), (255, 255, 255))
-        self.assertAlmostEqual(dist, 441.67, places=1)
-    
-    def test_color_distance_lab(self):
-        """Test perceptual LAB color distance."""
-        dist = color_distance_lab((255, 0, 0), (255, 0, 0))
-        self.assertEqual(dist, 0)
-    
-    def test_calculate_luminance(self):
-        """Test luminance calculation."""
-        # White luminance = 1.0
-        lum = calculate_luminance((255, 255, 255))
-        self.assertAlmostEqual(lum, 1.0)
-        
-        # Black luminance = 0.0
-        lum = calculate_luminance((0, 0, 0))
-        self.assertAlmostEqual(lum, 0.0)
-    
-    def test_contrast_ratio(self):
-        """Test contrast ratio calculation."""
-        # Black/White = 21.0
-        ratio = contrast_ratio((0, 0, 0), (255, 255, 255))
-        self.assertAlmostEqual(ratio, 21.0)
-        
-        # Same color = 1.0
-        ratio = contrast_ratio((128, 128, 128), (128, 128, 128))
-        self.assertAlmostEqual(ratio, 1.0)
-    
-    def test_wcag_rating(self):
-        """Test WCAG accessibility rating."""
-        self.assertEqual(wcag_rating(7.0), "AAA")
-        self.assertEqual(wcag_rating(4.5), "AA")
-        self.assertEqual(wcag_rating(3.0), "AA Large")
-        self.assertEqual(wcag_rating(2.0), "Fail")
+    def test_blend_normal(self):
+        """Test normal blend mode."""
+        rgb = blend('#ff0000', '#0000ff', 'normal')
+        self.assertEqual(rgb.b, 255)
 
 
 class TestColorHarmony(unittest.TestCase):
-    """Tests for color harmony functions."""
+    """Test color harmony functions."""
     
-    def test_complementary_palette(self):
-        """Test complementary palette."""
-        palette = complementary_palette((255, 0, 0))
-        self.assertEqual(len(palette), 2)
-        self.assertEqual(palette[0], (255, 0, 0))
-        self.assertEqual(palette[1], (0, 255, 255))
+    def test_analogous(self):
+        """Test analogous colors."""
+        colors = analogous('#ff0000')
+        self.assertEqual(len(colors), 3)
     
-    def test_analogous_palette(self):
-        """Test analogous palette."""
-        palette = analogous_palette((255, 0, 0))
-        self.assertEqual(len(palette), 3)
-        self.assertEqual(palette[1], (255, 0, 0))
+    def test_triadic(self):
+        """Test triadic colors."""
+        colors = triadic('#ff0000')
+        self.assertEqual(len(colors), 3)
+        # Check colors are 120 degrees apart
+        for i, color in enumerate(colors):
+            h, s, l = rgb_to_hsl(color.r, color.g, color.b)
+            self.assertEqual(h, i * 120)
     
-    def test_triadic_palette(self):
-        """Test triadic palette."""
-        palette = triadic_palette((255, 0, 0))
-        self.assertEqual(len(palette), 3)
-        
-        # Verify 120-degree spacing
-        h1 = rgb_to_hsl(palette[0])[0]
-        h2 = rgb_to_hsl(palette[1])[0]
-        h3 = rgb_to_hsl(palette[2])[0]
-        
-        self.assertAlmostEqual(abs(h2 - h1), 120, places=0)
-        self.assertAlmostEqual(abs(h3 - h2), 120, places=0)
+    def test_split_complement(self):
+        """Test split complementary colors."""
+        colors = split_complement('#ff0000')
+        self.assertEqual(len(colors), 3)
     
-    def test_split_complementary_palette(self):
-        """Test split-complementary palette."""
-        palette = split_complementary_palette((255, 0, 0))
-        self.assertEqual(len(palette), 3)
+    def test_tetradic(self):
+        """Test tetradic colors."""
+        colors = tetradic('#ff0000')
+        self.assertEqual(len(colors), 4)
     
-    def test_tetradic_palette(self):
-        """Test tetradic palette."""
-        palette = tetradic_palette((255, 0, 0))
-        self.assertEqual(len(palette), 4)
+    def test_monochromatic(self):
+        """Test monochromatic colors."""
+        colors = monochromatic('#ff0000', 5)
+        self.assertEqual(len(colors), 5)
+        # All should have same hue
+        for color in colors:
+            h, s, l = rgb_to_hsl(color.r, color.g, color.b)
+            self.assertEqual(h, 0)
 
 
-class TestPaletteGeneration(unittest.TestCase):
-    """Tests for palette generation functions."""
+class TestColorUtility(unittest.TestCase):
+    """Test color utility functions."""
+    
+    def test_luminance(self):
+        """Test luminance calculation."""
+        self.assertAlmostEqual(luminance('#ffffff'), 1.0)
+        self.assertAlmostEqual(luminance('#000000'), 0.0)
+    
+    def test_contrast_ratio(self):
+        """Test contrast ratio calculation."""
+        ratio = contrast_ratio('#ffffff', '#000000')
+        self.assertAlmostEqual(ratio, 21.0, places=1)
+        
+        ratio = contrast_ratio('#ffffff', '#ffffff')
+        self.assertAlmostEqual(ratio, 1.0, places=1)
+    
+    def test_wcag_rating(self):
+        """Test WCAG rating."""
+        self.assertEqual(wcag_rating(7.0), 'AAA')
+        self.assertEqual(wcag_rating(4.5), 'AA')
+        self.assertEqual(wcag_rating(3.0), 'AA Large')
+        self.assertEqual(wcag_rating(2.0), 'Fail')
+    
+    def test_brightness(self):
+        """Test brightness calculation."""
+        self.assertEqual(brightness('#ffffff'), 255)
+        self.assertEqual(brightness('#000000'), 0)
+    
+    def test_is_light(self):
+        """Test is_light function."""
+        self.assertTrue(is_light('#ffffff'))
+        self.assertTrue(is_light('#cccccc'))
+        self.assertFalse(is_light('#000000'))
+        self.assertFalse(is_light('#333333'))
+    
+    def test_is_dark(self):
+        """Test is_dark function."""
+        self.assertTrue(is_dark('#000000'))
+        self.assertFalse(is_dark('#ffffff'))
+    
+    def test_text_color_for_bg(self):
+        """Test text color selection."""
+        self.assertEqual(text_color_for_bg('#ffffff'), '#000000')
+        self.assertEqual(text_color_for_bg('#000000'), '#ffffff')
+    
+    def test_color_distance(self):
+        """Test color distance calculation."""
+        dist = color_distance('#ff0000', '#ff0000')
+        self.assertEqual(dist, 0)
+        
+        dist = color_distance('#000000', '#ffffff')
+        self.assertAlmostEqual(dist, 441.67, places=1)
+    
+    def test_closest_color(self):
+        """Test closest color finding."""
+        idx = closest_color('#ff0000', ['#ff0000', '#00ff00', '#0000ff'])
+        self.assertEqual(idx, 0)
+        
+        idx = closest_color('#ff1010', ['#ff0000', '#00ff00', '#0000ff'])
+        self.assertEqual(idx, 0)
+
+
+class TestGradient(unittest.TestCase):
+    """Test gradient functions."""
+    
+    def test_gradient(self):
+        """Test gradient generation."""
+        colors = gradient('#000000', '#ffffff', 5)
+        self.assertEqual(len(colors), 5)
+        self.assertEqual(colors[0].r, 0)
+        self.assertEqual(colors[4].r, 255)
+    
+    def test_gradient_two_steps(self):
+        """Test gradient with minimum steps."""
+        colors = gradient('#ff0000', '#0000ff', 2)
+        self.assertEqual(len(colors), 2)
+        self.assertEqual(colors[0].r, 255)
+        self.assertEqual(colors[1].b, 255)
+    
+    def test_multi_gradient(self):
+        """Test multi-color gradient."""
+        colors = multi_gradient(['#ff0000', '#00ff00', '#0000ff'], 5)
+        self.assertTrue(len(colors) >= 9)
+
+
+class TestRandomColors(unittest.TestCase):
+    """Test random color generation."""
     
     def test_random_color(self):
         """Test random color generation."""
-        color = random_color()
-        self.assertIsInstance(color, tuple)
-        self.assertEqual(len(color), 3)
-        for c in color:
-            self.assertGreaterEqual(c, 0)
-            self.assertLessEqual(c, 255)
+        rgb = random_color()
+        self.assertIsInstance(rgb, RGB)
+        self.assertTrue(0 <= rgb.r <= 255)
+        self.assertTrue(0 <= rgb.g <= 255)
+        self.assertTrue(0 <= rgb.b <= 255)
     
-    def test_random_palette(self):
-        """Test random palette generation."""
-        palette = random_palette(5)
-        self.assertEqual(len(palette), 5)
+    def test_random_color_with_seed(self):
+        """Test random color with seed."""
+        rgb1 = random_color(seed=42)
+        rgb2 = random_color(seed=42)
+        self.assertEqual(rgb1.r, rgb2.r)
+        self.assertEqual(rgb1.g, rgb2.g)
+        self.assertEqual(rgb1.b, rgb2.b)
     
-    def test_gradient_palette(self):
-        """Test gradient palette generation."""
-        palette = gradient_palette((255, 0, 0), (0, 0, 255), 5)
-        self.assertEqual(len(palette), 5)
-        
-        # First should be start, last should be end
-        self.assertEqual(palette[0], (255, 0, 0))
-        self.assertEqual(palette[4], (0, 0, 255))
+    def test_random_hue(self):
+        """Test random hue generation."""
+        rgb = random_hue(70, 50)
+        h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
+        self.assertEqual(s, 70)
+        self.assertEqual(l, 50)
     
-    def test_monochromatic_palette(self):
-        """Test monochromatic palette generation."""
-        palette = monochromatic_palette((255, 0, 0), 5)
-        self.assertEqual(len(palette), 5)
-        
-        # All should have same hue
-        for color in palette:
-            h = rgb_to_hsl(color)[0]
-            self.assertAlmostEqual(h, 0, places=0)
-    
-    def test_shades_palette(self):
-        """Test shades palette generation."""
-        palette = shades_palette((255, 0, 0), 5)
-        self.assertEqual(len(palette), 5)
-        self.assertEqual(palette[0], (255, 0, 0))
-        
-        # Each should be darker
-        for i in range(1, len(palette)):
-            self.assertLessEqual(palette[i][0], palette[i-1][0])
-    
-    def test_tints_palette(self):
-        """Test tints palette generation."""
-        palette = tints_palette((255, 0, 0), 5)
-        self.assertEqual(len(palette), 5)
-        self.assertEqual(palette[0], (255, 0, 0))
-        
-        # Each should be lighter
-        for i in range(1, len(palette)):
-            self.assertGreaterEqual(palette[i][0], palette[i-1][0])
-    
-    def test_harmonious_palette(self):
-        """Test harmonious palette generation."""
-        for harmony in ['complementary', 'analogous', 'triadic', 
-                        'split-complementary', 'tetradic', 'monochromatic']:
-            palette = harmonious_palette((255, 0, 0), harmony)
-            self.assertGreater(len(palette), 0)
+    def test_random_pastel(self):
+        """Test random pastel generation."""
+        rgb = random_pastel()
+        h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
+        self.assertTrue(s >= 40)
+        self.assertTrue(l >= 75)
 
 
-class TestAccessibility(unittest.TestCase):
-    """Tests for accessibility helper functions."""
+class TestCSSColors(unittest.TestCase):
+    """Test CSS color constants."""
     
-    def test_get_accessible_text_color(self):
-        """Test accessible text color selection."""
-        # Black background -> white text
-        text_color = get_accessible_text_color((0, 0, 0))
-        self.assertEqual(text_color, (255, 255, 255))
-        
-        # White background -> black text
-        text_color = get_accessible_text_color((255, 255, 255))
-        self.assertEqual(text_color, (0, 0, 0))
+    def test_css_colors_exist(self):
+        """Test that CSS colors dictionary exists."""
+        self.assertTrue(len(CSS_COLORS) > 100)
     
-    def test_find_accessible_colors(self):
-        """Test finding accessible colors."""
-        colors = find_accessible_colors((128, 128, 128), 5)
-        self.assertGreater(len(colors), 0)
-        
-        # Verify all meet contrast requirement
-        for color in colors:
-            ratio = contrast_ratio((128, 128, 128), color)
-            self.assertGreaterEqual(ratio, 4.5)
-
-
-class TestUtilityFunctions(unittest.TestCase):
-    """Tests for utility functions."""
-    
-    def test_is_valid_hex(self):
-        """Test HEX validation."""
-        self.assertTrue(is_valid_hex("#FF0000"))
-        self.assertTrue(is_valid_hex("FF0000"))
-        self.assertTrue(is_valid_hex("#F00"))
-        self.assertTrue(is_valid_hex("F00"))
-        self.assertFalse(is_valid_hex("FF"))
-        self.assertFalse(is_valid_hex("invalid"))
-    
-    def test_rgb_to_int(self):
-        """Test RGB to integer conversion."""
-        self.assertEqual(rgb_to_int((255, 0, 0)), 16711680)
-        self.assertEqual(rgb_to_int((0, 255, 0)), 65280)
-        self.assertEqual(rgb_to_int((0, 0, 255)), 255)
-    
-    def test_int_to_rgb(self):
-        """Test integer to RGB conversion."""
-        self.assertEqual(int_to_rgb(16711680), (255, 0, 0))
-        self.assertEqual(int_to_rgb(65280), (0, 255, 0))
-        self.assertEqual(int_to_rgb(255), (0, 0, 255))
-    
-    def test_get_color_brightness(self):
-        """Test color brightness calculation."""
-        # White = max brightness
-        brightness = get_color_brightness((255, 255, 255))
-        self.assertEqual(brightness, 255)
-        
-        # Black = min brightness
-        brightness = get_color_brightness((0, 0, 0))
-        self.assertEqual(brightness, 0)
-    
-    def test_interpolate_color(self):
-        """Test color interpolation."""
-        # 50% between red and blue
-        result = interpolate_color((255, 0, 0), (0, 0, 255), 0.5)
-        self.assertEqual(result, (128, 0, 128))
-        
-        # 0% = start color
-        result = interpolate_color((255, 0, 0), (0, 0, 255), 0)
-        self.assertEqual(result, (255, 0, 0))
-        
-        # 100% = end color
-        result = interpolate_color((255, 0, 0), (0, 0, 255), 1)
-        self.assertEqual(result, (0, 0, 255))
-    
-    def test_temperature_to_rgb(self):
-        """Test color temperature to RGB conversion."""
-        # Warm light (2700K)
-        warm = temperature_to_rgb(2700)
-        self.assertGreater(warm[0], warm[2])  # More red than blue
-        
-        # Cool daylight (6500K)
-        cool = temperature_to_rgb(6500)
-        self.assertGreater(cool[2], 0)  # Has some blue
-    
-    def test_css_gradient(self):
-        """Test CSS gradient generation."""
-        gradient = css_gradient([(255, 0, 0), (0, 0, 255)])
-        self.assertIn("linear-gradient", gradient)
-        self.assertIn("#FF0000", gradient)
-        self.assertIn("#0000FF", gradient)
-
-
-class TestColorClass(unittest.TestCase):
-    """Tests for Color class."""
-    
-    def test_color_creation(self):
-        """Test Color object creation."""
-        color = Color(255, 0, 0)
-        self.assertEqual(color.r, 255)
-        self.assertEqual(color.g, 0)
-        self.assertEqual(color.b, 0)
-        self.assertEqual(color.a, 1.0)
-    
-    def test_color_validation(self):
-        """Test Color value validation/clamping."""
-        # Values out of range should be clamped
-        color = Color(300, -10, 128)
-        self.assertEqual(color.r, 255)
-        self.assertEqual(color.g, 0)
-        self.assertEqual(color.b, 128)
-    
-    def test_color_properties(self):
-        """Test Color properties."""
-        color = Color(255, 0, 0)
-        
-        self.assertEqual(color.rgb, (255, 0, 0))
-        self.assertEqual(color.hex, "FF0000")
-        self.assertEqual(color.hex_with_hash, "#FF0000")
-        
-        hsl = color.hsl
-        self.assertEqual(hsl[0], 0)
-        self.assertEqual(hsl[1], 100)
-        self.assertEqual(hsl[2], 50)
-    
-    def test_color_luminance(self):
-        """Test Color luminance property."""
-        white = Color(255, 255, 255)
-        self.assertAlmostEqual(white.luminance, 1.0)
-        
-        black = Color(0, 0, 0)
-        self.assertAlmostEqual(black.luminance, 0.0)
-    
-    def test_color_is_light_is_dark(self):
-        """Test Color is_light/is_dark properties."""
-        white = Color(255, 255, 255)
-        self.assertTrue(white.is_light)
-        self.assertFalse(white.is_dark)
-        
-        black = Color(0, 0, 0)
-        self.assertFalse(black.is_light)
-        self.assertTrue(black.is_dark)
-    
-    def test_color_str_repr(self):
-        """Test Color string representation."""
-        color = Color(255, 0, 0)
-        self.assertEqual(str(color), "#FF0000")
-        
-        # With alpha
-        color = Color(255, 0, 0, 0.5)
-        self.assertIn("rgba", str(color))
-    
-    def test_create_color(self):
-        """Test create_color convenience function."""
-        color = create_color(255, 0, 0)
-        self.assertEqual(color.rgb, (255, 0, 0))
-    
-    def test_create_color_from_hex(self):
-        """Test create_color_from_hex convenience function."""
-        color = create_color_from_hex("#FF0000")
-        self.assertEqual(color.rgb, (255, 0, 0))
-    
-    def test_create_color_from_name(self):
-        """Test create_color_from_name convenience function."""
-        color = create_color_from_name("red")
-        self.assertEqual(color.rgb, (255, 0, 0))
-        
-        # Invalid name
-        color = create_color_from_name("notacolor")
-        self.assertIsNone(color)
-
-
-class TestColorNames(unittest.TestCase):
-    """Tests for color name dictionary."""
-    
-    def test_basic_colors_exist(self):
-        """Test basic colors exist in dictionary."""
-        basic_colors = ['black', 'white', 'red', 'green', 'blue',
-                        'yellow', 'cyan', 'magenta']
-        for name in basic_colors:
-            self.assertIn(name, COLOR_NAMES)
-    
-    def test_color_count(self):
-        """Test color dictionary has reasonable count."""
-        # Should have at least 100 named colors
-        self.assertGreater(len(COLOR_NAMES), 100)
+    def test_css_colors_format(self):
+        """Test CSS colors format."""
+        for name, rgb in CSS_COLORS.items():
+            self.assertTrue(0 <= rgb[0] <= 255)
+            self.assertTrue(0 <= rgb[1] <= 255)
+            self.assertTrue(0 <= rgb[2] <= 255)
 
 
 def run_tests():
@@ -691,24 +593,23 @@ def run_tests():
     suite = unittest.TestSuite()
     
     # Add all test classes
+    suite.addTests(loader.loadTestsFromTestCase(TestColorDataClasses))
     suite.addTests(loader.loadTestsFromTestCase(TestColorParsing))
-    suite.addTests(loader.loadTestsFromTestCase(TestColorConversions))
+    suite.addTests(loader.loadTestsFromTestCase(TestColorConversion))
     suite.addTests(loader.loadTestsFromTestCase(TestColorManipulation))
-    suite.addTests(loader.loadTestsFromTestCase(TestColorMixing))
-    suite.addTests(loader.loadTestsFromTestCase(TestColorComparison))
     suite.addTests(loader.loadTestsFromTestCase(TestColorHarmony))
-    suite.addTests(loader.loadTestsFromTestCase(TestPaletteGeneration))
-    suite.addTests(loader.loadTestsFromTestCase(TestAccessibility))
-    suite.addTests(loader.loadTestsFromTestCase(TestUtilityFunctions))
-    suite.addTests(loader.loadTestsFromTestCase(TestColorClass))
-    suite.addTests(loader.loadTestsFromTestCase(TestColorNames))
+    suite.addTests(loader.loadTestsFromTestCase(TestColorUtility))
+    suite.addTests(loader.loadTestsFromTestCase(TestGradient))
+    suite.addTests(loader.loadTestsFromTestCase(TestRandomColors))
+    suite.addTests(loader.loadTestsFromTestCase(TestCSSColors))
     
+    # Run with verbosity
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)
     
-    return result
+    return result.wasSuccessful()
 
 
-if __name__ == "__main__":
-    result = run_tests()
-    sys.exit(0 if result.wasSuccessful() else 1)
+if __name__ == '__main__':
+    success = run_tests()
+    sys.exit(0 if success else 1)

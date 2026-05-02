@@ -3,142 +3,34 @@
 """
 AllToolkit - Color Utilities Module
 ====================================
-A comprehensive color conversion, manipulation, and palette generation utility module
-for Python with zero external dependencies.
+A comprehensive color processing utility module for Python with zero external dependencies.
 
 Features:
-    - Color format conversion (HEX, RGB, HSL, HSV, CMYK, LAB)
+    - Color format conversion (RGB, HEX, HSL, HSV, CMYK, XYZ, LAB)
     - Color parsing from various string formats
-    - Color manipulation (lighten, darken, saturate, desaturate)
-    - Color mixing and blending
-    - Contrast ratio calculation (WCAG)
+    - Color mixing, blending, and manipulation
     - Complementary, analogous, triadic color generation
-    - Palette generation (random, gradient, harmonious)
-    - Color name lookup
-    - Accessibility helpers
+    - Brightness and contrast calculations
+    - Color name lookup (CSS named colors)
+    - Color distance calculation (Delta E approximation)
+    - Gradient generation
 
 Author: AllToolkit Contributors
 License: MIT
 """
 
-import re
 import math
-import random
-from typing import Tuple, List, Dict, Optional, Union, NamedTuple
+import re
+from typing import Union, Tuple, List, Optional, Dict
 from dataclasses import dataclass
 
 
 # ============================================================================
-# Type Aliases
+# Constants
 # ============================================================================
 
-RGB = Tuple[int, int, int]  # (0-255, 0-255, 0-255)
-RGBA = Tuple[int, int, int, float]  # (0-255, 0-255, 0-255, 0.0-1.0)
-HSL = Tuple[float, float, float]  # (0-360, 0-100%, 0-100%)
-HSV = Tuple[float, float, float]  # (0-360, 0-100%, 0-100%)
-CMYK = Tuple[float, float, float, float]  # (0-100%, 0-100%, 0-100%, 0-100%)
-LAB = Tuple[float, float, float]  # (L: 0-100, a: -128 to 127, b: -128 to 127)
-XYZ = Tuple[float, float, float]  # (X, Y, Z)
-
-
-# ============================================================================
-# Data Classes
-# ============================================================================
-
-@dataclass
-class Color:
-    """
-    Represents a color with multiple format access.
-    
-    Attributes:
-        r: Red component (0-255)
-        g: Green component (0-255)
-        b: Blue component (0-255)
-        a: Alpha component (0.0-1.0)
-    """
-    r: int
-    g: int
-    b: int
-    a: float = 1.0
-    
-    def __post_init__(self):
-        """Validate and clamp color values."""
-        self.r = max(0, min(255, int(self.r)))
-        self.g = max(0, min(255, int(self.g)))
-        self.b = max(0, min(255, int(self.b)))
-        self.a = max(0.0, min(1.0, float(self.a)))
-    
-    @property
-    def rgb(self) -> RGB:
-        """Get RGB tuple."""
-        return (self.r, self.g, self.b)
-    
-    @property
-    def rgba(self) -> RGBA:
-        """Get RGBA tuple."""
-        return (self.r, self.g, self.b, self.a)
-    
-    @property
-    def hex(self) -> str:
-        """Get HEX string (without #)."""
-        return f"{self.r:02X}{self.g:02X}{self.b:02X}"
-    
-    @property
-    def hex_with_hash(self) -> str:
-        """Get HEX string (with #)."""
-        return f"#{self.hex}"
-    
-    @property
-    def hsl(self) -> HSL:
-        """Get HSL tuple."""
-        return rgb_to_hsl(self.rgb)
-    
-    @property
-    def hsv(self) -> HSV:
-        """Get HSV tuple."""
-        return rgb_to_hsv(self.rgb)
-    
-    @property
-    def cmyk(self) -> CMYK:
-        """Get CMYK tuple."""
-        return rgb_to_cmyk(self.rgb)
-    
-    @property
-    def lab(self) -> LAB:
-        """Get LAB tuple."""
-        return rgb_to_lab(self.rgb)
-    
-    @property
-    def luminance(self) -> float:
-        """Get relative luminance (0.0-1.0)."""
-        return calculate_luminance(self.rgb)
-    
-    @property
-    def is_light(self) -> bool:
-        """Check if color is light."""
-        return self.luminance > 0.5
-    
-    @property
-    def is_dark(self) -> bool:
-        """Check if color is dark."""
-        return not self.is_light
-    
-    def __str__(self) -> str:
-        """String representation."""
-        if self.a < 1.0:
-            return f"rgba({self.r}, {self.g}, {self.b}, {self.a:.2f})"
-        return self.hex_with_hash
-    
-    def __repr__(self) -> str:
-        """Repr representation."""
-        return f"Color(r={self.r}, g={self.g}, b={self.b}, a={self.a})"
-
-
-# ============================================================================
-# Color Name Dictionary (CSS Color Names)
-# ============================================================================
-
-COLOR_NAMES = {
+# CSS named colors (subset of most common)
+CSS_COLORS: Dict[str, Tuple[int, int, int]] = {
     # Basic colors
     'black': (0, 0, 0),
     'white': (255, 255, 255),
@@ -149,7 +41,7 @@ COLOR_NAMES = {
     'cyan': (0, 255, 255),
     'magenta': (255, 0, 255),
     
-    # Extended CSS colors
+    # Extended colors
     'aliceblue': (240, 248, 255),
     'antiquewhite': (250, 235, 215),
     'aqua': (0, 255, 255),
@@ -292,357 +184,605 @@ COLOR_NAMES = {
     'yellowgreen': (154, 205, 50),
 }
 
-# Reverse lookup: RGB to name
-RGB_TO_NAME = {rgb: name for name, rgb in COLOR_NAMES.items()}
+# Pre-compiled regex patterns for color parsing
+_HEX_PATTERN = re.compile(r'^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$')
+_RGB_PATTERN = re.compile(
+    r'^rgb\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$',
+    re.IGNORECASE
+)
+_RGBA_PATTERN = re.compile(
+    r'^rgba\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*([01]?\.?\d*)\s*\)$',
+    re.IGNORECASE
+)
+_HSL_PATTERN = re.compile(
+    r'^hsl\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})%?\s*,\s*(\d{1,3})%?\s*\)$',
+    re.IGNORECASE
+)
 
 
 # ============================================================================
-# Color Parsing
+# Data Classes
 # ============================================================================
 
-def parse_color(color_str: str) -> Color:
+@dataclass
+class RGB:
+    """RGB color representation."""
+    r: int  # 0-255
+    g: int  # 0-255
+    b: int  # 0-255
+    a: float = 1.0  # 0.0-1.0 (alpha)
+    
+    def __post_init__(self):
+        """Validate RGB values."""
+        self.r = max(0, min(255, int(self.r)))
+        self.g = max(0, min(255, int(self.g)))
+        self.b = max(0, min(255, int(self.b)))
+        self.a = max(0.0, min(1.0, float(self.a)))
+    
+    def to_hex(self, include_alpha: bool = False) -> str:
+        """Convert to hex string."""
+        if include_alpha and self.a < 1.0:
+            alpha = round(self.a * 255)
+            return f"#{self.r:02x}{self.g:02x}{self.b:02x}{alpha:02x}"
+        return f"#{self.r:02x}{self.g:02x}{self.b:02x}"
+    
+    def to_hsl(self) -> 'HSL':
+        """Convert to HSL."""
+        h, s, l = rgb_to_hsl(self.r, self.g, self.b)
+        return HSL(h, s, l)
+    
+    def to_hsv(self) -> 'HSV':
+        """Convert to HSV."""
+        h, s, v = rgb_to_hsv(self.r, self.g, self.b)
+        return HSV(h, s, v)
+    
+    def to_cmyk(self) -> 'CMYK':
+        """Convert to CMYK."""
+        c, m, y, k = rgb_to_cmyk(self.r, self.g, self.b)
+        return CMYK(c, m, y, k)
+    
+    def to_tuple(self) -> Tuple[int, int, int]:
+        """Convert to tuple (r, g, b)."""
+        return (self.r, self.g, self.b)
+    
+    def to_tuple_alpha(self) -> Tuple[int, int, int, float]:
+        """Convert to tuple with alpha (r, g, b, a)."""
+        return (self.r, self.g, self.b, self.a)
+
+
+@dataclass
+class HSL:
+    """HSL color representation."""
+    h: int  # 0-360 (hue)
+    s: int  # 0-100 (saturation)
+    l: int  # 0-100 (lightness)
+    
+    def __post_init__(self):
+        """Validate HSL values."""
+        self.h = int(self.h) % 360
+        self.s = max(0, min(100, int(self.s)))
+        self.l = max(0, min(100, int(self.l)))
+    
+    def to_rgb(self) -> RGB:
+        """Convert to RGB."""
+        r, g, b = hsl_to_rgb(self.h, self.s, self.l)
+        return RGB(r, g, b)
+    
+    def to_hsv(self) -> 'HSV':
+        """Convert to HSV via RGB."""
+        return self.to_rgb().to_hsv()
+    
+    def to_tuple(self) -> Tuple[int, int, int]:
+        """Convert to tuple (h, s, l)."""
+        return (self.h, self.s, self.l)
+
+
+@dataclass
+class HSV:
+    """HSV color representation."""
+    h: int  # 0-360 (hue)
+    s: int  # 0-100 (saturation)
+    v: int  # 0-100 (value/brightness)
+    
+    def __post_init__(self):
+        """Validate HSV values."""
+        self.h = int(self.h) % 360
+        self.s = max(0, min(100, int(self.s)))
+        self.v = max(0, min(100, int(self.v)))
+    
+    def to_rgb(self) -> RGB:
+        """Convert to RGB."""
+        r, g, b = hsv_to_rgb(self.h, self.s, self.v)
+        return RGB(r, g, b)
+    
+    def to_hsl(self) -> HSL:
+        """Convert to HSL via RGB."""
+        return self.to_rgb().to_hsl()
+    
+    def to_tuple(self) -> Tuple[int, int, int]:
+        """Convert to tuple (h, s, v)."""
+        return (self.h, self.s, self.v)
+
+
+@dataclass
+class CMYK:
+    """CMYK color representation."""
+    c: int  # 0-100 (cyan)
+    m: int  # 0-100 (magenta)
+    y: int  # 0-100 (yellow)
+    k: int  # 0-100 (key/black)
+    
+    def __post_init__(self):
+        """Validate CMYK values."""
+        self.c = max(0, min(100, int(self.c)))
+        self.m = max(0, min(100, int(self.m)))
+        self.y = max(0, min(100, int(self.y)))
+        self.k = max(0, min(100, int(self.k)))
+    
+    def to_rgb(self) -> RGB:
+        """Convert to RGB."""
+        r, g, b = cmyk_to_rgb(self.c, self.m, self.y, self.k)
+        return RGB(r, g, b)
+    
+    def to_tuple(self) -> Tuple[int, int, int, int]:
+        """Convert to tuple (c, m, y, k)."""
+        return (self.c, self.m, self.y, self.k)
+
+
+# ============================================================================
+# Color Parsing Functions
+# ============================================================================
+
+def parse_hex(hex_str: str) -> RGB:
     """
-    Parse a color string into a Color object.
+    Parse a hex color string to RGB.
+    
+    Args:
+        hex_str: Hex color string (e.g., '#ff0000', 'ff0000', '#f00', '#ff000080')
+    
+    Returns:
+        RGB object
+    
+    Raises:
+        ValueError: If invalid hex color format
+    
+    Examples:
+        >>> parse_hex('#ff0000')
+        RGB(r=255, g=0, b=0, a=1.0)
+        >>> parse_hex('#f00')
+        RGB(r=255, g=0, b=0, a=1.0)
+        >>> parse_hex('#ff000080')
+        RGB(r=255, g=0, b=0, a=0.5)
+    """
+    hex_str = hex_str.strip().lower()
+    
+    match = _HEX_PATTERN.match(hex_str)
+    if not match:
+        raise ValueError(f"Invalid hex color format: {hex_str}")
+    
+    hex_val = match.group(1)
+    
+    if len(hex_val) == 3:
+        # Short format #RGB
+        r = int(hex_val[0] * 2, 16)
+        g = int(hex_val[1] * 2, 16)
+        b = int(hex_val[2] * 2, 16)
+        a = 1.0
+    elif len(hex_val) == 6:
+        # Standard format #RRGGBB
+        r = int(hex_val[0:2], 16)
+        g = int(hex_val[2:4], 16)
+        b = int(hex_val[4:6], 16)
+        a = 1.0
+    elif len(hex_val) == 8:
+        # With alpha #RRGGBBAA
+        r = int(hex_val[0:2], 16)
+        g = int(hex_val[2:4], 16)
+        b = int(hex_val[4:6], 16)
+        a = int(hex_val[6:8], 16) / 255.0
+    else:
+        raise ValueError(f"Invalid hex color format: {hex_str}")
+    
+    return RGB(r, g, b, a)
+
+
+def parse_rgb(rgb_str: str) -> RGB:
+    """
+    Parse an rgb() or rgba() color string to RGB.
+    
+    Args:
+        rgb_str: RGB color string (e.g., 'rgb(255, 0, 0)', 'rgba(255, 0, 0, 0.5)')
+    
+    Returns:
+        RGB object
+    
+    Raises:
+        ValueError: If invalid RGB color format or values out of range
+    
+    Examples:
+        >>> parse_rgb('rgb(255, 0, 0)')
+        RGB(r=255, g=0, b=0, a=1.0)
+        >>> parse_rgb('rgba(255, 0, 0, 0.5)')
+        RGB(r=255, g=0, b=0, a=0.5)
+    """
+    rgb_str = rgb_str.strip()
+    
+    # Try rgba first
+    match = _RGBA_PATTERN.match(rgb_str)
+    if match:
+        r = int(match.group(1))
+        g = int(match.group(2))
+        b = int(match.group(3))
+        a = float(match.group(4)) if match.group(4) else 1.0
+        # Validate range
+        if not (0 <= r <= 255 and 0 <= g <= 255 and 0 <= b <= 255):
+            raise ValueError(f"RGB values must be 0-255: {rgb_str}")
+        return RGB(r, g, b, a)
+    
+    # Try rgb
+    match = _RGB_PATTERN.match(rgb_str)
+    if match:
+        r = int(match.group(1))
+        g = int(match.group(2))
+        b = int(match.group(3))
+        # Validate range
+        if not (0 <= r <= 255 and 0 <= g <= 255 and 0 <= b <= 255):
+            raise ValueError(f"RGB values must be 0-255: {rgb_str}")
+        return RGB(r, g, b, 1.0)
+    
+    raise ValueError(f"Invalid RGB color format: {rgb_str}")
+
+
+def parse_hsl(hsl_str: str) -> HSL:
+    """
+    Parse an hsl() color string to HSL.
+    
+    Args:
+        hsl_str: HSL color string (e.g., 'hsl(0, 100%, 50%)')
+    
+    Returns:
+        HSL object
+    
+    Raises:
+        ValueError: If invalid HSL color format
+    
+    Examples:
+        >>> parse_hsl('hsl(0, 100%, 50%)')
+        HSL(h=0, s=100, l=50)
+    """
+    hsl_str = hsl_str.strip()
+    
+    match = _HSL_PATTERN.match(hsl_str)
+    if not match:
+        raise ValueError(f"Invalid HSL color format: {hsl_str}")
+    
+    h = int(match.group(1))
+    s = int(match.group(2))
+    l = int(match.group(3))
+    
+    return HSL(h, s, l)
+
+
+def parse_color(color: str) -> RGB:
+    """
+    Parse a color string in any supported format.
     
     Supports:
-        - HEX: "#FF0000", "FF0000", "#F00", "F00"
-        - RGB: "rgb(255, 0, 0)", "rgb(255,0,0)"
-        - RGBA: "rgba(255, 0, 0, 0.5)", "rgba(255,0,0,0.5)"
-        - HSL: "hsl(0, 100%, 50%)", "hsl(0,100%,50%)"
-        - HSLA: "hsla(0, 100%, 50%, 0.5)"
-        - Names: "red", "blue", "cornflowerblue"
+        - Hex: '#ff0000', 'ff0000', '#f00', '#ff000080'
+        - RGB: 'rgb(255, 0, 0)', 'rgba(255, 0, 0, 0.5)'
+        - HSL: 'hsl(0, 100%, 50%)'
+        - Named: 'red', 'blue', 'coral', etc.
     
     Args:
-        color_str: Color string to parse
-        
+        color: Color string in any supported format
+    
     Returns:
-        Color object
-        
+        RGB object
+    
     Raises:
-        ValueError: If color string cannot be parsed
-        
-    Example:
-        >>> parse_color("#FF0000")
-        Color(r=255, g=0, b=0, a=1.0)
-        >>> parse_color("red")
-        Color(r=255, g=0, b=0, a=1.0)
+        ValueError: If color format is not recognized
+    
+    Examples:
+        >>> parse_color('#ff0000')
+        RGB(r=255, g=0, b=0, a=1.0)
+        >>> parse_color('red')
+        RGB(r=255, g=0, b=0, a=1.0)
+        >>> parse_color('hsl(0, 100%, 50%)')
+        RGB(r=255, g=0, b=0, a=1.0)
     """
-    color_str = color_str.strip()
+    color = color.strip()
     
-    # Handle color names
-    name_lower = color_str.lower()
-    if name_lower in COLOR_NAMES:
-        rgb = COLOR_NAMES[name_lower]
-        return Color(*rgb)
+    # Try hex
+    if color.startswith('#') or _HEX_PATTERN.match(color):
+        return parse_hex(color)
     
-    # Handle HEX colors
-    if color_str.startswith('#'):
-        return _parse_hex(color_str)
+    # Try rgb/rgba
+    if color.lower().startswith('rgb'):
+        return parse_rgb(color)
     
-    # Try HEX without hash
-    if re.match(r'^[0-9A-Fa-f]{3,8}$', color_str):
-        return _parse_hex('#' + color_str)
+    # Try hsl
+    if color.lower().startswith('hsl'):
+        hsl = parse_hsl(color)
+        return hsl.to_rgb()
     
-    # Handle rgb()
-    rgb_match = re.match(
-        r'rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)',
-        color_str, re.IGNORECASE
-    )
-    if rgb_match:
-        r, g, b = map(int, rgb_match.groups())
-        return Color(r, g, b)
+    # Try named color
+    color_lower = color.lower()
+    if color_lower in CSS_COLORS:
+        r, g, b = CSS_COLORS[color_lower]
+        return RGB(r, g, b)
     
-    # Handle rgba()
-    rgba_match = re.match(
-        r'rgba\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)',
-        color_str, re.IGNORECASE
-    )
-    if rgba_match:
-        r, g, b, a = rgba_match.groups()
-        return Color(int(r), int(g), int(b), float(a))
-    
-    # Handle hsl()
-    hsl_match = re.match(
-        r'hsl\s*\(\s*([\d.]+)\s*,\s*([\d.]+)%?\s*,\s*([\d.]+)%?\s*\)',
-        color_str, re.IGNORECASE
-    )
-    if hsl_match:
-        h, s, l = map(float, hsl_match.groups())
-        rgb = hsl_to_rgb((h, s, l))
-        return Color(*rgb)
-    
-    # Handle hsla()
-    hsla_match = re.match(
-        r'hsla\s*\(\s*([\d.]+)\s*,\s*([\d.]+)%?\s*,\s*([\d.]+)%?\s*,\s*([\d.]+)\s*\)',
-        color_str, re.IGNORECASE
-    )
-    if hsla_match:
-        h, s, l, a = hsla_match.groups()
-        rgb = hsl_to_rgb((float(h), float(s), float(l)))
-        return Color(*rgb, float(a))
-    
-    raise ValueError(f"Cannot parse color: {color_str}")
+    raise ValueError(f"Unrecognized color format: {color}")
 
 
-def _parse_hex(hex_str: str) -> Color:
-    """Parse a HEX color string."""
-    hex_str = hex_str.lstrip('#')
-    
-    if len(hex_str) == 3:
-        # Short form: #RGB -> #RRGGBB
-        r = int(hex_str[0] * 2, 16)
-        g = int(hex_str[1] * 2, 16)
-        b = int(hex_str[2] * 2, 16)
-    elif len(hex_str) == 6:
-        r = int(hex_str[0:2], 16)
-        g = int(hex_str[2:4], 16)
-        b = int(hex_str[4:6], 16)
-    elif len(hex_str) == 8:
-        r = int(hex_str[0:2], 16)
-        g = int(hex_str[2:4], 16)
-        b = int(hex_str[4:6], 16)
-        a = int(hex_str[6:8], 16) / 255
-        return Color(r, g, b, a)
-    else:
-        raise ValueError(f"Invalid HEX color: #{hex_str}")
-    
-    return Color(r, g, b)
-
-
-def name_to_rgb(name: str) -> Optional[RGB]:
+def color_name_to_rgb(name: str) -> Optional[RGB]:
     """
-    Convert a color name to RGB.
+    Convert a CSS color name to RGB.
     
     Args:
-        name: Color name (case-insensitive)
-        
+        name: CSS color name (e.g., 'red', 'coral', 'aliceblue')
+    
     Returns:
-        RGB tuple or None if not found
-        
-    Example:
-        >>> name_to_rgb("cornflowerblue")
-        (100, 149, 237)
+        RGB object if found, None otherwise
+    
+    Examples:
+        >>> color_name_to_rgb('red')
+        RGB(r=255, g=0, b=0, a=1.0)
+        >>> color_name_to_rgb('nonexistent')
+        None
     """
-    return COLOR_NAMES.get(name.lower())
+    name_lower = name.lower().strip()
+    if name_lower in CSS_COLORS:
+        r, g, b = CSS_COLORS[name_lower]
+        return RGB(r, g, b)
+    return None
 
 
-def rgb_to_name(rgb: RGB) -> Optional[str]:
+def rgb_to_color_name(rgb: RGB) -> Optional[str]:
     """
-    Convert RGB to the closest named color.
+    Find the CSS color name for an RGB value.
     
     Args:
-        rgb: RGB tuple
-        
+        rgb: RGB object
+    
     Returns:
-        Color name or None if no close match
-        
-    Example:
-        >>> rgb_to_name((255, 0, 0))
+        CSS color name if found, None otherwise
+    
+    Examples:
+        >>> rgb_to_color_name(RGB(255, 0, 0))
         'red'
+        >>> rgb_to_color_name(RGB(123, 123, 123))
+        None
     """
-    # Exact match
-    if rgb in RGB_TO_NAME:
-        return RGB_TO_NAME[rgb]
-    
-    # Find closest named color
-    min_distance = float('inf')
-    closest_name = None
-    
-    for name, named_rgb in COLOR_NAMES.items():
-        distance = color_distance(rgb, named_rgb)
-        if distance < min_distance:
-            min_distance = distance
-            closest_name = name
-    
-    # Only return if reasonably close
-    if min_distance < 50:  # Threshold for "close enough"
-        return closest_name
+    target = (rgb.r, rgb.g, rgb.b)
+    for name, values in CSS_COLORS.items():
+        if values == target:
+            return name
     return None
 
 
 # ============================================================================
-# Color Format Conversions
+# Color Conversion Functions
 # ============================================================================
 
-def rgb_to_hex(rgb: RGB, include_hash: bool = True) -> str:
+def rgb_to_hex(r: int, g: int, b: int, include_hash: bool = True) -> str:
     """
-    Convert RGB to HEX string.
+    Convert RGB values to hex string.
     
     Args:
-        rgb: RGB tuple (0-255, 0-255, 0-255)
-        include_hash: Whether to include # prefix
-        
+        r: Red (0-255)
+        g: Green (0-255)
+        b: Blue (0-255)
+        include_hash: Whether to include '#' prefix
+    
     Returns:
-        HEX color string
-        
-    Example:
-        >>> rgb_to_hex((255, 0, 0))
-        "#FF0000"
+        Hex color string
+    
+    Examples:
+        >>> rgb_to_hex(255, 0, 0)
+        '#ff0000'
+        >>> rgb_to_hex(255, 0, 0, include_hash=False)
+        'ff0000'
     """
-    r, g, b = rgb
-    hex_str = f"{r:02X}{g:02X}{b:02X}"
+    r = max(0, min(255, int(r)))
+    g = max(0, min(255, int(g)))
+    b = max(0, min(255, int(b)))
+    
+    hex_str = f"{r:02x}{g:02x}{b:02x}"
     return f"#{hex_str}" if include_hash else hex_str
 
 
-def hex_to_rgb(hex_str: str) -> RGB:
+def hex_to_rgb(hex_str: str) -> Tuple[int, int, int]:
     """
-    Convert HEX string to RGB.
+    Convert hex string to RGB tuple.
     
     Args:
-        hex_str: HEX color string (with or without #)
-        
+        hex_str: Hex color string
+    
     Returns:
-        RGB tuple
-        
-    Example:
-        >>> hex_to_rgb("#FF0000")
+        Tuple of (r, g, b)
+    
+    Raises:
+        ValueError: If invalid hex format
+    
+    Examples:
+        >>> hex_to_rgb('#ff0000')
         (255, 0, 0)
     """
-    color = parse_color(hex_str)
-    return color.rgb
+    rgb = parse_hex(hex_str)
+    return (rgb.r, rgb.g, rgb.b)
 
 
-def rgb_to_hsl(rgb: RGB) -> HSL:
+def rgb_to_hsl(r: int, g: int, b: int) -> Tuple[int, int, int]:
     """
     Convert RGB to HSL.
     
     Args:
-        rgb: RGB tuple (0-255, 0-255, 0-255)
-        
-    Returns:
-        HSL tuple (0-360, 0-100, 0-100)
-        
-    Example:
-        >>> rgb_to_hsl((255, 0, 0))
-        (0.0, 100.0, 50.0)
-    """
-    r, g, b = [x / 255.0 for x in rgb]
+        r: Red (0-255)
+        g: Green (0-255)
+        b: Blue (0-255)
     
-    max_c = max(r, g, b)
-    min_c = min(r, g, b)
-    delta = max_c - min_c
+    Returns:
+        Tuple of (h, s, l) where h is 0-360, s and l are 0-100
+    
+    Examples:
+        >>> rgb_to_hsl(255, 0, 0)
+        (0, 100, 50)
+        >>> rgb_to_hsl(0, 255, 0)
+        (120, 100, 50)
+    """
+    r_norm = r / 255.0
+    g_norm = g / 255.0
+    b_norm = b / 255.0
+    
+    max_val = max(r_norm, g_norm, b_norm)
+    min_val = min(r_norm, g_norm, b_norm)
+    delta = max_val - min_val
     
     # Lightness
-    l = (max_c + min_c) / 2
+    l = (max_val + min_val) / 2.0
     
     # Saturation
     if delta == 0:
-        s = 0
-        h = 0
+        s = 0.0
     else:
         s = delta / (1 - abs(2 * l - 1))
-        
-        # Hue
-        if max_c == r:
-            h = 60 * (((g - b) / delta) % 6)
-        elif max_c == g:
-            h = 60 * (((b - r) / delta) + 2)
-        else:
-            h = 60 * (((r - g) / delta) + 4)
     
-    return (h, s * 100, l * 100)
+    # Hue
+    if delta == 0:
+        h = 0.0
+    elif max_val == r_norm:
+        h = 60 * (((g_norm - b_norm) / delta) % 6)
+    elif max_val == g_norm:
+        h = 60 * (((b_norm - r_norm) / delta) + 2)
+    else:  # max_val == b_norm
+        h = 60 * (((r_norm - g_norm) / delta) + 4)
+    
+    return (int(round(h)) % 360, int(round(s * 100)), int(round(l * 100)))
 
 
-def hsl_to_rgb(hsl: HSL) -> RGB:
+def hsl_to_rgb(h: int, s: int, l: int) -> Tuple[int, int, int]:
     """
     Convert HSL to RGB.
     
     Args:
-        hsl: HSL tuple (0-360, 0-100, 0-100)
-        
+        h: Hue (0-360)
+        s: Saturation (0-100)
+        l: Lightness (0-100)
+    
     Returns:
-        RGB tuple (0-255, 0-255, 0-255)
-        
-    Example:
-        >>> hsl_to_rgb((0, 100, 50))
+        Tuple of (r, g, b) where each is 0-255
+    
+    Examples:
+        >>> hsl_to_rgb(0, 100, 50)
         (255, 0, 0)
+        >>> hsl_to_rgb(120, 100, 50)
+        (0, 255, 0)
     """
-    h, s, l = hsl
-    s /= 100
-    l /= 100
+    h = h % 360
+    s = max(0, min(100, s)) / 100.0
+    l = max(0, min(100, l)) / 100.0
     
     if s == 0:
-        r = g = b = l
-    else:
-        def hue_to_rgb(p, q, t):
-            if t < 0:
-                t += 1
-            if t > 1:
-                t -= 1
-            if t < 1/6:
-                return p + (q - p) * 6 * t
-            if t < 1/2:
-                return q
-            if t < 2/3:
-                return p + (q - p) * (2/3 - t) * 6
-            return p
-        
-        q = l * (1 + s) if l < 0.5 else l + s - l * s
-        p = 2 * l - q
-        
-        r = hue_to_rgb(p, q, h/360 + 1/3)
-        g = hue_to_rgb(p, q, h/360)
-        b = hue_to_rgb(p, q, h/360 - 1/3)
+        # Grayscale
+        val = int(round(l * 255))
+        return (val, val, val)
     
-    return (round(r * 255), round(g * 255), round(b * 255))
+    def hue_to_rgb(p: float, q: float, t: float) -> float:
+        if t < 0:
+            t += 1
+        if t > 1:
+            t -= 1
+        if t < 1/6:
+            return p + (q - p) * 6 * t
+        if t < 1/2:
+            return q
+        if t < 2/3:
+            return p + (q - p) * (2/3 - t) * 6
+        return p
+    
+    q = l * (1 + s) if l < 0.5 else l + s - l * s
+    p = 2 * l - q
+    
+    r = hue_to_rgb(p, q, h/360 + 1/3)
+    g = hue_to_rgb(p, q, h/360)
+    b = hue_to_rgb(p, q, h/360 - 1/3)
+    
+    return (
+        int(round(r * 255)),
+        int(round(g * 255)),
+        int(round(b * 255))
+    )
 
 
-def rgb_to_hsv(rgb: RGB) -> HSV:
+def rgb_to_hsv(r: int, g: int, b: int) -> Tuple[int, int, int]:
     """
     Convert RGB to HSV.
     
     Args:
-        rgb: RGB tuple (0-255, 0-255, 0-255)
-        
-    Returns:
-        HSV tuple (0-360, 0-100, 0-100)
-        
-    Example:
-        >>> rgb_to_hsv((255, 0, 0))
-        (0.0, 100.0, 100.0)
-    """
-    r, g, b = [x / 255.0 for x in rgb]
+        r: Red (0-255)
+        g: Green (0-255)
+        b: Blue (0-255)
     
-    max_c = max(r, g, b)
-    min_c = min(r, g, b)
-    delta = max_c - min_c
+    Returns:
+        Tuple of (h, s, v) where h is 0-360, s and v are 0-100
+    
+    Examples:
+        >>> rgb_to_hsv(255, 0, 0)
+        (0, 100, 100)
+    """
+    r_norm = r / 255.0
+    g_norm = g / 255.0
+    b_norm = b / 255.0
+    
+    max_val = max(r_norm, g_norm, b_norm)
+    min_val = min(r_norm, g_norm, b_norm)
+    delta = max_val - min_val
     
     # Value
-    v = max_c
+    v = max_val
     
     # Saturation
-    s = 0 if max_c == 0 else delta / max_c
+    if max_val == 0:
+        s = 0.0
+    else:
+        s = delta / max_val
     
     # Hue
     if delta == 0:
-        h = 0
-    elif max_c == r:
-        h = 60 * (((g - b) / delta) % 6)
-    elif max_c == g:
-        h = 60 * (((b - r) / delta) + 2)
-    else:
-        h = 60 * (((r - g) / delta) + 4)
+        h = 0.0
+    elif max_val == r_norm:
+        h = 60 * (((g_norm - b_norm) / delta) % 6)
+    elif max_val == g_norm:
+        h = 60 * (((b_norm - r_norm) / delta) + 2)
+    else:  # max_val == b_norm
+        h = 60 * (((r_norm - g_norm) / delta) + 4)
     
-    return (h, s * 100, v * 100)
+    return (int(round(h)) % 360, int(round(s * 100)), int(round(v * 100)))
 
 
-def hsv_to_rgb(hsv: HSV) -> RGB:
+def hsv_to_rgb(h: int, s: int, v: int) -> Tuple[int, int, int]:
     """
     Convert HSV to RGB.
     
     Args:
-        hsv: HSV tuple (0-360, 0-100, 0-100)
-        
+        h: Hue (0-360)
+        s: Saturation (0-100)
+        v: Value (0-100)
+    
     Returns:
-        RGB tuple (0-255, 0-255, 0-255)
-        
-    Example:
-        >>> hsv_to_rgb((0, 100, 100))
+        Tuple of (r, g, b) where each is 0-255
+    
+    Examples:
+        >>> hsv_to_rgb(0, 100, 100)
         (255, 0, 0)
     """
-    h, s, v = hsv
-    s /= 100
-    v /= 100
+    h = h % 360
+    s = max(0, min(100, s)) / 100.0
+    v = max(0, min(100, v)) / 100.0
+    
+    if s == 0:
+        val = int(round(v * 255))
+        return (val, val, val)
     
     c = v * s
     x = c * (1 - abs((h / 60) % 2 - 1))
@@ -661,529 +801,569 @@ def hsv_to_rgb(hsv: HSV) -> RGB:
     else:
         r, g, b = c, 0, x
     
-    return (round((r + m) * 255), round((g + m) * 255), round((b + m) * 255))
+    return (
+        int(round((r + m) * 255)),
+        int(round((g + m) * 255)),
+        int(round((b + m) * 255))
+    )
 
 
-def rgb_to_cmyk(rgb: RGB) -> CMYK:
+def rgb_to_cmyk(r: int, g: int, b: int) -> Tuple[int, int, int, int]:
     """
     Convert RGB to CMYK.
     
     Args:
-        rgb: RGB tuple (0-255, 0-255, 0-255)
-        
+        r: Red (0-255)
+        g: Green (0-255)
+        b: Blue (0-255)
+    
     Returns:
-        CMYK tuple (0-100, 0-100, 0-100, 0-100)
-        
-    Example:
-        >>> rgb_to_cmyk((0, 0, 0))
-        (0.0, 0.0, 0.0, 100.0)
+        Tuple of (c, m, y, k) where each is 0-100
+    
+    Examples:
+        >>> rgb_to_cmyk(255, 0, 0)
+        (0, 100, 100, 0)
+        >>> rgb_to_cmyk(0, 0, 0)
+        (0, 0, 0, 100)
+        >>> rgb_to_cmyk(255, 255, 255)
+        (0, 0, 0, 0)
     """
-    r, g, b = [x / 255.0 for x in rgb]
+    if r == 0 and g == 0 and b == 0:
+        return (0, 0, 0, 100)
     
-    if r == g == b == 0:
-        return (0.0, 0.0, 0.0, 100.0)
+    r_norm = r / 255.0
+    g_norm = g / 255.0
+    b_norm = b / 255.0
     
-    k = 1 - max(r, g, b)
-    c = (1 - r - k) / (1 - k)
-    m = (1 - g - k) / (1 - k)
-    y = (1 - b - k) / (1 - k)
+    k = 1 - max(r_norm, g_norm, b_norm)
     
-    return (c * 100, m * 100, y * 100, k * 100)
+    if k == 1:
+        return (0, 0, 0, 100)
+    
+    c = (1 - r_norm - k) / (1 - k)
+    m = (1 - g_norm - k) / (1 - k)
+    y = (1 - b_norm - k) / (1 - k)
+    
+    return (
+        int(round(c * 100)),
+        int(round(m * 100)),
+        int(round(y * 100)),
+        int(round(k * 100))
+    )
 
 
-def cmyk_to_rgb(cmyk: CMYK) -> RGB:
+def cmyk_to_rgb(c: int, m: int, y: int, k: int) -> Tuple[int, int, int]:
     """
     Convert CMYK to RGB.
     
     Args:
-        cmyk: CMYK tuple (0-100, 0-100, 0-100, 0-100)
-        
+        c: Cyan (0-100)
+        m: Magenta (0-100)
+        y: Yellow (0-100)
+        k: Key/Black (0-100)
+    
     Returns:
-        RGB tuple (0-255, 0-255, 0-255)
-        
-    Example:
-        >>> cmyk_to_rgb((0, 0, 0, 100))
-        (0, 0, 0)
+        Tuple of (r, g, b) where each is 0-255
+    
+    Examples:
+        >>> cmyk_to_rgb(0, 100, 100, 0)
+        (255, 0, 0)
     """
-    c, m, y, k = [x / 100.0 for x in cmyk]
+    c = max(0, min(100, c)) / 100.0
+    m = max(0, min(100, m)) / 100.0
+    y = max(0, min(100, y)) / 100.0
+    k = max(0, min(100, k)) / 100.0
     
     r = 255 * (1 - c) * (1 - k)
     g = 255 * (1 - m) * (1 - k)
     b = 255 * (1 - y) * (1 - k)
     
-    return (round(r), round(g), round(b))
-
-
-def rgb_to_lab(rgb: RGB) -> LAB:
-    """
-    Convert RGB to LAB color space.
-    
-    Uses D65 illuminant reference white.
-    
-    Args:
-        rgb: RGB tuple (0-255, 0-255, 0-255)
-        
-    Returns:
-        LAB tuple (L: 0-100, a: -128 to 127, b: -128 to 127)
-        
-    Example:
-        >>> rgb_to_lab((255, 0, 0))
-        (53.23288178584245, 80.10930952982204, 67.22006831026425)
-    """
-    # RGB to XYZ
-    r, g, b = [x / 255.0 for x in rgb]
-    
-    # Apply gamma correction
-    r = r ** 2.4 if r > 0.04045 else r / 12.92
-    g = g ** 2.4 if g > 0.04045 else g / 12.92
-    b = b ** 2.4 if b > 0.04045 else b / 12.92
-    
-    r *= 100
-    g *= 100
-    b *= 100
-    
-    # RGB to XYZ matrix (sRGB)
-    x = r * 0.4124564 + g * 0.3575761 + b * 0.1804375
-    y = r * 0.2126729 + g * 0.7151522 + b * 0.0721750
-    z = r * 0.0193339 + g * 0.1191920 + b * 0.9503041
-    
-    # Reference white D65
-    ref_x = 95.047
-    ref_y = 100.000
-    ref_z = 108.883
-    
-    x /= ref_x
-    y /= ref_y
-    z /= ref_z
-    
-    # XYZ to LAB
-    def f(t):
-        delta = 6/29
-        if t > delta ** 3:
-            return t ** (1/3)
-        return t / (3 * delta ** 2) + 4/29
-    
-    L = 116 * f(y) - 16
-    a = 500 * (f(x) - f(y))
-    b_lab = 200 * (f(y) - f(z))
-    
-    return (L, a, b_lab)
-
-
-def lab_to_rgb(lab: LAB) -> RGB:
-    """
-    Convert LAB to RGB color space.
-    
-    Args:
-        lab: LAB tuple (L: 0-100, a: -128 to 127, b: -128 to 127)
-        
-    Returns:
-        RGB tuple (0-255, 0-255, 0-255)
-        
-    Example:
-        >>> lab_to_rgb((53.23, 80.11, 67.22))
-        (255, 0, 0)
-    """
-    L, a, b = lab
-    
-    # Reference white D65
-    ref_x = 95.047
-    ref_y = 100.000
-    ref_z = 108.883
-    
-    # LAB to XYZ
-    def f(t):
-        delta = 6/29
-        if t > delta:
-            return t ** 3
-        return 3 * delta ** 2 * (t - 4/29)
-    
-    x = ref_x * f((L + 16) / 116 + a / 500)
-    y = ref_y * f((L + 16) / 116)
-    z = ref_z * f((L + 16) / 116 - b / 200)
-    
-    x /= 100
-    y /= 100
-    z /= 100
-    
-    # XYZ to RGB matrix (sRGB)
-    r = x * 3.2404542 + y * -1.5371385 + z * -0.4985314
-    g = x * -0.9692660 + y * 1.8760108 + z * 0.0415560
-    b = x * 0.0556434 + y * -0.2040259 + z * 1.0572252
-    
-    # Apply inverse gamma correction
-    def gamma_correct(c):
-        if c > 0.0031308:
-            return 1.055 * (c ** (1/2.4)) - 0.055
-        return 12.92 * c
-    
-    r = gamma_correct(r)
-    g = gamma_correct(g)
-    b = gamma_correct(b)
-    
     return (
-        max(0, min(255, round(r * 255))),
-        max(0, min(255, round(g * 255))),
-        max(0, min(255, round(b * 255)))
+        int(round(r)),
+        int(round(g)),
+        int(round(b))
     )
 
 
 # ============================================================================
-# Color Manipulation
+# Color Manipulation Functions
 # ============================================================================
 
-def lighten(rgb: RGB, amount: float = 10) -> RGB:
+def lighten(color: Union[str, RGB], amount: int = 10) -> RGB:
     """
-    Lighten a color.
+    Lighten a color by increasing its lightness.
     
     Args:
-        rgb: RGB tuple
+        color: Color string or RGB object
         amount: Amount to lighten (0-100)
-        
+    
     Returns:
-        Lightened RGB tuple
-        
-    Example:
-        >>> lighten((128, 128, 128), 50)
-        (192, 192, 192)
+        Lightened RGB color
+    
+    Examples:
+        >>> lighten('#ff0000', 20)
+        RGB(r=255, g=102, b=102, a=1.0)
     """
-    h, s, l = rgb_to_hsl(rgb)
+    if isinstance(color, str):
+        color = parse_color(color)
+    
+    h, s, l = rgb_to_hsl(color.r, color.g, color.b)
     l = min(100, l + amount)
-    return hsl_to_rgb((h, s, l))
+    r, g, b = hsl_to_rgb(h, s, l)
+    return RGB(r, g, b, color.a)
 
 
-def darken(rgb: RGB, amount: float = 10) -> RGB:
+def darken(color: Union[str, RGB], amount: int = 10) -> RGB:
     """
-    Darken a color.
+    Darken a color by decreasing its lightness.
     
     Args:
-        rgb: RGB tuple
+        color: Color string or RGB object
         amount: Amount to darken (0-100)
-        
+    
     Returns:
-        Darkened RGB tuple
-        
-    Example:
-        >>> darken((128, 128, 128), 50)
-        (64, 64, 64)
+        Darkened RGB color
+    
+    Examples:
+        >>> darken('#ff0000', 20)
+        RGB(r=204, g=0, b=0, a=1.0)
     """
-    h, s, l = rgb_to_hsl(rgb)
+    if isinstance(color, str):
+        color = parse_color(color)
+    
+    h, s, l = rgb_to_hsl(color.r, color.g, color.b)
     l = max(0, l - amount)
-    return hsl_to_rgb((h, s, l))
+    r, g, b = hsl_to_rgb(h, s, l)
+    return RGB(r, g, b, color.a)
 
 
-def saturate(rgb: RGB, amount: float = 10) -> RGB:
+def saturate(color: Union[str, RGB], amount: int = 10) -> RGB:
     """
     Increase saturation of a color.
     
     Args:
-        rgb: RGB tuple
+        color: Color string or RGB object
         amount: Amount to saturate (0-100)
-        
+    
     Returns:
-        Saturated RGB tuple
-        
-    Example:
-        >>> saturate((128, 128, 128), 50)
-        (128, 128, 128)  # Gray cannot be saturated
+        Saturated RGB color
+    
+    Examples:
+        >>> saturate('#cc6666', 20)
+        RGB(r=230, g=77, b=77, a=1.0)
     """
-    h, s, l = rgb_to_hsl(rgb)
+    if isinstance(color, str):
+        color = parse_color(color)
+    
+    h, s, l = rgb_to_hsl(color.r, color.g, color.b)
     s = min(100, s + amount)
-    return hsl_to_rgb((h, s, l))
+    r, g, b = hsl_to_rgb(h, s, l)
+    return RGB(r, g, b, color.a)
 
 
-def desaturate(rgb: RGB, amount: float = 10) -> RGB:
+def desaturate(color: Union[str, RGB], amount: int = 10) -> RGB:
     """
     Decrease saturation of a color.
     
     Args:
-        rgb: RGB tuple
+        color: Color string or RGB object
         amount: Amount to desaturate (0-100)
-        
+    
     Returns:
-        Desaturated RGB tuple
-        
-    Example:
-        >>> desaturate((255, 0, 0), 50)
-        (191, 64, 64)
+        Desaturated RGB color
+    
+    Examples:
+        >>> desaturate('#ff0000', 50)
+        RGB(r=191, g=64, b=64, a=1.0)
     """
-    h, s, l = rgb_to_hsl(rgb)
+    if isinstance(color, str):
+        color = parse_color(color)
+    
+    h, s, l = rgb_to_hsl(color.r, color.g, color.b)
     s = max(0, s - amount)
-    return hsl_to_rgb((h, s, l))
+    r, g, b = hsl_to_rgb(h, s, l)
+    return RGB(r, g, b, color.a)
 
 
-def grayscale(rgb: RGB) -> RGB:
+def grayscale(color: Union[str, RGB]) -> RGB:
     """
     Convert a color to grayscale.
     
     Args:
-        rgb: RGB tuple
-        
+        color: Color string or RGB object
+    
     Returns:
-        Grayscale RGB tuple
-        
-    Example:
-        >>> grayscale((255, 0, 0))
-        (76, 76, 76)
+        Grayscale RGB color
+    
+    Examples:
+        >>> grayscale('#ff0000')
+        RGB(r=76, g=76, b=76, a=1.0)
     """
-    # Use luminosity method for better perceptual grayscale
-    r, g, b = rgb
-    gray = round(0.299 * r + 0.587 * g + 0.114 * b)
-    return (gray, gray, gray)
+    if isinstance(color, str):
+        color = parse_color(color)
+    
+    # Use luminance formula (perceptual)
+    gray = int(0.299 * color.r + 0.587 * color.g + 0.114 * color.b)
+    return RGB(gray, gray, gray, color.a)
 
 
-def invert(rgb: RGB) -> RGB:
+def invert(color: Union[str, RGB]) -> RGB:
     """
     Invert a color.
     
     Args:
-        rgb: RGB tuple
-        
+        color: Color string or RGB object
+    
     Returns:
-        Inverted RGB tuple
-        
-    Example:
-        >>> invert((255, 0, 0))
-        (0, 255, 255)
+        Inverted RGB color
+    
+    Examples:
+        >>> invert('#000000')
+        RGB(r=255, g=255, b=255, a=1.0)
+        >>> invert('#ff0000')
+        RGB(r=0, g=255, b=255, a=1.0)
     """
-    return (255 - rgb[0], 255 - rgb[1], 255 - rgb[2])
+    if isinstance(color, str):
+        color = parse_color(color)
+    
+    return RGB(
+        255 - color.r,
+        255 - color.g,
+        255 - color.b,
+        color.a
+    )
 
 
-def rotate_hue(rgb: RGB, degrees: float) -> RGB:
+def complement(color: Union[str, RGB]) -> RGB:
     """
-    Rotate the hue of a color.
+    Get the complementary color (opposite on color wheel).
     
     Args:
-        rgb: RGB tuple
-        degrees: Degrees to rotate (-360 to 360)
-        
-    Returns:
-        RGB tuple with rotated hue
-        
-    Example:
-        >>> rotate_hue((255, 0, 0), 180)
-        (0, 255, 255)  # Cyan
-    """
-    h, s, l = rgb_to_hsl(rgb)
-    h = (h + degrees) % 360
-    if h < 0:
-        h += 360
-    return hsl_to_rgb((h, s, l))
-
-
-def complement(rgb: RGB) -> RGB:
-    """
-    Get the complementary color.
+        color: Color string or RGB object
     
-    Args:
-        rgb: RGB tuple
-        
     Returns:
-        Complementary RGB tuple
-        
-    Example:
-        >>> complement((255, 0, 0))
-        (0, 255, 255)  # Cyan
+        Complementary RGB color
+    
+    Examples:
+        >>> complement('#ff0000')
+        RGB(r=0, g=255, b=255, a=1.0)
     """
-    return rotate_hue(rgb, 180)
+    if isinstance(color, str):
+        color = parse_color(color)
+    
+    h, s, l = rgb_to_hsl(color.r, color.g, color.b)
+    h = (h + 180) % 360
+    r, g, b = hsl_to_rgb(h, s, l)
+    return RGB(r, g, b, color.a)
 
 
-# ============================================================================
-# Color Mixing and Blending
-# ============================================================================
-
-def mix(color1: RGB, color2: RGB, ratio: float = 0.5) -> RGB:
+def mix(color1: Union[str, RGB], color2: Union[str, RGB], weight: float = 0.5) -> RGB:
     """
     Mix two colors together.
     
     Args:
-        color1: First RGB tuple
-        color2: Second RGB tuple
-        ratio: Mix ratio (0.0 = all color1, 1.0 = all color2)
-        
+        color1: First color string or RGB object
+        color2: Second color string or RGB object
+        weight: Weight of first color (0.0-1.0), default 0.5
+    
     Returns:
-        Mixed RGB tuple
-        
-    Example:
-        >>> mix((255, 0, 0), (0, 0, 255), 0.5)
-        (128, 0, 128)  # Purple
+        Mixed RGB color
+    
+    Examples:
+        >>> mix('#ff0000', '#0000ff', 0.5)
+        RGB(r=128, g=0, b=128, a=1.0)
     """
-    r = round(color1[0] * (1 - ratio) + color2[0] * ratio)
-    g = round(color1[1] * (1 - ratio) + color2[1] * ratio)
-    b = round(color1[2] * (1 - ratio) + color2[2] * ratio)
-    return (r, g, b)
+    if isinstance(color1, str):
+        color1 = parse_color(color1)
+    if isinstance(color2, str):
+        color2 = parse_color(color2)
+    
+    weight = max(0.0, min(1.0, weight))
+    w2 = 1.0 - weight
+    
+    r = int(round(color1.r * weight + color2.r * w2))
+    g = int(round(color1.g * weight + color2.g * w2))
+    b = int(round(color1.b * weight + color2.b * w2))
+    a = color1.a * weight + color2.a * w2
+    
+    return RGB(r, g, b, a)
 
 
-def blend_multiply(color1: RGB, color2: RGB) -> RGB:
+def blend(color1: Union[str, RGB], color2: Union[str, RGB], mode: str = 'normal') -> RGB:
     """
-    Multiply blend two colors.
+    Blend two colors using a blend mode.
     
     Args:
-        color1: First RGB tuple
-        color2: Second RGB tuple
-        
-    Returns:
-        Blended RGB tuple
-        
-    Example:
-        >>> blend_multiply((255, 255, 255), (128, 128, 128))
-        (128, 128, 128)
-    """
-    return (
-        round(color1[0] * color2[0] / 255),
-        round(color1[1] * color2[1] / 255),
-        round(color1[2] * color2[2] / 255)
-    )
-
-
-def blend_screen(color1: RGB, color2: RGB) -> RGB:
-    """
-    Screen blend two colors.
+        color1: Base color string or RGB object
+        color2: Blend color string or RGB object
+        mode: Blend mode ('normal', 'multiply', 'screen', 'overlay', 'soft_light', 'hard_light')
     
-    Args:
-        color1: First RGB tuple
-        color2: Second RGB tuple
-        
     Returns:
-        Blended RGB tuple
-        
-    Example:
-        >>> blend_screen((0, 0, 0), (128, 128, 128))
-        (128, 128, 128)
-    """
-    return (
-        255 - round((255 - color1[0]) * (255 - color2[0]) / 255),
-        255 - round((255 - color1[1]) * (255 - color2[1]) / 255),
-        255 - round((255 - color1[2]) * (255 - color2[2]) / 255)
-    )
-
-
-def blend_overlay(color1: RGB, color2: RGB) -> RGB:
-    """
-    Overlay blend two colors.
+        Blended RGB color
     
-    Args:
-        color1: First RGB tuple (base)
-        color2: Second RGB tuple (overlay)
-        
-    Returns:
-        Blended RGB tuple
-        
-    Example:
-        >>> blend_overlay((128, 128, 128), (128, 128, 128))
-        (128, 128, 128)
+    Examples:
+        >>> blend('#ff0000', '#0000ff', 'multiply')
+        RGB(r=0, g=0, b=0, a=1.0)
     """
-    def overlay(c1, c2):
-        if c1 < 128:
-            return 2 * c1 * c2 / 255
-        return 255 - 2 * (255 - c1) * (255 - c2) / 255
+    if isinstance(color1, str):
+        color1 = parse_color(color1)
+    if isinstance(color2, str):
+        color2 = parse_color(color2)
     
-    return (
-        round(overlay(color1[0], color2[0])),
-        round(overlay(color1[1], color2[1])),
-        round(overlay(color1[2], color2[2]))
-    )
+    mode = mode.lower()
+    
+    def multiply(a: int, b: int) -> int:
+        return int((a / 255.0) * (b / 255.0) * 255)
+    
+    def screen(a: int, b: int) -> int:
+        return int(255 - (255 - a) * (255 - b) / 255.0)
+    
+    def overlay(a: int, b: int) -> int:
+        a_norm = a / 255.0
+        b_norm = b / 255.0
+        if a_norm < 0.5:
+            return int(2 * a_norm * b_norm * 255)
+        else:
+            return int((1 - 2 * (1 - a_norm) * (1 - b_norm)) * 255)
+    
+    if mode == 'normal':
+        return color2
+    elif mode == 'multiply':
+        return RGB(multiply(color1.r, color2.r), multiply(color1.g, color2.g), multiply(color1.b, color2.b))
+    elif mode == 'screen':
+        return RGB(screen(color1.r, color2.r), screen(color1.g, color2.g), screen(color1.b, color2.b))
+    elif mode == 'overlay':
+        return RGB(overlay(color1.r, color2.r), overlay(color1.g, color2.g), overlay(color1.b, color2.b))
+    elif mode == 'soft_light':
+        # Soft light is a gentler version of overlay
+        def soft_light(a: int, b: int) -> int:
+            a_norm = a / 255.0
+            b_norm = b / 255.0
+            if b_norm < 0.5:
+                return int((2 * a_norm - 1) * (b_norm - b_norm * b_norm) + a_norm * 255)
+            else:
+                return int((2 * a_norm - 1) * (math.sqrt(b_norm) - b_norm) + a_norm * 255)
+        return RGB(soft_light(color1.r, color2.r), soft_light(color1.g, color2.g), soft_light(color1.b, color2.b))
+    elif mode == 'hard_light':
+        # Hard light is like overlay but with colors swapped
+        return RGB(overlay(color2.r, color1.r), overlay(color2.g, color1.g), overlay(color2.b, color1.b))
+    else:
+        raise ValueError(f"Unknown blend mode: {mode}")
 
 
 # ============================================================================
-# Color Distance and Comparison
+# Color Harmony Functions
 # ============================================================================
 
-def color_distance(color1: RGB, color2: RGB) -> float:
+def analogous(color: Union[str, RGB], angle: int = 30) -> List[RGB]:
     """
-    Calculate Euclidean distance between two colors.
+    Get analogous colors (adjacent on color wheel).
     
     Args:
-        color1: First RGB tuple
-        color2: Second RGB tuple
-        
+        color: Color string or RGB object
+        angle: Angle between colors (default 30 degrees)
+    
     Returns:
-        Distance (0-441.67, where 0 = identical)
-        
-    Example:
-        >>> color_distance((255, 0, 0), (0, 0, 255))
-        359.16...
-    """
-    return math.sqrt(
-        (color1[0] - color2[0]) ** 2 +
-        (color1[1] - color2[1]) ** 2 +
-        (color1[2] - color2[2]) ** 2
-    )
-
-
-def color_distance_lab(color1: RGB, color2: RGB) -> float:
-    """
-    Calculate perceptual distance between two colors using LAB space.
+        List of 3 RGB colors (original, and two adjacent)
     
-    More accurate for human perception than RGB distance.
+    Examples:
+        >>> len(analogous('#ff0000'))
+        3
+    """
+    if isinstance(color, str):
+        color = parse_color(color)
+    
+    h, s, l = rgb_to_hsl(color.r, color.g, color.b)
+    
+    colors = [color]
+    
+    # Left color
+    h_left = (h - angle) % 360
+    r, g, b = hsl_to_rgb(h_left, s, l)
+    colors.append(RGB(r, g, b))
+    
+    # Right color
+    h_right = (h + angle) % 360
+    r, g, b = hsl_to_rgb(h_right, s, l)
+    colors.append(RGB(r, g, b))
+    
+    return colors
+
+
+def triadic(color: Union[str, RGB]) -> List[RGB]:
+    """
+    Get triadic colors (three colors equally spaced on color wheel).
     
     Args:
-        color1: First RGB tuple
-        color2: Second RGB tuple
-        
+        color: Color string or RGB object
+    
     Returns:
-        Perceptual distance
-        
-    Example:
-        >>> color_distance_lab((255, 0, 0), (0, 0, 255))
-        173.58...
-    """
-    lab1 = rgb_to_lab(color1)
-    lab2 = rgb_to_lab(color2)
+        List of 3 RGB colors
     
-    return math.sqrt(
-        (lab1[0] - lab2[0]) ** 2 +
-        (lab1[1] - lab2[1]) ** 2 +
-        (lab1[2] - lab2[2]) ** 2
-    )
-
-
-def calculate_luminance(rgb: RGB) -> float:
+    Examples:
+        >>> triadic('#ff0000')
+        [RGB(r=255, g=0, b=0, a=1.0), RGB(r=0, g=255, b=0, a=1.0), RGB(r=0, g=0, b=255, a=1.0)]
     """
-    Calculate relative luminance of a color (WCAG).
+    if isinstance(color, str):
+        color = parse_color(color)
+    
+    h, s, l = rgb_to_hsl(color.r, color.g, color.b)
+    
+    colors = [color]
+    
+    for i in range(1, 3):
+        h_new = (h + i * 120) % 360
+        r, g, b = hsl_to_rgb(h_new, s, l)
+        colors.append(RGB(r, g, b))
+    
+    return colors
+
+
+def split_complement(color: Union[str, RGB], angle: int = 30) -> List[RGB]:
+    """
+    Get split complementary colors.
     
     Args:
-        rgb: RGB tuple
-        
+        color: Color string or RGB object
+        angle: Angle from complement (default 30 degrees)
+    
+    Returns:
+        List of 3 RGB colors
+    
+    Examples:
+        >>> len(split_complement('#ff0000'))
+        3
+    """
+    if isinstance(color, str):
+        color = parse_color(color)
+    
+    h, s, l = rgb_to_hsl(color.r, color.g, color.b)
+    
+    colors = [color]
+    
+    # Split complements
+    for delta in [angle, -angle]:
+        h_new = (h + 180 + delta) % 360
+        r, g, b = hsl_to_rgb(h_new, s, l)
+        colors.append(RGB(r, g, b))
+    
+    return colors
+
+
+def tetradic(color: Union[str, RGB]) -> List[RGB]:
+    """
+    Get tetradic colors (four colors forming a rectangle on color wheel).
+    
+    Args:
+        color: Color string or RGB object
+    
+    Returns:
+        List of 4 RGB colors
+    
+    Examples:
+        >>> len(tetradic('#ff0000'))
+        4
+    """
+    if isinstance(color, str):
+        color = parse_color(color)
+    
+    h, s, l = rgb_to_hsl(color.r, color.g, color.b)
+    
+    colors = [color]
+    
+    for angle in [90, 180, 270]:
+        h_new = (h + angle) % 360
+        r, g, b = hsl_to_rgb(h_new, s, l)
+        colors.append(RGB(r, g, b))
+    
+    return colors
+
+
+def monochromatic(color: Union[str, RGB], steps: int = 5) -> List[RGB]:
+    """
+    Get monochromatic color variations.
+    
+    Args:
+        color: Color string or RGB object
+        steps: Number of variations (default 5)
+    
+    Returns:
+        List of RGB colors
+    
+    Examples:
+        >>> len(monochromatic('#ff0000', 5))
+        5
+    """
+    if isinstance(color, str):
+        color = parse_color(color)
+    
+    h, s, l = rgb_to_hsl(color.r, color.g, color.b)
+    
+    colors = []
+    step_size = 100 / (steps + 1)
+    
+    for i in range(1, steps + 1):
+        new_l = int(step_size * i)
+        r, g, b = hsl_to_rgb(h, s, new_l)
+        colors.append(RGB(r, g, b))
+    
+    return colors
+
+
+# ============================================================================
+# Color Utility Functions
+# ============================================================================
+
+def luminance(color: Union[str, RGB]) -> float:
+    """
+    Calculate relative luminance of a color.
+    
+    Args:
+        color: Color string or RGB object
+    
     Returns:
         Relative luminance (0.0-1.0)
-        
-    Example:
-        >>> calculate_luminance((255, 255, 255))
+    
+    Examples:
+        >>> round(luminance('#ffffff'), 2)
         1.0
-        >>> calculate_luminance((0, 0, 0))
+        >>> round(luminance('#000000'), 2)
         0.0
     """
-    r, g, b = rgb
+    if isinstance(color, str):
+        color = parse_color(color)
     
-    def channel_luminance(c):
-        c = c / 255
-        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    def convert(c: int) -> float:
+        c_norm = c / 255.0
+        return c_norm / 12.92 if c_norm <= 0.03928 else ((c_norm + 0.055) / 1.055) ** 2.4
     
-    r = channel_luminance(r)
-    g = channel_luminance(g)
-    b = channel_luminance(b)
-    
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+    return 0.2126 * convert(color.r) + 0.7152 * convert(color.g) + 0.0722 * convert(color.b)
 
 
-def contrast_ratio(color1: RGB, color2: RGB) -> float:
+def contrast_ratio(color1: Union[str, RGB], color2: Union[str, RGB]) -> float:
     """
     Calculate contrast ratio between two colors (WCAG).
     
     Args:
-        color1: First RGB tuple
-        color2: Second RGB tuple
-        
+        color1: First color string or RGB object
+        color2: Second color string or RGB object
+    
     Returns:
-        Contrast ratio (1.0-21.0)
-        
-    Example:
-        >>> contrast_ratio((0, 0, 0), (255, 255, 255))
+        Contrast ratio (1:1 to 21:1)
+    
+    Examples:
+        >>> round(contrast_ratio('#ffffff', '#000000'), 1)
         21.0
+        >>> round(contrast_ratio('#ffffff', '#ffffff'), 1)
+        1.0
     """
-    l1 = calculate_luminance(color1)
-    l2 = calculate_luminance(color2)
+    if isinstance(color1, str):
+        color1 = parse_color(color1)
+    if isinstance(color2, str):
+        color2 = parse_color(color2)
+    
+    l1 = luminance(color1)
+    l2 = luminance(color2)
     
     lighter = max(l1, l2)
     darker = min(l1, l2)
@@ -1193,17 +1373,23 @@ def contrast_ratio(color1: RGB, color2: RGB) -> float:
 
 def wcag_rating(ratio: float) -> str:
     """
-    Get WCAG accessibility rating for contrast ratio.
+    Get WCAG rating for a contrast ratio.
     
     Args:
         ratio: Contrast ratio
-        
+    
     Returns:
-        Rating string ('AAA', 'AA', 'AA Large', 'Fail')
-        
-    Example:
+        WCAG rating string ('AAA', 'AA', 'AA Large', 'Fail')
+    
+    Examples:
         >>> wcag_rating(7.0)
         'AAA'
+        >>> wcag_rating(4.5)
+        'AA'
+        >>> wcag_rating(3.0)
+        'AA Large'
+        >>> wcag_rating(2.0)
+        'Fail'
     """
     if ratio >= 7.0:
         return 'AAA'
@@ -1211,629 +1397,332 @@ def wcag_rating(ratio: float) -> str:
         return 'AA'
     elif ratio >= 3.0:
         return 'AA Large'
-    return 'Fail'
+    else:
+        return 'Fail'
+
+
+def brightness(color: Union[str, RGB]) -> int:
+    """
+    Calculate perceived brightness of a color (0-255).
+    
+    Args:
+        color: Color string or RGB object
+    
+    Returns:
+        Brightness value (0-255)
+    
+    Examples:
+        >>> brightness('#ffffff')
+        255
+        >>> brightness('#000000')
+        0
+    """
+    if isinstance(color, str):
+        color = parse_color(color)
+    
+    # Perceived brightness formula
+    return int(0.299 * color.r + 0.587 * color.g + 0.114 * color.b)
+
+
+def is_light(color: Union[str, RGB]) -> bool:
+    """
+    Check if a color is light.
+    
+    Args:
+        color: Color string or RGB object
+    
+    Returns:
+        True if light, False if dark
+    
+    Examples:
+        >>> is_light('#ffffff')
+        True
+        >>> is_light('#000000')
+        False
+    """
+    return brightness(color) > 127
+
+
+def is_dark(color: Union[str, RGB]) -> bool:
+    """
+    Check if a color is dark.
+    
+    Args:
+        color: Color string or RGB object
+    
+    Returns:
+        True if dark, False if light
+    
+    Examples:
+        >>> is_dark('#000000')
+        True
+        >>> is_dark('#ffffff')
+        False
+    """
+    return brightness(color) <= 127
+
+
+def text_color_for_bg(background: Union[str, RGB], light_color: str = '#ffffff', dark_color: str = '#000000') -> str:
+    """
+    Get appropriate text color for a background.
+    
+    Args:
+        background: Background color string or RGB object
+        light_color: Light text color (default white)
+        dark_color: Dark text color (default black)
+    
+    Returns:
+        Either light_color or dark_color based on background brightness
+    
+    Examples:
+        >>> text_color_for_bg('#ffffff')
+        '#000000'
+        >>> text_color_for_bg('#000000')
+        '#ffffff'
+    """
+    return light_color if is_dark(background) else dark_color
+
+
+def color_distance(color1: Union[str, RGB], color2: Union[str, RGB]) -> float:
+    """
+    Calculate Euclidean distance between two colors in RGB space.
+    
+    Args:
+        color1: First color string or RGB object
+        color2: Second color string or RGB object
+    
+    Returns:
+        Distance (0-441.67 for RGB cube diagonal)
+    
+    Examples:
+        >>> round(color_distance('#ff0000', '#ff0000'), 1)
+        0.0
+        >>> round(color_distance('#000000', '#ffffff'), 1)
+        441.7
+    """
+    if isinstance(color1, str):
+        color1 = parse_color(color1)
+    if isinstance(color2, str):
+        color2 = parse_color(color2)
+    
+    return math.sqrt(
+        (color1.r - color2.r) ** 2 +
+        (color1.g - color2.g) ** 2 +
+        (color1.b - color2.b) ** 2
+    )
+
+
+def closest_color(color: Union[str, RGB], color_list: List[Union[str, RGB]]) -> int:
+    """
+    Find the closest color in a list.
+    
+    Args:
+        color: Target color string or RGB object
+        color_list: List of colors to search
+    
+    Returns:
+        Index of the closest color in the list
+    
+    Raises:
+        ValueError: If color_list is empty
+    
+    Examples:
+        >>> closest_color('#ff0000', ['#ff0000', '#00ff00', '#0000ff'])
+        0
+    """
+    if not color_list:
+        raise ValueError("color_list cannot be empty")
+    
+    if isinstance(color, str):
+        color = parse_color(color)
+    
+    min_distance = float('inf')
+    closest_idx = 0
+    
+    for i, c in enumerate(color_list):
+        if isinstance(c, str):
+            c = parse_color(c)
+        
+        dist = color_distance(color, c)
+        if dist < min_distance:
+            min_distance = dist
+            closest_idx = i
+    
+    return closest_idx
 
 
 # ============================================================================
-# Color Harmony
+# Gradient Functions
 # ============================================================================
 
-def complementary_palette(rgb: RGB) -> List[RGB]:
+def gradient(start_color: Union[str, RGB], end_color: Union[str, RGB], steps: int = 10) -> List[RGB]:
     """
-    Generate complementary color palette.
+    Generate a gradient between two colors.
     
     Args:
-        rgb: Base RGB color
-        
-    Returns:
-        List of 2 RGB colors (base + complement)
-        
-    Example:
-        >>> complementary_palette((255, 0, 0))
-        [(255, 0, 0), (0, 255, 255)]
-    """
-    return [rgb, complement(rgb)]
-
-
-def analogous_palette(rgb: RGB, angle: float = 30) -> List[RGB]:
-    """
-    Generate analogous color palette.
-    
-    Args:
-        rgb: Base RGB color
-        angle: Angle between colors (default 30 degrees)
-        
-    Returns:
-        List of 3 RGB colors
-        
-    Example:
-        >>> analogous_palette((255, 0, 0))
-        [(255, 0, 128), (255, 0, 0), (255, 128, 0)]
-    """
-    return [
-        rotate_hue(rgb, -angle),
-        rgb,
-        rotate_hue(rgb, angle)
-    ]
-
-
-def triadic_palette(rgb: RGB) -> List[RGB]:
-    """
-    Generate triadic color palette.
-    
-    Args:
-        rgb: Base RGB color
-        
-    Returns:
-        List of 3 RGB colors evenly spaced
-        
-    Example:
-        >>> triadic_palette((255, 0, 0))
-        [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
-    """
-    return [
-        rgb,
-        rotate_hue(rgb, 120),
-        rotate_hue(rgb, 240)
-    ]
-
-
-def split_complementary_palette(rgb: RGB) -> List[RGB]:
-    """
-    Generate split-complementary color palette.
-    
-    Args:
-        rgb: Base RGB color
-        
-    Returns:
-        List of 3 RGB colors
-        
-    Example:
-        >>> split_complementary_palette((255, 0, 0))
-        [(255, 0, 0), (0, 255, 128), (0, 128, 255)]
-    """
-    return [
-        rgb,
-        rotate_hue(rgb, 150),
-        rotate_hue(rgb, 210)
-    ]
-
-
-def tetradic_palette(rgb: RGB) -> List[RGB]:
-    """
-    Generate tetradic (square) color palette.
-    
-    Args:
-        rgb: Base RGB color
-        
-    Returns:
-        List of 4 RGB colors
-        
-    Example:
-        >>> tetradic_palette((255, 0, 0))
-        [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0)]
-    """
-    return [
-        rgb,
-        rotate_hue(rgb, 90),
-        rotate_hue(rgb, 180),
-        rotate_hue(rgb, 270)
-    ]
-
-
-# ============================================================================
-# Palette Generation
-# ============================================================================
-
-def random_color() -> RGB:
-    """
-    Generate a random color.
+        start_color: Starting color string or RGB object
+        end_color: Ending color string or RGB object
+        steps: Number of steps in gradient (default 10)
     
     Returns:
-        Random RGB tuple
-        
-    Example:
-        >>> random_color()  # doctest: +SKIP
-        (123, 45, 67)
-    """
-    return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-
-
-def random_palette(count: int = 5) -> List[RGB]:
-    """
-    Generate a random color palette.
+        List of RGB colors forming the gradient
     
-    Args:
-        count: Number of colors to generate
-        
-    Returns:
-        List of random RGB tuples
-        
-    Example:
-        >>> random_palette(3)  # doctest: +SKIP
-        [(123, 45, 67), (200, 100, 50), (50, 150, 200)]
+    Examples:
+        >>> len(gradient('#000000', '#ffffff', 5))
+        5
+        >>> gradient('#000000', '#ffffff', 3)[0]
+        RGB(r=0, g=0, b=0, a=1.0)
+        >>> gradient('#000000', '#ffffff', 3)[2]
+        RGB(r=255, g=255, b=255, a=1.0)
     """
-    return [random_color() for _ in range(count)]
-
-
-def gradient_palette(start: RGB, end: RGB, steps: int = 5) -> List[RGB]:
-    """
-    Generate a gradient palette between two colors.
+    if isinstance(start_color, str):
+        start_color = parse_color(start_color)
+    if isinstance(end_color, str):
+        end_color = parse_color(end_color)
     
-    Args:
-        start: Starting RGB color
-        end: Ending RGB color
-        steps: Number of steps (minimum 2)
-        
-    Returns:
-        List of RGB tuples forming gradient
-        
-    Example:
-        >>> gradient_palette((255, 0, 0), (0, 0, 255), 5)
-        [(255, 0, 0), (191, 0, 64), (128, 0, 128), (64, 0, 191), (0, 0, 255)]
-    """
     if steps < 2:
-        return [start]
+        steps = 2
     
-    return [mix(start, end, i / (steps - 1)) for i in range(steps)]
-
-
-def monochromatic_palette(rgb: RGB, count: int = 5) -> List[RGB]:
-    """
-    Generate monochromatic palette (variations in lightness).
-    
-    Args:
-        rgb: Base RGB color
-        count: Number of colors
-        
-    Returns:
-        List of RGB tuples with varying lightness
-        
-    Example:
-        >>> monochromatic_palette((255, 0, 0), 5)
-        [(128, 0, 0), (191, 0, 0), (255, 0, 0), (255, 64, 64), (255, 128, 128)]
-    """
-    h, s, l = rgb_to_hsl(rgb)
-    
-    # Distribute lightness values around the base
-    values = []
-    step = 50 / (count - 1) if count > 1 else 0
-    
-    for i in range(count):
-        new_l = max(0, min(100, l - 25 + (i * step)))
-        values.append(hsl_to_rgb((h, s, new_l)))
-    
-    return values
-
-
-def shades_palette(rgb: RGB, count: int = 5) -> List[RGB]:
-    """
-    Generate shades (darker variations) of a color.
-    
-    Args:
-        rgb: Base RGB color
-        count: Number of shades
-        
-    Returns:
-        List of RGB tuples (base to darkest)
-        
-    Example:
-        >>> shades_palette((255, 0, 0), 5)
-        [(255, 0, 0), (204, 0, 0), (153, 0, 0), (102, 0, 0), (51, 0, 0)]
-    """
-    result = [rgb]
-    for i in range(1, count):
-        result.append(darken(rgb, (100 / count) * i))
-    return result
-
-
-def tints_palette(rgb: RGB, count: int = 5) -> List[RGB]:
-    """
-    Generate tints (lighter variations) of a color.
-    
-    Args:
-        rgb: Base RGB color
-        count: Number of tints
-        
-    Returns:
-        List of RGB tuples (base to lightest)
-        
-    Example:
-        >>> tints_palette((255, 0, 0), 5)
-        [(255, 0, 0), (255, 51, 51), (255, 102, 102), (255, 153, 153), (255, 204, 204)]
-    """
-    result = [rgb]
-    for i in range(1, count):
-        result.append(lighten(rgb, (100 / count) * i))
-    return result
-
-
-def harmonious_palette(rgb: RGB, harmony: str = 'complementary') -> List[RGB]:
-    """
-    Generate harmonious color palette.
-    
-    Args:
-        rgb: Base RGB color
-        harmony: Harmony type ('complementary', 'analogous', 'triadic', 
-                 'split-complementary', 'tetradic', 'monochromatic')
-        
-    Returns:
-        List of RGB tuples
-        
-    Example:
-        >>> harmonious_palette((255, 0, 0), 'triadic')
-        [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
-    """
-    harmonies = {
-        'complementary': complementary_palette,
-        'analogous': analogous_palette,
-        'triadic': triadic_palette,
-        'split-complementary': split_complementary_palette,
-        'tetradic': tetradic_palette,
-        'monochromatic': lambda c: monochromatic_palette(c, 5),
-    }
-    
-    func = harmonies.get(harmony.lower(), complementary_palette)
-    return func(rgb)
-
-
-# ============================================================================
-# Accessibility Helpers
-# ============================================================================
-
-def get_accessible_text_color(background: RGB, dark_color: RGB = (0, 0, 0), 
-                              light_color: RGB = (255, 255, 255),
-                              min_ratio: float = 4.5) -> RGB:
-    """
-    Get accessible text color for a given background.
-    
-    Args:
-        background: Background RGB color
-        dark_color: Dark text color option
-        light_color: Light text color option
-        min_ratio: Minimum contrast ratio (default 4.5 for AA)
-        
-    Returns:
-        RGB tuple of best text color
-        
-    Example:
-        >>> get_accessible_text_color((0, 0, 0))
-        (255, 255, 255)
-        >>> get_accessible_text_color((255, 255, 255))
-        (0, 0, 0)
-    """
-    dark_ratio = contrast_ratio(background, dark_color)
-    light_ratio = contrast_ratio(background, light_color)
-    
-    if dark_ratio >= min_ratio:
-        return dark_color
-    if light_ratio >= min_ratio:
-        return light_color
-    
-    # Return the one with better contrast
-    return dark_color if dark_ratio > light_ratio else light_color
-
-
-def find_accessible_colors(background: RGB, count: int = 10, 
-                          min_ratio: float = 4.5) -> List[RGB]:
-    """
-    Find accessible foreground colors for a background.
-    
-    Args:
-        background: Background RGB color
-        count: Number of colors to return
-        min_ratio: Minimum contrast ratio
-        
-    Returns:
-        List of accessible RGB colors
-        
-    Example:
-        >>> find_accessible_colors((128, 128, 128), 5)
-        [(255, 255, 255), (0, 0, 0), ...]
-    """
     colors = []
-    
-    # Try common colors first
-    common = [
-        (0, 0, 0), (255, 255, 255), (0, 0, 255), (255, 0, 0),
-        (0, 255, 0), (255, 255, 0), (0, 255, 255), (255, 0, 255)
-    ]
-    
-    for color in common:
-        if contrast_ratio(background, color) >= min_ratio:
-            colors.append(color)
-            if len(colors) >= count:
-                return colors
-    
-    # Generate random colors
-    attempts = 0
-    while len(colors) < count and attempts < 1000:
-        color = random_color()
-        if contrast_ratio(background, color) >= min_ratio:
-            colors.append(color)
-        attempts += 1
+    for i in range(steps):
+        # weight for start_color: at step 0, weight=1 (100% start); at last step, weight=0 (100% end)
+        weight = 1.0 - (i / (steps - 1)) if steps > 1 else 0.5
+        colors.append(mix(start_color, end_color, weight))
     
     return colors
 
 
-# ============================================================================
-# Utility Functions
-# ============================================================================
-
-def is_valid_hex(hex_str: str) -> bool:
+def multi_gradient(colors: List[Union[str, RGB]], steps_per_segment: int = 10) -> List[RGB]:
     """
-    Check if a string is a valid HEX color.
+    Generate a gradient through multiple colors.
     
     Args:
-        hex_str: String to check
-        
+        colors: List of color strings or RGB objects
+        steps_per_segment: Steps between each color pair
+    
     Returns:
-        True if valid HEX color
-        
-    Example:
-        >>> is_valid_hex("#FF0000")
+        List of RGB colors forming the multi-color gradient
+    
+    Examples:
+        >>> len(multi_gradient(['#ff0000', '#00ff00', '#0000ff'], 5))
+        11
+    """
+    if len(colors) < 2:
+        raise ValueError("At least 2 colors required for gradient")
+    
+    result = []
+    for i in range(len(colors) - 1):
+        segment = gradient(colors[i], colors[i + 1], steps_per_segment)
+        # Avoid duplicating the last color of each segment (except final)
+        if i < len(colors) - 2:
+            segment = segment[:-1]
+        result.extend(segment)
+    
+    return result
+
+
+# ============================================================================
+# Random Color Functions
+# ============================================================================
+
+def random_color(seed: Optional[int] = None) -> RGB:
+    """
+    Generate a random color.
+    
+    Args:
+        seed: Optional random seed for reproducibility
+    
+    Returns:
+        Random RGB color
+    
+    Examples:
+        >>> isinstance(random_color(), RGB)
         True
-        >>> is_valid_hex("FF0000")
+    """
+    import random as rand
+    
+    if seed is not None:
+        rand.seed(seed)
+    
+    return RGB(rand.randint(0, 255), rand.randint(0, 255), rand.randint(0, 255))
+
+
+def random_hue(saturation: int = 70, lightness: int = 50) -> RGB:
+    """
+    Generate a random color with specified saturation and lightness.
+    
+    Args:
+        saturation: Saturation (0-100)
+        lightness: Lightness (0-100)
+    
+    Returns:
+        Random RGB color with specified s and l
+    
+    Examples:
+        >>> isinstance(random_hue(80, 60), RGB)
         True
-        >>> is_valid_hex("#FF0")
+    """
+    import random as rand
+    
+    h = rand.randint(0, 359)
+    r, g, b = hsl_to_rgb(h, saturation, lightness)
+    return RGB(r, g, b)
+
+
+def random_pastel() -> RGB:
+    """
+    Generate a random pastel color.
+    
+    Returns:
+        Random pastel RGB color
+    
+    Examples:
+        >>> isinstance(random_pastel(), RGB)
         True
     """
-    hex_str = hex_str.lstrip('#')
-    return bool(re.match(r'^([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$', hex_str))
-
-
-def rgb_to_int(rgb: RGB) -> int:
-    """
-    Convert RGB to integer representation.
+    import random as rand
     
-    Args:
-        rgb: RGB tuple
-        
-    Returns:
-        Integer representation (0xRRGGBB)
-        
-    Example:
-        >>> rgb_to_int((255, 0, 0))
-        16711680
-    """
-    return (rgb[0] << 16) | (rgb[1] << 8) | rgb[2]
-
-
-def int_to_rgb(value: int) -> RGB:
-    """
-    Convert integer to RGB.
-    
-    Args:
-        value: Integer value (0xRRGGBB)
-        
-    Returns:
-        RGB tuple
-        
-    Example:
-        >>> int_to_rgb(16711680)
-        (255, 0, 0)
-    """
-    r = (value >> 16) & 0xFF
-    g = (value >> 8) & 0xFF
-    b = value & 0xFF
-    return (r, g, b)
-
-
-def get_color_brightness(rgb: RGB) -> float:
-    """
-    Calculate perceived brightness of a color.
-    
-    Args:
-        rgb: RGB tuple
-        
-    Returns:
-        Brightness value (0-255)
-        
-    Example:
-        >>> get_color_brightness((255, 255, 255))
-        255.0
-        >>> get_color_brightness((0, 0, 0))
-        0.0
-    """
-    return 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]
-
-
-def interpolate_color(start: RGB, end: RGB, t: float) -> RGB:
-    """
-    Interpolate between two colors.
-    
-    Args:
-        start: Starting RGB color
-        end: Ending RGB color
-        t: Interpolation factor (0.0-1.0)
-        
-    Returns:
-        Interpolated RGB tuple
-        
-    Example:
-        >>> interpolate_color((255, 0, 0), (0, 0, 255), 0.5)
-        (128, 0, 128)
-    """
-    t = max(0, min(1, t))
-    return (
-        round(start[0] + (end[0] - start[0]) * t),
-        round(start[1] + (end[1] - start[1]) * t),
-        round(start[2] + (end[2] - start[2]) * t)
-    )
-
-
-def temperature_to_rgb(kelvin: float) -> RGB:
-    """
-    Convert color temperature (Kelvin) to RGB.
-    
-    Based on algorithm by Tanner Helland.
-    
-    Args:
-        kelvin: Color temperature in Kelvin (1000-40000)
-        
-    Returns:
-        RGB tuple approximating the color temperature
-        
-    Example:
-        >>> temperature_to_rgb(6500)  # Daylight
-        (255, 249, 253)
-    """
-    kelvin = max(1000, min(40000, kelvin))
-    temp = kelvin / 100
-    
-    # Calculate red
-    if temp <= 66:
-        red = 255
-    else:
-        red = temp - 60
-        red = 329.698727446 * (red ** -0.1332047592)
-        red = max(0, min(255, red))
-    
-    # Calculate green
-    if temp <= 66:
-        green = temp
-        green = 99.4708025861 * math.log(green) - 161.1195681661
-        green = max(0, min(255, green))
-    else:
-        green = temp - 60
-        green = 288.1221695283 * (green ** -0.0755148492)
-        green = max(0, min(255, green))
-    
-    # Calculate blue
-    if temp >= 66:
-        blue = 255
-    elif temp <= 19:
-        blue = 0
-    else:
-        blue = temp - 10
-        blue = 138.5177312231 * math.log(blue) - 305.0447927307
-        blue = max(0, min(255, blue))
-    
-    return (round(red), round(green), round(blue))
-
-
-def css_gradient(colors: List[RGB], direction: str = 'to right') -> str:
-    """
-    Generate CSS linear gradient string.
-    
-    Args:
-        colors: List of RGB colors
-        direction: Gradient direction ('to right', 'to left', 'to bottom', 'to top', etc.)
-        
-    Returns:
-        CSS gradient string
-        
-    Example:
-        >>> css_gradient([(255, 0, 0), (0, 0, 255)])
-        'linear-gradient(to right, #FF0000 0%, #0000FF 100%)'
-    """
-    stops = []
-    n = len(colors) - 1
-    for i, color in enumerate(colors):
-        percent = round((i / n) * 100) if n > 0 else 0
-        stops.append(f"{rgb_to_hex(color)} {percent}%")
-    
-    return f"linear-gradient({direction}, {', '.join(stops)})"
+    h = rand.randint(0, 359)
+    s = rand.randint(40, 60)
+    l = rand.randint(75, 90)
+    r, g, b = hsl_to_rgb(h, s, l)
+    return RGB(r, g, b)
 
 
 # ============================================================================
-# Convenience Functions
+# Main Demo
 # ============================================================================
 
-def create_color(r: int, g: int, b: int, a: float = 1.0) -> Color:
-    """
-    Create a Color object.
+if __name__ == '__main__':
+    print("=== Color Parsing Examples ===")
+    print(f"parse_hex('#ff0000'): {parse_hex('#ff0000')}")
+    print(f"parse_rgb('rgb(255, 0, 0)'): {parse_rgb('rgb(255, 0, 0)')}")
+    print(f"parse_hsl('hsl(0, 100%, 50%)'): {parse_hsl('hsl(0, 100%, 50%)')}")
+    print(f"parse_color('red'): {parse_color('red')}")
     
-    Args:
-        r: Red (0-255)
-        g: Green (0-255)
-        b: Blue (0-255)
-        a: Alpha (0.0-1.0)
-        
-    Returns:
-        Color object
-        
-    Example:
-        >>> create_color(255, 0, 0)
-        Color(r=255, g=0, b=0, a=1.0)
-    """
-    return Color(r, g, b, a)
-
-
-def create_color_from_hex(hex_str: str) -> Color:
-    """
-    Create a Color object from HEX string.
+    print("\n=== Color Conversion Examples ===")
+    print(f"rgb_to_hex(255, 0, 0): {rgb_to_hex(255, 0, 0)}")
+    print(f"rgb_to_hsl(255, 0, 0): {rgb_to_hsl(255, 0, 0)}")
+    print(f"hsl_to_rgb(0, 100, 50): {hsl_to_rgb(0, 100, 50)}")
+    print(f"rgb_to_hsv(255, 0, 0): {rgb_to_hsv(255, 0, 0)}")
+    print(f"rgb_to_cmyk(255, 0, 0): {rgb_to_cmyk(255, 0, 0)}")
     
-    Args:
-        hex_str: HEX color string
-        
-    Returns:
-        Color object
-        
-    Example:
-        >>> create_color_from_hex("#FF0000")
-        Color(r=255, g=0, b=0, a=1.0)
-    """
-    return parse_color(hex_str)
-
-
-def create_color_from_name(name: str) -> Optional[Color]:
-    """
-    Create a Color object from a named color.
+    print("\n=== Color Manipulation Examples ===")
+    print(f"lighten('#ff0000', 20): {lighten('#ff0000', 20)}")
+    print(f"darken('#ff0000', 20): {darken('#ff0000', 20)}")
+    print(f"complement('#ff0000'): {complement('#ff0000')}")
+    print(f"mix('#ff0000', '#0000ff', 0.5): {mix('#ff0000', '#0000ff', 0.5)}")
     
-    Args:
-        name: Color name
-        
-    Returns:
-        Color object or None if not found
-        
-    Example:
-        >>> create_color_from_name("cornflowerblue")
-        Color(r=100, g=149, b=237, a=1.0)
-    """
-    rgb = name_to_rgb(name)
-    if rgb:
-        return Color(*rgb)
-    return None
-
-
-if __name__ == "__main__":
-    # Demo usage
-    print("Color Utilities Demo")
-    print("=" * 50)
+    print("\n=== Color Harmony Examples ===")
+    print(f"triadic('#ff0000'): {triadic('#ff0000')}")
+    print(f"analogous('#ff0000'): {analogous('#ff0000')}")
     
-    # Create colors
-    red = create_color_from_hex("#FF0000")
-    print(f"Red: {red}")
-    print(f"  HEX: {red.hex_with_hash}")
-    print(f"  HSL: {red.hsl}")
-    print(f"  HSV: {red.hsv}")
-    print(f"  CMYK: {red.cmyk}")
+    print("\n=== Contrast Examples ===")
+    print(f"contrast_ratio('#ffffff', '#000000'): {contrast_ratio('#ffffff', '#000000'):.2f}")
+    print(f"wcag_rating(7.5): {wcag_rating(7.5)}")
+    print(f"is_light('#ffffff'): {is_light('#ffffff')}")
+    print(f"text_color_for_bg('#ff0000'): {text_color_for_bg('#ff0000')}")
     
-    # Color manipulation
-    lighter = lighten(red.rgb, 30)
-    darker = darken(red.rgb, 30)
-    print(f"\nLighter: {rgb_to_hex(lighter)}")
-    print(f"Darker: {rgb_to_hex(darker)}")
-    
-    # Complementary
-    comp = complement(red.rgb)
-    print(f"\nComplementary: {rgb_to_hex(comp)}")
-    
-    # Triadic palette
-    triadic = triadic_palette(red.rgb)
-    print(f"\nTriadic palette: {[rgb_to_hex(c) for c in triadic]}")
-    
-    # Contrast ratio
-    contrast = contrast_ratio(red.rgb, (255, 255, 255))
-    print(f"\nContrast with white: {contrast:.2f} ({wcag_rating(contrast)})")
-    
-    # Gradient
-    gradient = gradient_palette((255, 0, 0), (0, 0, 255), 5)
-    print(f"\nGradient: {[rgb_to_hex(c) for c in gradient]}")
-    
-    # Temperature
-    warm = temperature_to_rgb(2700)  # Warm light
-    cool = temperature_to_rgb(6500)  # Cool daylight
-    print(f"\nWarm (2700K): {rgb_to_hex(warm)}")
-    print(f"Cool (6500K): {rgb_to_hex(cool)}")
+    print("\n=== Gradient Examples ===")
+    grad = gradient('#ff0000', '#0000ff', 5)
+    print(f"5-step gradient from red to blue: {[c.to_hex() for c in grad]}")

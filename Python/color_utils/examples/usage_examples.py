@@ -2,584 +2,430 @@
 # -*- coding: utf-8 -*-
 """
 AllToolkit - Color Utilities Usage Examples
-============================================
-Comprehensive examples demonstrating color_utils module capabilities.
+=============================================
+Practical examples demonstrating the color_utils module capabilities.
 
-Author: AllToolkit Contributors
-License: MIT
+Run with: python usage_examples.py
 """
 
 import sys
 import os
 
-# Add module directory to path
-module_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, module_dir)
-
-# Import directly from mod.py
+# Import directly from the module file
+mod_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'mod.py')
 import importlib.util
-spec = importlib.util.spec_from_file_location("color_utils_mod", 
-    os.path.join(module_dir, "mod.py"))
-color_utils = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(color_utils)
+spec = importlib.util.spec_from_file_location("color_utils_mod", mod_path)
+color_utils_mod = importlib.util.module_from_spec(spec)
+sys.modules['color_utils_mod'] = color_utils_mod
+spec.loader.exec_module(color_utils_mod)
 
-# Extract functions
-Color = color_utils.Color
-parse_color = color_utils.parse_color
-rgb_to_hex = color_utils.rgb_to_hex
-hex_to_rgb = color_utils.hex_to_rgb
-rgb_to_hsl = color_utils.rgb_to_hsl
-hsl_to_rgb = color_utils.hsl_to_rgb
-rgb_to_hsv = color_utils.rgb_to_hsv
-hsv_to_rgb = color_utils.hsv_to_rgb
-rgb_to_cmyk = color_utils.rgb_to_cmyk
-cmyk_to_rgb = color_utils.cmyk_to_rgb
-rgb_to_lab = color_utils.rgb_to_lab
-lab_to_rgb = color_utils.lab_to_rgb
-lighten = color_utils.lighten
-darken = color_utils.darken
-saturate = color_utils.saturate
-desaturate = color_utils.desaturate
-grayscale = color_utils.grayscale
-invert = color_utils.invert
-rotate_hue = color_utils.rotate_hue
-complement = color_utils.complement
-mix = color_utils.mix
-blend_multiply = color_utils.blend_multiply
-blend_screen = color_utils.blend_screen
-blend_overlay = color_utils.blend_overlay
-color_distance = color_utils.color_distance
-color_distance_lab = color_utils.color_distance_lab
-calculate_luminance = color_utils.calculate_luminance
-contrast_ratio = color_utils.contrast_ratio
-wcag_rating = color_utils.wcag_rating
-complementary_palette = color_utils.complementary_palette
-analogous_palette = color_utils.analogous_palette
-triadic_palette = color_utils.triadic_palette
-split_complementary_palette = color_utils.split_complementary_palette
-tetradic_palette = color_utils.tetradic_palette
-random_color = color_utils.random_color
-random_palette = color_utils.random_palette
-gradient_palette = color_utils.gradient_palette
-monochromatic_palette = color_utils.monochromatic_palette
-shades_palette = color_utils.shades_palette
-tints_palette = color_utils.tints_palette
-harmonious_palette = color_utils.harmonious_palette
-get_accessible_text_color = color_utils.get_accessible_text_color
-find_accessible_colors = color_utils.find_accessible_colors
-is_valid_hex = color_utils.is_valid_hex
-rgb_to_int = color_utils.rgb_to_int
-int_to_rgb = color_utils.int_to_rgb
-interpolate_color = color_utils.interpolate_color
-temperature_to_rgb = color_utils.temperature_to_rgb
-css_gradient = color_utils.css_gradient
-create_color = color_utils.create_color
-create_color_from_hex = color_utils.create_color_from_hex
-create_color_from_name = color_utils.create_color_from_name
-rgb_to_name = color_utils.rgb_to_name
-name_to_rgb = color_utils.name_to_rgb
-get_color_brightness = color_utils.get_color_brightness
+# Import functions
+RGB = color_utils_mod.RGB
+HSL = color_utils_mod.HSL
+HSV = color_utils_mod.HSV
+CMYK = color_utils_mod.CMYK
+parse_color = color_utils_mod.parse_color
+parse_hex = color_utils_mod.parse_hex
+parse_rgb = color_utils_mod.parse_rgb
+parse_hsl = color_utils_mod.parse_hsl
+rgb_to_hex = color_utils_mod.rgb_to_hex
+rgb_to_hsl = color_utils_mod.rgb_to_hsl
+hsl_to_rgb = color_utils_mod.hsl_to_rgb
+rgb_to_hsv = color_utils_mod.rgb_to_hsv
+hsv_to_rgb = color_utils_mod.hsv_to_rgb
+rgb_to_cmyk = color_utils_mod.rgb_to_cmyk
+cmyk_to_rgb = color_utils_mod.cmyk_to_rgb
+lighten = color_utils_mod.lighten
+darken = color_utils_mod.darken
+saturate = color_utils_mod.saturate
+desaturate = color_utils_mod.desaturate
+grayscale = color_utils_mod.grayscale
+invert = color_utils_mod.invert
+complement = color_utils_mod.complement
+mix = color_utils_mod.mix
+blend = color_utils_mod.blend
+analogous = color_utils_mod.analogous
+triadic = color_utils_mod.triadic
+split_complement = color_utils_mod.split_complement
+tetradic = color_utils_mod.tetradic
+monochromatic = color_utils_mod.monochromatic
+luminance = color_utils_mod.luminance
+contrast_ratio = color_utils_mod.contrast_ratio
+wcag_rating = color_utils_mod.wcag_rating
+brightness = color_utils_mod.brightness
+is_light = color_utils_mod.is_light
+is_dark = color_utils_mod.is_dark
+text_color_for_bg = color_utils_mod.text_color_for_bg
+color_distance = color_utils_mod.color_distance
+closest_color = color_utils_mod.closest_color
+gradient = color_utils_mod.gradient
+multi_gradient = color_utils_mod.multi_gradient
+random_color = color_utils_mod.random_color
+random_hue = color_utils_mod.random_hue
+random_pastel = color_utils_mod.random_pastel
+color_name_to_rgb = color_utils_mod.color_name_to_rgb
+rgb_to_color_name = color_utils_mod.rgb_to_color_name
 
 
-def example_01_basic_parsing():
-    """Example 1: Basic color parsing."""
-    print("\n" + "=" * 60)
-    print("Example 1: Basic Color Parsing")
-    print("=" * 60)
+def example_color_parsing():
+    """Demonstrate color parsing from various formats."""
+    print("\n" + "="*60)
+    print("颜色解析示例 (Color Parsing Examples)")
+    print("="*60)
     
-    # Parse from various formats
-    formats = [
-        "#FF0000",           # HEX with hash
-        "FF0000",            # HEX without hash
-        "#F00",              # Short HEX
-        "rgb(255, 0, 0)",    # RGB notation
-        "rgba(255, 0, 0, 0.5)",  # RGBA notation
-        "hsl(0, 100%, 50%)",  # HSL notation
-        "red",               # Named color
-        "cornflowerblue",    # Extended named color
-    ]
+    # Hex parsing
+    print("\n1. Hex 格式解析:")
+    colors = ['#ff0000', '#f00', '#ff000080', '00ff00']
+    for hex_str in colors:
+        rgb = parse_hex(hex_str)
+        print(f"   {hex_str} → {rgb}")
     
-    for fmt in formats:
-        try:
-            color = parse_color(fmt)
-            print(f"  {fmt:25} → {color}")
-        except ValueError as e:
-            print(f"  {fmt:25} → Error: {e}")
+    # RGB string parsing
+    print("\n2. RGB/RGBA 字符串解析:")
+    rgb_strings = ['rgb(255, 0, 0)', 'rgba(255, 0, 0, 0.5)', 'rgb( 128, 64, 192 )']
+    for rgb_str in rgb_strings:
+        rgb = parse_rgb(rgb_str)
+        print(f"   {rgb_str} → {rgb}")
+    
+    # HSL string parsing
+    print("\n3. HSL 字符串解析:")
+    hsl_strings = ['hsl(0, 100%, 50%)', 'hsl(180, 50%, 75%)']
+    for hsl_str in hsl_strings:
+        hsl = parse_hsl(hsl_str)
+        rgb = hsl.to_rgb()
+        print(f"   {hsl_str} → {hsl} → RGB: {rgb.to_hex()}")
+    
+    # Named color parsing
+    print("\n4. CSS 颜色名称解析:")
+    named_colors = ['red', 'coral', 'aliceblue', 'rebeccapurple']
+    for name in named_colors:
+        rgb = color_name_to_rgb(name)
+        print(f"   {name} → {rgb.to_hex()}")
+    
+    # Universal parse_color
+    print("\n5. 通用颜色解析 (parse_color):")
+    any_format = ['#ff0000', 'rgb(0, 255, 0)', 'hsl(240, 100%, 50%)', 'blue']
+    for color in any_format:
+        rgb = parse_color(color)
+        print(f"   {color} → {rgb.to_hex()}")
 
 
-def example_02_color_class():
-    """Example 2: Color class usage."""
-    print("\n" + "=" * 60)
-    print("Example 2: Color Class Usage")
-    print("=" * 60)
+def example_color_conversion():
+    """Demonstrate color format conversions."""
+    print("\n" + "="*60)
+    print("颜色转换示例 (Color Conversion Examples)")
+    print("="*60)
     
-    # Create Color objects
-    red = create_color(255, 0, 0)
-    green = create_color(0, 255, 0)
-    blue = create_color(0, 0, 255)
-    purple = create_color(128, 0, 128, 0.8)  # With alpha
-    
-    print(f"  Red:      {red}")
-    print(f"    HEX:    {red.hex_with_hash}")
-    print(f"    HSL:    H={red.hsl[0]:.1f}° S={red.hsl[1]:.1f}% L={red.hsl[2]:.1f}%")
-    print(f"    HSV:    H={red.hsv[0]:.1f}° S={red.hsv[1]:.1f}% V={red.hsv[2]:.1f}%")
-    print(f"    CMYK:   C={red.cmyk[0]:.1f}% M={red.cmyk[1]:.1f}% Y={red.cmyk[2]:.1f}% K={red.cmyk[3]:.1f}%")
-    print(f"    Luminance: {red.luminance:.4f}")
-    print(f"    Is light: {red.is_light}")
-    
-    print(f"\n  Green:    {green}")
-    print(f"  Blue:     {blue}")
-    print(f"  Purple:   {purple} (with alpha={purple.a})")
-
-
-def example_03_format_conversions():
-    """Example 3: Format conversion examples."""
-    print("\n" + "=" * 60)
-    print("Example 3: Format Conversions")
-    print("=" * 60)
-    
-    # RGB ↔ HEX
-    rgb = (255, 128, 64)
-    hex_str = rgb_to_hex(rgb)
-    rgb_back = hex_to_rgb(hex_str)
-    print(f"  RGB → HEX: {rgb} → {hex_str} → {rgb_back}")
+    # RGB ↔ Hex
+    print("\n1. RGB ↔ Hex:")
+    print(f"   RGB(255, 0, 0) → Hex: {rgb_to_hex(255, 0, 0)}")
+    print(f"   RGB(255, 0, 0) → Hex (无#): {rgb_to_hex(255, 0, 0, include_hash=False)}")
     
     # RGB ↔ HSL
-    rgb = (255, 0, 0)
-    hsl = rgb_to_hsl(rgb)
-    rgb_back = hsl_to_rgb(hsl)
-    print(f"  RGB → HSL: {rgb} → H={hsl[0]:.1f}° S={hsl[1]:.1f}% L={hsl[2]:.1f}% → {rgb_back}")
+    print("\n2. RGB ↔ HSL:")
+    r, g, b = 255, 0, 0
+    h, s, l = rgb_to_hsl(r, g, b)
+    print(f"   RGB({r}, {g}, {b}) → HSL({h}, {s}, {l})")
+    r2, g2, b2 = hsl_to_rgb(h, s, l)
+    print(f"   HSL({h}, {s}, {l}) → RGB({r2}, {g2}, {b2})")
     
     # RGB ↔ HSV
-    hsv = rgb_to_hsv(rgb)
-    rgb_back = hsv_to_rgb(hsv)
-    print(f"  RGB → HSV: {rgb} → H={hsv[0]:.1f}° S={hsv[1]:.1f}% V={hsv[2]:.1f}% → {rgb_back}")
+    print("\n3. RGB ↔ HSV:")
+    h, s, v = rgb_to_hsv(255, 128, 64)
+    print(f"   RGB(255, 128, 64) → HSV({h}, {s}, {v})")
+    r, g, b = hsv_to_rgb(h, s, v)
+    print(f"   HSV({h}, {s}, {v}) → RGB({r}, {g}, {b})")
     
     # RGB ↔ CMYK
-    rgb = (0, 0, 0)  # Black
-    cmyk = rgb_to_cmyk(rgb)
-    rgb_back = cmyk_to_rgb(cmyk)
-    print(f"  RGB → CMYK: {rgb} → C={cmyk[0]:.1f}% M={cmyk[1]:.1f}% Y={cmyk[2]:.1f}% K={cmyk[3]:.1f}% → {rgb_back}")
+    print("\n4. RGB ↔ CMYK:")
+    c, m, y, k = rgb_to_cmyk(255, 0, 0)
+    print(f"   RGB(255, 0, 0) → CMYK({c}, {m}, {y}, {k})")
+    r, g, b = cmyk_to_rgb(c, m, y, k)
+    print(f"   CMYK({c}, {m}, {y}, {k}) → RGB({r}, {g}, {b})")
     
-    # RGB ↔ LAB
-    rgb = (255, 255, 255)  # White
-    lab = rgb_to_lab(rgb)
-    rgb_back = lab_to_rgb(lab)
-    print(f"  RGB → LAB: {rgb} → L={lab[0]:.1f} a={lab[1]:.1f} b={lab[2]:.1f} → {rgb_back}")
+    # Using data classes
+    print("\n5. 使用数据类转换:")
+    rgb = RGB(100, 150, 200)
+    print(f"   原始 RGB: {rgb}")
+    hsl = rgb.to_hsl()
+    print(f"   → HSL: {hsl}")
+    hsv = rgb.to_hsv()
+    print(f"   → HSV: {hsv}")
+    cmyk = rgb.to_cmyk()
+    print(f"   → CMYK: {cmyk}")
 
 
-def example_04_color_manipulation():
-    """Example 4: Color manipulation."""
-    print("\n" + "=" * 60)
-    print("Example 4: Color Manipulation")
-    print("=" * 60)
+def example_color_manipulation():
+    """Demonstrate color manipulation operations."""
+    print("\n" + "="*60)
+    print("颜色操作示例 (Color Manipulation Examples)")
+    print("="*60)
     
-    base_color = (200, 100, 50)
-    print(f"  Base color: {rgb_to_hex(base_color)}")
+    base_color = '#ff6600'
     
-    # Lighten and darken
-    lighter = lighten(base_color, 30)
-    darker = darken(base_color, 30)
-    print(f"  Lightened by 30%: {rgb_to_hex(lighter)}")
-    print(f"  Darkened by 30%:  {rgb_to_hex(darker)}")
+    # Lighten/Darken
+    print("\n1. 亮度调整:")
+    print(f"   原色: {base_color}")
+    print(f"   加亮 20%: {lighten(base_color, 20).to_hex()}")
+    print(f"   加亮 40%: {lighten(base_color, 40).to_hex()}")
+    print(f"   加暗 20%: {darken(base_color, 20).to_hex()}")
+    print(f"   加暗 40%: {darken(base_color, 40).to_hex()}")
     
-    # Saturate and desaturate
-    saturated = saturate(base_color, 50)
-    desaturated = desaturate(base_color, 50)
-    print(f"  Saturated by 50%:   {rgb_to_hex(saturated)}")
-    print(f"  Desaturated by 50%: {rgb_to_hex(desaturated)}")
-    
-    # Grayscale
-    gray = grayscale(base_color)
-    print(f"  Grayscale: {rgb_to_hex(gray)}")
+    # Saturate/Desaturate
+    print("\n2. 饱和度调整:")
+    print(f"   原色: {base_color}")
+    print(f"   增饱和 30%: {saturate(base_color, 30).to_hex()}")
+    print(f"   降饱和 50%: {desaturate(base_color, 50).to_hex()}")
+    print(f"   完全去色: {grayscale(base_color).to_hex()}")
     
     # Invert
-    inverted = invert(base_color)
-    print(f"  Inverted:  {rgb_to_hex(inverted)}")
+    print("\n3. 颜色反转:")
+    colors = ['#ff0000', '#00ff00', '#0000ff', '#ffffff', '#000000']
+    for c in colors:
+        inv = invert(c).to_hex()
+        print(f"   {c} → {inv}")
     
     # Complement
-    comp = complement(base_color)
-    print(f"  Complement: {rgb_to_hex(comp)}")
+    print("\n4. 补色:")
+    for c in ['#ff0000', '#00ff00', '#0000ff', '#ff6600']:
+        comp = complement(c).to_hex()
+        print(f"   {c} 补色 → {comp}")
     
-    # Rotate hue
-    rotated_90 = rotate_hue(base_color, 90)
-    rotated_180 = rotate_hue(base_color, 180)
-    rotated_270 = rotate_hue(base_color, 270)
-    print(f"  Hue +90°:  {rgb_to_hex(rotated_90)}")
-    print(f"  Hue +180°: {rgb_to_hex(rotated_180)}")
-    print(f"  Hue +270°: {rgb_to_hex(rotated_270)}")
-
-
-def example_05_color_mixing():
-    """Example 5: Color mixing and blending."""
-    print("\n" + "=" * 60)
-    print("Example 5: Color Mixing and Blending")
-    print("=" * 60)
-    
-    red = (255, 0, 0)
-    blue = (0, 0, 255)
-    gray = (128, 128, 128)
-    
-    # Simple mixing
-    print(f"  Colors: Red={rgb_to_hex(red)}, Blue={rgb_to_hex(blue)}")
-    
-    mix_25 = mix(red, blue, 0.25)
-    mix_50 = mix(red, blue, 0.50)
-    mix_75 = mix(red, blue, 0.75)
-    print(f"  Mix 25% (more red):   {rgb_to_hex(mix_25)}")
-    print(f"  Mix 50% (equal):      {rgb_to_hex(mix_50)}")
-    print(f"  Mix 75% (more blue):  {rgb_to_hex(mix_75)}")
+    # Mix
+    print("\n5. 颜色混合:")
+    print(f"   #ff0000 + #0000ff (50%) → {mix('#ff0000', '#0000ff', 0.5).to_hex()}")
+    print(f"   #ff0000 + #0000ff (25%) → {mix('#ff0000', '#0000ff', 0.25).to_hex()}")
+    print(f"   #ff0000 + #0000ff (75%) → {mix('#ff0000', '#0000ff', 0.75).to_hex()}")
     
     # Blend modes
-    print(f"\n  Blend modes (base={rgb_to_hex(gray)}, overlay={rgb_to_hex(red)}):")
-    multiply = blend_multiply(gray, red)
-    screen = blend_screen(gray, red)
-    overlay = blend_overlay(gray, red)
-    print(f"  Multiply: {rgb_to_hex(multiply)}")
-    print(f"  Screen:   {rgb_to_hex(screen)}")
-    print(f"  Overlay:  {rgb_to_hex(overlay)}")
+    print("\n6. 混合模式:")
+    blend_modes = ['multiply', 'screen', 'overlay', 'hard_light']
+    for mode in blend_modes:
+        result = blend('#ff6600', '#0066ff', mode).to_hex()
+        print(f"   #ff6600 + #0066ff ({mode}) → {result}")
 
 
-def example_06_color_comparison():
-    """Example 6: Color comparison and contrast."""
-    print("\n" + "=" * 60)
-    print("Example 6: Color Comparison and Contrast")
-    print("=" * 60)
+def example_color_harmony():
+    """Demonstrate color harmony generation."""
+    print("\n" + "="*60)
+    print("色彩和谐示例 (Color Harmony Examples)")
+    print("="*60)
     
-    colors = [
-        (255, 0, 0),    # Red
-        (0, 255, 0),    # Green
-        (0, 0, 255),    # Blue
-        (255, 255, 0),  # Yellow
-        (0, 255, 255),  # Cyan
-    ]
-    
-    print("  Color luminances:")
-    for c in colors:
-        lum = calculate_luminance(c)
-        print(f"    {rgb_to_hex(c):7} → luminance = {lum:.4f}")
-    
-    print("\n  Contrast ratios:")
-    pairs = [
-        ((0, 0, 0), (255, 255, 255)),      # Black/White
-        ((255, 255, 255), (200, 200, 200)), # White/Light gray
-        ((0, 0, 0), (50, 50, 50)),          # Black/Dark gray
-        ((255, 0, 0), (255, 255, 255)),     # Red/White
-        ((255, 0, 0), (0, 255, 255)),       # Red/Cyan
-    ]
-    for c1, c2 in pairs:
-        ratio = contrast_ratio(c1, c2)
-        rating = wcag_rating(ratio)
-        print(f"    {rgb_to_hex(c1)} / {rgb_to_hex(c2)} → ratio={ratio:.2f}, rating={rating}")
-    
-    print("\n  Color distances:")
-    print(f"    RGB distance (red to blue): {color_distance((255, 0, 0), (0, 0, 255)):.2f}")
-    print(f"    LAB distance (red to blue): {color_distance_lab((255, 0, 0), (0, 0, 255)):.2f}")
-
-
-def example_07_color_harmony():
-    """Example 7: Color harmony palettes."""
-    print("\n" + "=" * 60)
-    print("Example 7: Color Harmony Palettes")
-    print("=" * 60)
-    
-    base = (255, 128, 0)  # Orange
-    print(f"  Base color: {rgb_to_hex(base)} (orange)")
-    
-    # Complementary
-    comp = complementary_palette(base)
-    print(f"  Complementary:     {', '.join(rgb_to_hex(c) for c in comp)}")
+    base_color = '#ff6600'
     
     # Analogous
-    analog = analogous_palette(base)
-    print(f"  Analogous:         {', '.join(rgb_to_hex(c) for c in analog)}")
+    print("\n1. 类似色 (Analogous):")
+    colors = analogous(base_color)
+    print(f"   基色: {base_color}")
+    for i, c in enumerate(colors):
+        print(f"   [{i}] {c.to_hex()}")
     
     # Triadic
-    triadic = triadic_palette(base)
-    print(f"  Triadic:           {', '.join(rgb_to_hex(c) for c in triadic)}")
+    print("\n2. 三等分色 (Triadic):")
+    colors = triadic(base_color)
+    for i, c in enumerate(colors):
+        h, s, l = rgb_to_hsl(c.r, c.g, c.b)
+        print(f"   [{i}] {c.to_hex()} (H={h}°)")
     
-    # Split-complementary
-    split = split_complementary_palette(base)
-    print(f"  Split-complement:  {', '.join(rgb_to_hex(c) for c in split)}")
+    # Split Complement
+    print("\n3. 分裂补色 (Split Complement):")
+    colors = split_complement(base_color)
+    for i, c in enumerate(colors):
+        print(f"   [{i}] {c.to_hex()}")
     
     # Tetradic
-    tetrad = tetradic_palette(base)
-    print(f"  Tetradic:          {', '.join(rgb_to_hex(c) for c in tetrad)}")
-
-
-def example_08_palette_generation():
-    """Example 8: Palette generation."""
-    print("\n" + "=" * 60)
-    print("Example 8: Palette Generation")
-    print("=" * 60)
-    
-    base = (100, 150, 200)
-    print(f"  Base color: {rgb_to_hex(base)}")
+    print("\n4. 四等分色 (Tetradic):")
+    colors = tetradic(base_color)
+    for i, c in enumerate(colors):
+        h, s, l = rgb_to_hsl(c.r, c.g, c.b)
+        print(f"   [{i}] {c.to_hex()} (H={h}°)")
     
     # Monochromatic
-    mono = monochromatic_palette(base, 7)
-    print(f"  Monochromatic (7): {', '.join(rgb_to_hex(c) for c in mono)}")
-    
-    # Shades (darker)
-    shades = shades_palette(base, 5)
-    print(f"  Shades (5):        {', '.join(rgb_to_hex(c) for c in shades)}")
-    
-    # Tints (lighter)
-    tints = tints_palette(base, 5)
-    print(f"  Tints (5):         {', '.join(rgb_to_hex(c) for c in tints)}")
-    
-    # Gradient
-    gradient = gradient_palette((255, 0, 0), (0, 0, 255), 7)
-    print(f"  Gradient (red→blue, 7): {', '.join(rgb_to_hex(c) for c in gradient)}")
-    
-    # Random palette
-    random = random_palette(5)
-    print(f"  Random (5):        {', '.join(rgb_to_hex(c) for c in random)}")
+    print("\n5. 单色变化 (Monochromatic):")
+    colors = monochromatic(base_color, 5)
+    for i, c in enumerate(colors):
+        h, s, l = rgb_to_hsl(c.r, c.g, c.b)
+        print(f"   [{i}] {c.to_hex()} (L={l}%)")
 
 
-def example_09_accessibility():
-    """Example 9: Accessibility helpers."""
-    print("\n" + "=" * 60)
-    print("Example 9: Accessibility Helpers")
-    print("=" * 60)
+def example_accessibility():
+    """Demonstrate accessibility-related functions."""
+    print("\n" + "="*60)
+    print("可访问性示例 (Accessibility Examples)")
+    print("="*60)
     
-    backgrounds = [
-        (0, 0, 0),          # Black
-        (255, 255, 255),    # White
-        (50, 50, 50),       # Dark gray
-        (200, 200, 200),    # Light gray
-        (100, 149, 237),    # Cornflower blue
-        (255, 0, 0),        # Red
+    # Luminance
+    print("\n1. 相对亮度:")
+    colors = ['#ffffff', '#000000', '#ff0000', '#00ff00', '#0000ff']
+    for c in colors:
+        lum = luminance(c)
+        print(f"   {c} 亮度 = {lum:.3f}")
+    
+    # Contrast ratio
+    print("\n2. 对比度:")
+    bg_fg_pairs = [
+        ('#ffffff', '#000000'),
+        ('#ffffff', '#333333'),
+        ('#ffffff', '#777777'),
+        ('#ffcc00', '#000000'),
+        ('#ffcc00', '#333333'),
     ]
-    
-    print("  Accessible text colors for backgrounds:")
-    for bg in backgrounds:
-        text = get_accessible_text_color(bg)
-        ratio = contrast_ratio(bg, text)
+    for bg, fg in bg_fg_pairs:
+        ratio = contrast_ratio(bg, fg)
         rating = wcag_rating(ratio)
-        print(f"    BG: {rgb_to_hex(bg):7} → Text: {rgb_to_hex(text):7} (ratio={ratio:.2f}, {rating})")
+        print(f"   {bg} / {fg} → 对比度 {ratio:.1f}:1 [{rating}]")
     
-    # Find accessible colors
-    print("\n  Accessible colors for gray background (128, 128, 128):")
-    accessible = find_accessible_colors((128, 128, 128), 8)
-    for c in accessible:
-        ratio = contrast_ratio((128, 128, 128), c)
-        print(f"    {rgb_to_hex(c):7} → ratio={ratio:.2f}")
-
-
-def example_10_temperature_colors():
-    """Example 10: Color temperature."""
-    print("\n" + "=" * 60)
-    print("Example 10: Color Temperature (Kelvin)")
-    print("=" * 60)
+    # WCAG ratings
+    print("\n3. WCAG 等级说明:")
+    print("   AAA  ≥ 7:1   (最高要求，适合小文本)")
+    print("   AA   ≥ 4.5:1 (标准要求，适合正文)")
+    print("   AA Large ≥ 3:1 (大文本)")
+    print("   Fail < 3:1   (不合格)")
     
-    temperatures = [
-        1000,   # Candle flame
-        2700,   # Warm white light
-        3000,   # Incandescent bulb
-        4000,   # Cool white fluorescent
-        5000,   # Daylight
-        6500,   # Daylight (overcast)
-        8000,   # Blue sky
-        10000,  # Clear blue sky
-    ]
-    
-    print("  Color temperatures:")
-    for temp in temperatures:
-        rgb = temperature_to_rgb(temp)
-        print(f"    {temp:5}K → {rgb_to_hex(rgb)}")
-    
-    # Gradient from warm to cool
-    warm_cool = gradient_palette(
-        temperature_to_rgb(2700),
-        temperature_to_rgb(6500),
-        5
-    )
-    print(f"\n  Warm (2700K) to Cool (6500K) gradient:")
-    print(f"    {', '.join(rgb_to_hex(c) for c in warm_cool)}")
-
-
-def example_11_css_gradient():
-    """Example 11: CSS gradient generation."""
-    print("\n" + "=" * 60)
-    print("Example 11: CSS Gradient Generation")
-    print("=" * 60)
-    
-    # Simple horizontal gradient
-    colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
-    gradient = css_gradient(colors, 'to right')
-    print(f"  Horizontal gradient:")
-    print(f"    {gradient}")
-    
-    # Vertical gradient
-    gradient = css_gradient(colors, 'to bottom')
-    print(f"\n  Vertical gradient:")
-    print(f"    {gradient}")
-    
-    # Rainbow gradient
-    rainbow = [
-        (255, 0, 0),      # Red
-        (255, 127, 0),    # Orange
-        (255, 255, 0),    # Yellow
-        (0, 255, 0),      # Green
-        (0, 0, 255),      # Blue
-        (75, 0, 130),     # Indigo
-        (148, 0, 211),    # Violet
-    ]
-    gradient = css_gradient(rainbow, 'to right')
-    print(f"\n  Rainbow gradient (7 colors):")
-    print(f"    {gradient}")
-
-
-def example_12_utility_functions():
-    """Example 12: Utility functions."""
-    print("\n" + "=" * 60)
-    print("Example 12: Utility Functions")
-    print("=" * 60)
-    
-    # HEX validation
-    test_hex = ["#FF0000", "FF0000", "#F00", "FFF", "FF", "invalid"]
-    print("  HEX validation:")
-    for h in test_hex:
-        valid = is_valid_hex(h)
-        print(f"    '{h}' → {valid}")
-    
-    # RGB ↔ Integer
-    rgb = (255, 128, 64)
-    int_val = rgb_to_int(rgb)
-    rgb_back = int_to_rgb(int_val)
-    print(f"\n  RGB ↔ Integer:")
-    print(f"    {rgb} → {int_val} → {rgb_back}")
-    
-    # Interpolation
-    start = (255, 0, 0)
-    end = (0, 0, 255)
-    print(f"\n  Interpolation (red → blue):")
-    for t in [0.0, 0.25, 0.5, 0.75, 1.0]:
-        interp = interpolate_color(start, end, t)
-        print(f"    t={t:.2f} → {rgb_to_hex(interp)}")
+    # Text color selection
+    print("\n4. 自动文本颜色选择:")
+    backgrounds = ['#ffffff', '#000000', '#ff0000', '#00ff00', '#ffcc00']
+    for bg in backgrounds:
+        text = text_color_for_bg(bg)
+        ratio = contrast_ratio(bg, text)
+        print(f"   背景 {bg} → 文本颜色 {text} (对比度 {ratio:.1f}:1)")
     
     # Brightness
-    print(f"\n  Color brightness:")
-    for c in [(255, 255, 255), (0, 0, 0), (255, 0, 0), (0, 255, 0), (0, 0, 255)]:
-        brightness = get_color_brightness(c)
-        print(f"    {rgb_to_hex(c):7} → brightness = {brightness:.1f}")
+    print("\n5. 感知亮度:")
+    colors = ['#ffffff', '#cccccc', '#999999', '#666666', '#333333', '#000000']
+    for c in colors:
+        bri = brightness(c)
+        status = "亮" if is_light(c) else "暗"
+        print(f"   {c} 亮度值 = {bri} ({status})")
 
 
-def example_13_named_colors():
-    """Example 13: Named color lookup."""
-    print("\n" + "=" * 60)
-    print("Example 13: Named Color Lookup")
-    print("=" * 60)
+def example_gradients():
+    """Demonstrate gradient generation."""
+    print("\n" + "="*60)
+    print("渐变示例 (Gradient Examples)")
+    print("="*60)
     
-    # Name to RGB
-    names = ['red', 'cornflowerblue', 'rebeccapurple', 'chartreuse', 'hotpink']
-    print("  Name → RGB:")
-    for name in names:
-        rgb = name_to_rgb(name)
-        if rgb:
-            print(f"    {name:18} → {rgb_to_hex(rgb)}")
+    # Simple gradient
+    print("\n1. 简单渐变 (黑到白):")
+    colors = gradient('#000000', '#ffffff', 5)
+    for i, c in enumerate(colors):
+        print(f"   [{i}] {c.to_hex()}")
     
-    # RGB to Name (closest match)
-    print("\n  RGB → Name (closest match):")
-    test_colors = [
-        (255, 0, 0),       # Exact red
-        (0, 0, 255),       # Exact blue
-        (100, 149, 237),   # Exact cornflowerblue
-        (250, 128, 114),   # Close to salmon
+    # Color gradient
+    print("\n2. 颜色渐变 (红到蓝):")
+    colors = gradient('#ff0000', '#0000ff', 10)
+    for i, c in enumerate(colors):
+        print(f"   [{i}] {c.to_hex()}")
+    
+    # Multi-color gradient
+    print("\n3. 多色渐变:")
+    multi_colors = ['#ff0000', '#00ff00', '#0000ff']
+    result = multi_gradient(multi_colors, 4)
+    print(f"   路径: 红 → 绿 → 蓝")
+    for i, c in enumerate(result):
+        print(f"   [{i}] {c.to_hex()}")
+
+
+def example_random_colors():
+    """Demonstrate random color generation."""
+    print("\n" + "="*60)
+    print("随机颜色示例 (Random Color Examples)")
+    print("="*60)
+    
+    # Random colors
+    print("\n1. 完全随机:")
+    for i in range(5):
+        rgb = random_color()
+        print(f"   [{i}] {rgb.to_hex()}")
+    
+    # Random with seed
+    print("\n2. 可重复随机 (使用种子):")
+    for seed in [42, 42, 100]:
+        rgb = random_color(seed=seed)
+        print(f"   seed={seed} → {rgb.to_hex()}")
+    
+    # Random hue with fixed saturation/lightness
+    print("\n3. 固定饱和度/亮度的随机色相:")
+    for i in range(5):
+        rgb = random_hue(70, 50)
+        h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
+        print(f"   [{i}] {rgb.to_hex()} (H={h}°, S={s}%, L={l}%)")
+    
+    # Random pastel
+    print("\n4. 随机粉彩色:")
+    for i in range(5):
+        rgb = random_pastel()
+        h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
+        print(f"   [{i}] {rgb.to_hex()} (S={s}%, L={l}%)")
+
+
+def example_practical_use():
+    """Demonstrate practical use cases."""
+    print("\n" + "="*60)
+    print("实际应用示例 (Practical Use Examples)")
+    print("="*60)
+    
+    # Color palette generation
+    print("\n1. 生成配色方案:")
+    base = '#3498db'
+    print(f"   基色: {base}")
+    print(f"   加亮变体: {lighten(base, 20).to_hex()}, {lighten(base, 40).to_hex()}")
+    print(f"   加暗变体: {darken(base, 20).to_hex()}, {darken(base, 40).to_hex()}")
+    print(f"   补色: {complement(base).to_hex()}")
+    triad = triadic(base)
+    print(f"   三等分色: {triad[1].to_hex()}, {triad[2].to_hex()}")
+    
+    # UI color validation
+    print("\n2. UI 对比度验证:")
+    ui_pairs = [
+        ('按钮背景', '#3498db', '按钮文字', '#ffffff'),
+        ('警告背景', '#f1c40f', '警告文字', '#000000'),
+        ('错误背景', '#e74c3c', '错误文字', '#ffffff'),
     ]
-    for rgb in test_colors:
-        name = rgb_to_name(rgb)
-        print(f"    {rgb_to_hex(rgb):7} → {name}")
-
-
-def example_14_practical_application():
-    """Example 14: Practical application - UI theme generation."""
-    print("\n" + "=" * 60)
-    print("Example 14: Practical Application - UI Theme")
-    print("=" * 60)
+    for bg_name, bg, fg_name, fg in ui_pairs:
+        ratio = contrast_ratio(bg, fg)
+        rating = wcag_rating(ratio)
+        status = "✓" if ratio >= 4.5 else "✗"
+        print(f"   {status} {bg_name}/{fg_name}: 对比度 {ratio:.1f}:1 [{rating}]")
     
-    # Generate a UI theme from a primary color
-    primary = (75, 130, 195)  # Blue-ish
+    # Closest named color
+    print("\n3. 找最近的 CSS 颜色名:")
+    test_colors = ['#e74c3c', '#3498db', '#f39c12', '#9b59b6']
+    for c in test_colors:
+        rgb = parse_color(c)
+        name = rgb_to_color_name(rgb)
+        closest = closest_color(c, [parse_color(n).to_hex() for n in ['red', 'blue', 'green', 'yellow']])
+        print(f"   {c} → CSS名: {name or '无匹配'}, 最接近基础色索引: {closest}")
     
-    print(f"  Primary: {rgb_to_hex(primary)}")
-    
-    # Primary variations
-    primary_light = lighten(primary, 15)
-    primary_dark = darken(primary, 15)
-    print(f"    Light variant: {rgb_to_hex(primary_light)}")
-    print(f"    Dark variant:  {rgb_to_hex(primary_dark)}")
-    
-    # Secondary (complementary)
-    secondary = complement(primary)
-    secondary_light = lighten(secondary, 15)
-    secondary_dark = darken(secondary, 15)
-    print(f"\n  Secondary (complement): {rgb_to_hex(secondary)}")
-    print(f"    Light variant: {rgb_to_hex(secondary_light)}")
-    print(f"    Dark variant:  {rgb_to_hex(secondary_dark)}")
-    
-    # Background colors
-    bg_light = (250, 250, 250)
-    bg_dark = darken(bg_light, 95)
-    print(f"\n  Backgrounds:")
-    print(f"    Light: {rgb_to_hex(bg_light)}")
-    print(f"    Dark:  {rgb_to_hex(bg_dark)}")
-    
-    # Text colors (accessible)
-    text_on_light = get_accessible_text_color(bg_light)
-    text_on_dark = get_accessible_text_color(bg_dark)
-    print(f"\n  Text colors:")
-    print(f"    On light: {rgb_to_hex(text_on_light)}")
-    print(f"    On dark:  {rgb_to_hex(text_on_dark)}")
-    
-    # Accent colors (analogous)
-    accents = analogous_palette(primary)
-    print(f"\n  Accent colors (analogous):")
-    for c in accents:
-        print(f"    {rgb_to_hex(c)}")
-    
-    # Status colors
-    success = (46, 139, 87)    # SeaGreen
-    warning = (255, 165, 0)    # Orange
-    error = (220, 20, 60)      # Crimson
-    info = (30, 144, 255)      # DodgerBlue
-    print(f"\n  Status colors:")
-    print(f"    Success: {rgb_to_hex(success)}")
-    print(f"    Warning: {rgb_to_hex(warning)}")
-    print(f"    Error:   {rgb_to_hex(error)}")
-    print(f"    Info:    {rgb_to_hex(info)}")
-    
-    # Verify contrast
-    print(f"\n  Contrast verification:")
-    print(f"    Primary on light: {contrast_ratio(primary, bg_light):.2f} ({wcag_rating(contrast_ratio(primary, bg_light))})")
-    print(f"    Primary on dark:  {contrast_ratio(primary, bg_dark):.2f} ({wcag_rating(contrast_ratio(primary, bg_dark))})")
+    # Color distance
+    print("\n4. 颜色相似度计算:")
+    ref = '#ff0000'
+    others = ['#ff1010', '#ff2020', '#ee0000', '#00ff00']
+    print(f"   参考: {ref}")
+    for c in others:
+        dist = color_distance(ref, c)
+        print(f"   {c} → 距离: {dist:.1f}")
 
 
 def main():
     """Run all examples."""
-    print("\n" + "=" * 60)
-    print("AllToolkit - Color Utilities Examples")
-    print("=" * 60)
+    print("\n" + "="*60)
+    print("AllToolkit Color Utilities - 使用示例")
+    print("="*60)
     
-    example_01_basic_parsing()
-    example_02_color_class()
-    example_03_format_conversions()
-    example_04_color_manipulation()
-    example_05_color_mixing()
-    example_06_color_comparison()
-    example_07_color_harmony()
-    example_08_palette_generation()
-    example_09_accessibility()
-    example_10_temperature_colors()
-    example_11_css_gradient()
-    example_12_utility_functions()
-    example_13_named_colors()
-    example_14_practical_application()
+    example_color_parsing()
+    example_color_conversion()
+    example_color_manipulation()
+    example_color_harmony()
+    example_accessibility()
+    example_gradients()
+    example_random_colors()
+    example_practical_use()
     
-    print("\n" + "=" * 60)
-    print("All examples completed!")
-    print("=" * 60 + "\n")
+    print("\n" + "="*60)
+    print("示例完成!")
+    print("="*60)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
