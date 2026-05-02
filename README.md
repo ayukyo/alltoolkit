@@ -286,7 +286,21 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ---
 
-**最后更新**: 2026-05-02
+**最后更新**: 2026-05-03
+
+### 测试框架改进 (2026-05-03)
+
+- **Python/cuckoo_filter_utils**: 修复导入路径错误，从 `cuckoo_filter_utils` 改为 `mod` (42 tests ✅)
+- **Go/csv_utils**: 修复测试文件中中文引号语法错误 (全部通过 ✅)
+- **Go/json_utils**: 
+  - 添加 Error 字段到 JSONPathResult 结构体
+  - 重命名 `String(val)` 为 `AddString(val)` 避免与 `String()` 方法冲突
+  - 修复 Delete 函数对不存在键返回错误
+  - 修复 CountValues 支持数组路径遍历
+  - 修复 Transform 同时转换键和值
+- **Go/string_utils**: 
+  - 修复 BenchmarkWordCount 循环语法 (使用标准 `b.N` 循环)
+  - 修正 Mask 测试期望值以匹配实际实现
 
 ### 测试框架改进 (2026-05-02)
 
