@@ -542,7 +542,7 @@ func TestReadFileWriteFile(t *testing.T) {
 func TestBuffer(t *testing.T) {
 	buf := NewBuffer()
 	result := buf.StartObject().
-		Key("name").String("John").
+		Key("name").AddString("John").
 		Key("age").Number(30).
 		Key("active").Bool(true).
 		Key("data").Null().

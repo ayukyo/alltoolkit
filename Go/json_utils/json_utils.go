@@ -28,6 +28,7 @@ type JSONPathResult struct {
 	Value   interface{} `json:"value,omitempty"`
 	Path    string      `json:"path"`
 	Matches int         `json:"matches"`
+	Error   string      `json:"error,omitempty"`
 }
 
 // SchemaField represents a field in a JSON schema
@@ -378,6 +379,9 @@ func deleteByPath(data *interface{}, parts []string) error {
 	switch v := current.(type) {
 	case map[string]interface{}:
 		if len(remaining) == 0 {
+			if _, exists := v[part]; !exists {
+				return fmt.Errorf("path not found: %s", part)
+			}
 			delete(v, part)
 			return nil
 		}
@@ -693,15 +697,41 @@ func CountValues(data interface{}, path string) (map[string]int, error) {
 
 	if path != "" {
 		parts := strings.Split(path, ".")
-		value, found := getByPath(parsed, parts)
-		if !found {
-			return result, nil
+		// Special handling for array path traversal
+		countValuesAtPath(parsed, parts, result)
+	} else {
+		countValuesRecursive(parsed, result)
+	}
+	return result, nil
+}
+
+// countValuesAtPath counts values at a specific path, handling arrays
+func countValuesAtPath(data interface{}, parts []string, counts map[string]int) {
+	if len(parts) == 0 {
+		if str, ok := data.(string); ok {
+			counts[str]++
+		} else {
+			countValuesRecursive(data, counts)
 		}
-		parsed = value
+		return
 	}
 
-	countValuesRecursive(parsed, result)
-	return result, nil
+	part := parts[0]
+	remaining := parts[1:]
+
+	switch v := data.(type) {
+	case map[string]interface{}:
+		if val, ok := v[part]; ok {
+			countValuesAtPath(val, remaining, counts)
+		}
+	case []interface{}:
+		// Traverse all array elements
+		for _, item := range v {
+			countValuesAtPath(item, parts, counts)
+		}
+	default:
+		// Skip
+	}
 }
 
 // countValuesRecursive counts values recursively
@@ -782,10 +812,13 @@ func transformRecursive(data *interface{}, fn func(string) string) {
 			transformRecursive(&v[i], fn)
 		}
 	case map[string]interface{}:
+		newMap := make(map[string]interface{})
 		for key, val := range v {
+			newKey := fn(key)
 			transformRecursive(&val, fn)
-			v[key] = val
+			newMap[newKey] = val
 		}
+		*data = newMap
 	}
 }
 
@@ -1029,8 +1062,8 @@ func (b *Buffer) Key(key string) *Buffer {
 	return b
 }
 
-// String adds a string value
-func (b *Buffer) String(val string) *Buffer {
+// AddString adds a string value
+func (b *Buffer) AddString(val string) *Buffer {
 	b.buf.WriteString(fmt.Sprintf(`"%s"`, escapeJSON(val)))
 	return b
 }

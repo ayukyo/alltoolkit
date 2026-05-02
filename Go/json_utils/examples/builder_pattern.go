@@ -17,9 +17,9 @@ func main() {
 	fmt.Println("--------------------------")
 	buf := jsonutils.NewBuffer()
 	simpleJSON := buf.StartObject().
-		Key("name").String("John Doe").
+		Key("name").AddString("John Doe").
 		Key("age").Number(30).
-		Key("email").String("john@example.com").
+		Key("email").AddString("john@example.com").
 		Key("active").Bool(true).
 		Key("score").Number(95.5).
 		Key("data").Null().
@@ -51,10 +51,10 @@ func main() {
 	// Build address object
 	addressBuf := jsonutils.NewBuffer()
 	addressJSON := addressBuf.StartObject().
-		Key("street").String("123 Main St").
-		Key("city").String("New York").
-		Key("zip").String("10001").
-		Key("country").String("USA").
+		Key("street").AddString("123 Main St").
+		Key("city").AddString("New York").
+		Key("zip").AddString("10001").
+		Key("country").AddString("USA").
 		EndObject().
 		String()
 
@@ -62,8 +62,8 @@ func main() {
 	userBuf := jsonutils.NewBuffer()
 	userJSON := userBuf.StartObject().
 		Key("id").Number(1).
-		Key("name").String("John Doe").
-		Key("address").String(addressJSON).
+		Key("name").AddString("John Doe").
+		Key("address").AddString(addressJSON).
 		Key("active").Bool(true).
 		EndObject().
 		String()
@@ -87,7 +87,7 @@ func main() {
 	dataBuf := jsonutils.NewBuffer()
 	dataJSON := dataBuf.StartObject().
 		Key("id").Number(12345).
-		Key("name").String("Sample Item").
+		Key("name").AddString("Sample Item").
 		Key("price").Number(29.99).
 		Key("inStock").Bool(true).
 		EndObject().
@@ -131,7 +131,7 @@ func main() {
 		itemBuf := jsonutils.NewBuffer()
 		itemJSON := itemBuf.StartObject().
 			Key("id").Number(float64(item.ID)).
-			Key("name").String(item.Name).
+			Key("name").AddString(item.Name).
 			Key("price").Number(item.Price).
 			EndObject().
 			String()
@@ -171,7 +171,7 @@ func main() {
 	for _, m := range metrics {
 		metricBuf := jsonutils.NewBuffer()
 		metricJSON := metricBuf.StartObject().
-			Key("name").String(m.Name).
+			Key("name").AddString(m.Name).
 			Key("value").Number(m.Value).
 			Key("change").Number(m.Change).
 			EndObject().
@@ -199,9 +199,9 @@ func main() {
 	
 	error1Buf := jsonutils.NewBuffer()
 	error1JSON := error1Buf.StartObject().
-		Key("field").String("email").
-		Key("message").String("Invalid email format").
-		Key("code").String("INVALID_EMAIL").
+		Key("field").AddString("email").
+		Key("message").AddString("Invalid email format").
+		Key("code").AddString("INVALID_EMAIL").
 		EndObject().
 		String()
 	var error1Obj interface{}
@@ -210,9 +210,9 @@ func main() {
 
 	error2Buf := jsonutils.NewBuffer()
 	error2JSON := error2Buf.StartObject().
-		Key("field").String("password").
-		Key("message").String("Password too short").
-		Key("code").String("PASSWORD_TOO_SHORT").
+		Key("field").AddString("password").
+		Key("message").AddString("Password too short").
+		Key("code").AddString("PASSWORD_TOO_SHORT").
 		EndObject().
 		String()
 	var error2Obj interface{}

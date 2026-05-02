@@ -11,7 +11,7 @@ import os
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from cuckoo_filter_utils import (
+from mod import (
     CuckooFilter,
     create_optimal_filter,
     calculate_false_positive_rate,

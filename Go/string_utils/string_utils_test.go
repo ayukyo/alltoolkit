@@ -797,8 +797,14 @@ func TestMask(t *testing.T) {
 	}
 
 	result = Mask("abc", 1, 1, '*')
-	if result != "***" {
-		t.Errorf("Mask('abc', 1, 1, '*') = %q, expected '***'", result)
+	if result != "a*c" {
+		t.Errorf("Mask('abc', 1, 1, '*') = %q, expected 'a*c'", result)
+	}
+
+	// Test fully masked case
+	result = Mask("ab", 1, 1, '*')
+	if result != "**" {
+		t.Errorf("Mask('ab', 1, 1, '*') = %q, expected '**'", result)
 	}
 }
 
@@ -1029,7 +1035,7 @@ func BenchmarkFuzzyMatchScore(b *testing.B) {
 
 func BenchmarkWordCount(b *testing.B) {
 	str := "The quick brown fox jumps over the lazy dog"
-	for i := 0; b.Loop; b.Loop++ {
+	for i := 0; i < b.N; i++ {
 		WordCount(str)
 	}
 }

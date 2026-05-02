@@ -688,7 +688,8 @@ Bob,25
 
 	data, err := ReadString(csvData)
 	if err != nil {
-		t.Fatalf("Failed to read CSV: %v", err	}
+		t.Fatalf("Failed to read CSV: %v", err)
+	}
 
 	// By default, empty rows are skipped
 	if len(data.Rows) != 2 {
@@ -709,12 +710,12 @@ Bob,25`
 
 	// Headers should be trimmed
 	if data.Headers[0] != "name" {
-		t.Errorf("Expected header '"name"', got '"%s"'", data.Headers[0])
+		t.Errorf("Expected header 'name', got '%s'", data.Headers[0])
 	}
 
 	// Values should be trimmed
 	if data.Rows[0].Get("name") != "Alice" {
-		t.Errorf("Expected name '"Alice"', got '"%s"'", data.Rows[0].Get("name"))
+		t.Errorf("Expected name 'Alice', got '%s'", data.Rows[0].Get("name"))
 	}
 }
 
@@ -733,11 +734,11 @@ func TestToSlice(t *testing.T) {
 	}
 
 	if slice[0][0] != "name" {
-		t.Errorf("Expected first header '"name"', got '"%s"'", slice[0][0])
+		t.Errorf("Expected first header 'name', got '%s'", slice[0][0])
 	}
 
 	if slice[1][0] != "Alice" {
-		t.Errorf("Expected first value '"Alice"', got '"%s"'", slice[1][0])
+		t.Errorf("Expected first value 'Alice', got '%s'", slice[1][0])
 	}
 }
 
@@ -756,7 +757,7 @@ func TestToMapSlice(t *testing.T) {
 	}
 
 	if maps[0]["name"] != "Alice" {
-		t.Errorf("Expected name '"Alice"', got '"%s"'", maps[0]["name"])
+		t.Errorf("Expected name 'Alice', got '%s'", maps[0]["name"])
 	}
 }
 
@@ -936,7 +937,7 @@ func TestAddRowMap(t *testing.T) {
 	}
 
 	if data.Rows[0].Get("name") != "Alice" {
-		t.Errorf("Expected name '"Alice"', got '"%s"'", data.Rows[0].Get("name"))
+		t.Errorf("Expected name 'Alice', got '%s'", data.Rows[0].Get("name"))
 	}
 }
 
