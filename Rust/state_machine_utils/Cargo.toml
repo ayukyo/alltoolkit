@@ -1,0 +1,9 @@
+[package]
+name = "state_machine_utils"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "Finite State Machine (FSM) utilities with zero external dependencies"
+license = "MIT"
+
+[dependencies]
