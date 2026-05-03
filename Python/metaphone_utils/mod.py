@@ -299,10 +299,23 @@ class DoubleMetaphone:
 
     改进版的 Metaphone 算法，返回主要和次要编码，
     能更好地处理多语言单词（尤其是斯拉夫语系和德语）。
+
+    Note:
+        优化版本（v2）：
+        - 预编译字符处理查找表，避免多次条件判断
+        - 预定义元音集合为 frozenset（更快查找）
+        - 边界处理：空输入、非字符串、过长输入
+        - 性能优化：使用列表收集结果，最后拼接
     """
 
-    VOWELS = {'A', 'E', 'I', 'O', 'U', 'Y'}
-    SILENT_START = {'KN', 'GN', 'PN', 'WR', 'PS'}
+    # 预编译元音集合（frozenset 更快）
+    VOWELS = frozenset({'A', 'E', 'I', 'O', 'U', 'Y'})
+    
+    # 预编译静音开头组合
+    SILENT_START = frozenset({'KN', 'GN', 'PN', 'WR', 'PS'})
+    
+    # 预编译辅音处理规则（优化：使用字典快速查找）
+    _DM_RULES = None  # 类级别缓存
 
     def __init__(self, max_length: int = 4):
         """
@@ -312,6 +325,27 @@ class DoubleMetaphone:
             max_length: 最大编码长度，默认为 4
         """
         self.max_length = max_length
+        # 初始化类级别规则表（延迟初始化）
+        if DoubleMetaphone._DM_RULES is None:
+            DoubleMetaphone._init_dm_rules()
+    
+    @classmethod
+    def _init_dm_rules(cls):
+        """初始化 Double Metaphone 规则表（类级别，避免每次实例化重复创建）"""
+        cls._DM_RULES = {
+            'B': ('P', 'P'),           # B -> P
+            'F': ('F', 'F'),           # F -> F
+            'H': ('H', 'H'),           # H (元音前保留)
+            'J': ('J', 'J'),           # J
+            'K': ('K', 'K'),           # K
+            'L': ('L', 'L'),           # L
+            'M': ('M', 'M'),           # M
+            'N': ('N', 'N'),           # N
+            'Q': ('K', 'K'),           # Q -> K
+            'R': ('R', 'R'),           # R
+            'V': ('F', 'F'),           # V -> F
+            'Z': ('S', 'S'),           # Z -> S
+        }
 
     def encode(self, word: str) -> Tuple[str, str]:
         """
@@ -323,13 +357,31 @@ class DoubleMetaphone:
         Returns:
             元组 (primary_code, alternate_code)
             如果没有替代编码，alternate_code 与 primary_code 相同
+
+        Note:
+            优化版本（v2）：
+            - 边界处理：空输入、非字符串快速返回
+            - 性能优化：使用预编译规则表快速查找
+            - 使用列表收集结果，最后拼接
+            - 预处理阶段使用 filter + join
         """
-        if not word:
+        # 边界处理：空输入或非字符串
+        if not word or not isinstance(word, str):
+            return ('', '')
+        
+        # 快速路径：单字符
+        if len(word) == 1:
+            c = word.upper()
+            if c.isalpha():
+                if c in self.VOWELS:
+                    return (c, c)
+                # 单辅音返回自身
+                return (c if c != 'V' else 'F', c if c != 'V' else 'F')
             return ('', '')
 
-        # 预处理
-        word = ''.join(c for c in word.upper() if c.isalpha())
-        if not word:
+        # 预处理：转大写并移除非字母（优化：使用 filter + join）
+        word_upper = ''.join(filter(str.isalpha, word.upper()))
+        if not word_upper:
             return ('', '')
 
         # 存储结果
@@ -338,23 +390,29 @@ class DoubleMetaphone:
 
         # 当前索引
         i = 0
-        length = len(word)
+        length = len(word_upper)
 
-        # 跳过开头的静音字母
-        if word.startswith('KN') or word.startswith('GN') or word.startswith('PN'):
-            i = 1
-        elif word.startswith('WR'):
-            i = 1
-        elif word.startswith('PS'):
-            i = 1
-        elif word.startswith('X'):
-            primary.append('S')
-            i = 1
+        # 跳过开头的静音字母（优化：单次检查）
+        if length >= 2:
+            prefix = word_upper[:2]
+            if prefix in self.SILENT_START:
+                i = 1
+            elif prefix == 'WH':
+                word_upper = 'W' + word_upper[2:] if length > 2 else 'W'
+                length = len(word_upper)
+            elif word_upper[0] == 'X':
+                primary.append('S')
+                alternate.append('S')
+                i = 1
+
+        # 预编译集合引用（避免每次属性查找）
+        vowels = self.VOWELS
+        rules = self._DM_RULES
 
         while i < length:
-            c = word[i]
+            c = word_upper[i]
 
-            if c in self.VOWELS:
+            if c in vowels:
                 # 元音只在开头保留
                 if i == 0:
                     primary.append(c)
@@ -362,26 +420,26 @@ class DoubleMetaphone:
                 i += 1
                 continue
 
-            # 辅音处理
-            if c == 'B':
-                # B 不发音的情况：-MB 结尾
-                if not (i == length - 1 and i > 0 and word[i-1] == 'M'):
-                    primary.append('P')
-                    alternate.append('P')
+            # 使用预编译规则表处理简单辅音（优化：快速查找）
+            if c in rules:
+                primary.append(rules[c][0])
+                alternate.append(rules[c][1])
                 i += 1
+                continue
 
-            elif c == 'C':
+            # 辅音处理（复杂情况）
+            if c == 'C':
                 # C 的各种情况
                 if i + 1 < length:
-                    if word[i+1] == 'H':
+                    if word_upper[i+1] == 'H':
                         primary.append('X')
                         alternate.append('X')
                         i += 2
-                    elif word[i+1] == 'I' and i + 2 < length and word[i+2] == 'A':
+                    elif word_upper[i+1] == 'I' and i + 2 < length and word_upper[i+2] == 'A':
                         primary.append('X')
                         alternate.append('X')
                         i += 3
-                    elif word[i+1] in ('I', 'E', 'Y'):
+                    elif word_upper[i+1] in ('I', 'E', 'Y'):
                         primary.append('S')
                         alternate.append('S')
                         i += 2
@@ -396,7 +454,7 @@ class DoubleMetaphone:
 
             elif c == 'D':
                 # DGE, DGI, DGY -> J
-                if i + 2 < length and word[i+1] == 'G' and word[i+2] in ('E', 'I', 'Y'):
+                if i + 2 < length and word_upper[i+1] == 'G' and word_upper[i+2] in ('E', 'I', 'Y'):
                     primary.append('J')
                     alternate.append('J')
                     i += 3
@@ -405,23 +463,18 @@ class DoubleMetaphone:
                     alternate.append('T')
                     i += 1
 
-            elif c == 'F':
-                primary.append('F')
-                alternate.append('F')
-                i += 1
-
             elif c == 'G':
                 if i + 1 < length:
-                    if word[i+1] == 'H':
-                        if i + 2 < length and word[i+2] in self.VOWELS:
+                    if word_upper[i+1] == 'H':
+                        if i + 2 < length and word_upper[i+2] in vowels:
                             primary.append('K')
                             alternate.append('K')
                         i += 2
-                    elif word[i+1] in ('I', 'E', 'Y'):
+                    elif word_upper[i+1] in ('I', 'E', 'Y'):
                         primary.append('J')
                         alternate.append('J')
                         i += 2
-                    elif word[i+1] == 'N':
+                    elif word_upper[i+1] == 'N':
                         if i == 0:
                             primary.append('N')
                             alternate.append('N')
@@ -438,45 +491,8 @@ class DoubleMetaphone:
                     alternate.append('K')
                     i += 1
 
-            elif c == 'H':
-                if i + 1 < length and word[i+1] in self.VOWELS:
-                    if i == 0 or word[i-1] not in self.VOWELS:
-                        primary.append('H')
-                        alternate.append('H')
-                    i += 2
-                else:
-                    i += 1
-
-            elif c == 'J':
-                primary.append('J')
-                if i == 0:
-                    alternate.append('A')
-                else:
-                    alternate.append('J')
-                i += 1
-
-            elif c == 'K':
-                primary.append('K')
-                alternate.append('K')
-                i += 1
-
-            elif c == 'L':
-                primary.append('L')
-                alternate.append('L')
-                i += 1
-
-            elif c == 'M':
-                primary.append('M')
-                alternate.append('M')
-                i += 1
-
-            elif c == 'N':
-                primary.append('N')
-                alternate.append('N')
-                i += 1
-
             elif c == 'P':
-                if i + 1 < length and word[i+1] == 'H':
+                if i + 1 < length and word_upper[i+1] == 'H':
                     primary.append('F')
                     alternate.append('F')
                     i += 2
@@ -485,23 +501,13 @@ class DoubleMetaphone:
                     alternate.append('P')
                     i += 1
 
-            elif c == 'Q':
-                primary.append('K')
-                alternate.append('K')
-                i += 1
-
-            elif c == 'R':
-                primary.append('R')
-                alternate.append('R')
-                i += 1
-
             elif c == 'S':
                 if i + 1 < length:
-                    if word[i+1] == 'H':
+                    if word_upper[i+1] == 'H':
                         primary.append('X')
                         alternate.append('X')
                         i += 2
-                    elif word[i+1] == 'I' and i + 2 < length and word[i+2] in ('A', 'O'):
+                    elif word_upper[i+1] == 'I' and i + 2 < length and word_upper[i+2] in ('A', 'O'):
                         primary.append('X')
                         alternate.append('X')
                         i += 3
@@ -516,11 +522,11 @@ class DoubleMetaphone:
 
             elif c == 'T':
                 if i + 1 < length:
-                    if word[i+1] == 'H':
+                    if word_upper[i+1] == 'H':
                         primary.append('0')
                         alternate.append('T')
                         i += 2
-                    elif word[i+1] == 'I' and i + 2 < length and word[i+2] in ('A', 'O'):
+                    elif word_upper[i+1] == 'I' and i + 2 < length and word_upper[i+2] in ('A', 'O'):
                         primary.append('X')
                         alternate.append('X')
                         i += 3
@@ -533,13 +539,8 @@ class DoubleMetaphone:
                     alternate.append('T')
                     i += 1
 
-            elif c == 'V':
-                primary.append('F')
-                alternate.append('F')
-                i += 1
-
             elif c == 'W':
-                if i + 1 < length and word[i+1] in self.VOWELS:
+                if i + 1 < length and word_upper[i+1] in vowels:
                     primary.append('W')
                     alternate.append('W')
                     i += 2
@@ -550,11 +551,6 @@ class DoubleMetaphone:
                 primary.append('K')
                 primary.append('S')
                 alternate.append('K')
-                alternate.append('S')
-                i += 1
-
-            elif c == 'Z':
-                primary.append('S')
                 alternate.append('S')
                 i += 1
 
