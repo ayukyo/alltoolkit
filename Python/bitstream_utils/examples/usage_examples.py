@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from bitstream_utils.mod import (
     BitReader, BitWriter, BitArray,
     count_bits, count_set_bits, reverse_bits,
+    rotate_left, rotate_right, get_bit, set_bit, clear_bit, toggle_bit,
     encode_varint, decode_varint,
     gray_encode, gray_decode
 )
