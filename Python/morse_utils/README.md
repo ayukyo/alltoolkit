@@ -1,76 +1,197 @@
-# Morse Utils
+# Morse Code Utils
 
+一个功能完整的摩尔斯电码编解码工具库，零外部依赖。
 
-Morse Utils - 摩尔斯电码工具
+## 功能特性
 
-零依赖的摩尔斯电码库，支持：
-- 文本转摩尔斯电码编码
-- 摩尔斯电码转文本解码
-- 音频信号生成（正弦波）
-- 支持多语言字符（A-Z、数字、常见符号）
-- 自定义分隔符和时间参数
-- 摩尔斯电码验证
-- 常见缩写和Q代码支持
+- **文本编码** - 将文本转换为摩尔斯电码
+- **电码解码** - 将摩尔斯电码转换回文本
+- **自定义符号** - 支持自定义点和划的表示符号
+- **时序生成** - 根据速度(WPM)生成音频时序
+- **可视表示** - 生成易读的可视化摩尔斯电码
+- **电码分析** - 分析摩尔斯电码字符串
+- **Prosigns** - 支持常用程序信号(如 AR, SK, SOS)
 
-Author: AllToolkit
-License: MIT
+## 快速开始
 
-
-## 功能
-
-### 类
-
-- **MorseError**: 摩尔斯电码错误基类
-- **InvalidCharacterError**: 无效字符错误
-- **InvalidMorseError**: 无效摩尔斯电码错误
-- **MorseConfig**: 摩尔斯电码配置
-  方法: unit
-- **MorseCode**: 摩尔斯电码类，提供面向对象的API
-  方法: encode, decode, to_audio, duration
-
-### 函数
-
-- **encode(text, letter_separator, word_separator**, ...) - 将文本编码为摩尔斯电码
-- **decode(morse, letter_separator, word_separator**, ...) - 将摩尔斯电码解码为文本
-- **encode_file(input_path, output_path, letter_separator**, ...) - 编码文件内容
-- **decode_file(input_path, output_path, letter_separator**, ...) - 解码文件内容
-- **is_valid_morse(morse**) - 检查字符串是否为有效的摩尔斯电码
-- **is_valid_text_for_encoding(text**) - 检查文本是否可以完全编码
-- **get_supported_characters(**) - 获取所有支持的字符
-- **get_morse_for_char(char**) - 获取字符对应的摩尔斯电码
-- **get_char_for_morse(morse**) - 获取摩尔斯电码对应的字符
-- **normalize_morse(morse**) - 标准化摩尔斯电码字符串
-
-... 共 30 个函数
-
-## 使用示例
+### 基本用法
 
 ```python
-from mod import encode
+from mod import encode, decode
 
-# 使用 encode
-result = encode()
+# 编码
+morse = encode('HELLO WORLD')
+# 输出: .... . .-.. .-.. --- / .-- --- .-. .-.. -..
+
+# 解码
+text = decode('... --- ...')
+# 输出: SOS
 ```
 
-## 测试
+### 自定义符号
 
-运行测试：
+```python
+from mod import MorseEncoder, MorseDecoder
+
+# 使用自定义符号
+encoder = MorseEncoder(dot_symbol='●', dash_symbol='—')
+morse = encoder.encode('SOS')
+# 输出: ●●● ——— ●●●
+
+# 解码时使用相同符号
+decoder = MorseDecoder(dot_symbol='●', dash_symbol='—')
+text = decoder.decode(morse)
+# 输出: SOS
+```
+
+### 时序计算
+
+```python
+from mod import calculate_speed, get_timing_sequence
+
+# 计算指定速度的时序参数
+timing = calculate_speed(wpm=15)
+# 返回: dot_ms, dash_ms, gaps 等
+
+# 生成播放时序
+sequence = get_timing_sequence('SOS', wpm=15)
+# 返回: [(True, 80), (False, 80), ...] - (是否发声, 持续毫秒)
+```
+
+### 可视化表示
+
+```python
+from mod import text_to_visual
+
+visual = text_to_visual('HELLO WORLD')
+# 输出:
+# ●●●● ● ●—●● ●—●● ——— / ●—— ——— ●—● ●—●● ●——●
+```
+
+### 便捷函数
+
+```python
+from mod import sos, hello_world, is_morse
+
+# 常用信号
+sos_signal = sos()  # '... --- ...'
+hw = hello_world()  # '.... . .-.. .-.. --- / .-- --- .-. .-.. -..'
+
+# 检测是否为摩尔斯电码
+is_morse('... --- ...')  # True
+is_morse('Hello')        # False
+```
+
+## API 参考
+
+### 编码器类 `MorseEncoder`
+
+```python
+encoder = MorseEncoder(
+    dot_symbol='.',      # 点符号
+    dash_symbol='-',     # 划符号
+    char_separator=' ',  # 字符分隔符
+    word_separator=' / '  # 单词分隔符
+)
+
+encoder.encode(text)      # 编码文本
+encoder.encode_char(char) # 编码单字符
+encoder.encode_prosign(name)  # 编码程序信号
+```
+
+### 解码器类 `MorseDecoder`
+
+```python
+decoder = MorseDecoder(
+    dot_symbol='.',
+    dash_symbol='-',
+    char_separator=' ',
+    word_separator=' / '
+)
+
+decoder.decode(morse)      # 解码电码
+decoder.decode_char(morse) # 解码单字符
+decoder.normalize_morse(morse)  # 标准化符号
+```
+
+### 工具函数
+
+| 函数 | 说明 |
+|------|------|
+| `encode(text, dot, dash)` | 快速编码文本 |
+| `decode(morse, dot, dash)` | 快速解码电码 |
+| `is_morse(text)` | 检测是否为电码 |
+| `calculate_speed(wpm)` | 计算时序参数 |
+| `get_timing_sequence(text, wpm)` | 生成播放时序 |
+| `text_to_visual(text, width)` | 可视化表示 |
+| `get_morse_reference()` | 获取电码字典 |
+| `analyze_morse(morse)` | 分析电码 |
+| `sos()` | 获取 SOS 信号 |
+| `hello_world()` | 获取示例电码 |
+
+## 支持的字符
+
+### 字母
+```
+A .-      B -...    C -.-.    D -..     E .
+F ..-.    G --.     H ....    I ..      J .---
+K -.-     L .-..    M --      N -.      O ---
+P .--.    Q --.-    R .-.     S ...     T -
+U ..-     V ...-    W .--     X -..-    Y -.--
+Z --..
+```
+
+### 数字
+```
+0 -----   1 .----   2 ..---   3 ...--   4 ....-
+5 .....   6 -....   7 --...   8 ---..   9 ----.
+```
+
+### 标点符号
+```
+. .-.-.-   , --..--   ? ..--..   ' .----.
+! -.-.--   / -..-.    ( -.--.    ) -.--.-
+& .-...    : ---...   ; -.-.-.   = -...-
++ .-.-.    - -....-   _ ..--.-   " .-..-.
+$ ...-..-  @ .--.-.
+```
+
+### 程序信号 (Prosigns)
+```
+AA  .-.-     结束消息
+AR  .-.-.    结束传输
+AS  .-...    等待
+BT  -...-    中断/暂停
+SK  ...-.-   结束工作
+```
+
+## 示例
+
+### 运行演示
 
 ```bash
-python *_test.py
+python mod.py
 ```
 
-## 文件结构
+### 运行测试
 
-```
-{module_name}/
-├── mod.py              # 主模块
-├── *_test.py           # 测试文件
-├── README.md           # 本文档
-└── examples/           # 示例代码
-    └── usage_examples.py
+```bash
+python -m pytest morse_utils_test.py -v
 ```
 
----
+## 技术细节
 
-**Last updated**: 2026-04-28
+### 时序标准
+
+基于 PARIS 标准计算时序：
+- 点 = 1 单位
+- 划 = 3 单位
+- 元素间隔 = 1 单位
+- 字符间隔 = 3 单位
+- 单词间隔 = 7 单位
+
+15 WPM 时，单位时长约 80ms。
+
+## 许可证
+
+MIT License
