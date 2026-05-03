@@ -744,27 +744,50 @@ class VariablePool:
 
 ---
 
-## 🚀 生成流程（v4.0 多源整合版）
+## 🚀 生成流程（v4.1 多源整合版）
+
+### 第一阶段：大纲生成（6:00）
 
 | 步骤 | 内容 | 输出 |
 |------|------|------|
-| **1** | **多源热点获取** | 4个来源热点数据 |
-| **2** | **题材交叉分析** | 创新组合方向列表 |
-| **3** | **AI创新决策** | 题材融合方案 |
-| **4** | 题材确认 | genre变量 |
-| **5** | 生成核心设定 | 书名+核心梗+主角人设 |
-| **6** | 扩展人物 | characters数组（含主角） |
-| **7** | 多线设计 | plot_lines结构 |
-| **8** | AI动态生成事件 | 300章独特事件 |
-| **9** | 生成bible.json | 使用v4.0模板 |
-| **10** | 生成章节规划表.csv | 10列精简版 |
-| **11** | **自检流程启动** | 执行步骤12-15 |
-| **12** | 去重检测 | 调用generate_dedup_report() |
-| **13** | 钩子评分检测 | 遍历调用rate_hook() |
-| **14** | 人物登场验证 | 调用validate_character_debut() |
-| **15** | **不合格则重新生成** | 返回步骤8 |
-| **16** | 生成其他文件 | 大纲.md、简介.md |
-| **17** | 输出报告 | 热点来源+去重+评分+登场验证报告 |
+| **1** | **历史书名去重检查** | 确认新书名不重复 |
+| **2** | **多源热点获取（强制web_search）** | 4个来源热点数据（禁止空数组） |
+| **3** | **题材交叉分析** | 创新组合方向列表 |
+| **4** | **AI创新决策** | 题材融合方案（原创性≥9分） |
+| **5** | 题材确认 | genre变量 |
+| **6** | 生成核心设定 | 书名+核心梗+主角人设 |
+| **7** | 扩展人物 | characters数组（≥18角色） |
+| **8** | 多线设计 | plot_lines结构 |
+| **9** | AI动态生成事件 | 300章独特事件 |
+| **10** | 生成bible.json | 使用v4.0模板 |
+| **11** | 生成章节规划表.csv | 10列精简版 |
+| **12** | **生成阶段自检（快速）** | 调用regenerate_if_failed(max_attempts=3) |
+| **13** | 生成其他文件 | 大纲.md、简介.md |
+| **14** | 输出报告 | 热点来源+去重+评分+登场验证报告 |
+
+### 第二阶段：查漏补缺（8:00-20:00）
+
+> ⚠️ **核心逻辑：连续三轮通过才停止！**
+
+| 时间 | 任务 | 检查内容 | 逻辑 |
+|------|------|----------|------|
+| **08:00** | 第一轮查漏补缺 | 去重+钩子评分+人物登场+逻辑连贯 | 发现问题立即修复 |
+| **10:00** | 第二轮查漏补缺 | 同上 | 发现问题立即修复 |
+| **12:00** | 第三轮查漏补缺 | 同上 | 发现问题立即修复 |
+| **14:00** | 第四轮查漏补缺 | 同上+伏笔闭环 | 发现问题立即修复 |
+| **16:00** | 第五轮查漏补缺 | 同上 | 发现问题立即修复 |
+| **18:00** | 第六轮查漏补缺 | 同上 | 发现问题立即修复 |
+| **20:00** | 最终检查 | 全面检查+稳定性验证 | **必须连续3轮通过才结束** |
+
+**查漏补缺核心逻辑（v4.1新增）**：
+```
+使用 continuous_check_until_stable() 函数：
+- 无限轮次检查（最多10轮）
+- 发现问题立即调用 fix_failed_items() 修复
+- 修复后重新验证
+- 必须连续3轮全部通过才停止
+- 任何一轮不合格，重置计数继续检查
+```
 
 ### v4.0 热点获取提示词（强制执行）
 
@@ -922,7 +945,9 @@ def post_generation_check(csv_data, bible, genre):
 
 def regenerate_if_failed(csv_data, bible, genre, max_attempts=3):
     """
-    自检不合格时自动重新生成
+    自检不合格时自动重新生成（最多重试N次）
+    
+    注意：这是生成阶段的重试逻辑，用于生成时快速修复
     
     参数:
     - max_attempts: 最大重试次数（默认3次）
@@ -946,6 +971,69 @@ def regenerate_if_failed(csv_data, bible, genre, max_attempts=3):
     
     print(f"⚠️ {max_attempts}次重试后仍不合格，请人工检查")
     return csv_data, False, report
+
+def continuous_check_until_stable(csv_data, bible, genre, required_passes=3, max_iterations=10):
+    """
+    连续N轮通过才停止（查漏补缺阶段的核心逻辑）
+    
+    这是v4.1新增的查漏补缺流程：
+    - 无限轮次检查（最多max_iterations次）
+    - 发现问题立即修复
+    - 必须连续N轮全部通过才结束
+    - 如果中间有任何一轮不合格，重置计数
+    
+    参数:
+    - required_passes: 需要连续通过的轮数（默认3轮）
+    - max_iterations: 最大迭代次数（防止无限循环，默认10次）
+    
+    返回: (最终CSV数据, 总轮数, 连续通过轮数, 报告列表)
+    """
+    consecutive_passes = 0
+    iteration = 0
+    all_reports = []
+    
+    while iteration < max_iterations:
+        iteration += 1
+        print(f"\n{'='*50}")
+        print(f"📊 第 {iteration} 轮检查")
+        print(f"当前连续通过轮数: {consecutive_passes}/{required_passes}")
+        print(f"{'='*50}")
+        
+        # 执行完整检查
+        all_pass, report = post_generation_check(csv_data, bible, genre)
+        all_reports.append({
+            "轮数": iteration,
+            "是否通过": all_pass,
+            "报告": report
+        })
+        
+        if all_pass:
+            consecutive_passes += 1
+            print(f"✅ 第{iteration}轮检查全部通过！")
+            print(f"   连续通过轮数: {consecutive_passes}/{required_passes}")
+            
+            # 检查是否达到要求
+            if consecutive_passes >= required_passes:
+                print(f"\n🎉 连续{required_passes}轮全部通过！大纲质量稳定！")
+                return csv_data, iteration, consecutive_passes, all_reports
+        else:
+            # 本轮不合格，重置计数并修复
+            consecutive_passes = 0
+            print(f"❌ 第{iteration}轮检查发现问题，立即修复...")
+            
+            # 根据报告针对性修复
+            csv_data = fix_failed_items(csv_data, bible, genre, report)
+            print(f"   已修复问题，继续下一轮检查...")
+    
+    # 达到最大迭代次数
+    print(f"\n⚠️ 达到最大迭代次数({max_iterations}次)")
+    print(f"   最终连续通过轮数: {consecutive_passes}/{required_passes}")
+    if consecutive_passes >= required_passes:
+        print(f"   ✅ 大纲质量达标")
+    else:
+        print(f"   ❌ 大纲质量不稳定，需要人工检查")
+    
+    return csv_data, iteration, consecutive_passes, all_reports
 
 def fix_failed_items(csv_data, bible, genre, report):
     """
@@ -1134,14 +1222,17 @@ def generate_event(chapter, genre, setting, previous_events):
 
 ---
 
-## ✅ 质量检查清单（v4.0）
+## ✅ 质量检查清单（v4.1）
+
+### 第一阶段：大纲生成（6:00）
 
 ```
-□ 热点数据获取：微博热搜+抖音热点+番茄榜单+知乎热榜
+□ 历史书名去重：检查已生成书名，禁止重复
+□ 热点数据获取（强制）：web_search获取真实数据，禁止空数组
 □ 题材交叉分析：识别热点+热门题材融合点
-□ AI创新决策：综合思考创新组合方向
+□ AI创新决策：综合思考创新组合方向（禁止复制示例）
 □ 市场潜力评估：热度+共鸣点+受众分析
-□ 原创性评分：确保≥8分（避免跟风）
+□ 原创性评分：确保≥9分（避免跟风）
 □ 题材识别：自动识别关键词
 □ bible.json：主角合并入characters数组
 □ 人物登场：derive_debut_chapters() + validate_character_debut()
@@ -1149,13 +1240,29 @@ def generate_event(chapter, genre, setting, previous_events):
 □ 本章钩子：rate_hook(genre) ≥7分题材加权
 □ 情绪曲线：去重检测 ≤10个重复
 □ 变量映射：VariablePool._build_pool() 优先匹配角色类型
-□ 生成后自检：post_generation_check() 全部通过
-□ 自检重生：regenerate_if_failed(max_attempts=3)
+□ 生成后自检：regenerate_if_failed(max_attempts=3) 快速通过
 □ CSV格式：明确数据类型，章节转int处理
 □ 异常处理：空值检测、int转换安全
 □ 总章节数：动态获取，支持不同长度
 □ 输出文件：bible.json + CSV + 大纲.md + 简介.md
 □ 文件路径：bible.json包含file_path字段
+```
+
+### 第二阶段：查漏补缺（8:00-20:00）
+
+```
+□ 第一轮检查（8:00）：去重+钩子评分+人物登场+逻辑连贯
+□ 发现问题修复：调用fix_failed_items()立即修复
+□ 修复后验证：确认修复成功
+□ 第二轮检查（10:00）：同上
+□ 第三轮检查（12:00）：同上
+□ 第四轮检查（14:00）：同上+伏笔闭环验证
+□ 第五轮检查（16:00）：同上
+□ 第六轮检查（18:00）：同上
+□ 最终检查（20:00）：使用continuous_check_until_stable(required_passes=3)
+□ 稳定性验证：必须连续3轮全部通过
+□ 最大迭代：10轮上限防止无限循环
+□ 最终报告：输出总轮数+连续通过轮数+详细报告
 ```
 
 ---
