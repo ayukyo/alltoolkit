@@ -1,0 +1,13 @@
+[package]
+name = "hyperloglog_utils"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "HyperLogLog cardinality estimation data structure - zero external dependencies"
+license = "MIT"
+keywords = ["hyperloglog", "cardinality", "estimation", "probabilistic", "data-structure"]
+categories = ["algorithms", "data-structures"]
+
+[dependencies]
+
+[dev-dependencies]
