@@ -1,268 +1,143 @@
 # LRU Cache Utils
 
-**LRU（最近最少使用）缓存工具模块**
+一个零外部依赖的 LRU (Least Recently Used) 缓存实现，提供高效的 O(1) 操作。
 
-零依赖的 LRU 缓存实现，支持 TTL、线程安全、统计信息等功能。
+## 功能特性
 
----
-
-## 特性
-
-- ✅ **零依赖** - 仅使用 Python 标准库
-- ✅ **线程安全** - 支持并发读写操作
-- ✅ **TTL 支持** - 可设置条目过期时间
-- ✅ **自动清理** - 定期清理过期条目
-- ✅ **统计信息** - 命中率、淘汰数等统计
-- ✅ **批量操作** - 批量获取、设置、删除
-- ✅ **装饰器模式** - 函数结果缓存
-- ✅ **多种变体** - TTLCache、BoundedLRUCache、WeightedLRUCache 等
-
----
+- **O(1) 时间复杂度** - 使用双向链表 + 哈希表实现
+- **可配置容量** - 支持动态调整缓存大小
+- **TTL 支持** - 可选的自动过期时间
+- **线程安全** - 可选的线程安全模式
+- **统计信息** - 命中率、淘汰次数等统计数据
+- **批量操作** - 支持批量存取
+- **装饰器** - 便捷的函数结果缓存
+- **回调支持** - 淘汰时的自定义回调
 
 ## 快速开始
 
-### 基本使用
-
 ```python
-from mod import LRUCache
+from lru_cache_utils.mod import LRUCache
 
-# 创建缓存
-cache = LRUCache(max_size=100)
+# 创建容量为 3 的缓存
+cache = LRUCache[str, int](capacity=3)
 
-# 设置值
-cache.set('key', 'value')
+# 添加项目
+cache.put('a', 1)
+cache.put('b', 2)
+cache.put('c', 3)
 
-# 获取值
-value = cache.get('key')  # 'value'
-missing = cache.get('missing', 'default')  # 'default'
+# 访问项目（更新 LRU 顺序）
+cache.get('a')
 
-# 字典接口
-cache['name'] = 'Alice'
-value = cache['name']  # 'Alice'
+# 添加新项目，'b' 将被淘汰
+cache.put('d', 4)
 
-# 存在性检查
-if 'key' in cache:
-    print("存在")
+# 检查项目
+print(cache.get('a'))  # 1
+print(cache.get('b'))  # None (已淘汰)
 ```
 
-### TTL 过期
+## TTL 过期
 
 ```python
-# 默认 TTL
-cache = LRUCache(max_size=100, default_ttl=300)  # 5 分钟
+from lru_cache_utils.mod import LRUCache
+import time
 
-# 单条 TTL
-cache.set('session', data, ttl=60)  # 1 分钟
+# 创建带 TTL 的缓存
+cache = LRUCache[str, str](capacity=100, ttl=2.0)  # 2秒过期
 
-# 查询剩余 TTL
-ttl = cache.ttl('session')  # 剩余秒数
+cache.put('session', 'user123')
+print(cache.get('session'))  # 'user123'
+
+time.sleep(2.5)
+print(cache.get('session'))  # None (已过期)
 ```
 
-### 装饰器缓存
+## 函数装饰器
 
 ```python
-from mod import lru_cache
+from lru_cache_utils.mod import lru_cache
 
-@lru_cache(max_size=100, ttl=60)
-def expensive_function(n):
-    return n * 2
+@lru_cache(capacity=100)
+def fibonacci(n):
+    if n < 2:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
 
-result = expensive_function(5)  # 计算并缓存
-result = expensive_function(5)  # 使用缓存
+print(fibonacci(50))  # 快速计算
+
+# 查看缓存统计
+print(fibonacci.cache_stats())
 ```
 
----
+## 线程安全
+
+```python
+from lru_cache_utils.mod import LRUCache
+
+# 创建线程安全缓存
+cache = LRUCache[str, int](capacity=100, thread_safe=True)
+
+# 多线程安全访问
+# ...
+```
+
+## 淘汰回调
+
+```python
+from lru_cache_utils.mod import LRUCache
+
+def on_evict(key, value):
+    print(f"淘汰: {key} = {value}")
+
+cache = LRUCache[str, int](capacity=3, on_evict=on_evict)
+```
 
 ## API 参考
 
 ### LRUCache
 
-#### 构造参数
-
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| `max_size` | int | 最大缓存条目数 |
-| `default_ttl` | float | 默认 TTL（秒），None 表示永不过期 |
-| `auto_cleanup` | bool | 是否自动清理过期条目 |
-| `cleanup_interval` | int | 清理间隔（操作次数） |
-
-#### 方法
-
-| 方法 | 说明 |
+| 方法 | 描述 |
 |------|------|
-| `get(key, default)` | 获取值，不存在返回 default |
-| `set(key, value, ttl)` | 设置值，可选 TTL |
-| `delete(key)` | 删除条目 |
-| `exists(key)` | 检查是否存在且未过期 |
+| `put(key, value, ttl=None)` | 存入键值对 |
+| `get(key, default=None)` | 获取值 |
+| `delete(key)` | 删除键 |
+| `contains(key)` | 检查键是否存在 |
 | `clear()` | 清空缓存 |
 | `size()` | 当前大小 |
-| `keys()` | 所有键 |
-| `values()` | 所有值 |
+| `keys()` | 所有键（LRU 顺序） |
+| `values()` | 所有值（LRU 顺序） |
 | `items()` | 所有键值对 |
-| `get_many(keys)` | 批量获取 |
-| `set_many(items, ttl)` | 批量设置 |
-| `delete_many(keys)` | 批量删除 |
-| `get_or_set(key, factory, ttl)` | 获取或创建 |
-| `touch(key, ttl)` | 更新访问时间和 TTL |
-| `ttl(key)` | 查询剩余 TTL |
-| `peek(key)` | 查看但不更新访问信息 |
-| `cleanup()` | 手动清理过期条目 |
 | `stats()` | 统计信息 |
-| `reset_stats()` | 重置统计 |
+| `get_or_set(key, factory)` | 获取或计算 |
+| `peek(key)` | 查看不更新顺序 |
+| `touch(key)` | 更新到最近使用 |
+| `put_all(items)` | 批量存入 |
+| `get_all(keys)` | 批量获取 |
 
-#### 统计信息
+### 装饰器
 
-```python
-stats = cache.stats()
-# {
-#     'size': 50,
-#     'max_size': 100,
-#     'hits': 120,
-#     'misses': 30,
-#     'hit_rate': 0.8,
-#     'evictions': 5,
-#     'expirations': 10,
-#     'total_requests': 150
-# }
-```
-
----
-
-## 变体类型
+- `@lru_cache(capacity, ttl=None)` - LRU 缓存装饰器
+- `@memoize` - 简单记忆化装饰器
 
 ### TTLCache
 
-强制 TTL 的缓存，所有条目必须有过期时间。
+仅 TTL 过期缓存（无 LRU 淘汰）：
 
 ```python
-from mod import TTLCache
+from lru_cache_utils.mod import TTLCache
 
-cache = TTLCache(max_size=100, default_ttl=300)
-
-cache.set('key', 'value')  # 自动设置 300 秒 TTL
-cache.refresh_ttl('key')   # 刷新单个 TTL
-cache.refresh_all()        # 刷新所有 TTL
+cache = TTLCache[str, str](ttl=60.0)  # 60秒过期
 ```
 
-### BoundedLRUCache
-
-设置最小保留数量的缓存。
-
-```python
-from mod import BoundedLRUCache
-
-cache = BoundedLRUCache(max_size=100, min_size=20)
-# 即使压力很大，也至少保留 20 个条目
-```
-
-### WeightedLRUCache
-
-按权重控制容量的缓存。
-
-```python
-from mod import WeightedLRUCache
-
-cache = WeightedLRUCache(max_weight=1000)
-
-cache.set('small', data, weight=10)   # 小权重
-cache.set('large', data, weight=500)  # 大权重
-
-cache.current_weight()    # 当前总权重
-cache.available_weight()  # 可用权重
-```
-
-### ExpiringPriorityCache
-
-淘汰时优先淘汰即将过期的条目。
-
-```python
-from mod import ExpiringPriorityCache
-
-cache = ExpiringPriorityCache(max_size=100)
-cache.set('long', value, ttl=3600)  # 长过期
-cache.set('short', value, ttl=10)   # 短过期
-# 淘汰时优先淘汰 short
-```
-
----
-
-## 使用场景
-
-### 会话管理
-
-```python
-session_cache = TTLCache(max_size=1000, default_ttl=1800)  # 30 分钟
-
-session_cache.set(session_id, {'user': user, 'data': data})
-session = session_cache.get(session_id)
-session_cache.refresh_ttl(session_id)  # 延长会话
-```
-
-### API 结果缓存
-
-```python
-@lru_cache(max_size=1000, ttl=60)
-def get_weather(city):
-    # 调用天气 API
-    return fetch_weather(city)
-```
-
-### 计算缓存
-
-```python
-calc_cache = LRUCache(max_size=100)
-
-def calculate(x, y):
-    key = (x, y)
-    return calc_cache.get_or_set(
-        key,
-        lambda: expensive_calculation(x, y)
-    )
-```
-
-### 图片缓存（加权）
-
-```python
-image_cache = WeightedLRUCache(max_weight=50_000_000)  # 50MB
-
-# 小图
-image_cache.set('thumbnail', thumb, weight=len(thumb))
-
-# 大图
-image_cache.set('full', image, weight=len(image))
-```
-
----
-
-## 线程安全
-
-所有缓存类型都是线程安全的，支持并发读写：
-
-```python
-import threading
-
-cache = LRUCache(max_size=1000)
-
-def worker():
-    for i in range(100):
-        cache.set(f'key_{i}', i)
-        cache.get(f'key_{i}')
-
-threads = [threading.Thread(target=worker) for _ in range(10)]
-for t in threads:
-    t.start()
-```
-
----
-
-## 测试
+## 运行测试
 
 ```bash
-python Python/lru_cache_utils/lru_cache_utils_test.py
+python lru_cache_utils_test.py
 ```
 
----
+## 运行示例
 
-## 许可证
-
-MIT License
+```bash
+python examples/usage_examples.py
+```

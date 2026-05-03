@@ -1,484 +1,602 @@
 """
-LRU Cache Utils - LRU（最近最少使用）缓存工具模块
+LRU Cache Utility Module
 
-提供零依赖的 LRU 缓存实现，支持：
-- 线程安全的缓存操作
-- TTL（生存时间）支持
-- 自动过期清理
-- 统计信息收集
-- 批量操作
-- 装饰器模式
+A comprehensive LRU (Least Recently Used) cache implementation with zero external dependencies.
+Provides efficient O(1) operations for get, put, and eviction.
 
-仅使用 Python 标准库实现。
+Features:
+- Generic key-value cache with configurable capacity
+- O(1) time complexity for all operations using doubly linked list + hash map
+- Optional TTL (Time-To-Live) support for automatic expiration
+- Thread-safe mode with optional locking
+- Statistics tracking (hits, misses, evictions)
+- Batch operations (put_all, get_all)
+- Decorator for function result caching
+- Support for custom eviction callbacks
 """
 
-from collections import OrderedDict
+from typing import Generic, TypeVar, Optional, Callable, Dict, List, Tuple, Any
+from time import time
 from threading import RLock
-from typing import Any, Callable, Dict, Generic, Iterator, List, Optional, Tuple, TypeVar, Union
 from functools import wraps
-from datetime import datetime, timedelta
-import time
-import heapq
 
 K = TypeVar('K')
 V = TypeVar('V')
 
 
-class CacheEntry(Generic[K, V]):
-    """缓存条目类"""
+class Node(Generic[K, V]):
+    """Doubly linked list node for LRU cache."""
     
-    __slots__ = ['key', 'value', 'created_at', 'expires_at', 'access_count', 'last_access']
+    __slots__ = ['key', 'value', 'prev', 'next', 'expires_at', 'access_count']
     
-    def __init__(
-        self, 
-        key: K, 
-        value: V, 
-        ttl: Optional[float] = None,
-        created_at: Optional[float] = None
-    ):
+    def __init__(self, key: K, value: V, ttl: Optional[float] = None):
         self.key = key
         self.value = value
-        self.created_at = created_at or time.time()
-        self.expires_at = self.created_at + ttl if ttl else None
+        self.prev: Optional['Node[K, V]'] = None
+        self.next: Optional['Node[K, V]'] = None
+        self.expires_at = time() + ttl if ttl else None
         self.access_count = 0
-        self.last_access = self.created_at
-    
-    def is_expired(self) -> bool:
-        """检查条目是否已过期"""
-        if self.expires_at is None:
-            return False
-        return time.time() > self.expires_at
-    
-    def touch(self) -> None:
-        """更新访问时间和计数"""
-        self.last_access = time.time()
-        self.access_count += 1
-    
-    @property
-    def age(self) -> float:
-        """条目存活时间（秒）"""
-        return time.time() - self.created_at
-    
-    @property
-    def remaining_ttl(self) -> Optional[float]:
-        """剩余 TTL（秒），无过期返回 None"""
-        if self.expires_at is None:
-            return None
-        return max(0, self.expires_at - time.time())
 
 
 class LRUCache(Generic[K, V]):
     """
-    线程安全的 LRU 缓存实现
+    LRU Cache implementation with O(1) operations.
     
-    特性：
-    - 自动淘汰最少使用的条目
-    - 支持 TTL 过期
-    - 线程安全操作
-    - 统计信息收集
-    - 批量操作支持
+    Uses a doubly linked list for ordering and a hash map for O(1) access.
+    Most recently used items are at the head, least recently used at the tail.
     
-    示例:
-        >>> cache = LRUCache(max_size=100, default_ttl=300)
-        >>> cache.set('key', 'value')
-        >>> cache.get('key')
-        'value'
+    Example:
+        cache = LRUCache[str, int](capacity=3)
+        cache.put('a', 1)
+        cache.put('b', 2)
+        cache.put('c', 3)
+        cache.put('d', 4)  # 'a' is evicted
+        print(cache.get('b'))  # 2
     """
     
-    def __init__(
-        self, 
-        max_size: int = 128,
-        default_ttl: Optional[float] = None,
-        auto_cleanup: bool = True,
-        cleanup_interval: int = 100
-    ):
+    def __init__(self, capacity: int, 
+                 ttl: Optional[float] = None,
+                 thread_safe: bool = False,
+                 on_evict: Optional[Callable[[K, V], None]] = None):
         """
-        初始化 LRU 缓存
+        Initialize LRU cache.
         
         Args:
-            max_size: 最大缓存条目数
-            default_ttl: 默认 TTL（秒），None 表示永不过期
-            auto_cleanup: 是否自动清理过期条目
-            cleanup_interval: 每多少次操作后清理过期条目
+            capacity: Maximum number of items in cache
+            ttl: Default time-to-live in seconds for items (None = no expiration)
+            thread_safe: Enable thread-safe operations with locking
+            on_evict: Callback function called when an item is evicted
         """
-        if max_size <= 0:
-            raise ValueError("max_size 必须大于 0")
+        if capacity <= 0:
+            raise ValueError("Capacity must be positive")
         
-        self._max_size = max_size
-        self._default_ttl = default_ttl
-        self._auto_cleanup = auto_cleanup
-        self._cleanup_interval = cleanup_interval
+        self._capacity = capacity
+        self._default_ttl = ttl
+        self._thread_safe = thread_safe
+        self._on_evict = on_evict
         
-        self._cache: OrderedDict[K, CacheEntry[K, V]] = OrderedDict()
-        self._lock = RLock()
-        self._operation_count = 0
+        # Hash map for O(1) access
+        self._cache: Dict[K, Node[K, V]] = {}
         
-        # 统计信息
+        # Dummy head and tail for easier manipulation
+        self._head = Node(None, None)  # type: ignore
+        self._tail = Node(None, None)  # type: ignore
+        self._head.next = self._tail
+        self._tail.prev = self._head
+        
+        # Statistics
+        self._hits = 0
+        self._misses = 0
+        self._evictions = 0
+        self._expirations = 0
+        
+        # Lock for thread safety
+        self._lock = RLock() if thread_safe else None
+    
+    def _remove_node(self, node: Node[K, V]) -> None:
+        """Remove a node from the linked list."""
+        prev_node = node.prev
+        next_node = node.next
+        if prev_node:
+            prev_node.next = next_node
+        if next_node:
+            next_node.prev = prev_node
+    
+    def _add_to_head(self, node: Node[K, V]) -> None:
+        """Add a node right after the head (most recently used)."""
+        node.prev = self._head
+        node.next = self._head.next
+        if self._head.next:
+            self._head.next.prev = node
+        self._head.next = node
+    
+    def _move_to_head(self, node: Node[K, V]) -> None:
+        """Move an existing node to the head."""
+        self._remove_node(node)
+        self._add_to_head(node)
+    
+    def _remove_tail(self) -> Node[K, V]:
+        """Remove and return the tail node (least recently used)."""
+        node = self._tail.prev
+        if node and node != self._head:
+            self._remove_node(node)
+            return node
+        raise IndexError("Cache is empty")
+    
+    def _is_expired(self, node: Node[K, V]) -> bool:
+        """Check if a node has expired."""
+        if node.expires_at is None:
+            return False
+        return time() > node.expires_at
+    
+    def _evict_expired(self) -> int:
+        """Remove all expired items. Returns count of evicted items."""
+        expired_keys = []
+        for key, node in self._cache.items():
+            if self._is_expired(node):
+                expired_keys.append(key)
+        
+        for key in expired_keys:
+            self._remove_node(self._cache[key])
+            del self._cache[key]
+            self._expirations += 1
+        
+        return len(expired_keys)
+    
+    def get(self, key: K, default: Optional[V] = None) -> Optional[V]:
+        """
+        Get a value by key.
+        
+        Args:
+            key: The key to look up
+            default: Value to return if key not found
+            
+        Returns:
+            The cached value or default
+        """
+        if self._lock:
+            with self._lock:
+                return self._get_internal(key, default)
+        return self._get_internal(key, default)
+    
+    def _get_internal(self, key: K, default: Optional[V] = None) -> Optional[V]:
+        """Internal get without locking."""
+        if key not in self._cache:
+            self._misses += 1
+            return default
+        
+        node = self._cache[key]
+        
+        # Check expiration
+        if self._is_expired(node):
+            self._remove_node(node)
+            del self._cache[key]
+            self._expirations += 1
+            self._misses += 1
+            return default
+        
+        # Move to head (most recently used)
+        self._move_to_head(node)
+        node.access_count += 1
+        self._hits += 1
+        
+        return node.value
+    
+    def put(self, key: K, value: V, ttl: Optional[float] = None) -> Optional[V]:
+        """
+        Put a key-value pair into the cache.
+        
+        Args:
+            key: The key
+            value: The value
+            ttl: Time-to-live in seconds (overrides default TTL)
+            
+        Returns:
+            The evicted value if capacity was exceeded, None otherwise
+        """
+        if self._lock:
+            with self._lock:
+                return self._put_internal(key, value, ttl)
+        return self._put_internal(key, value, ttl)
+    
+    def _put_internal(self, key: K, value: V, ttl: Optional[float] = None) -> Optional[V]:
+        """Internal put without locking."""
+        # Check if key exists
+        if key in self._cache:
+            node = self._cache[key]
+            
+            # Check expiration
+            if self._is_expired(node):
+                self._remove_node(node)
+                del self._cache[key]
+                self._expirations += 1
+            else:
+                # Update existing node
+                old_value = node.value
+                node.value = value
+                if ttl is not None or self._default_ttl is not None:
+                    node.expires_at = time() + (ttl if ttl is not None else self._default_ttl)
+                self._move_to_head(node)
+                return old_value
+        
+        # Check capacity and evict if necessary
+        evicted_value = None
+        if len(self._cache) >= self._capacity:
+            # Clean up expired items first
+            self._evict_expired()
+            
+            # Still need to evict?
+            if len(self._cache) >= self._capacity:
+                tail_node = self._remove_tail()
+                del self._cache[tail_node.key]
+                evicted_value = tail_node.value
+                self._evictions += 1
+                if self._on_evict:
+                    self._on_evict(tail_node.key, tail_node.value)
+        
+        # Create new node
+        actual_ttl = ttl if ttl is not None else self._default_ttl
+        new_node = Node(key, value, actual_ttl)
+        self._cache[key] = new_node
+        self._add_to_head(new_node)
+        
+        return evicted_value
+    
+    def delete(self, key: K) -> bool:
+        """
+        Delete a key from the cache.
+        
+        Args:
+            key: The key to delete
+            
+        Returns:
+            True if the key was found and deleted
+        """
+        if self._lock:
+            with self._lock:
+                return self._delete_internal(key)
+        return self._delete_internal(key)
+    
+    def _delete_internal(self, key: K) -> bool:
+        """Internal delete without locking."""
+        if key not in self._cache:
+            return False
+        
+        node = self._cache[key]
+        self._remove_node(node)
+        del self._cache[key]
+        return True
+    
+    def contains(self, key: K) -> bool:
+        """
+        Check if a key exists in the cache.
+        
+        Args:
+            key: The key to check
+            
+        Returns:
+            True if the key exists and hasn't expired
+        """
+        if self._lock:
+            with self._lock:
+                return self._contains_internal(key)
+        return self._contains_internal(key)
+    
+    def _contains_internal(self, key: K) -> bool:
+        """Internal contains check without locking."""
+        if key not in self._cache:
+            return False
+        
+        node = self._cache[key]
+        if self._is_expired(node):
+            self._remove_node(node)
+            del self._cache[key]
+            self._expirations += 1
+            return False
+        
+        return True
+    
+    def clear(self) -> None:
+        """Clear all items from the cache."""
+        if self._lock:
+            with self._lock:
+                self._cache.clear()
+                self._head.next = self._tail
+                self._tail.prev = self._head
+                return
+        self._cache.clear()
+        self._head.next = self._tail
+        self._tail.prev = self._head
+    
+    def size(self) -> int:
+        """Get the current number of items in cache."""
+        if self._lock:
+            with self._lock:
+                return len(self._cache)
+        return len(self._cache)
+    
+    def is_empty(self) -> bool:
+        """Check if the cache is empty."""
+        return self.size() == 0
+    
+    def is_full(self) -> bool:
+        """Check if the cache is at capacity."""
+        return self.size() >= self._capacity
+    
+    def keys(self) -> List[K]:
+        """Get all keys in LRU order (most recent first)."""
+        if self._lock:
+            with self._lock:
+                return self._keys_internal()
+        return self._keys_internal()
+    
+    def _keys_internal(self) -> List[K]:
+        """Internal keys without locking."""
+        keys = []
+        node = self._head.next
+        while node and node != self._tail:
+            if not self._is_expired(node):
+                keys.append(node.key)
+            node = node.next
+        return keys
+    
+    def values(self) -> List[V]:
+        """Get all values in LRU order (most recent first)."""
+        if self._lock:
+            with self._lock:
+                return self._values_internal()
+        return self._values_internal()
+    
+    def _values_internal(self) -> List[V]:
+        """Internal values without locking."""
+        values = []
+        node = self._head.next
+        while node and node != self._tail:
+            if not self._is_expired(node):
+                values.append(node.value)
+            node = node.next
+        return values
+    
+    def items(self) -> List[Tuple[K, V]]:
+        """Get all key-value pairs in LRU order (most recent first)."""
+        if self._lock:
+            with self._lock:
+                return self._items_internal()
+        return self._items_internal()
+    
+    def _items_internal(self) -> List[Tuple[K, V]]:
+        """Internal items without locking."""
+        items = []
+        node = self._head.next
+        while node and node != self._tail:
+            if not self._is_expired(node):
+                items.append((node.key, node.value))
+            node = node.next
+        return items
+    
+    def put_all(self, items: Dict[K, V], ttl: Optional[float] = None) -> None:
+        """
+        Put multiple items into the cache.
+        
+        Args:
+            items: Dictionary of key-value pairs
+            ttl: Time-to-live for all items
+        """
+        if self._lock:
+            with self._lock:
+                for key, value in items.items():
+                    self._put_internal(key, value, ttl)
+                return
+        for key, value in items.items():
+            self._put_internal(key, value, ttl)
+    
+    def get_all(self, keys: List[K]) -> Dict[K, V]:
+        """
+        Get multiple values by keys.
+        
+        Args:
+            keys: List of keys to look up
+            
+        Returns:
+            Dictionary of found key-value pairs
+        """
+        result = {}
+        if self._lock:
+            with self._lock:
+                for key in keys:
+                    value = self._get_internal(key)
+                    if value is not None:
+                        result[key] = value
+                return result
+        for key in keys:
+            value = self._get_internal(key)
+            if value is not None:
+                result[key] = value
+        return result
+    
+    def get_or_set(self, key: K, factory: Callable[[], V], ttl: Optional[float] = None) -> V:
+        """
+        Get a value, or compute and set it if not present.
+        
+        Args:
+            key: The key to look up
+            factory: Function to compute the value if not found
+            ttl: Time-to-live for the computed value
+            
+        Returns:
+            The cached or computed value
+        """
+        if self._lock:
+            with self._lock:
+                value = self._get_internal(key)
+                if value is not None:
+                    return value
+                value = factory()
+                self._put_internal(key, value, ttl)
+                return value
+        
+        value = self.get(key)
+        if value is not None:
+            return value
+        value = factory()
+        self.put(key, value, ttl)
+        return value
+    
+    def peek(self, key: K) -> Optional[V]:
+        """
+        Peek at a value without updating its LRU position.
+        
+        Args:
+            key: The key to peek at
+            
+        Returns:
+            The cached value or None
+        """
+        if self._lock:
+            with self._lock:
+                if key not in self._cache:
+                    return None
+                node = self._cache[key]
+                if self._is_expired(node):
+                    return None
+                return node.value
+        
+        if key not in self._cache:
+            return None
+        node = self._cache[key]
+        if self._is_expired(node):
+            return None
+        return node.value
+    
+    def touch(self, key: K) -> bool:
+        """
+        Touch a key to move it to the head (most recently used).
+        
+        Args:
+            key: The key to touch
+            
+        Returns:
+            True if the key was found and touched
+        """
+        if self._lock:
+            with self._lock:
+                if key not in self._cache:
+                    return False
+                node = self._cache[key]
+                if self._is_expired(node):
+                    return False
+                self._move_to_head(node)
+                node.access_count += 1
+                return True
+        
+        if key not in self._cache:
+            return False
+        node = self._cache[key]
+        if self._is_expired(node):
+            return False
+        self._move_to_head(node)
+        node.access_count += 1
+        return True
+    
+    def refresh_ttl(self, key: K, ttl: Optional[float] = None) -> bool:
+        """
+        Refresh the TTL for a key.
+        
+        Args:
+            key: The key to refresh
+            ttl: New TTL (uses default if None)
+            
+        Returns:
+            True if the key was found and refreshed
+        """
+        if self._lock:
+            with self._lock:
+                if key not in self._cache:
+                    return False
+                node = self._cache[key]
+                if self._is_expired(node):
+                    return False
+                actual_ttl = ttl if ttl is not None else self._default_ttl
+                node.expires_at = time() + actual_ttl if actual_ttl else None
+                return True
+        
+        if key not in self._cache:
+            return False
+        node = self._cache[key]
+        if self._is_expired(node):
+            return False
+        actual_ttl = ttl if ttl is not None else self._default_ttl
+        node.expires_at = time() + actual_ttl if actual_ttl else None
+        return True
+    
+    @property
+    def capacity(self) -> int:
+        """Get the cache capacity."""
+        return self._capacity
+    
+    @capacity.setter
+    def capacity(self, new_capacity: int) -> None:
+        """
+        Set a new capacity (may trigger evictions).
+        
+        Args:
+            new_capacity: New maximum capacity
+        """
+        if new_capacity <= 0:
+            raise ValueError("Capacity must be positive")
+        
+        if self._lock:
+            with self._lock:
+                self._capacity = new_capacity
+                while len(self._cache) > new_capacity:
+                    tail_node = self._remove_tail()
+                    del self._cache[tail_node.key]
+                    self._evictions += 1
+                    if self._on_evict:
+                        self._on_evict(tail_node.key, tail_node.value)
+                return
+        
+        self._capacity = new_capacity
+        while len(self._cache) > new_capacity:
+            tail_node = self._remove_tail()
+            del self._cache[tail_node.key]
+            self._evictions += 1
+            if self._on_evict:
+                self._on_evict(tail_node.key, tail_node.value)
+    
+    def stats(self) -> Dict[str, Any]:
+        """
+        Get cache statistics.
+        
+        Returns:
+            Dictionary with hit rate, hits, misses, evictions, expirations
+        """
+        total = self._hits + self._misses
+        hit_rate = self._hits / total if total > 0 else 0.0
+        
+        return {
+            'capacity': self._capacity,
+            'size': len(self._cache),
+            'hits': self._hits,
+            'misses': self._misses,
+            'evictions': self._evictions,
+            'expirations': self._expirations,
+            'hit_rate': hit_rate,
+            'utilization': len(self._cache) / self._capacity,
+        }
+    
+    def reset_stats(self) -> None:
+        """Reset statistics counters."""
         self._hits = 0
         self._misses = 0
         self._evictions = 0
         self._expirations = 0
     
-    def get(self, key: K, default: Optional[V] = None) -> Optional[V]:
-        """
-        获取缓存值
-        
-        Args:
-            key: 缓存键
-            default: 未找到时的默认值
-            
-        Returns:
-            缓存值或默认值
-        """
-        with self._lock:
-            self._maybe_cleanup()
-            
-            if key not in self._cache:
-                self._misses += 1
-                return default
-            
-            entry = self._cache[key]
-            
-            # 检查是否过期
-            if entry.is_expired():
-                self._remove(key)
-                self._expirations += 1
-                self._misses += 1
-                return default
-            
-            # 更新访问信息并移到末尾（最近使用）
-            entry.touch()
-            self._cache.move_to_end(key)
-            self._hits += 1
-            
-            return entry.value
-    
-    def set(
-        self, 
-        key: K, 
-        value: V, 
-        ttl: Optional[float] = None
-    ) -> None:
-        """
-        设置缓存值
-        
-        Args:
-            key: 缓存键
-            value: 缓存值
-            ttl: 过期时间（秒），None 使用默认 TTL
-        """
-        with self._lock:
-            self._maybe_cleanup()
-            
-            effective_ttl = ttl if ttl is not None else self._default_ttl
-            
-            if key in self._cache:
-                # 更新现有条目
-                entry = self._cache[key]
-                entry.value = value
-                entry.expires_at = time.time() + effective_ttl if effective_ttl else None
-                entry.touch()
-                self._cache.move_to_end(key)
-            else:
-                # 检查是否需要淘汰
-                while len(self._cache) >= self._max_size:
-                    self._evict_lru()
-                
-                # 添加新条目
-                entry = CacheEntry(key, value, effective_ttl)
-                self._cache[key] = entry
-    
-    def delete(self, key: K) -> bool:
-        """
-        删除缓存条目
-        
-        Args:
-            key: 缓存键
-            
-        Returns:
-            是否成功删除
-        """
-        with self._lock:
-            return self._remove(key)
-    
-    def _remove(self, key: K) -> bool:
-        """内部删除方法（不加锁）"""
-        if key in self._cache:
-            del self._cache[key]
-            return True
-        return False
-    
-    def _evict_lru(self) -> Optional[K]:
-        """淘汰最近最少使用的条目"""
-        if not self._cache:
-            return None
-        
-        # OrderedDict 的第一个元素是最久未使用的
-        oldest_key = next(iter(self._cache))
-        self._remove(oldest_key)
-        self._evictions += 1
-        return oldest_key
-    
-    def exists(self, key: K) -> bool:
-        """
-        检查键是否存在且未过期
-        
-        Args:
-            key: 缓存键
-            
-        Returns:
-            是否存在
-        """
-        with self._lock:
-            if key not in self._cache:
-                return False
-            
-            entry = self._cache[key]
-            if entry.is_expired():
-                self._remove(key)
-                return False
-            
-            return True
-    
-    def clear(self) -> None:
-        """清空缓存"""
-        with self._lock:
-            self._cache.clear()
-            self._hits = 0
-            self._misses = 0
-            self._evictions = 0
-            self._expirations = 0
-    
-    def size(self) -> int:
-        """获取当前缓存大小"""
-        with self._lock:
-            return len(self._cache)
-    
-    def keys(self) -> List[K]:
-        """获取所有键（按访问时间排序，最近使用的在后）"""
-        with self._lock:
-            return list(self._cache.keys())
-    
-    def values(self) -> List[V]:
-        """获取所有值"""
-        with self._lock:
-            return [entry.value for entry in self._cache.values() if not entry.is_expired()]
-    
-    def items(self) -> List[Tuple[K, V]]:
-        """获取所有键值对"""
-        with self._lock:
-            return [(k, v.value) for k, v in self._cache.items() if not v.is_expired()]
-    
-    def get_many(self, keys: List[K]) -> Dict[K, V]:
-        """
-        批量获取多个键的值
-        
-        Args:
-            keys: 键列表
-            
-        Returns:
-            键值对字典（不包含未找到或过期的键）
-        """
-        result = {}
-        with self._lock:
-            for key in keys:
-                value = self.get(key)
-                if value is not None:
-                    result[key] = value
-        return result
-    
-    def set_many(self, items: Dict[K, V], ttl: Optional[float] = None) -> None:
-        """
-        批量设置多个键值对
-        
-        Args:
-            items: 键值对字典
-            ttl: 过期时间
-        """
-        with self._lock:
-            for key, value in items.items():
-                self.set(key, value, ttl)
-    
-    def delete_many(self, keys: List[K]) -> int:
-        """
-        批量删除多个键
-        
-        Args:
-            keys: 键列表
-            
-        Returns:
-            成功删除的数量
-        """
-        count = 0
-        with self._lock:
-            for key in keys:
-                if self._remove(key):
-                    count += 1
-        return count
-    
-    def get_or_set(
-        self, 
-        key: K, 
-        factory: Callable[[], V],
-        ttl: Optional[float] = None
-    ) -> V:
-        """
-        获取缓存值，不存在则通过工厂函数创建并缓存
-        
-        Args:
-            key: 缓存键
-            factory: 值工厂函数
-            ttl: 过期时间
-            
-        Returns:
-            缓存值或新创建的值
-        """
-        with self._lock:
-            value = self.get(key)
-            if value is not None:
-                return value
-            
-            value = factory()
-            self.set(key, value, ttl)
-            return value
-    
-    def touch(self, key: K, ttl: Optional[float] = None) -> bool:
-        """
-        更新条目的访问时间和 TTL
-        
-        Args:
-            key: 缓存键
-            ttl: 新的 TTL（None 保持原 TTL）
-            
-        Returns:
-            是否成功
-        """
-        with self._lock:
-            if key not in self._cache:
-                return False
-            
-            entry = self._cache[key]
-            if entry.is_expired():
-                self._remove(key)
-                return False
-            
-            entry.touch()
-            if ttl is not None:
-                entry.expires_at = time.time() + ttl
-            
-            self._cache.move_to_end(key)
-            return True
-    
-    def ttl(self, key: K) -> Optional[float]:
-        """
-        获取键的剩余 TTL
-        
-        Args:
-            key: 缓存键
-            
-        Returns:
-            剩余秒数，永不过期返回 None，不存在返回 -1
-        """
-        with self._lock:
-            if key not in self._cache:
-                return -1
-            
-            entry = self._cache[key]
-            if entry.is_expired():
-                self._remove(key)
-                return -1
-            
-            return entry.remaining_ttl
-    
-    def _maybe_cleanup(self) -> None:
-        """可能执行过期条目清理"""
-        self._operation_count += 1
-        
-        if self._auto_cleanup and self._operation_count % self._cleanup_interval == 0:
-            self._cleanup_expired()
-    
-    def _cleanup_expired(self) -> int:
-        """清理所有过期条目"""
-        count = 0
-        expired_keys = []
-        
-        for key, entry in self._cache.items():
-            if entry.is_expired():
-                expired_keys.append(key)
-        
-        for key in expired_keys:
-            self._remove(key)
-            self._expirations += 1
-            count += 1
-        
-        return count
-    
-    def cleanup(self) -> int:
-        """
-        手动清理过期条目
-        
-        Returns:
-            清理的条目数量
-        """
-        with self._lock:
-            return self._cleanup_expired()
-    
-    def stats(self) -> Dict[str, Any]:
-        """
-        获取缓存统计信息
-        
-        Returns:
-            统计信息字典
-        """
-        with self._lock:
-            total_requests = self._hits + self._misses
-            hit_rate = self._hits / total_requests if total_requests > 0 else 0
-            
-            return {
-                'size': len(self._cache),
-                'max_size': self._max_size,
-                'hits': self._hits,
-                'misses': self._misses,
-                'hit_rate': hit_rate,
-                'evictions': self._evictions,
-                'expirations': self._expirations,
-                'total_requests': total_requests
-            }
-    
-    def reset_stats(self) -> None:
-        """重置统计信息"""
-        with self._lock:
-            self._hits = 0
-            self._misses = 0
-            self._evictions = 0
-            self._expirations = 0
-    
-    def peek(self, key: K) -> Optional[V]:
-        """
-        查看键对应的值但不更新访问信息
-        
-        Args:
-            key: 缓存键
-            
-        Returns:
-            缓存值或 None
-        """
-        with self._lock:
-            if key not in self._cache:
-                return None
-            
-            entry = self._cache[key]
-            if entry.is_expired():
-                self._remove(key)
-                return None
-            
-            return entry.value
-    
     def __len__(self) -> int:
         return self.size()
     
     def __contains__(self, key: K) -> bool:
-        return self.exists(key)
+        return self.contains(key)
     
     def __getitem__(self, key: K) -> V:
         value = self.get(key)
@@ -487,389 +605,205 @@ class LRUCache(Generic[K, V]):
         return value
     
     def __setitem__(self, key: K, value: V) -> None:
-        self.set(key, value)
+        self.put(key, value)
     
     def __delitem__(self, key: K) -> None:
         if not self.delete(key):
             raise KeyError(key)
     
-    def __iter__(self) -> Iterator[K]:
-        return iter(self.keys())
+    def __repr__(self) -> str:
+        return f"LRUCache(capacity={self._capacity}, size={len(self._cache)}, hits={self._hits}, misses={self._misses})"
 
 
-def lru_cache(
-    max_size: int = 128,
-    ttl: Optional[float] = None
-) -> Callable:
+def lru_cache(capacity: int, ttl: Optional[float] = None, 
+              thread_safe: bool = False) -> Callable:
     """
-    LRU 缓存装饰器
-    
-    将函数结果缓存，下次相同参数直接返回缓存结果。
+    Decorator for caching function results.
     
     Args:
-        max_size: 最大缓存条目数
-        ttl: 缓存过期时间（秒）
+        capacity: Maximum number of results to cache
+        ttl: Time-to-live for cached results
+        thread_safe: Enable thread-safe operations
         
     Returns:
-        装饰器函数
+        Decorator function
         
-    示例:
-        >>> @lru_cache(max_size=100, ttl=60)
-        ... def expensive_function(n):
-        ...     return n * 2
-        >>> expensive_function(5)
-        10
+    Example:
+        @lru_cache(capacity=100)
+        def fibonacci(n):
+            if n < 2:
+                return n
+            return fibonacci(n-1) + fibonacci(n-2)
     """
+    cache = LRUCache(capacity=capacity, ttl=ttl, thread_safe=thread_safe)
+    
     def decorator(func: Callable) -> Callable:
-        cache = LRUCache(max_size=max_size, default_ttl=ttl)
-        
         @wraps(func)
         def wrapper(*args, **kwargs):
-            # 创建缓存键
-            key = (args, frozenset(kwargs.items()))
+            # Create a hashable key from arguments
+            key = (args, tuple(sorted(kwargs.items())))
             
-            # 尝试获取缓存
+            # Try to get from cache
             result = cache.get(key)
-            if result is not None:
+            if result is not None or cache.contains(key):
                 return result
             
-            # 计算并缓存结果
+            # Compute and cache
             result = func(*args, **kwargs)
-            cache.set(key, result)
+            cache.put(key, result)
             return result
         
-        # 添加缓存操作方法
-        wrapper.cache = cache
-        wrapper.cache_clear = cache.clear
-        wrapper.cache_stats = cache.stats
+        # Attach cache to wrapper for external access
+        wrapper.cache = cache  # type: ignore
+        wrapper.cache_clear = cache.clear  # type: ignore
+        wrapper.cache_stats = cache.stats  # type: ignore
         
         return wrapper
     
     return decorator
 
 
-class TTLCache(LRUCache[K, V]):
+def memoize(func: Callable) -> Callable:
     """
-    TTL 缓存（带强制过期）
+    Simple memoization decorator with unlimited cache.
     
-    与普通 LRU 缓存的区别：
-    - 必须设置 TTL
-    - 支持 TTL 更新和刷新
-    - 支持批量设置不同 TTL
+    Unlike lru_cache, this never evicts items.
+    
+    Example:
+        @memoize
+        def expensive_computation(n):
+            return sum(range(n))
+    """
+    cache: Dict = {}
+    
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        key = (args, tuple(sorted(kwargs.items())))
+        if key not in cache:
+            cache[key] = func(*args, **kwargs)
+        return cache[key]
+    
+    wrapper.cache = cache  # type: ignore
+    wrapper.cache_clear = cache.clear  # type: ignore
+    
+    return wrapper
+
+
+class TTLCache(Generic[K, V]):
+    """
+    TTL-only cache (no LRU eviction, only expiration).
+    
+    Items are only removed when they expire, not based on access order.
     """
     
-    def __init__(
-        self,
-        max_size: int = 128,
-        default_ttl: float = 300,
-        auto_cleanup: bool = True,
-        cleanup_interval: int = 100
-    ):
-        if default_ttl is None or default_ttl <= 0:
-            raise ValueError("TTLCache 必须设置有效的 default_ttl")
-        
-        super().__init__(
-            max_size=max_size,
-            default_ttl=default_ttl,
-            auto_cleanup=auto_cleanup,
-            cleanup_interval=cleanup_interval
-        )
-    
-    def refresh_ttl(self, key: K) -> bool:
+    def __init__(self, ttl: float, cleanup_interval: Optional[float] = None):
         """
-        刷新键的 TTL（重置为默认值）
+        Initialize TTL cache.
         
         Args:
-            key: 缓存键
-            
-        Returns:
-            是否成功
+            ttl: Default time-to-live in seconds
+            cleanup_interval: How often to clean up expired items (default: ttl)
         """
-        return self.touch(key, self._default_ttl)
-    
-    def refresh_all(self) -> int:
-        """
-        刷新所有键的 TTL
-        
-        Returns:
-            成功刷新的数量
-        """
-        count = 0
-        with self._lock:
-            for key in list(self._cache.keys()):
-                if self.touch(key, self._default_ttl):
-                    count += 1
-        return count
-
-
-class BoundedLRUCache(LRUCache[K, V]):
-    """
-    有界 LRU 缓存
-    
-    支持设置最小保留数量和淘汰策略。
-    """
-    
-    def __init__(
-        self,
-        max_size: int = 128,
-        min_size: int = 0,
-        default_ttl: Optional[float] = None,
-        auto_cleanup: bool = True,
-        cleanup_interval: int = 100
-    ):
-        if min_size < 0:
-            raise ValueError("min_size 不能为负数")
-        if min_size >= max_size:
-            raise ValueError("min_size 必须小于 max_size")
-        
-        super().__init__(
-            max_size=max_size,
-            default_ttl=default_ttl,
-            auto_cleanup=auto_cleanup,
-            cleanup_interval=cleanup_interval
-        )
-        
-        self._min_size = min_size
-    
-    @property
-    def min_size(self) -> int:
-        """最小保留数量"""
-        return self._min_size
-    
-    def _evict_lru(self) -> Optional[K]:
-        """淘汰最近最少使用的条目（考虑最小保留）"""
-        if len(self._cache) <= self._min_size:
-            return None
-        
-        return super()._evict_lru()
-
-
-class WeightedLRUCache(LRUCache[K, V]):
-    """
-    加权 LRU 缓存
-    
-    淘汰时考虑权重，优先淘汰权重低的条目。
-    """
-    
-    def __init__(
-        self,
-        max_weight: int = 1024,
-        default_weight: int = 1,
-        default_ttl: Optional[float] = None,
-        auto_cleanup: bool = True,
-        cleanup_interval: int = 100
-    ):
-        """
-        Args:
-            max_weight: 最大权重总量
-            default_weight: 默认条目权重
-        """
-        super().__init__(
-            max_size=10**9,  # 大数值，实际用权重控制
-            default_ttl=default_ttl,
-            auto_cleanup=auto_cleanup,
-            cleanup_interval=cleanup_interval
-        )
-        
-        self._max_weight = max_weight
-        self._default_weight = default_weight
-        self._current_weight = 0
-        self._weights: Dict[K, int] = {}
-    
-    def set(
-        self,
-        key: K,
-        value: V,
-        ttl: Optional[float] = None,
-        weight: Optional[int] = None
-    ) -> None:
-        """
-        设置缓存值
-        
-        Args:
-            key: 缓存键
-            value: 缓存值
-            ttl: 过期时间
-            weight: 条目权重
-        """
-        with self._lock:
-            effective_weight = weight or self._default_weight
-            
-            # 如果键已存在，先减去旧权重
-            if key in self._weights:
-                self._current_weight -= self._weights[key]
-            
-            # 淘汰直到有足够空间
-            while (
-                self._current_weight + effective_weight > self._max_weight
-                and len(self._cache) > 0
-            ):
-                evicted_key = self._evict_lru_weighted()
-                if evicted_key is None:
-                    break
-            
-            # 设置条目
-            super().set(key, value, ttl)
-            self._weights[key] = effective_weight
-            self._current_weight += effective_weight
-    
-    def _evict_lru_weighted(self) -> Optional[K]:
-        """加权淘汰"""
-        if not self._cache:
-            return None
-        
-        # 找到权重最低的最久未使用条目
-        oldest_key = next(iter(self._cache))
-        
-        self._current_weight -= self._weights.pop(oldest_key, 0)
-        self._remove(oldest_key)
-        self._evictions += 1
-        
-        return oldest_key
-    
-    def delete(self, key: K) -> bool:
-        result = super().delete(key)
-        if result:
-            with self._lock:
-                self._current_weight -= self._weights.pop(key, 0)
-        return result
-    
-    def clear(self) -> None:
-        super().clear()
-        with self._lock:
-            self._weights.clear()
-            self._current_weight = 0
-    
-    def current_weight(self) -> int:
-        """获取当前权重"""
-        return self._current_weight
-    
-    def available_weight(self) -> int:
-        """获取可用权重"""
-        return self._max_weight - self._current_weight
-    
-    def stats(self) -> Dict[str, Any]:
-        stats = super().stats()
-        stats.update({
-            'current_weight': self._current_weight,
-            'max_weight': self._max_weight,
-            'available_weight': self.available_weight()
-        })
-        return stats
-
-
-class ExpiringPriorityCache(Generic[K, V]):
-    """
-    过期优先缓存
-    
-    淘汰时优先淘汰即将过期的条目。
-    """
-    
-    def __init__(
-        self,
-        max_size: int = 128,
-        default_ttl: Optional[float] = None
-    ):
-        self._max_size = max_size
-        self._default_ttl = default_ttl
-        self._cache: Dict[K, CacheEntry[K, V]] = {}
-        self._expiry_heap: List[Tuple[float, K]] = []  # (expires_at, key)
+        self._ttl = ttl
+        self._cleanup_interval = cleanup_interval or ttl
+        self._cache: Dict[K, Tuple[V, float]] = {}  # key -> (value, expires_at)
+        self._last_cleanup = time()
         self._lock = RLock()
-        self._hits = 0
-        self._misses = 0
     
     def get(self, key: K, default: Optional[V] = None) -> Optional[V]:
+        """Get a value by key."""
         with self._lock:
-            if key not in self._cache:
-                self._misses += 1
-                return default
-            
-            entry = self._cache[key]
-            if entry.is_expired():
-                self._remove(key)
-                self._misses += 1
-                return default
-            
-            entry.touch()
-            self._hits += 1
-            return entry.value
-    
-    def set(self, key: K, value: V, ttl: Optional[float] = None) -> None:
-        with self._lock:
-            # 如果已存在，先删除
-            if key in self._cache:
-                self._remove(key)
-            
-            # 检查容量
-            while len(self._cache) >= self._max_size:
-                self._evict_expiring()
-            
-            effective_ttl = ttl if ttl is not None else self._default_ttl
-            entry = CacheEntry(key, value, effective_ttl)
-            self._cache[key] = entry
-            
-            # 如果有过期时间，加入堆
-            if entry.expires_at:
-                heapq.heappush(self._expiry_heap, (entry.expires_at, key))
-    
-    def _remove(self, key: K) -> None:
-        if key in self._cache:
-            del self._cache[key]
-            # 注意：不从堆中删除，在淘汰时跳过已删除的键
-    
-    def _evict_expiring(self) -> Optional[K]:
-        """淘汰即将过期的条目"""
-        # 首先清理堆中的过期/已删除条目
-        while self._expiry_heap:
-            expires_at, key = self._expiry_heap[0]
+            self._maybe_cleanup()
             
             if key not in self._cache:
-                heapq.heappop(self._expiry_heap)
-                continue
+                return default
             
-            if expires_at < time.time():
-                heapq.heappop(self._expiry_heap)
-                self._remove(key)
-                continue
+            value, expires_at = self._cache[key]
+            if time() > expires_at:
+                del self._cache[key]
+                return default
             
-            break
-        
-        # 如果有即将过期的条目，淘汰它
-        if self._expiry_heap:
-            _, key = heapq.heappop(self._expiry_heap)
-            self._remove(key)
-            return key
-        
-        # 否则淘汰任意一个
-        if self._cache:
-            key = next(iter(self._cache))
-            self._remove(key)
-            return key
-        
-        return None
+            return value
+    
+    def put(self, key: K, value: V, ttl: Optional[float] = None) -> None:
+        """Put a key-value pair."""
+        with self._lock:
+            actual_ttl = ttl if ttl is not None else self._ttl
+            self._cache[key] = (value, time() + actual_ttl)
     
     def delete(self, key: K) -> bool:
+        """Delete a key."""
         with self._lock:
             if key in self._cache:
-                self._remove(key)
+                del self._cache[key]
                 return True
             return False
     
-    def size(self) -> int:
-        with self._lock:
-            return len(self._cache)
+    def _maybe_cleanup(self) -> None:
+        """Clean up expired items if cleanup interval has passed."""
+        now = time()
+        if now - self._last_cleanup >= self._cleanup_interval:
+            expired = [k for k, (_, exp) in self._cache.items() if now > exp]
+            for k in expired:
+                del self._cache[k]
+            self._last_cleanup = now
     
     def clear(self) -> None:
+        """Clear all items."""
         with self._lock:
             self._cache.clear()
-            self._expiry_heap.clear()
     
-    def stats(self) -> Dict[str, Any]:
-        total = self._hits + self._misses
-        return {
-            'size': len(self._cache),
-            'max_size': self._max_size,
-            'hits': self._hits,
-            'misses': self._misses,
-            'hit_rate': self._hits / total if total > 0 else 0
-        }
+    def size(self) -> int:
+        """Get current size."""
+        with self._lock:
+            self._maybe_cleanup()
+            return len(self._cache)
+
+
+if __name__ == '__main__':
+    # Demo
+    print("=== LRU Cache Utility Demo ===\n")
+    
+    # Basic usage
+    cache = LRUCache[str, int](capacity=3)
+    
+    print("Basic Operations:")
+    cache.put('a', 1)
+    cache.put('b', 2)
+    cache.put('c', 3)
+    print(f"  Added a=1, b=2, c=3")
+    print(f"  Cache: {cache.items()}")
+    
+    cache.put('d', 4)  # 'a' should be evicted
+    print(f"  Added d=4 (a should be evicted)")
+    print(f"  Cache: {cache.items()}")
+    print(f"  Get 'a': {cache.get('a')} (should be None)")
+    print(f"  Get 'b': {cache.get('b')}")
+    
+    # Statistics
+    print(f"\nStatistics:")
+    stats = cache.stats()
+    for k, v in stats.items():
+        print(f"  {k}: {v}")
+    
+    # TTL example
+    print("\nTTL Example:")
+    ttl_cache = LRUCache[str, str](capacity=10, ttl=0.1)  # 100ms TTL
+    ttl_cache.put('temp', 'will expire')
+    print(f"  Added temp with 100ms TTL")
+    print(f"  Immediate get: {ttl_cache.get('temp')}")
+    import time as time_module
+    time_module.sleep(0.15)
+    print(f"  After 150ms: {ttl_cache.get('temp')} (should be None)")
+    
+    # Decorator example
+    print("\nDecorator Example:")
+    
+    @lru_cache(capacity=5)
+    def fib(n: int) -> int:
+        if n < 2:
+            return n
+        return fib(n - 1) + fib(n - 2)
+    
+    print(f"  fib(10) = {fib(10)}")
+    print(f"  Cache stats: {fib.cache.stats()}")  # type: ignore

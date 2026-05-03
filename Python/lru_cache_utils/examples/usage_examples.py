@@ -1,315 +1,342 @@
 """
-LRU Cache Utils 使用示例
+LRU Cache Utility Module - Usage Examples
 
-展示各种使用场景和最佳实践。
+This file demonstrates various use cases for the LRU cache implementation.
 """
 
+import sys
+import os
 import time
-from mod import (
-    LRUCache, TTLCache, BoundedLRUCache, WeightedLRUCache,
-    ExpiringPriorityCache, lru_cache
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from lru_cache_utils.mod import (
+    LRUCache, lru_cache, memoize, TTLCache
 )
 
 
 def example_basic_usage():
-    """基本使用示例"""
-    print("=== 基本使用 ===")
+    """Example: Basic LRU cache usage."""
+    print("\n=== Basic Usage ===\n")
     
-    # 创建缓存
-    cache = LRUCache(max_size=3)
+    # Create a cache with capacity of 3
+    cache = LRUCache[str, int](capacity=3)
     
-    # 设置值
-    cache.set('a', 1)
-    cache.set('b', 2)
-    cache.set('c', 3)
-    print(f"设置 a=1, b=2, c=3, 大小: {cache.size()}")
+    # Add items
+    cache.put('a', 1)
+    cache.put('b', 2)
+    cache.put('c', 3)
+    print(f"Added: a=1, b=2, c=3")
+    print(f"Cache items (LRU order): {cache.items()}")
     
-    # 获取值
-    print(f"获取 a: {cache.get('a')}")
-    print(f"获取 missing: {cache.get('missing', 'default')}")
-    
-    # 字典接口
-    cache['d'] = 4
-    print(f"通过字典设置 d=4, 大小: {cache.size()}")
-    
-    # 当超过容量时淘汰最久未使用
-    print(f"淘汰后 a 的值: {cache.get('a')} (应为 None)")
-
-
-def example_lru_eviction():
-    """LRU 淘汰策略示例"""
-    print("\n=== LRU 淘汰策略 ===")
-    
-    cache = LRUCache(max_size=3)
-    cache.set('a', 1)
-    cache.set('b', 2)
-    cache.set('c', 3)
-    print(f"初始: {dict(cache.items())}")
-    
-    # 访问 'a' 使其成为最近使用
+    # Access 'a' to make it most recently used
     cache.get('a')
-    print("访问 'a' 后")
+    print(f"\nAccessed 'a'")
     
-    # 添加新条目
-    cache.set('d', 4)
-    print(f"添加 'd' 后: {dict(cache.items())}")
-    print("'b' 应被淘汰，因为 'a' 刚被访问过")
+    # Add a new item - 'b' should be evicted (least recently used)
+    cache.put('d', 4)
+    print(f"Added d=4")
+    print(f"Cache items: {cache.items()}")
+    
+    # Check eviction
+    print(f"\nIs 'b' in cache? {cache.contains('b')}")
+    print(f"Is 'a' in cache? {cache.contains('a')}")
 
 
-def example_ttl():
-    """TTL 过期示例"""
-    print("\n=== TTL 过期 ===")
+def example_ttl_expiration():
+    """Example: TTL (Time-To-Live) expiration."""
+    print("\n=== TTL Expiration ===\n")
     
-    cache = LRUCache(default_ttl=2)  # 2 秒 TTL
+    # Create cache with 2 second TTL
+    cache = LRUCache[str, str](capacity=10, ttl=2.0)
     
-    cache.set('a', 1)
-    cache.set('b', 2, ttl=5)  # 自定义 5 秒
+    cache.put('session', 'user123')
+    print(f"Added session: {cache.get('session')}")
     
-    print(f"初始: a={cache.get('a')}, b={cache.get('b')}")
-    print(f"a 的剩余 TTL: {cache.ttl('a'):.1f}秒")
-    print(f"b 的剩余 TTL: {cache.ttl('b'):.1f}秒")
+    print(f"Waiting 1.5 seconds...")
+    time.sleep(1.5)
+    print(f"Session still valid: {cache.get('session')}")
     
-    time.sleep(2.5)
-    print("\n2.5 秒后...")
-    print(f"a={cache.get('a')} (应过期)")
-    print(f"b={cache.get('b')} (仍有效)")
+    print(f"Waiting another 1 second...")
+    time.sleep(1.0)
+    print(f"Session expired: {cache.get('session')}")
 
 
-def example_decorator():
-    """装饰器使用示例"""
-    print("\n=== 装饰器缓存 ===")
+def example_eviction_callback():
+    """Example: Eviction callback for cleanup."""
+    print("\n=== Eviction Callback ===\n")
     
-    call_count = 0
+    evicted_items = []
     
-    @lru_cache(max_size=100, ttl=10)
-    def fibonacci(n):
-        """带缓存的斐波那契"""
-        nonlocal call_count
-        call_count += 1
-        
-        if n <= 1:
-            return n
-        return fibonacci(n-1) + fibonacci(n-2)
+    def on_evict(key, value):
+        print(f"  Evicted: {key} = {value}")
+        evicted_items.append((key, value))
     
-    # 第一次计算
-    result1 = fibonacci(20)
-    print(f"fibonacci(20) = {result1}, 函数调用次数: {call_count}")
+    cache = LRUCache[str, int](capacity=3, on_evict=on_evict)
     
-    # 重置计数
-    call_count = 0
+    print("Adding items to cache:")
+    cache.put('a', 1)
+    cache.put('b', 2)
+    cache.put('c', 3)
+    cache.put('d', 4)  # Triggers eviction of 'a'
+    cache.put('e', 5)  # Triggers eviction of 'b'
     
-    # 第二次相同参数，使用缓存
-    result2 = fibonacci(20)
-    print(f"fibonacci(20) = {result2}, 函数调用次数: {call_count} (应从缓存)")
-    
-    # 查看缓存统计
-    stats = fibonacci.cache_stats()
-    print(f"缓存统计: 命中={stats['hits']}, 未命中={stats['misses']}")
-
-
-def example_batch_operations():
-    """批量操作示例"""
-    print("\n=== 批量操作 ===")
-    
-    cache = LRUCache(max_size=100)
-    
-    # 批量设置
-    data = {f'key_{i}': i * 10 for i in range(10)}
-    cache.set_many(data)
-    print(f"批量设置 10 个条目，大小: {cache.size()}")
-    
-    # 批量获取
-    keys = ['key_0', 'key_5', 'key_9', 'missing']
-    result = cache.get_many(keys)
-    print(f"批量获取结果: {result}")
-    
-    # 批量删除
-    deleted = cache.delete_many(['key_0', 'key_1', 'missing'])
-    print(f"批量删除 {deleted} 个条目，剩余: {cache.size()}")
-
-
-def example_get_or_set():
-    """get_or_set 模式示例"""
-    print("\n=== get_or_set 模式 ===")
-    
-    cache = LRUCache()
-    
-    def expensive_operation():
-        print("执行昂贵计算...")
-        time.sleep(0.1)
-        return 42
-    
-    # 第一次调用，执行计算
-    result1 = cache.get_or_set('result', expensive_operation)
-    print(f"第一次: {result1}")
-    
-    # 第二次调用，使用缓存
-    result2 = cache.get_or_set('result', expensive_operation)
-    print(f"第二次: {result2} (从缓存)")
+    print(f"\nTotal evictions: {len(evicted_items)}")
 
 
 def example_statistics():
-    """统计信息示例"""
-    print("\n=== 统计信息 ===")
+    """Example: Cache statistics."""
+    print("\n=== Cache Statistics ===\n")
     
-    cache = LRUCache(max_size=100)
+    cache = LRUCache[str, int](capacity=5)
     
-    # 填充缓存
-    for i in range(100):
-        cache.set(f'key_{i}', i)
+    # Populate cache
+    for i in range(5):
+        cache.put(f'key{i}', i * 10)
     
-    # 执行一些操作
-    for i in range(50):
-        cache.get(f'key_{i}')  # 命中
-    
-    for i in range(100, 150):
-        cache.get(f'key_{i}')  # 未命中
+    # Generate hits and misses
+    cache.get('key0')  # hit
+    cache.get('key1')  # hit
+    cache.get('key2')  # hit
+    cache.get('missing')  # miss
+    cache.get('key0')  # hit
     
     stats = cache.stats()
-    print(f"缓存大小: {stats['size']}/{stats['max_size']}")
-    print(f"命中: {stats['hits']}")
-    print(f"未命中: {stats['misses']}")
-    print(f"命中率: {stats['hit_rate']:.2%}")
+    print("Cache Statistics:")
+    for key, value in stats.items():
+        if isinstance(value, float):
+            print(f"  {key}: {value:.2%}" if 'rate' in key else f"  {key}: {value:.4f}")
+        else:
+            print(f"  {key}: {value}")
 
 
-def example_ttl_cache():
-    """TTLCache 专用示例"""
-    print("\n=== TTLCache 专用 ===")
+def example_decorator():
+    """Example: Using the lru_cache decorator."""
+    print("\n=== LRU Cache Decorator ===\n")
     
-    cache = TTLCache(max_size=100, default_ttl=5)
+    call_count = 0
     
-    cache.set('session_1', {'user': 'alice', 'role': 'admin'})
-    cache.set('session_2', {'user': 'bob', 'role': 'user'})
+    @lru_cache(capacity=100)
+    def fibonacci(n):
+        nonlocal call_count
+        call_count += 1
+        if n < 2:
+            return n
+        return fibonacci(n - 1) + fibonacci(n - 2)
     
-    print(f"会话数: {cache.size()}")
+    print("Calculating fibonacci(20):")
+    result = fibonacci(20)
+    print(f"  Result: {result}")
+    print(f"  Function calls: {call_count}")
     
-    # 刷新单个会话 TTL
-    cache.refresh_ttl('session_1')
-    print("已刷新 session_1 的 TTL")
-    
-    # 刷新所有会话
-    cache.refresh_all()
-    print("已刷新所有会话 TTL")
+    # Without caching, fibonacci(20) would need 21891 recursive calls
+    print(f"  Cache stats: {fibonacci.cache_stats()}")
 
 
-def example_bounded_cache():
-    """有界缓存示例"""
-    print("\n=== 有界缓存 ===")
+def example_get_or_set():
+    """Example: get_or_set for lazy computation."""
+    print("\n=== Get or Set Pattern ===\n")
     
-    # 最大 100，最小保留 20
-    cache = BoundedLRUCache(max_size=100, min_size=20)
+    cache = LRUCache[str, dict](capacity=10)
     
-    # 填充超过容量
-    for i in range(150):
-        cache.set(i, f'value_{i}')
+    compute_count = 0
     
-    print(f"添加 150 条目后，大小: {cache.size()}")
-    print(f"最小保留: {cache.min_size}")
-    print("即使压力很大，也至少保留 min_size 个条目")
+    def expensive_computation(key):
+        nonlocal compute_count
+        compute_count += 1
+        print(f"  Computing value for '{key}'...")
+        time.sleep(0.1)  # Simulate expensive operation
+        return {'data': f'value_{key}', 'computed_at': time.time()}
+    
+    # First access - computes
+    print("First access:")
+    result1 = cache.get_or_set('user:123', lambda: expensive_computation('user:123'))
+    print(f"  Result: {result1}")
+    
+    # Second access - cached
+    print("\nSecond access (cached):")
+    result2 = cache.get_or_set('user:123', lambda: expensive_computation('user:123'))
+    print(f"  Result: {result2}")
+    
+    print(f"\nTotal computations: {compute_count}")
 
 
-def example_weighted_cache():
-    """加权缓存示例"""
-    print("\n=== 加权缓存 ===")
-    
-    # 模拟内存限制
-    cache = WeightedLRUCache(max_weight=1000)
-    
-    # 小对象
-    cache.set('small_1', 'x' * 10, weight=10)
-    cache.set('small_2', 'x' * 20, weight=20)
-    
-    # 大对象
-    cache.set('large_1', 'x' * 500, weight=500)
-    
-    print(f"当前权重: {cache.current_weight()}/1000")
-    print(f"可用权重: {cache.available_weight()}")
-    
-    # 添加会触发淘汰的大对象
-    cache.set('large_2', 'x' * 400, weight=400)
-    print(f"\n添加 large_2 后:")
-    print(f"当前权重: {cache.current_weight()}/1000")
-
-
-def example_expiring_priority():
-    """过期优先缓存示例"""
-    print("\n=== 过期优先缓存 ===")
-    
-    cache = ExpiringPriorityCache(max_size=5)
-    
-    # 添加不同 TTL 的条目
-    cache.set('long_1', 1, ttl=60)
-    cache.set('short_1', 2, ttl=0.5)
-    cache.set('long_2', 3, ttl=60)
-    cache.set('short_2', 4, ttl=0.5)
-    cache.set('long_3', 5, ttl=60)
-    
-    print(f"添加 5 个条目，大小: {cache.size()}")
-    
-    time.sleep(0.6)
-    print("等待短 TTL 条目过期...")
-    
-    # 添加新条目会优先淘汰即将过期的
-    cache.set('new', 6)
-    print(f"添加新条目后，大小: {cache.size()}")
-    print(f"短 TTL 条目应已被淘汰")
-
-
-def example_thread_safety():
-    """线程安全示例"""
-    print("\n=== 线程安全 ===")
+def example_thread_safe():
+    """Example: Thread-safe cache."""
+    print("\n=== Thread-Safe Cache ===\n")
     
     import threading
     
-    cache = LRUCache(max_size=1000)
-    errors = []
+    cache = LRUCache[int, int](capacity=100, thread_safe=True)
     
-    def writer(start):
-        for i in range(start, start + 100):
-            try:
-                cache.set(f'key_{i}', i)
-            except Exception as e:
-                errors.append(e)
-    
-    def reader():
-        for i in range(200):
-            try:
-                cache.get(f'key_{i}')
-            except Exception as e:
-                errors.append(e)
+    def worker(worker_id, count):
+        for i in range(count):
+            key = worker_id * 1000 + i
+            cache.put(key, key * 2)
+            cache.get(key)
     
     threads = [
-        threading.Thread(target=writer, args=(0,)),
-        threading.Thread(target=writer, args=(200,)),
-        threading.Thread(target=reader),
-        threading.Thread(target=reader),
+        threading.Thread(target=worker, args=(i, 50))
+        for i in range(10)
     ]
+    
+    print("Running 10 threads with 50 operations each...")
+    start = time.time()
     
     for t in threads:
         t.start()
     for t in threads:
         t.join()
     
-    print(f"并发操作完成，错误数: {len(errors)}")
-    print(f"最终缓存大小: {cache.size()}")
+    elapsed = time.time() - start
+    print(f"Completed in {elapsed:.4f} seconds")
+    print(f"Final cache size: {cache.size()}")
+
+
+def example_api_cache():
+    """Example: Simulating API response cache."""
+    print("\n=== API Response Cache ===\n")
+    
+    # Simulate API cache with 5-minute TTL
+    api_cache = LRUCache[str, dict](capacity=1000, ttl=300)
+    
+    def fetch_user(user_id):
+        # Check cache first
+        cached = api_cache.get(user_id)
+        if cached is not None:
+            print(f"  Cache hit for user {user_id}")
+            return cached
+        
+        # Simulate API call
+        print(f"  Fetching user {user_id} from API...")
+        user_data = {
+            'id': user_id,
+            'name': f'User {user_id}',
+            'email': f'user{user_id}@example.com'
+        }
+        
+        # Cache for 5 minutes (300 seconds)
+        api_cache.put(user_id, user_data)
+        return user_data
+    
+    print("First request:")
+    user1 = fetch_user('user123')
+    
+    print("\nSecond request (should be cached):")
+    user2 = fetch_user('user123')
+    
+    print(f"\nSame data? {user1 == user2}")
+
+
+def example_rate_limiting():
+    """Example: Using cache for rate limiting."""
+    print("\n=== Rate Limiting with Cache ===\n")
+    
+    # Cache to track request counts per IP
+    # TTL of 60 seconds for rate limit window
+    rate_cache = LRUCache[str, list](capacity=10000, ttl=60, thread_safe=True)
+    
+    def check_rate_limit(ip, max_requests=5):
+        """Check if IP has exceeded rate limit."""
+        now = time.time()
+        
+        # Get existing timestamps or create new list
+        timestamps = rate_cache.get(ip, [])
+        
+        # Filter to only recent requests
+        recent = [ts for ts in timestamps if now - ts < 60]
+        
+        if len(recent) >= max_requests:
+            return False, len(recent)
+        
+        # Add new request
+        recent.append(now)
+        rate_cache.put(ip, recent)
+        
+        return True, len(recent)
+    
+    print("Simulating requests from IP 192.168.1.1:")
+    for i in range(7):
+        allowed, count = check_rate_limit('192.168.1.1', max_requests=5)
+        status = "ALLOWED" if allowed else "BLOCKED"
+        print(f"  Request {i+1}: {status} (count: {count})")
+
+
+def example_memoization():
+    """Example: Simple memoization."""
+    print("\n=== Simple Memoization ===\n")
+    
+    @memoize
+    def expensive_function(n):
+        print(f"  Computing expensive_function({n})...")
+        time.sleep(0.1)
+        return sum(range(n))
+    
+    print("First call:")
+    result1 = expensive_function(1000)
+    print(f"  Result: {result1}")
+    
+    print("\nSecond call (memoized):")
+    result2 = expensive_function(1000)
+    print(f"  Result: {result2}")
+
+
+def example_ttl_cache():
+    """Example: TTL-only cache (no LRU eviction)."""
+    print("\n=== TTL-Only Cache ===\n")
+    
+    # Cache that only expires based on time, not usage
+    cache = TTLCache[str, str](ttl=2.0)
+    
+    cache.put('temp_token', 'abc123')
+    print(f"Stored temp_token: {cache.get('temp_token')}")
+    
+    print("Waiting 2.5 seconds...")
+    time.sleep(2.5)
+    
+    print(f"After expiry: {cache.get('temp_token')}")
+
+
+def example_batch_operations():
+    """Example: Batch operations."""
+    print("\n=== Batch Operations ===\n")
+    
+    cache = LRUCache[str, int](capacity=100)
+    
+    # Put multiple items at once
+    items = {f'key{i}': i * 10 for i in range(10)}
+    cache.put_all(items)
+    print(f"Added {len(items)} items")
+    
+    # Get multiple items at once
+    keys = ['key0', 'key2', 'key4', 'key999']
+    result = cache.get_all(keys)
+    print(f"Retrieved {len(result)} items: {result}")
 
 
 def main():
-    """运行所有示例"""
-    example_basic_usage()
-    example_lru_eviction()
-    example_ttl()
-    example_decorator()
-    example_batch_operations()
-    example_get_or_set()
-    example_statistics()
-    example_ttl_cache()
-    example_bounded_cache()
-    example_weighted_cache()
-    example_expiring_priority()
-    example_thread_safety()
+    """Run all examples."""
+    print("="*60)
+    print("LRU Cache Utility Module - Usage Examples")
+    print("="*60)
     
-    print("\n=== 所有示例完成 ===")
+    example_basic_usage()
+    example_ttl_expiration()
+    example_eviction_callback()
+    example_statistics()
+    example_decorator()
+    example_get_or_set()
+    example_thread_safe()
+    example_api_cache()
+    example_rate_limiting()
+    example_memoization()
+    example_ttl_cache()
+    example_batch_operations()
+    
+    print("\n" + "="*60)
+    print("All examples completed!")
+    print("="*60)
 
 
 if __name__ == '__main__':
