@@ -425,16 +425,32 @@ class TestAlarmClock(unittest.TestCase):
     def test_add_alarm_from_time(self):
         """测试从时间添加闹钟"""
         alarm = AlarmClock()
-        
+
         # 添加未来时间的闹钟
         future_hour = (datetime.now().hour + 1) % 24
         result = alarm.add_alarm_from_time("future", future_hour)
         self.assertTrue(result)
-        
+
         # 添加已过期时间（today_only=True）
-        past_hour = (datetime.now().hour - 1) % 24
-        result = alarm.add_alarm_from_time("past", past_hour, today_only=True)
-        self.assertFalse(result)
+        # 使用明确的一小时前的分钟数，确保测试时间已过
+        now = datetime.now()
+        past_hour = now.hour
+        past_minute = (now.minute - 1) % 60
+        # 如果当前分钟数为0，使用上一小时的最后一分钟
+        if now.minute == 0:
+            past_hour = (now.hour - 1) % 24
+            past_minute = 59
+        # 添加一个明确过去的时间
+        result = alarm.add_alarm_from_time("past", past_hour, past_minute, today_only=True)
+        # 如果时间确实已过，应返回 False；如果还没过（比如刚过边界），可能返回 True
+        # 这个测试验证边界条件处理，允许两种结果
+        now_after = datetime.now()
+        target_time = now_after.replace(hour=past_hour, minute=past_minute, second=0, microsecond=0)
+        if target_time <= now_after:
+            self.assertFalse(result)
+        else:
+            # 边界情况：时间在未来，跳过此断言
+            pass
     
     def test_check_alarm(self):
         """测试检查闹钟"""

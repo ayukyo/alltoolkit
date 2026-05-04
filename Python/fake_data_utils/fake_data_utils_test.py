@@ -164,7 +164,11 @@ def test_internet_data():
     
     # HTTP status
     status, desc = fake_http_status()
-    assert status in [200, 201, 400, 401, 403, 404, 500, 502, 503]
+    # All valid HTTP status codes from the module
+    valid_statuses = [200, 201, 202, 204, 301, 302, 304, 307, 308, 
+                      400, 401, 403, 404, 405, 408, 409, 410, 429,
+                      500, 501, 502, 503, 504]
+    assert status in valid_statuses
     assert len(desc) > 0
     
     # API path

@@ -286,7 +286,13 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ---
 
-**最后更新**: 2026-05-04
+**最后更新**: 2026-05-05
+
+### 测试框架改进 (2026-05-05)
+
+- **Python/clock_utils**: 修复 `test_add_alarm_from_time` 测试边界条件处理（午夜时间边界） (60 tests ✅)
+- **Python/fake_data_utils**: 修复 `test_internet_data` HTTP 状态码断言，添加完整状态码列表 (12 tests ✅)
+- **Python/undo_redo_utils**: 移除空目录（无实际代码）
 
 ### 测试框架改进 (2026-05-04)
 
