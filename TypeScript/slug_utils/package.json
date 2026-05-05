@@ -1,0 +1,20 @@
+{
+  "name": "slug_utils",
+  "version": "1.0.0",
+  "description": "URL Slug 生成工具 - 将字符串转换为 URL 友好的 slug",
+  "main": "mod.ts",
+  "scripts": {
+    "test": "deno run slug_utils_test.ts",
+    "example": "deno run examples/usage_examples.ts"
+  },
+  "keywords": [
+    "slug",
+    "url",
+    "seo",
+    "pinyin",
+    "chinese",
+    "typescript"
+  ],
+  "author": "AllToolkit",
+  "license": "MIT"
+}
