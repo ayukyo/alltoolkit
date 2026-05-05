@@ -1,7 +1,7 @@
 ---
 name: novel-outline-generator
 description: 小说大纲生成技能。支持爽文/现实主义/言情/悬疑等多题材，AI动态生成300章独特事件，输出精简章节规划表（10列核心版）+ bible.json人物圣经。**v4.0新增多源整合题材创新**，整合微博热搜、抖音热点、番茄榜单、知乎热榜等数据源，AI综合思考创新组合方向，确保市场潜力+原创性。
-metadata: {"recommendedThinking": "high", "version": "4.3", "namingConvention": "古诗词名/真实姓氏", "dataSources": ["微博热搜", "抖音热点", "番茄榜单", "知乎热榜", "AI自主"], "fixHistory": ["v4.1: 强制web_search+历史去重+连续三轮逻辑", "v4.2: 文件替换规则+禁止保存到新文件名", "v4.3: 统一文件命名规范+检查报告合并+禁止版本后缀"]}
+metadata: {"recommendedThinking": "high", "version": "4.4", "namingConvention": "古诗词名/真实姓氏", "dataSources": ["微博热搜", "抖音热点", "番茄榜单", "知乎热榜", "AI自主"], "fixHistory": ["v4.1: 强制web_search+历史去重+连续三轮逻辑", "v4.2: 文件替换规则+禁止保存到新文件名", "v4.3: 统一文件命名规范+检查报告合并", "v4.4: 全文件检查+大纲.md简介.md验证"]}
 ---
 
 # 小说大纲生成技能 v4.0（多源整合创新版）
@@ -18,6 +18,7 @@ metadata: {"recommendedThinking": "high", "version": "4.3", "namingConvention": 
 | v4.1 | **强制热点获取+历史去重**：强制web_search调用、禁止返回空数组、历史书名去重检查、禁止复制示例书名 |
 | v4.2 | **文件替换规则**：修复后必须保存到章节规划表.csv替换原文件，禁止保存到_fixed/_final等新文件名，检查必须读取原文件 |
 | v4.3 | **统一命名规范**：所有文件禁止版本后缀，检查报告合并为单一文件，禁止创建多个检查报告变体 |
+| v4.4 | **全文件检查**：新增大纲.md简介.md验证函数，定时任务检查所有核心文件，书名题材一致性检查 |
 
 ---
 
@@ -971,6 +972,149 @@ def post_generation_check(csv_data, bible, genre):
     
     return all_pass, report
 
+def validate_outline_md(outline_content, bible):
+    """
+    验证大纲.md文件
+    
+    检查项:
+    1. 书名与bible.json一致
+    2. 题材与bible.json一致
+    3. 章节范围完整（四个阶段）
+    4. 爽点节奏表存在
+    5. 钩子类型说明存在
+    
+    返回: (是否通过, 错误列表)
+    """
+    errors = []
+    
+    # 1. 书名一致性
+    book_name = bible.get("书名", "")
+    if book_name and book_name not in outline_content:
+        errors.append({"类型": "书名不一致", "详情": f"大纲.md中未找到书名 '{book_name}'"})
+    
+    # 2. 题材一致性
+    genre = bible.get("题材", "")
+    if genre and genre not in outline_content:
+        errors.append({"类型": "题材不一致", "详情": f"大纲.md中未找到题材 '{genre}'"})
+    
+    # 3. 章节范围完整性
+    phase_keywords = ["第一阶段", "第二阶段", "第三阶段", "第四阶段"]
+    missing_phases = [p for p in phase_keywords if p not in outline_content]
+    if missing_phases:
+        errors.append({"类型": "章节范围不完整", "详情": f"缺少阶段: {missing_phases}"})
+    
+    # 4. 爽点节奏表
+    if "爽点节奏" not in outline_content:
+        errors.append({"类型": "爽点节奏表缺失", "详情": "大纲.md中缺少爽点节奏说明"})
+    
+    # 5. 钩子类型说明
+    if "钩子类型" not in outline_content:
+        errors.append({"类型": "钩子类型缺失", "详情": "大纲.md中缺少钩子类型说明"})
+    
+    is_pass = len(errors) == 0
+    return is_pass, errors
+
+def validate_intro_md(intro_content, bible):
+    """
+    验证简介.md文件
+    
+    检查项:
+    1. 书名与bible.json一致
+    2. 一句话简介存在
+    3. 详细简介长度合理（>200字，<2000字）
+    4. 题材标签存在
+    5. 核心看点存在（至少3个）
+    
+    返回: (是否通过, 错误列表)
+    """
+    errors = []
+    
+    # 1. 书名一致性
+    book_name = bible.get("书名", "")
+    if book_name and book_name not in intro_content:
+        errors.append({"类型": "书名不一致", "详情": f"简介.md中未找到书名 '{book_name}'"})
+    
+    # 2. 一句话简介
+    if "一句话简介" not in intro_content:
+        errors.append({"类型": "一句话简介缺失", "详情": "简介.md中缺少一句话简介"})
+    
+    # 3. 详细简介长度
+    if "详细简介" in intro_content:
+        # 提取详细简介部分
+        start = intro_content.find("详细简介") + len("详细简介")
+        end = intro_content.find("---", start) if "---" in intro_content[start:] else len(intro_content)
+        detail_intro = intro_content[start:end].strip()
+        detail_len = len(detail_intro)
+        if detail_len < 200:
+            errors.append({"类型": "简介太短", "详情": f"详细简介仅{detail_len}字，建议≥200字"})
+        elif detail_len > 2000:
+            errors.append({"类型": "简介太长", "详情": f"详细简介{detail_len}字，建议≤2000字"})
+    else:
+        errors.append({"类型": "详细简介缺失", "详情": "简介.md中缺少详细简介"})
+    
+    # 4. 题材标签
+    if "题材标签" not in intro_content:
+        errors.append({"类型": "题材标签缺失", "详情": "简介.md中缺少题材标签"})
+    
+    # 5. 核心看点（至少3个✨）
+   看点_count = intro_content.count("✨")
+    if 看点_count < 3:
+        errors.append({"类型": "核心看点不足", "详情": f"仅{看点_count}个核心看点，建议≥3个"})
+    
+    is_pass = len(errors) == 0
+    return is_pass, errors
+
+def full_outline_check(csv_data, bible, genre, outline_md="", intro_md=""):
+    """
+    完整大纲包检查（包含所有文件）
+    
+    检查文件:
+    - 章节规划表.csv: 去重+钩子评分+人物登场
+    - bible.json: 辅助验证
+    - 大纲.md: 结构完整性
+    - 简介.md: 内容完整性
+    
+    返回: (是否全部通过, 详细报告)
+    """
+    report = {}
+    all_pass = True
+    
+    # 1. CSV检查
+    csv_pass, csv_report = post_generation_check(csv_data, bible, genre)
+    report["章节规划表.csv"] = csv_report
+    if not csv_pass:
+        all_pass = False
+    
+    # 2. 大纲.md检查
+    if outline_md:
+        outline_pass, outline_errors = validate_outline_md(outline_md, bible)
+        report["大纲.md"] = {
+            "是否合格": outline_pass,
+            "错误数量": len(outline_errors),
+            "错误详情": outline_errors
+        }
+        if not outline_pass:
+            all_pass = False
+    else:
+        report["大纲.md"] = {"是否合格": False, "错误": "文件不存在或为空"}
+        all_pass = False
+    
+    # 3. 简介.md检查
+    if intro_md:
+        intro_pass, intro_errors = validate_intro_md(intro_md, bible)
+        report["简介.md"] = {
+            "是否合格": intro_pass,
+            "错误数量": len(intro_errors),
+            "错误详情": intro_errors
+        }
+        if not intro_pass:
+            all_pass = False
+    else:
+        report["简介.md"] = {"是否合格": False, "错误": "文件不存在或为空"}
+        all_pass = False
+    
+    return all_pass, report
+
 def regenerate_if_failed(csv_data, bible, genre, max_attempts=3):
     """
     自检不合格时自动重新生成（最多重试N次）
@@ -1258,7 +1402,7 @@ def generate_event(chapter, genre, setting, previous_events):
 
 ---
 
-## ✅ 质量检查清单（v4.1）
+## ✅ 质量检查清单（v4.4）
 
 ### 第一阶段：大纲生成（6:00）
 
@@ -1282,12 +1426,27 @@ def generate_event(chapter, genre, setting, previous_events):
 □ 总章节数：动态获取，支持不同长度
 □ 输出文件：bible.json + CSV + 大纲.md + 简介.md
 □ 文件路径：bible.json包含file_path字段
+
+【v4.4新增】大纲.md检查：
+□ 书名一致性：大纲.md书名与bible.json一致
+□ 题材一致性：大纲.md题材与bible.json一致
+□ 章节范围完整：第一阶段至第四阶段均存在
+□ 爽点节奏表：存在爽点节奏说明
+□ 钩子类型说明：存在钩子类型列表
+
+【v4.4新增】简介.md检查：
+□ 书名一致性：简介.md书名与bible.json一致
+□ 一句话简介：存在一句话简介
+□ 详细简介：长度200-2000字
+□ 题材标签：存在题材标签列表
+□ 核心看点：至少3个核心看点（✨标记）
+```
 ```
 
 ### 第二阶段：查漏补缺（8:00-20:00）
 
 ```
-□ 第一轮检查（8:00）：去重+钩子评分+人物登场+逻辑连贯
+□ 第一轮检查（8:00）：CSV去重+钩子评分+人物登场+逻辑连贯+大纲.md+简介.md
 □ 发现问题修复：调用fix_failed_items()立即修复
 □ 修复后验证：确认修复成功
 □ 第二轮检查（10:00）：同上
@@ -1295,10 +1454,16 @@ def generate_event(chapter, genre, setting, previous_events):
 □ 第四轮检查（14:00）：同上+伏笔闭环验证
 □ 第五轮检查（16:00）：同上
 □ 第六轮检查（18:00）：同上
-□ 最终检查（20:00）：使用continuous_check_until_stable(required_passes=3)
+□ 最终检查（20:00）：使用full_outline_check()+continuous_check_until_stable(required_passes=3)
 □ 稳定性验证：必须连续3轮全部通过
 □ 最大迭代：10轮上限防止无限循环
 □ 最终报告：输出总轮数+连续通过轮数+详细报告
+
+【v4.4新增】全文件检查：
+□ 章节规划表.csv：去重+钩子评分+人物登场+伏笔闭环
+□ 大纲.md：书名一致性+题材一致性+阶段完整性+爽点节奏+钩子类型
+□ 简介.md：书名一致性+一句话简介+详细简介长度+题材标签+核心看点
+□ bible.json：人物登场章节+伏笔回收章节
 ```
 
 ---
