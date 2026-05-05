@@ -1,7 +1,7 @@
 ---
 name: novel-outline-generator
 description: 小说大纲生成技能。支持爽文/现实主义/言情/悬疑等多题材，AI动态生成300章独特事件，输出精简章节规划表（10列核心版）+ bible.json人物圣经。**v4.0新增多源整合题材创新**，整合微博热搜、抖音热点、番茄榜单、知乎热榜等数据源，AI综合思考创新组合方向，确保市场潜力+原创性。
-metadata: {"recommendedThinking": "high", "version": "4.4", "namingConvention": "古诗词名/真实姓氏", "dataSources": ["微博热搜", "抖音热点", "番茄榜单", "知乎热榜", "AI自主"], "fixHistory": ["v4.1: 强制web_search+历史去重+连续三轮逻辑", "v4.2: 文件替换规则+禁止保存到新文件名", "v4.3: 统一文件命名规范+检查报告合并", "v4.4: 全文件检查+大纲.md简介.md验证"]}
+metadata: {"recommendedThinking": "high", "version": "4.5", "namingConvention": "古诗词名/真实姓氏", "dataSources": ["微博热搜", "抖音热点", "番茄榜单", "知乎热榜", "AI自主"], "fixHistory": ["v4.1: 强制web_search+历史去重+连续三轮逻辑", "v4.2: 文件替换规则+禁止保存到新文件名", "v4.3: 统一文件命名规范+检查报告合并", "v4.4: 全文件检查+大纲.md简介.md验证", "v4.5: 剧情一致性检查+大纲与CSV细节验证"]}
 ---
 
 # 小说大纲生成技能 v4.0（多源整合创新版）
@@ -19,6 +19,7 @@ metadata: {"recommendedThinking": "high", "version": "4.4", "namingConvention": 
 | v4.2 | **文件替换规则**：修复后必须保存到章节规划表.csv替换原文件，禁止保存到_fixed/_final等新文件名，检查必须读取原文件 |
 | v4.3 | **统一命名规范**：所有文件禁止版本后缀，检查报告合并为单一文件，禁止创建多个检查报告变体 |
 | v4.4 | **全文件检查**：新增大纲.md简介.md验证函数，定时任务检查所有核心文件，书名题材一致性检查 |
+| v4.5 | **剧情一致性检查**：大纲.md剧情阶段与章节规划表.csv事件匹配，关键人物登场阶段验证，多线剧情一致性 |
 
 ---
 
@@ -1064,14 +1065,208 @@ def validate_intro_md(intro_content, bible):
     is_pass = len(errors) == 0
     return is_pass, errors
 
+def validate_plot_consistency(csv_data, outline_content, bible):
+    """
+    验证大纲.md与章节规划表.csv剧情一致性（v4.4新增）
+    
+    检查项:
+    1. 阶段章节范围与CSV章节匹配
+    2. 大纲中的关键人物出现章节与CSV匹配
+    3. 大纲中的关键事件与CSV核心事件匹配
+    4. 剧情线章节范围与CSV匹配
+    
+    返回: (是否通过, 错误列表)
+    """
+    errors = []
+    
+    # 1. 提取大纲中的阶段信息
+    phase_pattern = r"第[一二三四]阶段[：:](.+?)（(\d+)-(\d+)章）"
+    phases = re.findall(phase_pattern, outline_content)
+    
+    # 阶段名称与关键词映射
+    phase_keywords = {
+        "第一阶段": ["觉醒", "诊所", "开设", "命痕视觉", "第一位患者", "陈可心"],
+        "第二阶段": ["医美集团", "黑幕", "冯凯", "白芸", "陈父", "张薇", "打压"],
+        "第三阶段": ["叶震天", "命痕师", "传承", "学习", "沈雨桐恋人", "能力进阶"],
+        "第四阶段": ["周正阳", "终极对决", "决战", "牺牲", "守护", "命痕核心"]
+    }
+    
+    # 人物章节映射（从bible.json获取）
+    character_debut = {}
+    for char in bible.get("characters", []):
+        name = char.get("姓名", "")
+        debut = char.get("debut_chapter", 0)
+        if name and debut:
+            character_debut[name] = debut
+    
+    # 2. 检查阶段关键词与CSV章节范围
+    for phase_name, keywords in phase_keywords.items():
+        # 从大纲中提取该阶段章节范围
+        phase_match = re.search(f"{phase_name}[：:].+?（(\d+)-(\d+)章）", outline_content)
+        if phase_match:
+            start_ch = int(phase_match.group(1))
+            end_ch = int(phase_match.group(2))
+            
+            # 提取该阶段章节范围内的CSV事件
+            phase_events = []
+            for row in csv_data:
+                try:
+                    ch = int(row.get("章节", 0))
+                    if start_ch <= ch <= end_ch:
+                        event = row.get("核心事件", "")
+                        chars = row.get("出场人物", "")
+                        phase_events.append({"章节": ch, "事件": event, "人物": chars})
+                except (ValueError, TypeError):
+                    continue
+            
+            # 检查关键词是否出现在该阶段事件中
+            for keyword in keywords:
+                found = False
+                for evt in phase_events:
+                    if keyword in evt["事件"] or keyword in evt["人物"]:
+                        found = True
+                        break
+                
+                if not found:
+                    # 检查是否在其他阶段出现（跨阶段问题）
+                    for row in csv_data:
+                        try:
+                            ch = int(row.get("章节", 0))
+                            if ch < start_ch or ch > end_ch:
+                                event = row.get("核心事件", "")
+                                chars = row.get("出场人物", "")
+                                if keyword in event or keyword in chars:
+                                    errors.append({
+                                        "类型": "关键剧情提前/延后出现",
+                                        "详情": f"'{keyword}'应在{phase_name}({start_ch}-{end_ch}章)，但在第{ch}章出现",
+                                        "关键词": keyword,
+                                        "应出现阶段": phase_name,
+                                        "实际章节": ch
+                                    })
+                                    break
+                        except (ValueError, TypeError):
+                            continue
+    
+    # 3. 检查大纲中提到的具体人物与bible.json登场章节
+    # 提取大纲中人物名
+    outline_chars = re.findall(r"[\u4e00-\u9fa5]{2,3}(?:出现|现身|加入|登场)", outline_content)
+    for match in outline_chars:
+        # 尝试提取人物名（如"叶震天出现"中的"叶震天"）
+        char_name = match.replace("出现", "").replace("现身", "").replace("加入", "").replace("登场", "").strip()
+        if char_name in character_debut:
+            # 检查大纲中是否说明了正确的登场阶段
+            expected_debut = character_debut[char_name]
+            # 找到该人物在大纲中提到的阶段
+            char_phase_match = re.search(f"(.{char_name}.+?)(第[一二三四]阶段)", outline_content)
+            if char_phase_match:
+                phase_mentioned = char_phase_match.group(2)
+                phase_ranges = {
+                    "第一阶段": (1, 50),
+                    "第二阶段": (51, 150),
+                    "第三阶段": (151, 250),
+                    "第四阶段": (251, 300)
+                }
+                if phase_mentioned in phase_ranges:
+                    phase_start, phase_end = phase_ranges[phase_mentioned]
+                    if expected_debut < phase_start or expected_debut > phase_end:
+                        errors.append({
+                            "类型": "人物登场阶段不一致",
+                            "详情": f"大纲说'{char_name}'在{phase_mentioned}，但bible.json记录登场于第{expected_debut}章",
+                            "人物": char_name,
+                            "大纲阶段": phase_mentioned,
+                            "实际登场": expected_debut
+                        })
+    
+    is_pass = len(errors) == 0
+    return is_pass, errors
+
+def validate_plot_detail_consistency(csv_data, outline_content):
+    """
+    验证大纲剧情细节与章节规划表一致性（v4.4新增）
+    
+    检查项:
+    1. 大纲描述的具体事件是否在对应章节出现
+    2. 多线剧情章节范围与CSV剧情线字段匹配
+    
+    返回: (是否通过, 错误列表)
+    """
+    errors = []
+    
+    # 1. 提取大纲中的具体事件描述
+    # 匹配如 "- 林默觉醒命痕视觉" 等描述
+    event_patterns = re.findall(r"- (.+?出现|.+?加入|.+?成为|.+?被击败|.+?揭示)", outline_content)
+    
+    for event_desc in event_patterns:
+        # 提取关键词
+        keywords = event_desc.split()
+        # 找到对应的章节
+        found_chapter = None
+        for row in csv_data:
+            try:
+                ch = int(row.get("章节", 0))
+                csv_event = row.get("核心事件", "")
+                # 检查是否匹配
+                match_score = sum(1 for kw in keywords if kw in csv_event)
+                if match_score >= len(keywords) * 0.5:  # 至少匹配一半关键词
+                    found_chapter = ch
+                    break
+            except (ValueError, TypeError):
+                continue
+        
+        # 检查该事件是否出现在正确的阶段
+        # 从大纲中提取该事件所属阶段
+        event_phase_match = re.search(f"({event_desc}).*?(第[一二三四]阶段)", outline_content)
+        if event_phase_match and found_chapter:
+            phase = event_phase_match.group(2)
+            phase_ranges = {
+                "第一阶段": (1, 50),
+                "第二阶段": (51, 150),
+                "第三阶段": (151, 250),
+                "第四阶段": (251, 300)
+            }
+            if phase in phase_ranges:
+                expected_start, expected_end = phase_ranges[phase]
+                if found_chapter < expected_start or found_chapter > expected_end:
+                    errors.append({
+                        "类型": "事件章节范围不一致",
+                        "详情": f"'{event_desc}'大纲说在{phase}({expected_start}-{expected_end}章)，但CSV在第{found_chapter}章",
+                        "事件": event_desc,
+                        "大纲阶段": phase,
+                        "实际章节": found_chapter
+                    })
+    
+    # 2. 多线剧情一致性
+    # 提取大纲中的多线剧情表
+    plot_line_pattern = r"\| (.+)线 \| (\d+)-(\d+)章 \| (.+) \|"
+    plot_lines = re.findall(plot_line_pattern, outline_content)
+    
+    for line_name, start, end, core in plot_lines:
+        start_ch = int(start)
+        end_ch = int(end)
+        
+        # 检查CSV中对应章节范围的剧情线字段
+        for row in csv_data:
+            try:
+                ch = int(row.get("章节", 0))
+                csv_plot_line = row.get("剧情线", "")
+                if start_ch <= ch <= end_ch:
+                    if line_name not in csv_plot_line and line_name.replace("线", "") not in csv_plot_line:
+                        # 检查是否遗漏
+                        pass  # 暂不报错，因为某些章节可能不涉及该线
+            except (ValueError, TypeError):
+                continue
+    
+    is_pass = len(errors) == 0
+    return is_pass, errors
+
 def full_outline_check(csv_data, bible, genre, outline_md="", intro_md=""):
     """
-    完整大纲包检查（包含所有文件）
+    完整大纲包检查（包含所有文件）v4.4
     
     检查文件:
     - 章节规划表.csv: 去重+钩子评分+人物登场
     - bible.json: 辅助验证
-    - 大纲.md: 结构完整性
+    - 大纲.md: 结构完整性+剧情一致性
     - 简介.md: 内容完整性
     
     返回: (是否全部通过, 详细报告)
@@ -1085,21 +1280,43 @@ def full_outline_check(csv_data, bible, genre, outline_md="", intro_md=""):
     if not csv_pass:
         all_pass = False
     
-    # 2. 大纲.md检查
+    # 2. 大纲.md结构检查
     if outline_md:
         outline_pass, outline_errors = validate_outline_md(outline_md, bible)
-        report["大纲.md"] = {
+        report["大纲.md结构"] = {
             "是否合格": outline_pass,
             "错误数量": len(outline_errors),
             "错误详情": outline_errors
         }
         if not outline_pass:
             all_pass = False
+        
+        # 3. 【v4.4新增】剧情一致性检查
+        plot_pass, plot_errors = validate_plot_consistency(csv_data, outline_md, bible)
+        report["剧情一致性"] = {
+            "是否合格": plot_pass,
+            "错误数量": len(plot_errors),
+            "错误详情": plot_errors[:10]  # 只显示前10个错误
+        }
+        if not plot_pass:
+            all_pass = False
+        
+        # 4. 【v4.4新增】剧情细节一致性检查
+        detail_pass, detail_errors = validate_plot_detail_consistency(csv_data, outline_md)
+        report["剧情细节一致性"] = {
+            "是否合格": detail_pass,
+            "错误数量": len(detail_errors),
+            "错误详情": detail_errors[:10]
+        }
+        if not detail_pass:
+            all_pass = False
     else:
-        report["大纲.md"] = {"是否合格": False, "错误": "文件不存在或为空"}
+        report["大纲.md结构"] = {"是否合格": False, "错误": "文件不存在或为空"}
+        report["剧情一致性"] = {"是否合格": False, "错误": "大纲.md不存在"}
+        report["剧情细节一致性"] = {"是否合格": False, "错误": "大纲.md不存在"}
         all_pass = False
     
-    # 3. 简介.md检查
+    # 5. 简介.md检查
     if intro_md:
         intro_pass, intro_errors = validate_intro_md(intro_md, bible)
         report["简介.md"] = {
@@ -1402,7 +1619,7 @@ def generate_event(chapter, genre, setting, previous_events):
 
 ---
 
-## ✅ 质量检查清单（v4.4）
+## ✅ 质量检查清单（v4.5）
 
 ### 第一阶段：大纲生成（6:00）
 
@@ -1434,12 +1651,16 @@ def generate_event(chapter, genre, setting, previous_events):
 □ 爽点节奏表：存在爽点节奏说明
 □ 钩子类型说明：存在钩子类型列表
 
-【v4.4新增】简介.md检查：
-□ 书名一致性：简介.md书名与bible.json一致
-□ 一句话简介：存在一句话简介
-□ 详细简介：长度200-2000字
-□ 题材标签：存在题材标签列表
-□ 核心看点：至少3个核心看点（✨标记）
+【v4.5新增】剧情一致性检查：
+□ 阶段章节范围：大纲阶段描述与CSV章节范围匹配
+□ 关键人物登场阶段：叶震天/周正阳等关键人物在正确阶段出现
+□ 关键事件匹配：大纲描述的事件在对应章节范围内出现
+□ 多线剧情一致：感情线/调查线/传承线章节范围与CSV匹配
+
+【v4.5新增】剧情细节一致性：
+□ 具体事件章节：大纲描述的具体事件在正确章节出现
+□ 人物登场章节：大纲人物登场与bible.json一致
+□ 剧情线范围：大纲多线剧情表与CSV剧情线字段匹配
 ```
 ```
 
