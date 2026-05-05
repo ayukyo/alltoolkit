@@ -1,7 +1,7 @@
 ---
 name: novel-outline-generator
 description: 小说大纲生成技能。支持爽文/现实主义/言情/悬疑等多题材，AI动态生成300章独特事件，输出精简章节规划表（10列核心版）+ bible.json人物圣经。**v4.0新增多源整合题材创新**，整合微博热搜、抖音热点、番茄榜单、知乎热榜等数据源，AI综合思考创新组合方向，确保市场潜力+原创性。
-metadata: {"recommendedThinking": "high", "version": "4.1", "namingConvention": "古诗词名/真实姓氏", "dataSources": ["微博热搜", "抖音热点", "番茄榜单", "知乎热榜", "AI自主"], "fixHistory": ["v4.1: 强制web_search调用+历史书名去重+禁止复制示例"]}
+metadata: {"recommendedThinking": "high", "version": "4.2", "namingConvention": "古诗词名/真实姓氏", "dataSources": ["微博热搜", "抖音热点", "番茄榜单", "知乎热榜", "AI自主"], "fixHistory": ["v4.1: 强制web_search+历史去重+连续三轮逻辑", "v4.2: 明确文件替换规则+禁止保存到新文件名"]}
 ---
 
 # 小说大纲生成技能 v4.0（多源整合创新版）
@@ -16,6 +16,7 @@ metadata: {"recommendedThinking": "high", "version": "4.1", "namingConvention": 
 | v3.3 | derive_debut异常处理、int转换安全、总章节数动态获取 |
 | v4.0 | **多源整合题材创新**：微博热搜+抖音热点+番茄榜单+知乎热榜，AI综合思考组合方向 |
 | v4.1 | **强制热点获取+历史去重**：强制web_search调用、禁止返回空数组、历史书名去重检查、禁止复制示例书名 |
+| v4.2 | **文件替换规则**：修复后必须保存到章节规划表.csv替换原文件，禁止保存到_fixed/_final等新文件名，检查必须读取原文件 |
 
 ---
 
@@ -787,6 +788,32 @@ class VariablePool:
 - 修复后重新验证
 - 必须连续3轮全部通过才停止
 - 任何一轮不合格，重置计数继续检查
+
+⚠️ 文件操作规则（必须遵守）：
+1. 读取：必须从 `章节规划表.csv` 读取（禁止读取 _fixed/_final 等变体）
+2. 保存：修复后必须保存到 `章节规划表.csv`（替换原文件）
+3. 备份：保存前可选备份到 `章节规划表_backup.csv`
+4. 禁止：禁止保存到新文件名（如 _fixed、_final、_v2 等）
+5. 验证：保存后立即重新读取验证修复成功
+```
+
+### 查漏补缺文件操作示例（v4.1新增）
+
+**正确的文件操作流程**：
+```python
+# 1. 读取原文件
+csv_path = "novel-ideas/命痕整形师_2026-05-05/章节规划表.csv"
+csv_data = read_csv(csv_path)
+
+# 2. 检查并修复
+fixed_data = fix_failed_items(csv_data, bible, genre, report)
+
+# 3. 保存到原文件（替换）
+write_csv(csv_path, fixed_data)  # 直接替换原文件
+
+# 4. 重新读取验证
+csv_data_verify = read_csv(csv_path)
+verify_fix_success(csv_data_verify)
 ```
 
 ### v4.0 热点获取提示词（强制执行）
@@ -1039,10 +1066,18 @@ def fix_failed_items(csv_data, bible, genre, report):
     """
     根据自检报告针对性修复失败项
     
+    ⚠️ 重要：修复后必须保存并替换原文件！
+    
     修复策略:
     - 去重失败: 重新生成重复章节的事件
     - 钩子不合格: 重新生成不合格钩子
     - 人物登场错误: 移除提前登场的人物
+    
+    文件保存规则（必须遵守）：
+    1. 修复后的数据必须保存到 `章节规划表.csv`（原文件）
+    2. 保存前可备份到 `章节规划表_backup.csv`
+    3. 禁止保存到 `_fixed`、`_final` 等新文件名
+    4. 检查时必须读取 `章节规划表.csv`
     """
     fixed_csv = csv_data.copy()
     
