@@ -1,7 +1,7 @@
 ---
 name: novel-outline-generator
 description: 小说大纲生成技能。支持爽文/现实主义/言情/悬疑等多题材，AI动态生成300章独特事件，输出精简章节规划表（10列核心版）+ bible.json人物圣经。**v4.0新增多源整合题材创新**，整合微博热搜、抖音热点、番茄榜单、知乎热榜等数据源，AI综合思考创新组合方向，确保市场潜力+原创性。
-metadata: {"recommendedThinking": "high", "version": "4.2", "namingConvention": "古诗词名/真实姓氏", "dataSources": ["微博热搜", "抖音热点", "番茄榜单", "知乎热榜", "AI自主"], "fixHistory": ["v4.1: 强制web_search+历史去重+连续三轮逻辑", "v4.2: 明确文件替换规则+禁止保存到新文件名"]}
+metadata: {"recommendedThinking": "high", "version": "4.3", "namingConvention": "古诗词名/真实姓氏", "dataSources": ["微博热搜", "抖音热点", "番茄榜单", "知乎热榜", "AI自主"], "fixHistory": ["v4.1: 强制web_search+历史去重+连续三轮逻辑", "v4.2: 文件替换规则+禁止保存到新文件名", "v4.3: 统一文件命名规范+检查报告合并+禁止版本后缀"]}
 ---
 
 # 小说大纲生成技能 v4.0（多源整合创新版）
@@ -17,6 +17,7 @@ metadata: {"recommendedThinking": "high", "version": "4.2", "namingConvention": 
 | v4.0 | **多源整合题材创新**：微博热搜+抖音热点+番茄榜单+知乎热榜，AI综合思考组合方向 |
 | v4.1 | **强制热点获取+历史去重**：强制web_search调用、禁止返回空数组、历史书名去重检查、禁止复制示例书名 |
 | v4.2 | **文件替换规则**：修复后必须保存到章节规划表.csv替换原文件，禁止保存到_fixed/_final等新文件名，检查必须读取原文件 |
+| v4.3 | **统一命名规范**：所有文件禁止版本后缀，检查报告合并为单一文件，禁止创建多个检查报告变体 |
 
 ---
 
@@ -1312,7 +1313,50 @@ novel-ideas/书名_YYYY-MM-DD/
 ├── 章节规划表.csv       # 10列精简版
 ├── 大纲.md
 ├── 简介.md
-└── 爽点节奏表.md        # 可选
+└── 检查报告.md          # 统一的检查报告（可选）
+```
+
+### ⚠️ 文件命名规范（v4.2强制要求）
+
+**核心原则：禁止添加版本后缀！每次修复替换原文件！**
+
+| 文件类型 | 允许的文件名 | 禁止的文件名 |
+|----------|--------------|--------------|
+| 章节规划表 | `章节规划表.csv` | `_fixed`, `_final`, `_v2`, `_backup`（仅备份时允许） |
+| 检查报告 | `检查报告.md` 或 `检查报告.json` | `_final`, `_complete`, `_完整版`, 带时间戳 |
+| bible.json | `bible.json` | 任何后缀或前缀 |
+| 大纲.md | `大纲.md` | 任何后缀或前缀 |
+| 简介.md | `简介.md` | 任何后缀或前缀 |
+
+**检查报告命名规则**：
+```
+正确：检查报告.md, 检查报告.json
+禁止：check_report.json, afternoon_check_report.json, final_check_report_xxx.json
+禁止：检查修复报告.md, 下午大纲查漏补缺报告.md, 每日大纲检查报告.md
+禁止：_完整版, _final, _validated, _complete 等任何后缀
+```
+
+**修复报告合并规则**：
+```
+所有修复记录合并到单一检查报告文件
+不要创建单独的 fix_report.json, fix_hooks_log.json, foreshadow_fix_report.json
+所有修复信息作为检查报告的一部分
+```
+
+**正确的文件操作流程**：
+```python
+# 读取原文件
+bible = read_json("bible.json")
+csv = read_csv("章节规划表.csv")
+
+# 修复
+fixed_csv = fix_failed_items(csv, bible, genre, report)
+
+# 替换原文件（禁止创建新文件名）
+write_csv("章节规划表.csv", fixed_csv)  # 直接替换
+
+# 检查报告（合并所有信息）
+write_file("检查报告.md", merged_report)  # 单一报告文件
 ```
 
 ### novel-writer 输入规范
