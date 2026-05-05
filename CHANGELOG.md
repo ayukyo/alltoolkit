@@ -3,6 +3,21 @@
 ## [2026-05-05]
 
 ### 新增
+- **Python: regex_builder_utils (60 单元测试，正则表达式流式构建器)** 🔨
+  - 流畅 API：链式调用构建复杂正则表达式，无需掌握正则语法
+  - 字符匹配：literal（自动转义）、char_class、char_range、digit、word_char 等
+  - 量词：optional、zero_or_more、one_or_more、exactly、min_max、lazy 等
+  - 锚点：start、end、word_boundary、start_of_string、end_of_string
+  - 分组：group（捕获）、non_capturing_group、named_group、backreference
+  - 断言：lookahead、negative_lookahead、lookbehind、negative_lookbehind
+  - 标志：ignore_case、multiline、dotall、verbose、ascii_only
+  - 快捷模式：email、url、phone_cn、ipv4、uuid、hex_color、chinese 等
+  - 快捷函数：email_pattern()、phone_cn_pattern()、url_pattern() 等
+  - 测试方法：build()、compile()、test()、match()、find_all()、replace()、split()
+  - 完整示例：基础用法、邮箱/手机号/密码验证、分隔符内容提取
+  - 零依赖，纯 Python 标准库实现
+  - 测试覆盖：60 测试全部通过
+
 - **Python: issn_utils (74 单元测试，完整ISSN验证与处理工具)** 📚
   - ISSN-8验证：8位标准ISSN验证、X检验位支持、模11算法
   - ISSN-13验证：EAN-13格式验证、977前缀检测、交替权重算法
