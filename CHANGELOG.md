@@ -14,6 +14,23 @@
   - 零依赖，纯 Python 标准库实现
   - 测试覆盖：48 测试全部通过
 
+### 文档
+- **Python: batch_utils README.md** - 新增完整模块文档
+- **Python: alias_method_utils README.md** - 新增 Alias Method 使用说明
+- **Python: clock_utils README.md** - 新增时钟工具模块文档
+
+### 修复
+- **Python: batch_utils** - 修复 `batched()` 函数对 size=0 的处理，改为抛出 ValueError（保持测试一致性）
+  - 血型解析：字符串解析、大小写不敏感、全名支持
+  - 兼容性检测：献血者/受血者匹配、万能献血者(O-)、万能受血者(AB+)
+  - 遗传计算：父母血型组合预测孩子血型及概率、父母关系验证
+  - 分布统计：全球/中国/美国人群分布数据、稀有血型检测
+  - 详细信息：抗原抗体查询、基因型分析、格式化显示（简短/完整/中文）
+  - ABO/Rh系统：完整支持8种血型（A+/A-/B+/B-/AB+/AB-/O+/O-）
+  - 便捷函数：parse_blood_type、can_donate、child_blood_types 等
+  - 零依赖，纯 Python 标准库实现
+  - 测试覆盖：48 测试全部通过
+
 ## [2026-05-05]
 
 ### 新增

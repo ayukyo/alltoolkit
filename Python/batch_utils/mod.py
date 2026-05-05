@@ -82,10 +82,8 @@ def batched(
         - 优化：使用列表预分配提升性能（对已知大小的序列）
         - 性能提升约 10-20%（对大数据集）
     """
-    # 边界处理：size 无效时快速返回空迭代器
+    # 边界处理：size 无效时抛出异常
     if size < 1:
-        if size == 0:
-            return  # 空迭代器（不抛异常，更友好）
         raise ValueError("size must be >= 1")
     
     # 边界处理：None 输入快速返回空迭代器
