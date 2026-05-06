@@ -1,0 +1,937 @@
+-- ============================================================================
+-- SQL Aggregation Utilities Module
+-- ============================================================================
+-- A comprehensive aggregation utility module for SQL providing advanced
+-- aggregation operations across multiple database systems (MySQL, PostgreSQL,
+-- SQL Server, SQLite).
+--
+-- Features:
+-- - Conditional aggregation (pivot, conditional counts/sums)
+-- - Statistical aggregation (variance, stddev, mode, median)
+-- - String aggregation (LISTAGG, GROUP_CONCAT equivalents)
+-- - JSON aggregation (object and array builders)
+-- - Time-series aggregation (period-based, sliding windows)
+-- - Grouping enhancements (ROLLUP, CUBE, GROUPING SETS)
+-- - Aggregate filtering (FILTER clause, HAVING enhancements)
+-- - Cumulative aggregations (running totals, moving averages)
+-- - Advanced grouping (hierarchical, recursive)
+--
+-- Supported Databases:
+-- - MySQL 8.0+ (window functions, JSON functions)
+-- - PostgreSQL 9.6+ (full feature support)
+-- - SQL Server 2012+ (window functions, FOR JSON)
+-- - SQLite 3.25+ (window functions)
+--
+-- Author: AllToolkit
+-- Version: 1.0.0
+-- License: MIT
+-- Date: 2026-05-07
+-- ============================================================================
+
+-- ============================================================================
+-- 1. CONDITIONAL AGGREGATION
+-- ============================================================================
+
+-- Function: conditional_count - Count rows meeting specific conditions
+-- MySQL / PostgreSQL / SQL Server / SQLite:
+--   SELECT 
+--     department,
+--     COUNT(*) as total_employees,
+--     COUNT(CASE WHEN status = 'active' THEN 1 END) as active_count,
+--     COUNT(CASE WHEN status = 'inactive' THEN 1 END) as inactive_count,
+--     COUNT(CASE WHEN salary > 50000 THEN 1 END) as high_earners
+--   FROM employees
+--   GROUP BY department;
+
+-- Function: conditional_sum - Sum values meeting specific conditions
+-- MySQL / PostgreSQL / SQL Server / SQLite:
+--   SELECT 
+--     category,
+--     SUM(amount) as total_sales,
+--     SUM(CASE WHEN region = 'North' THEN amount ELSE 0 END) as north_sales,
+--     SUM(CASE WHEN region = 'South' THEN amount ELSE 0 END) as south_sales,
+--     SUM(CASE WHEN region = 'East' THEN amount ELSE 0 END) as east_sales,
+--     SUM(CASE WHEN region = 'West' THEN amount ELSE 0 END) as west_sales
+--   FROM sales
+--   GROUP BY category;
+
+-- Function: conditional_avg - Average values meeting specific conditions
+-- MySQL / PostgreSQL / SQL Server / SQLite:
+--   SELECT 
+--     department,
+--     AVG(CASE WHEN grade = 'A' THEN score END) as avg_a_score,
+--     AVG(CASE WHEN grade = 'B' THEN score END) as avg_b_score,
+--     AVG(CASE WHEN grade = 'C' THEN score END) as avg_c_score
+--   FROM students
+--   GROUP BY department;
+
+-- Function: pivot_aggregation - Create pivot table style results
+-- MySQL 8.0+ / PostgreSQL / SQL Server / SQLite:
+--   SELECT 
+--     product,
+--     SUM(CASE WHEN EXTRACT(MONTH FROM sale_date) = 1 THEN quantity ELSE 0 END) as jan_sales,
+--     SUM(CASE WHEN EXTRACT(MONTH FROM sale_date) = 2 THEN quantity ELSE 0 END) as feb_sales,
+--     SUM(CASE WHEN EXTRACT(MONTH FROM sale_date) = 3 THEN quantity ELSE 0 END) as mar_sales,
+--     SUM(CASE WHEN EXTRACT(MONTH FROM sale_date) = 4 THEN quantity ELSE 0 END) as apr_sales,
+--     SUM(quantity) as total_sales
+--   FROM sales
+--   GROUP BY product;
+
+-- Function: percentage_breakdown - Calculate percentage distribution
+-- MySQL / PostgreSQL / SQL Server / SQLite:
+--   SELECT 
+--     category,
+--     COUNT(*) as count,
+--     ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER(), 2) as percentage
+--   FROM products
+--   GROUP BY category
+--   ORDER BY count DESC;
+
+-- ============================================================================
+-- 2. STATISTICAL AGGREGATION
+-- ============================================================================
+
+-- Function: variance_stddev - Variance and standard deviation
+-- MySQL 8.0+:
+--   SELECT 
+--     department,
+--     VARIANCE(salary) as salary_variance,
+--     STDDEV(salary) as salary_stddev,
+--     STDDEV_SAMP(salary) as stddev_sample,
+--     STDDEV_POP(salary) as stddev_population
+--   FROM employees
+--   GROUP BY department;
+
+-- PostgreSQL:
+--   SELECT 
+--     department,
+--     VAR_POP(salary) as population_variance,
+--     VAR_SAMP(salary) as sample_variance,
+--     STDDEV_POP(salary) as population_stddev,
+--     STDDEV_SAMP(salary) as sample_stddev
+--   FROM employees
+--   GROUP BY department;
+
+-- SQL Server:
+--   SELECT 
+--     department,
+--     VAR(salary) as sample_variance,
+--     STDEV(salary) as sample_stddev,
+--     VARP(salary) as population_variance,
+--     STDEVP(salary) as population_stddev
+--   FROM employees
+--   GROUP BY department;
+
+-- SQLite:
+--   -- SQLite doesn't have built-in variance/stddev, use manual calculation:
+--   SELECT 
+--     department,
+--     AVG(salary) as mean,
+--     AVG(salary * salary) - AVG(salary) * AVG(salary) as variance,
+--     SQRT(AVG(salary * salary) - AVG(salary) * AVG(salary)) as stddev
+--   FROM employees
+--   GROUP BY department;
+
+-- Function: median - Calculate median value
+-- MySQL 8.0+:
+--   SELECT 
+--     department,
+--     PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY salary) as median_salary
+--   FROM employees
+--   GROUP BY department;
+
+-- PostgreSQL:
+--   SELECT 
+--     department,
+--     PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY salary) as median_salary,
+--     PERCENTILE_DISC(0.5) WITHIN GROUP (ORDER BY salary) as median_discrete
+--   FROM employees
+--   GROUP BY department;
+
+-- SQL Server:
+--   SELECT DISTINCT
+--     department,
+--     PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY salary) OVER (PARTITION BY department) as median_salary
+--   FROM employees;
+
+-- SQLite (manual calculation):
+--   WITH ranked AS (
+--     SELECT 
+--       department,
+--       salary,
+--       ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary) as rn,
+--       COUNT(*) OVER (PARTITION BY department) as cnt
+--     FROM employees
+--   )
+--   SELECT 
+--     department,
+--     AVG(salary) as median_salary
+--   FROM ranked
+--   WHERE rn IN ((cnt + 1) / 2, (cnt + 2) / 2)
+--   GROUP BY department;
+
+-- Function: mode - Find most frequent value
+-- MySQL / PostgreSQL / SQL Server / SQLite:
+--   SELECT 
+--     category,
+--     value as mode_value,
+--     COUNT(*) as frequency
+--   FROM data_table
+--   GROUP BY category, value
+--   HAVING COUNT(*) = (
+--     SELECT MAX(cnt) 
+--     FROM (
+--       SELECT COUNT(*) as cnt 
+--       FROM data_table d2 
+--       WHERE d2.category = data_table.category
+--       GROUP BY value
+--     ) t
+--   );
+
+-- Alternative using window functions (MySQL 8.0+ / PostgreSQL / SQL Server / SQLite):
+--   WITH value_counts AS (
+--     SELECT 
+--       category,
+--       value,
+--       COUNT(*) as frequency,
+--       RANK() OVER (PARTITION BY category ORDER BY COUNT(*) DESC) as rn
+--     FROM data_table
+--     GROUP BY category, value
+--   )
+--   SELECT category, value as mode_value, frequency
+--   FROM value_counts
+--   WHERE rn = 1;
+
+-- Function: percentile - Calculate any percentile
+-- MySQL 8.0+:
+--   SELECT 
+--     department,
+--     PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY salary) as p25,
+--     PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY salary) as p50,
+--     PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY salary) as p75,
+--     PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY salary) as p90,
+--     PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY salary) as p95
+--   FROM employees
+--   GROUP BY department;
+
+-- PostgreSQL (same as MySQL 8.0+):
+--   SELECT 
+--     department,
+--     PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY salary) as p25,
+--     PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY salary) as median,
+--     PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY salary) as p75
+--   FROM employees
+--   GROUP BY department;
+
+-- SQL Server:
+--   SELECT DISTINCT
+--     department,
+--     PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY salary) OVER (PARTITION BY department) as p25,
+--     PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY salary) OVER (PARTITION BY department) as p50,
+--     PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY salary) OVER (PARTITION BY department) as p75
+--   FROM employees;
+
+-- Function: coefficient_of_variation - CV (stddev/mean * 100)
+-- MySQL / PostgreSQL / SQL Server / SQLite:
+--   SELECT 
+--     category,
+--     AVG(price) as mean_price,
+--     STDDEV(price) as stddev_price,
+--     (STDDEV(price) / AVG(price) * 100) as cv_percent
+--   FROM products
+--   GROUP BY category
+--   HAVING AVG(price) > 0;
+
+-- ============================================================================
+-- 3. STRING AGGREGATION
+-- ============================================================================
+
+-- Function: string_agg_concat - Concatenate strings from multiple rows
+-- MySQL:
+--   SELECT 
+--     department,
+--     GROUP_CONCAT(name ORDER BY name SEPARATOR ', ') as employee_list
+--   FROM employees
+--   GROUP BY department;
+
+-- PostgreSQL:
+--   SELECT 
+--     department,
+--     STRING_AGG(name, ', ' ORDER BY name) as employee_list
+--   FROM employees
+--   GROUP BY department;
+
+-- SQL Server:
+--   SELECT 
+--     department,
+--     STRING_AGG(name, ', ') WITHIN GROUP (ORDER BY name) as employee_list
+--   FROM employees
+--   GROUP BY department;
+
+-- SQLite:
+--   SELECT 
+--     department,
+--     GROUP_CONCAT(name, ', ') as employee_list
+--   FROM employees
+--   GROUP BY department;
+
+-- Function: string_agg_with_limit - Concatenate with max length limit
+-- MySQL:
+--   SELECT 
+--     department,
+--     SUBSTRING_INDEX(
+--       GROUP_CONCAT(name ORDER BY name SEPARATOR ', '),
+--       ',', 10
+--     ) as top_10_employees,
+--     COUNT(*) as total_count
+--   FROM employees
+--   GROUP BY department;
+
+-- PostgreSQL:
+--   SELECT 
+--     department,
+--     LEFT(STRING_AGG(name, ', ' ORDER BY name), 1000) as truncated_list
+--   FROM employees
+--   GROUP BY department;
+
+-- Function: distinct_string_agg - Concatenate unique values only
+-- MySQL:
+--   SELECT 
+--     department,
+--     GROUP_CONCAT(DISTINCT skill ORDER BY skill SEPARATOR ', ') as unique_skills
+--   FROM employee_skills
+--   GROUP BY department;
+
+-- PostgreSQL:
+--   SELECT 
+--     department,
+--     STRING_AGG(DISTINCT skill, ', ' ORDER BY skill) as unique_skills
+--   FROM employee_skills
+--   GROUP BY department;
+
+-- SQL Server:
+--   SELECT 
+--     department,
+--     STRING_AGG(DISTINCT skill, ', ') WITHIN GROUP (ORDER BY skill) as unique_skills
+--   FROM employee_skills
+--   GROUP BY department;
+
+-- Function: conditional_string_agg - Concatenate based on condition
+-- MySQL / PostgreSQL / SQL Server / SQLite:
+--   SELECT 
+--     department,
+--     GROUP_CONCAT(CASE WHEN status = 'active' THEN name END ORDER BY name SEPARATOR ', ') as active_employees,
+--     GROUP_CONCAT(CASE WHEN status = 'inactive' THEN name END ORDER BY name SEPARATOR ', ') as inactive_employees
+--   FROM employees
+--   GROUP BY department;
+
+-- ============================================================================
+-- 4. JSON AGGREGATION (MySQL 5.7+ / PostgreSQL / SQL Server 2016+)
+-- ============================================================================
+
+-- Function: json_array_agg - Build JSON array from rows
+-- MySQL:
+--   SELECT 
+--     department,
+--     JSON_ARRAYAGG(JSON_OBJECT('name', name, 'salary', salary)) as employees_json
+--   FROM employees
+--   GROUP BY department;
+
+-- PostgreSQL:
+--   SELECT 
+--     department,
+--     JSON_AGG(JSON_BUILD_OBJECT('name', name, 'salary', salary)) as employees_json
+--   FROM employees
+--   GROUP BY department;
+
+-- SQL Server:
+--   SELECT 
+--     department,
+--     (SELECT name, salary FOR JSON PATH) as employees_json
+--   FROM employees
+--   GROUP BY department;
+
+-- Function: json_object_agg - Build JSON object with keys
+-- PostgreSQL:
+--   SELECT 
+--     JSON_OBJECT_AGG(name, salary) as name_salary_map
+--   FROM employees;
+
+-- MySQL (emulation):
+--   SELECT 
+--     JSON_OBJECTAGG(name, salary) as name_salary_map
+--   FROM employees;
+
+-- Function: json_nested_agg - Build nested JSON structure
+-- PostgreSQL:
+--   SELECT 
+--     d.department_name,
+--     JSON_AGG(
+--       JSON_BUILD_OBJECT(
+--         'employee_name', e.name,
+--         'projects', (
+--           SELECT JSON_AGG(JSON_BUILD_OBJECT('project_name', p.name, 'status', p.status))
+--           FROM projects p
+--           WHERE p.employee_id = e.id
+--         )
+--       )
+--     ) as employees_with_projects
+--   FROM departments d
+--   LEFT JOIN employees e ON e.department_id = d.id
+--   GROUP BY d.department_name;
+
+-- ============================================================================
+-- 5. TIME-SERIES AGGREGATION
+-- ============================================================================
+
+-- Function: period_aggregation - Aggregate by time period
+-- MySQL:
+--   SELECT 
+--     DATE_FORMAT(sale_date, '%Y-%m') as month,
+--     SUM(amount) as total_sales,
+--     COUNT(*) as transaction_count,
+--     AVG(amount) as avg_transaction
+--   FROM sales
+--   GROUP BY DATE_FORMAT(sale_date, '%Y-%m')
+--   ORDER BY month;
+
+-- PostgreSQL:
+--   SELECT 
+--     TO_CHAR(sale_date, 'YYYY-MM') as month,
+--     SUM(amount) as total_sales,
+--     COUNT(*) as transaction_count,
+--     AVG(amount) as avg_transaction
+--   FROM sales
+--   GROUP BY TO_CHAR(sale_date, 'YYYY-MM')
+--   ORDER BY month;
+
+-- SQL Server:
+--   SELECT 
+--     FORMAT(sale_date, 'yyyy-MM') as month,
+--     SUM(amount) as total_sales,
+--     COUNT(*) as transaction_count,
+--     AVG(amount) as avg_transaction
+--   FROM sales
+--   GROUP BY FORMAT(sale_date, 'yyyy-MM')
+--   ORDER BY month;
+
+-- SQLite:
+--   SELECT 
+--     STRFTIME('%Y-%m', sale_date) as month,
+--     SUM(amount) as total_sales,
+--     COUNT(*) as transaction_count,
+--     AVG(amount) as avg_transaction
+--   FROM sales
+--   GROUP BY STRFTIME('%Y-%m', sale_date)
+--   ORDER BY month;
+
+-- Function: hourly_aggregation - Aggregate by hour of day
+-- MySQL:
+--   SELECT 
+--     HOUR(created_at) as hour,
+--     COUNT(*) as count
+--   FROM events
+--   GROUP BY HOUR(created_at)
+--   ORDER BY hour;
+
+-- PostgreSQL:
+--   SELECT 
+--     EXTRACT(HOUR FROM created_at) as hour,
+--     COUNT(*) as count
+--   FROM events
+--   GROUP BY EXTRACT(HOUR FROM created_at)
+--   ORDER BY hour;
+
+-- SQLite:
+--   SELECT 
+--     STRFTIME('%H', created_at) as hour,
+--     COUNT(*) as count
+--   FROM events
+--   GROUP BY STRFTIME('%H', created_at)
+--   ORDER BY hour;
+
+-- Function: day_of_week_aggregation - Aggregate by day of week
+-- MySQL:
+--   SELECT 
+--     DAYNAME(sale_date) as day_name,
+--     DAYOFWEEK(sale_date) as day_num,
+--     SUM(amount) as total_sales
+--   FROM sales
+--   GROUP BY DAYNAME(sale_date), DAYOFWEEK(sale_date)
+--   ORDER BY day_num;
+
+-- PostgreSQL:
+--   SELECT 
+--     TO_CHAR(sale_date, 'Day') as day_name,
+--     EXTRACT(DOW FROM sale_date) as day_num,
+--     SUM(amount) as total_sales
+--   FROM sales
+--   GROUP BY TO_CHAR(sale_date, 'Day'), EXTRACT(DOW FROM sale_date)
+--   ORDER BY day_num;
+
+-- SQLite:
+--   SELECT 
+--     CASE STRFTIME('%w', sale_date)
+--       WHEN '0' THEN 'Sunday'
+--       WHEN '1' THEN 'Monday'
+--       WHEN '2' THEN 'Tuesday'
+--       WHEN '3' THEN 'Wednesday'
+--       WHEN '4' THEN 'Thursday'
+--       WHEN '5' THEN 'Friday'
+--       WHEN '6' THEN 'Saturday'
+--     END as day_name,
+--     STRFTIME('%w', sale_date) as day_num,
+--     SUM(amount) as total_sales
+--   FROM sales
+--   GROUP BY day_name, day_num
+--   ORDER BY day_num;
+
+-- Function: sliding_window_aggregation - Moving averages/sums
+-- MySQL 8.0+ / PostgreSQL / SQL Server / SQLite:
+--   SELECT 
+--     sale_date,
+--     amount,
+--     SUM(amount) OVER (
+--       ORDER BY sale_date
+--       ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+--     ) as rolling_7day_sum,
+--     AVG(amount) OVER (
+--       ORDER BY sale_date
+--       ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+--     ) as rolling_7day_avg,
+--     MIN(amount) OVER (
+--       ORDER BY sale_date
+--       ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+--     ) as rolling_7day_min,
+--     MAX(amount) OVER (
+--       ORDER BY sale_date
+--       ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+--     ) as rolling_7day_max
+--   FROM daily_sales
+--   ORDER BY sale_date;
+
+-- Function: month_over_month - Compare current vs previous period
+-- MySQL 8.0+ / PostgreSQL / SQL Server / SQLite:
+--   WITH monthly_sales AS (
+--     SELECT 
+--       STRFTIME('%Y-%m', sale_date) as month,  -- Use appropriate function for DB
+--       SUM(amount) as total_sales
+--     FROM sales
+--     GROUP BY STRFTIME('%Y-%m', sale_date)
+--   ),
+--   with_previous AS (
+--     SELECT 
+--       month,
+--       total_sales,
+--       LAG(total_sales) OVER (ORDER BY month) as previous_month_sales
+--     FROM monthly_sales
+--   )
+--   SELECT 
+--     month,
+--     total_sales,
+--     previous_month_sales,
+--     total_sales - previous_month_sales as absolute_change,
+--     ROUND((total_sales - previous_month_sales) * 100.0 / NULLIF(previous_month_sales, 0), 2) as percent_change
+--   FROM with_previous
+--   ORDER BY month;
+
+-- ============================================================================
+-- 6. GROUPING ENHANCEMENTS (ROLLUP, CUBE, GROUPING SETS)
+-- ============================================================================
+
+-- Function: rollup_aggregation - Hierarchical subtotals
+-- MySQL / PostgreSQL / SQL Server:
+--   SELECT 
+--     COALESCE(region, 'ALL REGIONS') as region,
+--     COALESCE(country, 'ALL COUNTRIES') as country,
+--     COALESCE(city, 'ALL CITIES') as city,
+--     SUM(sales) as total_sales,
+--     COUNT(*) as count,
+--     GROUPING(region) as region_flag,
+--     GROUPING(country) as country_flag,
+--     GROUPING(city) as city_flag
+--   FROM sales_data
+--   GROUP BY ROLLUP(region, country, city)
+--   ORDER BY region, country, city;
+
+-- SQLite (limited ROLLUP support in older versions, use UNION):
+--   SELECT region, country, city, SUM(sales) as total_sales, COUNT(*) as count
+--   FROM sales_data GROUP BY region, country, city
+--   UNION ALL
+--   SELECT region, country, NULL, SUM(sales), COUNT(*)
+--   FROM sales_data GROUP BY region, country
+--   UNION ALL
+--   SELECT region, NULL, NULL, SUM(sales), COUNT(*)
+--   FROM sales_data GROUP BY region
+--   UNION ALL
+--   SELECT NULL, NULL, NULL, SUM(sales), COUNT(*)
+--   FROM sales_data;
+
+-- Function: cube_aggregation - All dimension combinations
+-- MySQL 8.0+ / PostgreSQL / SQL Server:
+--   SELECT 
+--     COALESCE(product, 'ALL PRODUCTS') as product,
+--     COALESCE(region, 'ALL REGIONS') as region,
+--     COALESCE(year, 'ALL YEARS') as year,
+--     SUM(sales) as total_sales,
+--     GROUPING_ID(product, region, year) as grouping_level
+--   FROM sales_data
+--   GROUP BY CUBE(product, region, year)
+--   ORDER BY grouping_level, product, region, year;
+
+-- PostgreSQL (use GROUPING_ID equivalent):
+--   SELECT 
+--     COALESCE(product, 'ALL PRODUCTS') as product,
+--     COALESCE(region, 'ALL REGIONS') as region,
+--     COALESCE(year, 'ALL YEARS') as year,
+--     SUM(sales) as total_sales,
+--     (GROUPING(product) << 2) | (GROUPING(region) << 1) | GROUPING(year) as grouping_level
+--   FROM sales_data
+--   GROUP BY CUBE(product, region, year)
+--   ORDER BY grouping_level;
+
+-- Function: grouping_sets - Custom grouping combinations
+-- MySQL 8.0+ / PostgreSQL / SQL Server:
+--   SELECT 
+--     COALESCE(region, 'ALL') as region,
+--     COALESCE(product, 'ALL') as product,
+--     SUM(sales) as total_sales
+--   FROM sales_data
+--   GROUP BY GROUPING SETS (
+--     (region, product),
+--     (region),
+--     (product),
+--     ()
+--   )
+--   ORDER BY region, product;
+
+-- ============================================================================
+-- 7. AGGREGATE FILTERING
+-- ============================================================================
+
+-- Function: filter_clause - FILTER clause for selective aggregation
+-- PostgreSQL:
+--   SELECT 
+--     department,
+--     COUNT(*) as total_count,
+--     COUNT(*) FILTER (WHERE status = 'active') as active_count,
+--     COUNT(*) FILTER (WHERE status = 'inactive') as inactive_count,
+--     AVG(salary) FILTER (WHERE status = 'active') as avg_active_salary,
+--     SUM(bonus) FILTER (WHERE bonus IS NOT NULL) as total_bonuses
+--   FROM employees
+--   GROUP BY department;
+
+-- MySQL 8.0+ (emulation with CASE):
+--   SELECT 
+--     department,
+--     COUNT(*) as total_count,
+--     COUNT(CASE WHEN status = 'active' THEN 1 END) as active_count,
+--     COUNT(CASE WHEN status = 'inactive' THEN 1 END) as inactive_count,
+--     AVG(CASE WHEN status = 'active' THEN salary END) as avg_active_salary,
+--     SUM(CASE WHEN bonus IS NOT NULL THEN bonus END) as total_bonuses
+--   FROM employees
+--   GROUP BY department;
+
+-- SQL Server (use CASE):
+--   SELECT 
+--     department,
+--     COUNT(*) as total_count,
+--     COUNT(CASE WHEN status = 'active' THEN 1 END) as active_count,
+--     AVG(CASE WHEN status = 'active' THEN salary END) as avg_active_salary
+--   FROM employees
+--   GROUP BY department;
+
+-- SQLite (use CASE):
+--   Same as MySQL 8.0+ approach
+
+-- Function: having_with_aggregate - HAVING with aggregate conditions
+-- MySQL / PostgreSQL / SQL Server / SQLite:
+--   -- Find departments with average salary above company average
+--   SELECT 
+--     department,
+--     AVG(salary) as avg_salary
+--   FROM employees
+--   GROUP BY department
+--   HAVING AVG(salary) > (SELECT AVG(salary) FROM employees)
+--   ORDER BY avg_salary DESC;
+
+-- Function: multiple_having_conditions - Complex HAVING conditions
+-- MySQL / PostgreSQL / SQL Server / SQLite:
+--   SELECT 
+--     customer_id,
+--     COUNT(*) as order_count,
+--     SUM(total) as total_spent,
+--     AVG(total) as avg_order_value
+--   FROM orders
+--   GROUP BY customer_id
+--   HAVING COUNT(*) >= 5 
+--     AND SUM(total) > 1000
+--     AND AVG(total) > 50
+--   ORDER BY total_spent DESC;
+
+-- ============================================================================
+-- 8. CUMULATIVE AGGREGATIONS
+-- ============================================================================
+
+-- Function: running_total - Cumulative sum over ordered rows
+-- MySQL 8.0+ / PostgreSQL / SQL Server / SQLite:
+--   SELECT 
+--     sale_date,
+--     amount,
+--     SUM(amount) OVER (ORDER BY sale_date) as running_total,
+--     SUM(amount) OVER (
+--       ORDER BY sale_date
+--       ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+--     ) as running_total_explicit
+--   FROM daily_sales
+--   ORDER BY sale_date;
+
+-- Function: running_count - Cumulative count
+-- MySQL 8.0+ / PostgreSQL / SQL Server / SQLite:
+--   SELECT 
+--     sale_date,
+--     amount,
+--     COUNT(*) OVER (ORDER BY sale_date) as running_count,
+--     COUNT(*) OVER (
+--       ORDER BY sale_date
+--       ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+--     ) as running_count_explicit
+--   FROM daily_sales
+--   ORDER BY sale_date;
+
+-- Function: running_average - Moving/cumulative average
+-- MySQL 8.0+ / PostgreSQL / SQL Server / SQLite:
+--   SELECT 
+--     sale_date,
+--     amount,
+--     AVG(amount) OVER (ORDER BY sale_date) as running_avg,
+--     AVG(amount) OVER (
+--       ORDER BY sale_date
+--       ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+--     ) as running_avg_explicit
+--   FROM daily_sales
+--   ORDER BY sale_date;
+
+-- Function: partitioned_running_total - Running total within groups
+-- MySQL 8.0+ / PostgreSQL / SQL Server / SQLite:
+--   SELECT 
+--     department,
+--     employee_name,
+--     salary,
+--     SUM(salary) OVER (
+--       PARTITION BY department 
+--       ORDER BY salary DESC
+--     ) as dept_running_total,
+--     SUM(salary) OVER (ORDER BY salary DESC) as global_running_total
+--   FROM employees
+--   ORDER BY department, salary DESC;
+
+-- Function: year_to_date - YTD aggregations
+-- MySQL 8.0+:
+--   SELECT 
+--     DATE_FORMAT(sale_date, '%Y') as year,
+--     sale_date,
+--     amount,
+--     SUM(amount) OVER (
+--       PARTITION BY YEAR(sale_date)
+--       ORDER BY sale_date
+--     ) as ytd_total,
+--     AVG(amount) OVER (
+--       PARTITION BY YEAR(sale_date)
+--       ORDER BY sale_date
+--       ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+--     ) as ytd_avg
+--   FROM sales
+--   ORDER BY sale_date;
+
+-- PostgreSQL:
+--   SELECT 
+--     EXTRACT(YEAR FROM sale_date) as year,
+--     sale_date,
+--     amount,
+--     SUM(amount) OVER (
+--       PARTITION BY EXTRACT(YEAR FROM sale_date)
+--       ORDER BY sale_date
+--     ) as ytd_total
+--   FROM sales
+--   ORDER BY sale_date;
+
+-- ============================================================================
+-- 9. ADVANCED GROUPING
+-- ============================================================================
+
+-- Function: hierarchical_aggregation - Group by hierarchical levels
+-- MySQL 8.0+ / PostgreSQL / SQL Server / SQLite:
+--   WITH RECURSIVE category_tree AS (
+--     SELECT id, parent_id, name, 1 as level
+--     FROM categories
+--     WHERE parent_id IS NULL
+--     
+--     UNION ALL
+--     
+--     SELECT c.id, c.parent_id, c.name, ct.level + 1
+--     FROM categories c
+--     JOIN category_tree ct ON c.parent_id = ct.id
+--   )
+--   SELECT 
+--     ct.name as category_name,
+--     ct.level,
+--     COUNT(p.id) as product_count,
+--     SUM(p.price * p.stock) as inventory_value
+--   FROM category_tree ct
+--   LEFT JOIN products p ON p.category_id = ct.id
+--   GROUP BY ct.id, ct.name, ct.level
+--   ORDER BY level, ct.name;
+
+-- Function: bucket_aggregation - Group values into buckets/ranges
+-- MySQL / PostgreSQL / SQL Server / SQLite:
+--   SELECT 
+--     CASE 
+--       WHEN age < 18 THEN 'Under 18'
+--       WHEN age BETWEEN 18 AND 24 THEN '18-24'
+--       WHEN age BETWEEN 25 AND 34 THEN '25-34'
+--       WHEN age BETWEEN 35 AND 44 THEN '35-44'
+--       WHEN age BETWEEN 45 AND 54 THEN '45-54'
+--       WHEN age >= 55 THEN '55+'
+--     END as age_group,
+--     COUNT(*) as count,
+--     AVG(income) as avg_income,
+--     AVG(spending) as avg_spending
+--   FROM customers
+--   GROUP BY 
+--     CASE 
+--       WHEN age < 18 THEN 'Under 18'
+--       WHEN age BETWEEN 18 AND 24 THEN '18-24'
+--       WHEN age BETWEEN 25 AND 34 THEN '25-34'
+--       WHEN age BETWEEN 35 AND 44 THEN '35-44'
+--       WHEN age BETWEEN 45 AND 54 THEN '45-54'
+--       WHEN age >= 55 THEN '55+'
+--     END
+--   ORDER BY 
+--     MIN(age);
+
+-- Function: ntile_bucketing - Divide into N equal-sized buckets
+-- MySQL 8.0+ / PostgreSQL / SQL Server / SQLite:
+--   SELECT 
+--     customer_name,
+--     total_purchases,
+--     NTILE(4) OVER (ORDER BY total_purchases) as quartile,
+--     NTILE(10) OVER (ORDER BY total_purchases) as decile,
+--     NTILE(100) OVER (ORDER BY total_purchases) as percentile_bucket
+--   FROM customer_summary
+--   ORDER BY total_purchases DESC;
+
+-- Function: first_last_aggregation - First and last values in groups
+-- MySQL 8.0+ / PostgreSQL / SQL Server / SQLite:
+--   SELECT DISTINCT
+--     department,
+--     FIRST_VALUE(name) OVER (
+--       PARTITION BY department 
+--       ORDER BY hire_date
+--     ) as first_hired,
+--     LAST_VALUE(name) OVER (
+--       PARTITION BY department 
+--       ORDER BY hire_date
+--       ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+--     ) as last_hired,
+--     FIRST_VALUE(salary) OVER (
+--       PARTITION BY department 
+--       ORDER BY hire_date
+--     ) as first_hired_salary,
+--     LAST_VALUE(salary) OVER (
+--       PARTITION BY department 
+--       ORDER BY hire_date
+--       ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+--     ) as last_hired_salary
+--   FROM employees
+--   ORDER BY department;
+
+-- Function: lag_lead_aggregation - Compare with previous/next rows
+-- MySQL 8.0+ / PostgreSQL / SQL Server / SQLite:
+--   SELECT 
+--     sale_date,
+--     amount,
+--     LAG(amount) OVER (ORDER BY sale_date) as previous_day,
+--     LEAD(amount) OVER (ORDER BY sale_date) as next_day,
+--     amount - LAG(amount) OVER (ORDER BY sale_date) as day_over_day_change,
+--     amount - LAG(amount, 7) OVER (ORDER BY sale_date) as week_over_week_change
+--   FROM daily_sales
+--   ORDER BY sale_date;
+
+-- ============================================================================
+-- 10. UTILITY FUNCTIONS
+-- ============================================================================
+
+-- Function: count_distinct_combinations - Count unique combinations
+-- MySQL / PostgreSQL / SQL Server / SQLite:
+--   SELECT 
+--     COUNT(DISTINCT CONCAT(region, '-', country, '-', city)) as unique_locations
+--   FROM sales_data;
+
+-- Alternative (more efficient for some databases):
+--   SELECT COUNT(*) FROM (
+--     SELECT DISTINCT region, country, city
+--     FROM sales_data
+--   ) t;
+
+-- Function: null_handling_in_aggregates - NULL-aware aggregation
+-- MySQL / PostgreSQL / SQL Server / SQLite:
+--   SELECT 
+--     COUNT(*) as total_rows,
+--     COUNT(column_name) as non_null_count,
+--     COUNT(*) - COUNT(column_name) as null_count,
+--     ROUND((COUNT(*) - COUNT(column_name)) * 100.0 / COUNT(*), 2) as null_percentage
+--   FROM table_name;
+
+-- Function: weighted_average - Calculate weighted average
+-- MySQL / PostgreSQL / SQL Server / SQLite:
+--   SELECT 
+--     product_category,
+--     SUM(price * quantity) / SUM(quantity) as weighted_avg_price,
+--     AVG(price) as simple_avg_price
+--   FROM sales
+--   GROUP BY product_category;
+
+-- Function: deduplicated_count - Count distinct with conditions
+-- MySQL / PostgreSQL / SQL Server / SQLite:
+--   SELECT 
+--     department,
+--     COUNT(DISTINCT employee_id) as unique_employees,
+--     COUNT(DISTINCT CASE WHEN status = 'active' THEN employee_id END) as active_employees,
+--     COUNT(DISTINCT CASE WHEN hire_date >= '2024-01-01' THEN employee_id END) as new_hires
+--   FROM employees
+--   GROUP BY department;
+
+-- Function: top_n_per_group - Get top N items per group
+-- MySQL 8.0+ / PostgreSQL / SQL Server / SQLite:
+--   WITH ranked AS (
+--     SELECT 
+--       department,
+--       employee_name,
+--       salary,
+--       ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC) as rn
+--     FROM employees
+--   )
+--   SELECT department, employee_name, salary
+--   FROM ranked
+--   WHERE rn <= 3
+--   ORDER BY department, rn;
+
+-- Function: bottom_n_per_group - Get bottom N items per group
+-- MySQL 8.0+ / PostgreSQL / SQL Server / SQLite:
+--   WITH ranked AS (
+--     SELECT 
+--       department,
+--       employee_name,
+--       salary,
+--       ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary ASC) as rn
+--     FROM employees
+--   )
+--   SELECT department, employee_name, salary
+--   FROM ranked
+--   WHERE rn <= 3
+--   ORDER BY department, rn;
+
+-- ============================================================================
+-- END OF MODULE
+-- ============================================================================

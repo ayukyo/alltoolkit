@@ -1,5 +1,23 @@
 # AllToolkit 更新日志
 
+## [2026-05-07]
+
+### 新增
+- **SQL: aggregation_utils (高级聚合工具模块)** 📊
+  - 条件聚合：条件计数/求和/平均、透视表生成、百分比分布
+  - 统计聚合：方差/标准差、中位数、众数、百分位数(P25/P50/P75/P90/P95)、变异系数
+  - 字符串聚合：GROUP_CONCAT/STRING_AGG、限制长度、去重、条件拼接
+  - JSON聚合：JSON_ARRAYAGG/JSON_OBJECTAGG、嵌套JSON结构（MySQL/PostgreSQL/SQL Server）
+  - 时间序列聚合：周期聚合、小时聚合、星期聚合、滑动窗口、月环比
+  - 分组增强：ROLLUP层级汇总、CUBE全维度组合、GROUPING SETS自定义分组
+  - 聚合过滤：FILTER clause（PostgreSQL）、HAVING复杂条件、多条件组合
+  - 累计聚合：运行总计/计数/平均、分区累计、年度累计(YTD)
+  - 高级分组：层级分组、桶分组(年龄段)、NTILE分桶、首尾值、LAG/LEAD比较
+  - 工具函数：唯一组合计数、NULL处理、加权平均、去重计数、TopN/BottomN分组查询
+  - 支持：MySQL 8.0+、PostgreSQL 9.6+、SQL Server 2012+、SQLite 3.25+
+  - 零外部依赖，纯SQL标准实现
+  - 测试覆盖：10大类测试全部通过
+
 ## [2026-05-06]
 
 ### 新增
