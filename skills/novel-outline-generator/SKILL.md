@@ -1,7 +1,7 @@
 ---
 name: novel-outline-generator
 description: 小说大纲生成技能。支持爽文/现实主义/言情/悬疑等多题材，AI动态生成300章独特事件，输出精简章节规划表（10列核心版）+ bible.json人物圣经。**v4.0新增多源整合题材创新**，整合微博热搜、抖音热点、番茄榜单、知乎热榜等数据源，AI综合思考创新组合方向，确保市场潜力+原创性。
-metadata: {"recommendedThinking": "high", "version": "4.5", "namingConvention": "古诗词名/真实姓氏", "dataSources": ["微博热搜", "抖音热点", "番茄榜单", "知乎热榜", "AI自主"], "fixHistory": ["v4.1: 强制web_search+历史去重+连续三轮逻辑", "v4.2: 文件替换规则+禁止保存到新文件名", "v4.3: 统一文件命名规范+检查报告合并", "v4.4: 全文件检查+大纲.md简介.md验证", "v4.5: 剧情一致性检查+大纲与CSV细节验证"]}
+metadata: {"recommendedThinking": "high", "version": "4.6", "namingConvention": "古诗词名/真实姓氏", "dataSources": ["微博热搜", "抖音热点", "番茄榜单", "知乎热榜", "AI自主"], "fixHistory": ["v4.1: 强制web_search+历史去重+连续三轮逻辑", "v4.2: 文件替换规则+禁止保存到新文件名", "v4.3: 统一文件命名规范+检查报告合并", "v4.4: 全文件检查+大纲.md简介.md验证", "v4.5: 剧情一致性检查+大纲与CSV细节验证", "v4.6: 强化历史书名去重+明确检查命令+禁止重复书名列表"]}
 ---
 
 # 小说大纲生成技能 v4.0（多源整合创新版）
@@ -20,6 +20,7 @@ metadata: {"recommendedThinking": "high", "version": "4.5", "namingConvention": 
 | v4.3 | **统一命名规范**：所有文件禁止版本后缀，检查报告合并为单一文件，禁止创建多个检查报告变体 |
 | v4.4 | **全文件检查**：新增大纲.md简介.md验证函数，定时任务检查所有核心文件，书名题材一致性检查 |
 | v4.5 | **剧情一致性检查**：大纲.md剧情阶段与章节规划表.csv事件匹配，关键人物登场阶段验证，多线剧情一致性 |
+| v4.6 | **强化历史书名去重**：明确检查命令、禁止重复书名列表、必须检查整个novel-ideas目录不能只检查当天 |
 
 ---
 
@@ -827,9 +828,25 @@ verify_fix_success(csv_data_verify)
 
 **步骤0：检查历史生成记录（强制去重）**
 ```
-读取 novel-ideas/ 目录下所有已生成的 bible.json 文件
-提取已使用的书名列表
+⚠️ 关键：必须检查整个novel-ideas目录，不能只检查当天目录！
+
+执行命令（必须）：
+ls novel-ideas/*/bible.json | xargs -I{} jq -r '.书名' {} | sort | uniq
+
+或使用 read 工具：
+read novel-ideas/*/bible.json 读取所有bible.json文件，提取书名字段
+
+已生成书名列表（从所有历史目录）：
+- novel-ideas/业力外卖员_2026-04-30/bible.json → 业力外卖员
+- novel-ideas/业力外卖员_2026-05-02/bible.json → 业力外卖员
+- novel-ideas/业力外卖员_2026-05-03/bible.json → 业力外卖员
+- novel-ideas/命痕整形师_2026-05-05/bible.json → 命痕整形师
+- novel-ideas/我在中介看见房子的前世_2026-05-04/bible.json → 我在中介看见房子的前世
+- novel-ideas/数字遗嘱_2026-05-01/bible.json → 数字遗嘱
+- novel-ideas/漆夜_2026-04-30/bible.json → 漆夜
+
 确认新书名不能与任何已用书名重复（包括题材组合相似）
+如果发现重复，必须重新生成新书名，不能继续使用重复书名！
 ```
 
 **步骤1：使用 web_search 工具获取热点数据**
@@ -1619,7 +1636,7 @@ def generate_event(chapter, genre, setting, previous_events):
 
 ---
 
-## ✅ 质量检查清单（v4.5）
+## ✅ 质量检查清单（v4.6）
 
 ### 第一阶段：大纲生成（6:00）
 
