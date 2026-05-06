@@ -168,6 +168,15 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ### 最近新增测试
 
+- **Python issn_utils**: 21 个测试用例，覆盖 ISSN-8/ISSN-13 验证、转换、格式化、ISSN-L 处理、批量验证、文本提取等 📚
+- **Python keyboard_utils**: 21 个测试用例，覆盖键盘布局分析、距离计算、效率评分、布局转换、多种布局支持（QWERTY/Dvorak/Colemak/AZERTY/QWERTZ）等 ⌨️
+- **Python levenshtein_utils**: 16 个测试用例，覆盖 Levenshtein/Damerau-Levenshtein 距离、相似度计算、模糊搜索、编辑序列、汉明距离等 🔤
+- **Python license_plate_utils**: 20 个测试用例，覆盖中国车牌验证、解析、生成、省份识别、特殊车牌（警用/使馆/临时/电动车）等 🚗
+- **Python physics_utils**: 18 个测试用例，覆盖向量运算、运动学、动力学、能量、波、电磁学、相对论、单位转换等 ⚛️
+- **Python registry_utils**: 22 个测试用例，覆盖注册表模式、命名空间、标签、装饰器、服务/插件/处理器/工厂/类型注册等 📋
+- **Python shamir_secret_sharing_utils**: 23 个测试用例，覆盖 Shamir 秘密分享、GF(2^8) 字节分享、哈希验证、阈值验证等 🔐
+- **Python storage_unit_utils**: 30 个测试用例，覆盖存储单位转换（Decimal/Binary）、格式化、解析、进度条、带宽计算等 💾
+
 - **Python ical_utils**: 35 个测试用例，覆盖 iCalendar 格式解析、事件管理、重复规则（RRULE）、日期范围查询、时区处理等 📅
 - **Python spline_utils**: 14 个测试用例，覆盖样条曲线插值（线性/二次/三次/贝塞尔）、曲线长度计算、重采样、点列平滑等 📈
 - **Python syllable_utils**: 18 个测试用例，覆盖音节计数、句子分析、韵律分析、俳句建议、可读性分数等 📝
