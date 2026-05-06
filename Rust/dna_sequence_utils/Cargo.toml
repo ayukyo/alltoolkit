@@ -1,0 +1,17 @@
+[package]
+name = "dna_sequence_utils"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit <alltoolkit@example.com>"]
+description = "DNA/RNA sequence analysis and manipulation utilities for bioinformatics"
+license = "MIT"
+keywords = ["dna", "rna", "bioinformatics", "genetics", "sequence"]
+categories = ["science", "algorithms"]
+
+[lib]
+name = "dna_sequence_utils"
+path = "src/lib.rs"
+
+[dependencies]
+
+[dev-dependencies]
