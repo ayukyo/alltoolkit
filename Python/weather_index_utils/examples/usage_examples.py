@@ -7,7 +7,7 @@ Weather Index Utils 使用示例
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from weather_index_utils.mod import (
     WeatherIndexCalculator,
