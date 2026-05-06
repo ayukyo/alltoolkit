@@ -1,301 +1,170 @@
 """
-rate_limiter_utils - 速率限制器工具集
+Rate Limiter Utils - 速率限制器工具集
 
-提供多种速率限制算法的实现，支持：
-- 滑动窗口计数器 (Sliding Window Counter)
-- 令牌桶 (Token Bucket)
-- 漏桶 (Leaky Bucket)
-- 固定窗口计数器 (Fixed Window Counter)
+提供多种速率限制算法的实现，用于控制请求频率、防止系统过载。
 
-所有实现均为零外部依赖，纯 Python 标准库实现。
+支持算法：
+- TokenBucket: 令牌桶算法，允许突发流量
+- LeakyBucket: 漏桶算法，平滑输出流量
+- SlidingWindow: 滑动窗口算法，精确控制
+- FixedWindow: 固定窗口算法，简单高效
 
-作者: AllToolkit
-日期: 2026-04-19
+零外部依赖，仅使用Python标准库。
 """
 
 import time
 import threading
-from abc import ABC, abstractmethod
 from collections import deque
-from dataclasses import dataclass
 from typing import Optional, Callable, Any
-from enum import Enum
-
-
-class RateLimitResult:
-    """速率限制检查结果"""
-    
-    def __init__(self, allowed: bool, remaining: int, reset_time: float, retry_after: float = 0):
-        """
-        初始化结果
-        
-        Args:
-            allowed: 是否允许请求
-            remaining: 剩余配额
-            reset_time: 配额重置时间戳
-            retry_after: 需要等待的秒数（仅当不允许时有效）
-        """
-        self.allowed = allowed
-        self.remaining = remaining
-        self.reset_time = reset_time
-        self.retry_after = retry_after
-    
-    def __repr__(self):
-        return (f"RateLimitResult(allowed={self.allowed}, remaining={self.remaining}, "
-                f"reset_time={self.reset_time:.2f}, retry_after={self.retry_after:.2f})")
-    
-    def to_dict(self) -> dict:
-        """转换为字典"""
-        return {
-            'allowed': self.allowed,
-            'remaining': self.remaining,
-            'reset_time': self.reset_time,
-            'retry_after': self.retry_after
-        }
+from abc import ABC, abstractmethod
+from functools import wraps
 
 
 class RateLimiterBase(ABC):
     """速率限制器基类"""
     
-    def __init__(self, max_requests: int, window_seconds: float):
-        """
-        初始化速率限制器
-        
-        Args:
-            max_requests: 时间窗口内允许的最大请求数
-            window_seconds: 时间窗口大小（秒）
-        """
-        self.max_requests = max_requests
-        self.window_seconds = window_seconds
-        self._lock = threading.Lock()
-    
     @abstractmethod
-    def try_acquire(self, tokens: int = 1) -> RateLimitResult:
+    def acquire(self, tokens: int = 1) -> bool:
         """
         尝试获取许可
         
         Args:
-            tokens: 请求的令牌数（默认为1）
+            tokens: 需要的令牌数量
             
         Returns:
-            RateLimitResult: 检查结果
+            是否成功获取
         """
         pass
     
     @abstractmethod
-    def get_state(self) -> dict:
-        """获取当前状态（用于监控/调试）"""
+    def wait_for(self, tokens: int = 1, timeout: Optional[float] = None) -> bool:
+        """
+        等待直到获取许可
+        
+        Args:
+            tokens: 需要的令牌数量
+            timeout: 超时时间（秒），None表示无限等待
+            
+        Returns:
+            是否成功获取
+        """
         pass
     
-    def reset(self):
-        """重置限制器状态"""
+    @property
+    @abstractmethod
+    def available(self) -> float:
+        """当前可用许可数量"""
         pass
 
 
-class FixedWindowRateLimiter(RateLimiterBase):
-    """
-    固定窗口计数器算法
-    
-    特点：
-    - 实现简单，内存占用小
-    - 存在边界突发问题（两个窗口交界处可能突破限制）
-    - 适合对精度要求不高的场景
-    """
-    
-    def __init__(self, max_requests: int, window_seconds: float):
-        super().__init__(max_requests, window_seconds)
-        self._count = 0
-        self._window_start = time.time()
-    
-    def _get_current_window_start(self) -> float:
-        """获取当前窗口的起始时间"""
-        now = time.time()
-        window_start = self._window_start
-        elapsed = now - window_start
-        
-        if elapsed >= self.window_seconds:
-            # 进入新窗口
-            windows_passed = int(elapsed // self.window_seconds)
-            self._window_start = window_start + windows_passed * self.window_seconds
-            self._count = 0
-        
-        return self._window_start
-    
-    def try_acquire(self, tokens: int = 1) -> RateLimitResult:
-        with self._lock:
-            self._get_current_window_start()
-            
-            remaining = max(0, self.max_requests - self._count)
-            reset_time = self._window_start + self.window_seconds
-            
-            if self._count + tokens <= self.max_requests:
-                self._count += tokens
-                remaining = self.max_requests - self._count
-                return RateLimitResult(True, remaining, reset_time)
-            else:
-                retry_after = reset_time - time.time()
-                return RateLimitResult(False, 0, reset_time, retry_after)
-    
-    def get_state(self) -> dict:
-        with self._lock:
-            self._get_current_window_start()
-            return {
-                'type': 'fixed_window',
-                'count': self._count,
-                'max_requests': self.max_requests,
-                'window_seconds': self.window_seconds,
-                'window_start': self._window_start,
-                'window_end': self._window_start + self.window_seconds
-            }
-    
-    def reset(self):
-        with self._lock:
-            self._count = 0
-            self._window_start = time.time()
-
-
-class SlidingWindowRateLimiter(RateLimiterBase):
-    """
-    滑动窗口计数器算法
-    
-    特点：
-    - 精确控制速率，无边界突发问题
-    - 使用时间戳队列记录请求
-    - 适合需要精确控制的场景
-    """
-    
-    def __init__(self, max_requests: int, window_seconds: float):
-        super().__init__(max_requests, window_seconds)
-        self._timestamps: deque = deque()
-    
-    def _cleanup(self):
-        """清理过期的请求记录"""
-        now = time.time()
-        cutoff = now - self.window_seconds
-        while self._timestamps and self._timestamps[0] < cutoff:
-            self._timestamps.popleft()
-    
-    def try_acquire(self, tokens: int = 1) -> RateLimitResult:
-        with self._lock:
-            self._cleanup()
-            
-            current_count = len(self._timestamps)
-            remaining = max(0, self.max_requests - current_count)
-            
-            # 计算最老请求过期的时间作为重置时间
-            if self._timestamps:
-                oldest = self._timestamps[0]
-                reset_time = oldest + self.window_seconds
-            else:
-                reset_time = time.time() + self.window_seconds
-            
-            if current_count + tokens <= self.max_requests:
-                now = time.time()
-                for _ in range(tokens):
-                    self._timestamps.append(now)
-                remaining = self.max_requests - len(self._timestamps)
-                return RateLimitResult(True, remaining, reset_time)
-            else:
-                retry_after = reset_time - time.time()
-                return RateLimitResult(False, 0, reset_time, retry_after)
-    
-    def get_state(self) -> dict:
-        with self._lock:
-            self._cleanup()
-            timestamps = list(self._timestamps)
-            return {
-                'type': 'sliding_window',
-                'count': len(timestamps),
-                'max_requests': self.max_requests,
-                'window_seconds': self.window_seconds,
-                'oldest_request': timestamps[0] if timestamps else None,
-                'newest_request': timestamps[-1] if timestamps else None
-            }
-    
-    def reset(self):
-        with self._lock:
-            self._timestamps.clear()
-
-
-class TokenBucketRateLimiter(RateLimiterBase):
+class TokenBucket(RateLimiterBase):
     """
     令牌桶算法
     
-    特点：
-    - 支持突发流量（令牌可累积）
-    - 平滑限流
-    - 适合需要处理突发流量的场景
+    以固定速率向桶中添加令牌，请求消耗令牌。
+    允许一定程度的突发流量（桶满时）。
     
-    参数：
-        max_requests: 桶的最大容量
-        window_seconds: 填满桶所需的时间
+    特点：
+    - 平滑限流
+    - 允许突发流量
+    - 内存效率高
     """
     
-    def __init__(self, max_requests: int, window_seconds: float, initial_tokens: Optional[float] = None):
-        super().__init__(max_requests, window_seconds)
-        # 每秒添加的令牌数
-        self._rate = max_requests / window_seconds
-        # 当前令牌数
-        self._tokens = initial_tokens if initial_tokens is not None else float(max_requests)
-        # 上次更新时间
-        self._last_update = time.time()
+    def __init__(self, capacity: int, refill_rate: float):
+        """
+        初始化令牌桶
+        
+        Args:
+            capacity: 桶容量（最大令牌数）
+            refill_rate: 令牌填充速率（令牌/秒）
+        """
+        if capacity <= 0:
+            raise ValueError("Capacity must be positive")
+        if refill_rate <= 0:
+            raise ValueError("Refill rate must be positive")
+            
+        self._capacity = capacity
+        self._refill_rate = refill_rate
+        self._tokens = float(capacity)
+        self._last_refill = time.time()
+        self._lock = threading.Lock()
     
-    def _refill(self):
-        """补充令牌"""
+    def _refill(self) -> None:
+        """重新填充令牌"""
         now = time.time()
-        elapsed = now - self._last_update
-        new_tokens = elapsed * self._rate
-        self._tokens = min(self.max_requests, self._tokens + new_tokens)
-        self._last_update = now
+        elapsed = now - self._last_refill
+        tokens_to_add = elapsed * self._refill_rate
+        self._tokens = min(self._capacity, self._tokens + tokens_to_add)
+        self._last_refill = now
     
-    def try_acquire(self, tokens: int = 1) -> RateLimitResult:
+    def acquire(self, tokens: int = 1) -> bool:
+        if tokens <= 0:
+            raise ValueError("Tokens must be positive")
+            
         with self._lock:
             self._refill()
-            
-            remaining = int(self._tokens)
-            
             if self._tokens >= tokens:
                 self._tokens -= tokens
-                remaining = int(self._tokens)
-                # 下一个令牌可用时间
-                if self._tokens < 1:
-                    reset_time = self._last_update + (1 - self._tokens) / self._rate
-                else:
-                    reset_time = self._last_update
-                return RateLimitResult(True, remaining, reset_time)
-            else:
-                # 计算需要等待的时间
-                needed = tokens - self._tokens
-                retry_after = needed / self._rate
-                reset_time = time.time() + retry_after
-                return RateLimitResult(False, 0, reset_time, retry_after)
+                return True
+            return False
     
-    def get_state(self) -> dict:
+    def wait_for(self, tokens: int = 1, timeout: Optional[float] = None) -> bool:
+        if tokens > self._capacity:
+            return False
+            
+        start_time = time.time()
+        while True:
+            if self.acquire(tokens):
+                return True
+                
+            if timeout is not None:
+                elapsed = time.time() - start_time
+                if elapsed >= timeout:
+                    return False
+                    
+            # 计算需要等待的时间
+            with self._lock:
+                self._refill()
+                needed = tokens - self._tokens
+                if needed <= 0:
+                    continue
+                wait_time = needed / self._refill_rate
+                
+            if timeout is not None:
+                elapsed = time.time() - start_time
+                remaining = timeout - elapsed
+                if remaining <= 0:
+                    return False
+                wait_time = min(wait_time, remaining)
+                
+            time.sleep(min(wait_time, 0.01))
+    
+    @property
+    def available(self) -> float:
         with self._lock:
             self._refill()
-            return {
-                'type': 'token_bucket',
-                'tokens': self._tokens,
-                'max_requests': self.max_requests,
-                'window_seconds': self.window_seconds,
-                'rate_per_second': self._rate,
-                'last_update': self._last_update
-            }
+            return self._tokens
     
-    def reset(self):
-        with self._lock:
-            self._tokens = float(self.max_requests)
-            self._last_update = time.time()
+    @property
+    def capacity(self) -> int:
+        return self._capacity
+    
+    @property
+    def refill_rate(self) -> float:
+        return self._refill_rate
 
 
-class LeakyBucketRateLimiter(RateLimiterBase):
+class LeakyBucket(RateLimiterBase):
     """
     漏桶算法
     
+    请求以任意速率进入桶中，以固定速率流出。
+    强制平滑输出流量，不允许突发。
+    
     特点：
-    - 以恒定速率处理请求
-    - 无突发流量，严格限流
-    - 适合需要严格控制流出速率的场景
+    - 严格限流
+    - 平滑输出
+    - 防止突发流量
     """
     
     def __init__(self, capacity: int, leak_rate: float):
@@ -303,15 +172,21 @@ class LeakyBucketRateLimiter(RateLimiterBase):
         初始化漏桶
         
         Args:
-            capacity: 桶的容量（最大排队请求数）
+            capacity: 桶容量
             leak_rate: 漏出速率（请求/秒）
         """
-        super().__init__(capacity, 1.0)  # window_seconds 不适用于漏桶
-        self._leak_rate = leak_rate  # 每秒处理的请求数
-        self._water = 0.0  # 当前水量
+        if capacity <= 0:
+            raise ValueError("Capacity must be positive")
+        if leak_rate <= 0:
+            raise ValueError("Leak rate must be positive")
+            
+        self._capacity = capacity
+        self._leak_rate = leak_rate
+        self._water = 0.0
         self._last_leak = time.time()
+        self._lock = threading.Lock()
     
-    def _leak(self):
+    def _leak(self) -> None:
         """漏水"""
         now = time.time()
         elapsed = now - self._last_leak
@@ -319,224 +194,486 @@ class LeakyBucketRateLimiter(RateLimiterBase):
         self._water = max(0, self._water - leaked)
         self._last_leak = now
     
-    def try_acquire(self, tokens: int = 1) -> RateLimitResult:
+    def acquire(self, tokens: int = 1) -> bool:
+        if tokens <= 0:
+            raise ValueError("Tokens must be positive")
+            
         with self._lock:
             self._leak()
-            
-            remaining = int(self.max_requests - self._water)
-            
-            if self._water + tokens <= self.max_requests:
+            if self._water + tokens <= self._capacity:
                 self._water += tokens
-                remaining = int(self.max_requests - self._water)
-                # 桶完全漏空的时间
-                reset_time = self._last_leak + self._water / self._leak_rate
-                return RateLimitResult(True, remaining, reset_time)
-            else:
-                # 计算需要等待的时间
-                overflow = self._water + tokens - self.max_requests
-                retry_after = overflow / self._leak_rate
-                reset_time = time.time() + retry_after
-                return RateLimitResult(False, 0, reset_time, retry_after)
+                return True
+            return False
     
-    def get_state(self) -> dict:
+    def wait_for(self, tokens: int = 1, timeout: Optional[float] = None) -> bool:
+        if tokens > self._capacity:
+            return False
+            
+        start_time = time.time()
+        while True:
+            if self.acquire(tokens):
+                return True
+                
+            if timeout is not None:
+                elapsed = time.time() - start_time
+                if elapsed >= timeout:
+                    return False
+                    
+            # 计算需要等待的时间
+            with self._lock:
+                self._leak()
+                wait_time = (self._water + tokens - self._capacity) / self._leak_rate
+                wait_time = max(0, wait_time)
+                
+            if timeout is not None:
+                elapsed = time.time() - start_time
+                remaining = timeout - elapsed
+                if remaining <= 0:
+                    return False
+                wait_time = min(wait_time, remaining)
+                
+            time.sleep(min(wait_time, 0.01))
+    
+    @property
+    def available(self) -> float:
         with self._lock:
             self._leak()
-            return {
-                'type': 'leaky_bucket',
-                'water': self._water,
-                'capacity': self.max_requests,
-                'leak_rate': self._leak_rate,
-                'last_leak': self._last_leak
-            }
+            return self._capacity - self._water
     
-    def reset(self):
-        with self._lock:
-            self._water = 0.0
-            self._last_leak = time.time()
+    @property
+    def capacity(self) -> int:
+        return self._capacity
+    
+    @property
+    def leak_rate(self) -> float:
+        return self._leak_rate
 
 
-class RateLimiterRegistry:
+class SlidingWindow(RateLimiterBase):
     """
-    速率限制器注册表
+    滑动窗口算法
     
-    管理多个命名限制器，支持按 key（如用户ID、IP等）进行限制
+    在滑动时间窗口内统计请求数量，精确控制速率。
+    使用时间戳队列实现。
+    
+    特点：
+    - 精确限流
+    - 无突发流量
+    - 内存使用与窗口大小成正比
     """
     
-    def __init__(self, limiter_class: type, max_requests: int, window_seconds: float, **limiter_kwargs):
+    def __init__(self, max_requests: int, window_seconds: float):
         """
-        初始化注册表
+        初始化滑动窗口
         
         Args:
-            limiter_class: 限制器类
-            max_requests: 最大请求数
-            window_seconds: 时间窗口
-            **limiter_kwargs: 传递给限制器的其他参数
+            max_requests: 窗口内最大请求数
+            window_seconds: 窗口大小（秒）
         """
-        self._limiter_class = limiter_class
+        if max_requests <= 0:
+            raise ValueError("Max requests must be positive")
+        if window_seconds <= 0:
+            raise ValueError("Window seconds must be positive")
+            
+        self._max_requests = max_requests
+        self._window = window_seconds
+        self._timestamps: deque = deque()
+        self._lock = threading.Lock()
+    
+    def _cleanup(self) -> None:
+        """清理过期时间戳"""
+        cutoff = time.time() - self._window
+        while self._timestamps and self._timestamps[0] <= cutoff:
+            self._timestamps.popleft()
+    
+    def acquire(self, tokens: int = 1) -> bool:
+        if tokens <= 0:
+            raise ValueError("Tokens must be positive")
+            
+        with self._lock:
+            self._cleanup()
+            if len(self._timestamps) + tokens <= self._max_requests:
+                now = time.time()
+                for _ in range(tokens):
+                    self._timestamps.append(now)
+                return True
+            return False
+    
+    def wait_for(self, tokens: int = 1, timeout: Optional[float] = None) -> bool:
+        if tokens > self._max_requests:
+            return False
+            
+        start_time = time.time()
+        while True:
+            if self.acquire(tokens):
+                return True
+                
+            if timeout is not None:
+                elapsed = time.time() - start_time
+                if elapsed >= timeout:
+                    return False
+            
+            # 计算需要等待的时间
+            with self._lock:
+                self._cleanup()
+                if len(self._timestamps) + tokens <= self._max_requests:
+                    continue
+                # 等待最旧的请求过期
+                oldest = self._timestamps[0] if self._timestamps else time.time()
+                wait_time = oldest + self._window - time.time() + 0.001
+                
+            if timeout is not None:
+                elapsed = time.time() - start_time
+                remaining = timeout - elapsed
+                if remaining <= 0:
+                    return False
+                wait_time = min(wait_time, remaining)
+                
+            time.sleep(max(0, min(wait_time, 0.01)))
+    
+    @property
+    def available(self) -> float:
+        with self._lock:
+            self._cleanup()
+            return self._max_requests - len(self._timestamps)
+    
+    @property
+    def max_requests(self) -> int:
+        return self._max_requests
+    
+    @property
+    def window_seconds(self) -> float:
+        return self._window
+    
+    @property
+    def current_count(self) -> int:
+        """当前窗口内的请求数"""
+        with self._lock:
+            self._cleanup()
+            return len(self._timestamps)
+
+
+class FixedWindow(RateLimiterBase):
+    """
+    固定窗口算法
+    
+    在固定时间窗口内限制请求数量。
+    实现简单，但在窗口边界可能有问题（突发）。
+    
+    特点：
+    - 实现简单
+    - 内存效率高
+    - 边界突发问题
+    """
+    
+    def __init__(self, max_requests: int, window_seconds: float):
+        """
+        初始化固定窗口
+        
+        Args:
+            max_requests: 窗口内最大请求数
+            window_seconds: 窗口大小（秒）
+        """
+        if max_requests <= 0:
+            raise ValueError("Max requests must be positive")
+        if window_seconds <= 0:
+            raise ValueError("Window seconds must be positive")
+            
+        self._max_requests = max_requests
+        self._window = window_seconds
+        self._count = 0
+        self._window_start = time.time()
+        self._lock = threading.Lock()
+    
+    def _check_window(self) -> None:
+        """检查是否需要重置窗口"""
+        now = time.time()
+        if now - self._window_start >= self._window:
+            self._count = 0
+            self._window_start = now
+    
+    def acquire(self, tokens: int = 1) -> bool:
+        if tokens <= 0:
+            raise ValueError("Tokens must be positive")
+            
+        with self._lock:
+            self._check_window()
+            if self._count + tokens <= self._max_requests:
+                self._count += tokens
+                return True
+            return False
+    
+    def wait_for(self, tokens: int = 1, timeout: Optional[float] = None) -> bool:
+        if tokens > self._max_requests:
+            return False
+            
+        start_time = time.time()
+        while True:
+            if self.acquire(tokens):
+                return True
+                
+            if timeout is not None:
+                elapsed = time.time() - start_time
+                if elapsed >= timeout:
+                    return False
+            
+            # 计算需要等待的时间
+            with self._lock:
+                self._check_window()
+                if self._count + tokens <= self._max_requests:
+                    continue
+                elapsed_in_window = time.time() - self._window_start
+                wait_time = self._window - elapsed_in_window + 0.001
+                
+            if timeout is not None:
+                elapsed = time.time() - start_time
+                remaining = timeout - elapsed
+                if remaining <= 0:
+                    return False
+                wait_time = min(wait_time, remaining)
+                
+            time.sleep(max(0, min(wait_time, 0.01)))
+    
+    @property
+    def available(self) -> float:
+        with self._lock:
+            self._check_window()
+            return self._max_requests - self._count
+    
+    @property
+    def max_requests(self) -> int:
+        return self._max_requests
+    
+    @property
+    def window_seconds(self) -> float:
+        return self._window
+    
+    @property
+    def current_count(self) -> int:
+        """当前窗口内的请求数"""
+        with self._lock:
+            self._check_window()
+            return self._count
+    
+    @property
+    def time_until_reset(self) -> float:
+        """距离窗口重置的时间"""
+        with self._lock:
+            self._check_window()
+            elapsed = time.time() - self._window_start
+            return max(0, self._window - elapsed)
+
+
+class RateLimiter:
+    """
+    综合速率限制器
+    
+    提供便捷的接口和装饰器支持。
+    """
+    
+    ALGORITHM_TOKEN_BUCKET = 'token_bucket'
+    ALGORITHM_LEAKY_BUCKET = 'leaky_bucket'
+    ALGORITHM_SLIDING_WINDOW = 'sliding_window'
+    ALGORITHM_FIXED_WINDOW = 'fixed_window'
+    
+    def __init__(
+        self,
+        max_requests: int,
+        window_seconds: float = 1.0,
+        algorithm: str = ALGORITHM_TOKEN_BUCKET
+    ):
+        """
+        创建速率限制器
+        
+        Args:
+            max_requests: 最大请求数
+            window_seconds: 时间窗口（秒）
+            algorithm: 算法类型
+            
+        Algorithms:
+            - token_bucket: 令牌桶，允许突发
+            - leaky_bucket: 漏桶，平滑输出
+            - sliding_window: 滑动窗口，精确控制
+            - fixed_window: 固定窗口，简单高效
+        """
+        self._algorithm = algorithm
+        
+        if algorithm == self.ALGORITHM_TOKEN_BUCKET:
+            self._limiter = TokenBucket(max_requests, max_requests / window_seconds)
+        elif algorithm == self.ALGORITHM_LEAKY_BUCKET:
+            self._limiter = LeakyBucket(max_requests, max_requests / window_seconds)
+        elif algorithm == self.ALGORITHM_SLIDING_WINDOW:
+            self._limiter = SlidingWindow(max_requests, window_seconds)
+        elif algorithm == self.ALGORITHM_FIXED_WINDOW:
+            self._limiter = FixedWindow(max_requests, window_seconds)
+        else:
+            raise ValueError(f"Unknown algorithm: {algorithm}")
+    
+    @property
+    def algorithm(self) -> str:
+        return self._algorithm
+    
+    def acquire(self, tokens: int = 1) -> bool:
+        return self._limiter.acquire(tokens)
+    
+    def wait_for(self, tokens: int = 1, timeout: Optional[float] = None) -> bool:
+        return self._limiter.wait_for(tokens, timeout)
+    
+    @property
+    def available(self) -> float:
+        return self._limiter.available
+    
+    def limit(
+        self,
+        tokens: int = 1,
+        timeout: Optional[float] = None,
+        on_limit: Optional[Callable[[], Any]] = None
+    ) -> Callable:
+        """
+        装饰器：限制函数调用速率
+        
+        Args:
+            tokens: 每次调用消耗的令牌数
+            timeout: 等待超时
+            on_limit: 被限制时的回调，返回值将作为函数返回值
+            
+        Returns:
+            装饰后的函数
+            
+        Example:
+            >>> limiter = RateLimiter(10, 1.0)
+            >>> @limiter.limit(on_limit=lambda: None)
+            ... def api_call():
+            ...     return "result"
+        """
+        def decorator(func: Callable) -> Callable:
+            @wraps(func)
+            def wrapper(*args, **kwargs):
+                # 当没有超时但有回调时，使用即时检查
+                # 当有超时或没有回调时，使用等待模式
+                if timeout is None and on_limit is not None:
+                    # 即时检查，不等待
+                    if not self.acquire(tokens):
+                        return on_limit()
+                else:
+                    # 等待模式（可超时）
+                    if not self.wait_for(tokens, timeout):
+                        if on_limit is not None:
+                            return on_limit()
+                        raise RuntimeError("Rate limit exceeded")
+                return func(*args, **kwargs)
+            return wrapper
+        return decorator
+
+
+class MultiRateLimiter:
+    """
+    多键速率限制器
+    
+    为不同的键维护独立的速率限制器。
+    适用于多用户、多接口场景。
+    """
+    
+    def __init__(
+        self,
+        max_requests: int,
+        window_seconds: float = 1.0,
+        algorithm: str = RateLimiter.ALGORITHM_TOKEN_BUCKET,
+        max_keys: int = 10000
+    ):
+        """
+        Args:
+            max_requests: 每个键的最大请求数
+            window_seconds: 时间窗口
+            algorithm: 算法类型
+            max_keys: 最大键数量（防止内存泄漏）
+        """
         self._max_requests = max_requests
         self._window_seconds = window_seconds
-        self._limiter_kwargs = limiter_kwargs
+        self._algorithm = algorithm
+        self._max_keys = max_keys
         self._limiters: dict[str, RateLimiterBase] = {}
         self._lock = threading.Lock()
     
     def _get_limiter(self, key: str) -> RateLimiterBase:
-        """获取或创建限制器"""
+        """获取或创建指定键的限制器"""
         with self._lock:
             if key not in self._limiters:
-                self._limiters[key] = self._limiter_class(
-                    self._max_requests, 
-                    self._window_seconds,
-                    **self._limiter_kwargs
-                )
+                if len(self._limiters) >= self._max_keys:
+                    # 清理旧的限制器
+                    self._limiters.clear()
+                
+                if self._algorithm == RateLimiter.ALGORITHM_TOKEN_BUCKET:
+                    rate = self._max_requests / self._window_seconds
+                    self._limiters[key] = TokenBucket(self._max_requests, rate)
+                elif self._algorithm == RateLimiter.ALGORITHM_LEAKY_BUCKET:
+                    rate = self._max_requests / self._window_seconds
+                    self._limiters[key] = LeakyBucket(self._max_requests, rate)
+                elif self._algorithm == RateLimiter.ALGORITHM_SLIDING_WINDOW:
+                    self._limiters[key] = SlidingWindow(self._max_requests, self._window_seconds)
+                else:
+                    self._limiters[key] = FixedWindow(self._max_requests, self._window_seconds)
+                    
             return self._limiters[key]
     
-    def try_acquire(self, key: str, tokens: int = 1) -> RateLimitResult:
-        """
-        尝试为指定 key 获取许可
-        
-        Args:
-            key: 标识符（如用户ID、IP等）
-            tokens: 请求的令牌数
-            
-        Returns:
-            RateLimitResult: 检查结果
-        """
-        limiter = self._get_limiter(key)
-        return limiter.try_acquire(tokens)
+    def acquire(self, key: str, tokens: int = 1) -> bool:
+        return self._get_limiter(key).acquire(tokens)
     
-    def get_state(self, key: str) -> dict:
-        """获取指定 key 的限制器状态"""
-        return self._get_limiter(key).get_state()
+    def wait_for(self, key: str, tokens: int = 1, timeout: Optional[float] = None) -> bool:
+        return self._get_limiter(key).wait_for(tokens, timeout)
     
-    def reset(self, key: str):
-        """重置指定 key 的限制器"""
+    def available(self, key: str) -> float:
+        return self._get_limiter(key).available
+    
+    def reset(self, key: str) -> None:
+        """重置指定键的限制器"""
         with self._lock:
             if key in self._limiters:
-                self._limiters[key].reset()
+                del self._limiters[key]
     
-    def reset_all(self):
+    def reset_all(self) -> None:
         """重置所有限制器"""
         with self._lock:
-            for limiter in self._limiters.values():
-                limiter.reset()
+            self._limiters.clear()
     
-    def cleanup(self, max_age_seconds: float = 3600):
-        """
-        清理长时间未使用的限制器
-        
-        Args:
-            max_age_seconds: 最大闲置时间（秒）
-        """
-        # 注意：此方法需要限制器支持获取最后访问时间
-        # 简化实现：清理状态中长时间未更新的限制器
-        pass
-
-
-def rate_limit(
-    limiter: RateLimiterBase,
-    on_reject: Optional[Callable[[RateLimitResult], Any]] = None
-):
-    """
-    装饰器：为函数添加速率限制
-    
-    Args:
-        limiter: 速率限制器实例
-        on_reject: 被拒绝时的回调函数
-        
-    Returns:
-        装饰器函数
-        
-    Example:
-        >>> limiter = TokenBucketRateLimiter(10, 1.0)
-        >>> @rate_limit(limiter)
-        ... def my_api():
-        ...     return "success"
-    """
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            result = limiter.try_acquire()
-            if result.allowed:
-                return func(*args, **kwargs)
-            elif on_reject:
-                return on_reject(result)
-            else:
-                raise RateLimitExceeded(
-                    f"Rate limit exceeded. Retry after {result.retry_after:.2f} seconds",
-                    result
-                )
-        return wrapper
-    return decorator
-
-
-class RateLimitExceeded(Exception):
-    """速率限制异常"""
-    
-    def __init__(self, message: str, result: RateLimitResult):
-        super().__init__(message)
-        self.result = result
+    @property
+    def key_count(self) -> int:
+        """当前键数量"""
+        with self._lock:
+            return len(self._limiters)
 
 
 # 便捷函数
-def create_limiter(
-    algorithm: str,
-    max_requests: int,
-    window_seconds: float,
-    **kwargs
-) -> RateLimiterBase:
-    """
-    创建速率限制器的便捷函数
-    
-    Args:
-        algorithm: 算法类型 ('fixed_window', 'sliding_window', 'token_bucket', 'leaky_bucket')
-        max_requests: 最大请求数
-        window_seconds: 时间窗口（秒）
-        **kwargs: 其他参数
-        
-    Returns:
-        RateLimiterBase: 限制器实例
-        
-    Example:
-        >>> limiter = create_limiter('token_bucket', 100, 60)
-    """
-    algorithms = {
-        'fixed_window': FixedWindowRateLimiter,
-        'sliding_window': SlidingWindowRateLimiter,
-        'token_bucket': TokenBucketRateLimiter,
-        'leaky_bucket': LeakyBucketRateLimiter,
-    }
-    
-    if algorithm not in algorithms:
-        raise ValueError(f"Unknown algorithm: {algorithm}. "
-                        f"Available: {list(algorithms.keys())}")
-    
-    # 漏桶算法使用不同的参数名
-    if algorithm == 'leaky_bucket':
-        return LeakyBucketRateLimiter(
-            capacity=max_requests,
-            leak_rate=kwargs.get('leak_rate', max_requests / window_seconds)
-        )
-    
-    return algorithms[algorithm](max_requests, window_seconds, **kwargs)
+def create_token_bucket(capacity: int, refill_rate: float) -> TokenBucket:
+    """创建令牌桶限制器"""
+    return TokenBucket(capacity, refill_rate)
 
 
-if __name__ == "__main__":
-    # 简单演示
-    print("=== 固定窗口算法 ===")
-    fw = FixedWindowRateLimiter(5, 10)
-    for i in range(7):
-        result = fw.try_acquire()
-        print(f"请求 {i+1}: {result}")
-    
-    print("\n=== 令牌桶算法 ===")
-    tb = TokenBucketRateLimiter(5, 10)
-    for i in range(7):
-        result = tb.try_acquire()
-        print(f"请求 {i+1}: {result}")
-    
-    print("\n=== 多用户限流 ===")
-    registry = RateLimiterRegistry(SlidingWindowRateLimiter, 3, 60)
-    for user in ['user1', 'user2']:
-        print(f"\n{user}:")
-        for i in range(5):
-            result = registry.try_acquire(user)
-            print(f"  请求 {i+1}: {result}")
+def create_leaky_bucket(capacity: int, leak_rate: float) -> LeakyBucket:
+    """创建漏桶限制器"""
+    return LeakyBucket(capacity, leak_rate)
+
+
+def create_sliding_window(max_requests: int, window_seconds: float) -> SlidingWindow:
+    """创建滑动窗口限制器"""
+    return SlidingWindow(max_requests, window_seconds)
+
+
+def create_fixed_window(max_requests: int, window_seconds: float) -> FixedWindow:
+    """创建固定窗口限制器"""
+    return FixedWindow(max_requests, window_seconds)
+
+
+__all__ = [
+    'RateLimiterBase',
+    'TokenBucket',
+    'LeakyBucket',
+    'SlidingWindow',
+    'FixedWindow',
+    'RateLimiter',
+    'MultiRateLimiter',
+    'create_token_bucket',
+    'create_leaky_bucket',
+    'create_sliding_window',
+    'create_fixed_window',
+]
