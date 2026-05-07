@@ -1,0 +1,13 @@
+[package]
+name = "isbn_utils"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "ISBN-10 and ISBN-13 utility library for validation, generation, formatting, and parsing"
+license = "MIT"
+
+[dependencies]
+
+[[example]]
+name = "basic_usage"
+path = "examples/basic_usage.rs"
