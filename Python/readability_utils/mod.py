@@ -143,6 +143,7 @@ class TextStats:
             - 边界处理：空文本返回空列表
             - 性能优化：单次正则匹配，减少字符串操作
             - 性能提升约 30-50%（对长文本）
+            - 修复：移除重复代码块（v2 bug fix）
         """
         # 边界处理：空文本快速返回
         if not self.text or not self.text.strip():
@@ -156,28 +157,6 @@ class TextStats:
         else:
             # 英文句子分割（优化：使用类级别预编译正则）
             sentences = self._EN_SENTENCE_PATTERN.findall(self.text)
-            
-            # 处理省略号等情况
-            result = []
-            for s in sentences:
-                s = s.strip()
-                if s:
-                    result.append(s)
-            
-            # 边界处理：如果没有找到句子分隔符，整个文本作为一句话
-            if not result and self.text.strip():
-                return [self.text.strip()]
-            
-            return result
-        
-        if self.language == 'zh':
-            # 中文句子分割（优化：使用预编译正则）
-            sentences = _ZH_SENTENCE_PATTERN.findall(self.text)
-            # 过滤空句子并去除首尾空白
-            return [s.strip() for s in sentences if s.strip()]
-        else:
-            # 英文句子分割（优化：使用预编译正则）
-            sentences = _EN_SENTENCE_PATTERN.findall(self.text)
             
             # 处理省略号等情况
             result = []
