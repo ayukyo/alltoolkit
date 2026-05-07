@@ -1,0 +1,17 @@
+[package]
+name = "emoji_utils"
+version = "0.1.0"
+edition = "2021"
+description = "Emoji detection and manipulation utilities - zero dependencies"
+license = "MIT"
+authors = ["AllToolkit"]
+keywords = ["emoji", "unicode", "text", "utilities"]
+categories = ["text-processing", "utilities"]
+
+[dependencies]
+
+[dev-dependencies]
+
+[[example]]
+name = "usage_examples"
+path = "examples/usage_examples.rs"
