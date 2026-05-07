@@ -1,247 +1,271 @@
-# ISBN Utilities
+# ISBN Utils - 国际标准书号(ISBN)验证与处理工具库
 
-A comprehensive Python toolkit for working with International Standard Book Numbers (ISBN). Supports both ISBN-10 (legacy) and ISBN-13 (current standard) formats with zero external dependencies.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/Python-3.6+-blue.svg)](https://www.python.org/)
 
-## Features
+完整的ISBN验证与处理工具库，支持ISBN-10和ISBN-13格式。
 
-- ✅ **Validation** - Validate ISBN-10 and ISBN-13 numbers
-- ✅ **Conversion** - Convert between ISBN-10 and ISBN-13 formats
-- ✅ **Generation** - Generate random valid ISBNs for testing
-- ✅ **Extraction** - Extract ISBNs from text
-- ✅ **Formatting** - Format ISBNs with proper hyphens/spaces
-- ✅ **Parsing** - Get detailed information about an ISBN
-- ✅ **Zero Dependencies** - Uses only Python standard library
+## 功能特性
 
-## Installation
+### 验证功能
+- ✅ ISBN-10验证（模11算法，支持X检验位）
+- ✅ ISBN-13验证（EAN-13算法，978/979前缀）
+- ✅ 自动类型检测验证
 
-No installation required! Just copy the `isbn_utils` folder to your project.
+### 计算功能
+- ✅ ISBN-10检验位计算
+- ✅ ISBN-13检验位计算
 
-```python
-from isbn_utils import (
-    is_valid_isbn,
-    validate_isbn,
-    format_isbn,
-    # ... and more
-)
-```
+### 转换功能
+- ✅ ISBN-10 → ISBN-13转换
+- ✅ ISBN-13 → ISBN-10转换（仅978前缀）
 
-## Quick Start
+### 格式化功能
+- ✅ 标准化（移除分隔符）
+- ✅ 格式化（添加分隔符）
+- ✅ 自定义分隔符支持
 
-```python
-from isbn_utils import is_valid_isbn, format_isbn, isbn10_to_isbn13
+### 解析功能
+- ✅ 详细信息解析
+- ✅ 分组/出版商识别
+- ✅ ISBN各部分提取
 
-# Validate
-print(is_valid_isbn("0306406152"))        # True (ISBN-10)
-print(is_valid_isbn("9780306406157"))    # True (ISBN-13)
+### 批量操作
+- ✅ 批量验证
+- ✅ 文本中提取ISBN
+- ✅ 统计分析
 
-# Convert
-print(isbn10_to_isbn13("0306406152"))     # 9780306406157
+## 快速开始
 
-# Format
-print(format_isbn("0306406152"))          # 0-306-40615-2
-```
+### 安装
 
-## API Reference
-
-### Validation
+本模块为零依赖设计，可直接导入使用：
 
 ```python
 from isbn_utils import (
-    is_valid_isbn,      # Check if valid ISBN (10 or 13)
-    is_valid_isbn10,    # Check if valid ISBN-10
-    is_valid_isbn13,    # Check if valid ISBN-13
-    validate_isbn,      # Full validation with details
-    validate_isbn10,    # Full validation for ISBN-10
-    validate_isbn13,    # Full validation for ISBN-13
+    is_valid_isbn, is_valid_isbn10, is_valid_isbn13,
+    format_isbn, normalize_isbn,
+    isbn10_to_isbn13, isbn13_to_isbn10,
+    extract_isbns, batch_validate
 )
-
-# Simple boolean check
-is_valid_isbn("0306406152")     # True
-is_valid_isbn10("0306406152")   # True
-is_valid_isbn13("9780306406157") # True
-
-# Full validation with details
-valid, cleaned, isbn_type, msg = validate_isbn("0-306-40615-2")
-# valid=True, cleaned="0306406152", isbn_type=ISBNType.ISBN10, msg="Valid ISBN-10"
 ```
 
-### Check Digit Calculation
+### 基础用法
+
+#### 验证ISBN
 
 ```python
-from isbn_utils import (
-    calculate_check_digit_isbn10,
-    calculate_check_digit_isbn13,
-)
+from isbn_utils import is_valid_isbn10, is_valid_isbn13, is_valid_isbn
 
-# Calculate ISBN-10 check digit (can be 0-9 or X)
-calculate_check_digit_isbn10("030640615")  # "2"
+# ISBN-10验证
+print(is_valid_isbn10('0306406152'))    # True
+print(is_valid_isbn10('0-306-40615-2')) # True
+print(is_valid_isbn10('080442957X'))    # True (X检验位)
 
-# Calculate ISBN-13 check digit (0-9)
-calculate_check_digit_isbn13("978030640615")  # "7"
+# ISBN-13验证
+print(is_valid_isbn13('9780306406157'))       # True
+print(is_valid_isbn13('978-0-306-40615-7'))   # True
+print(is_valid_isbn13('9791091146135'))       # True (979前缀)
+
+# 自动检测类型
+print(is_valid_isbn('0306406152'))     # True (ISBN-10)
+print(is_valid_isbn('9780306406157'))  # True (ISBN-13)
 ```
 
-### Conversion
+#### 检验位计算
 
 ```python
-from isbn_utils import (
-    isbn10_to_isbn13,   # Convert ISBN-10 to ISBN-13
-    isbn13_to_isbn10,   # Convert ISBN-13 to ISBN-10 (978 prefix only)
-    convert_isbn,       # Auto-detect and convert
-    normalize_isbn,     # Normalize to specific format
-)
+from isbn_utils import calculate_isbn10_check_digit, calculate_isbn13_check_digit
 
-# ISBN-10 to ISBN-13
-isbn10_to_isbn13("0306406152")  # "9780306406157"
+# ISBN-10检验位
+print(calculate_isbn10_check_digit('030640615'))  # '2'
+print(calculate_isbn10_check_digit('080442957'))  # 'X'
 
-# ISBN-13 to ISBN-10 (only works for 978 prefix)
-isbn13_to_isbn10("9780306406157")  # "0306406152"
-isbn13_to_isbn10("9798700839847")  # None (979 prefix not convertible)
-
-# Auto-detect and convert
-convert_isbn("0306406152")      # "9780306406157"
-convert_isbn("9780306406157")   # "0306406152"
-
-# Normalize to specific format
-normalize_isbn("0306406152", "13")  # "9780306406157"
-normalize_isbn("9780306406157", "10")  # "0306406152"
+# ISBN-13检验位
+print(calculate_isbn13_check_digit('978030640615'))  # '7'
 ```
 
-### Generation
+#### 格式转换
 
 ```python
-from isbn_utils import (
-    generate_isbn10,      # Generate random ISBN-10
-    generate_isbn13,      # Generate random ISBN-13
-    generate_random_isbn, # Generate random ISBN (any format)
-)
+from isbn_utils import isbn10_to_isbn13, isbn13_to_isbn10
 
-# Generate random ISBN-10
-isbn10 = generate_isbn10()
-# Example: "123456789X"
+# ISBN-10 → ISBN-13
+print(isbn10_to_isbn13('0306406152'))  # '9780306406157'
 
-# Generate with prefix
-isbn10 = generate_isbn10(prefix="123")
-# Example: "123456789X"
-
-# Reproducible generation (with seed)
-isbn10 = generate_isbn10(seed=42)
-
-# Generate random ISBN-13
-isbn13 = generate_isbn13()  # Default prefix: 978
-isbn13 = generate_isbn13(prefix="979")  # With 979 prefix
-
-# Generate either format
-isbn = generate_random_isbn(format="10")  # ISBN-10
-isbn = generate_random_isbn(format="13")  # ISBN-13
+# ISBN-13 → ISBN-10 (仅978前缀)
+print(isbn13_to_isbn10('9780306406157'))  # '0306406152'
+print(isbn13_to_isbn10('9791091146135'))  # None (无法转换)
 ```
 
-### Formatting
+#### 格式化
 
 ```python
-from isbn_utils import (
-    format_isbn,    # Format any ISBN
-    format_isbn10,  # Format ISBN-10
-    format_isbn13,  # Format ISBN-13
-)
+from isbn_utils import format_isbn, normalize_isbn
 
-# Format with hyphens
-format_isbn("0306406152")       # "0-306-40615-2"
-format_isbn("9780306406157")    # "978-0-306-40615-7"
+# 标准化（移除分隔符）
+print(normalize_isbn('978-0-306-40615-7'))  # '9780306406157'
 
-# Format with spaces
-format_isbn("0306406152", separator=" ")  # "0 306 40615 2"
+# 格式化（添加分隔符）
+print(format_isbn('9780306406157'))  # '978-0-3064-0615-7'
+
+# 自定义分隔符
+print(format_isbn('9780306406157', ' '))  # '978 0 3064 0615 7'
+print(format_isbn('9780306406157', ''))   # '9780306406157'
 ```
 
-### Extraction
+#### ISBN类
 
 ```python
-from isbn_utils import (
-    extract_isbn,      # Extract first ISBN from text
-    extract_all_isbn,  # Extract all ISBNs from text
-)
+from isbn_utils import ISBN, ISBNType
 
-# Extract single ISBN
-text = "The book's ISBN is 978-0-306-40615-7."
-isbn = extract_isbn(text)  # "9780306406157"
+isbn = ISBN('978-0-306-40615-7')
 
-# Extract all ISBNs
-text = "Book 1: ISBN 0306406152, Book 2: ISBN 9780131103624"
-isbns = extract_all_isbn(text)  # ["0306406152", "9780131103624"]
+print(isbn.is_valid())          # True
+print(isbn.get_type())          # ISBNType.ISBN13
+print(isbn.normalize())         # '9780306406157'
+print(isbn.format())            # '978-0-3064-0615-7'
+print(isbn.to_isbn10())         # '0306406152'
 
-# Handles various formats
-extract_isbn("ISBN: 0-306-40615-2")       # "0306406152"
-extract_isbn("ISBN-13: 9780306406157")    # "9780306406157"
-extract_isbn("ISBN-10: 0 306 40615 2")     # "0306406152"
+# 获取详细信息
+info = isbn.get_info()
+print(info.check_digit)         # '7'
+print(info.prefix)              # '978'
 ```
 
-### Parsing
+#### 文本提取
 
 ```python
-from isbn_utils import (
-    parse_isbn,      # Get detailed ISBN info
-    get_isbn_info,   # Get info as dictionary
-    ISBNType,        # Enum for ISBN types
-)
+from isbn_utils import extract_isbns
 
-# Parse ISBN
-info = parse_isbn("0-306-40615-2")
-# ISBNInfo(ISBN-10='0306406152')
-
-info.is_valid        # True
-info.isbn_type       # ISBNType.ISBN10
-info.cleaned         # "0306406152"
-info.check_digit     # "2"
-info.prefix          # None (ISBN-10 has no prefix)
-info.isbn10          # "0306406152"
-info.isbn13          # "9780306406157"
-info.formatted_hyphen # "0-306-40615-2"
-
-# Get as dictionary
-d = get_isbn_info("9780306406157")
-# {
-#     "original": "9780306406157",
-#     "cleaned": "9780306406157",
-#     "type": "ISBN-13",
-#     "is_valid": True,
-#     "check_digit": "7",
-#     "prefix": "978",
-#     "isbn10": "0306406152",
-#     "isbn13": "9780306406157",
-#     ...
-# }
+text = "这本书的ISBN是978-0-306-40615-7，另一本是0-306-40615-2"
+isbns = extract_isbns(text)
+print(isbns)  # ['9780306406157', '0306406152']
 ```
 
-## Examples
+#### 批量验证
 
-See `examples/` folder for more usage examples.
+```python
+from isbn_utils import batch_validate
 
-## Testing
+isbns = ['9780306406157', '0306406152', 'invalid', '080442957X']
+result = batch_validate(isbns)
 
-Run tests with:
+print(result['valid'])          # ['9780306406157', '0306406152', '080442957X']
+print(result['invalid'])        # ['invalid']
+print(result['stats'])
+# {'total': 4, 'valid_count': 3, 'invalid_count': 1, 'isbn10_count': 2, 'isbn13_count': 1}
+```
+
+## API参考
+
+### 验证函数
+
+| 函数 | 说明 |
+|------|------|
+| `is_valid_isbn10(isbn)` | 验证ISBN-10 |
+| `is_valid_isbn13(isbn)` | 验证ISBN-13 |
+| `is_valid_isbn(isbn)` | 自动检测并验证 |
+
+### 计算函数
+
+| 函数 | 说明 |
+|------|------|
+| `calculate_isbn10_check_digit(digits)` | 计算ISBN-10检验位(9位→检验位) |
+| `calculate_isbn13_check_digit(digits)` | 计算ISBN-13检验位(12位→检验位) |
+
+### 转换函数
+
+| 函数 | 说明 |
+|------|------|
+| `isbn10_to_isbn13(isbn10)` | ISBN-10转ISBN-13 |
+| `isbn13_to_isbn10(isbn13)` | ISBN-13转ISBN-10(仅978前缀) |
+
+### 格式化函数
+
+| 函数 | 说明 |
+|------|------|
+| `format_isbn(isbn, separator='-')` | 格式化ISBN显示 |
+| `normalize_isbn(isbn)` | 移除分隔符标准化 |
+
+### 解析函数
+
+| 函数 | 说明 |
+|------|------|
+| `parse_isbn(isbn)` | 解析并返回详细信息 |
+| `get_isbn_info(isbn)` | 获取完整ISBNInfo对象 |
+| `identify_prefix(code)` | 识别分组代码 |
+
+### 批量函数
+
+| 函数 | 说明 |
+|------|------|
+| `batch_validate(isbns)` | 批量验证并统计 |
+| `extract_isbns(text)` | 从文本提取所有ISBN |
+
+### ISBN类
+
+```python
+class ISBN:
+    def __init__(isbn: str)
+    def is_valid() -> bool
+    def get_type() -> ISBNType
+    def normalize() -> str
+    def format(separator='-') -> str
+    def to_isbn13() -> str | None
+    def to_isbn10() -> str | None
+    def get_info() -> ISBNInfo
+```
+
+## ISBN背景知识
+
+### ISBN-10 (2007年前)
+- 格式：X-XXXXX-XXX-X（分组-出版商-标题-检验位）
+- 算法：模11，检验位可能是0-9或X（10）
+- 例如：`0306406152`
+
+### ISBN-13 (2007年后)
+- 格式：XXX-X-XXXX-XXXX-X（前缀-分组-出版商-标题-检验位）
+- 前缀：978或979
+- 算法：EAN-13模10
+- 例如：`9780306406157`
+
+### 前缀含义
+- **978**：可转换为ISBN-10
+- **979**：无法转换为ISBN-10（新增前缀）
+
+### 分组代码
+- 0, 1：英语国家
+- 2：法语国家
+- 3：德语国家
+- 4：日本
+- 5：俄语国家
+- 7：中国
+- 957：台湾
+- 962：香港
+
+## 测试
+
+运行测试：
 
 ```bash
-# Using pytest
-python -m pytest isbn_utils_test.py -v
-
-# Or directly
-python isbn_utils_test.py
+python Python/isbn_utils/test_isbn_utils.py
 ```
 
-## ISBN Format Reference
+测试覆盖：
+- ISBN-10验证（有效/无效/边界）
+- ISBN-13验证（978/979前缀）
+- 检验位计算
+- 格式转换
+- 格式化输出
+- 文本提取
+- 批量操作
 
-### ISBN-10
-- 10 characters (digits 0-9, or X for check digit)
-- Format: `X-XXXXX-XXX-X` (group-publisher-title-check)
-- Check digit: weighted sum mod 11 (X = 10)
-- Example: `0-306-40615-2`
+## 许可证
 
-### ISBN-13
-- 13 digits
-- Format: `XXX-X-XXXXX-XXX-X` (prefix-group-publisher-title-check)
-- Prefix: 978 or 979
-- Check digit: EAN-13 algorithm (weighted sum mod 10)
-- Example: `978-0-306-40615-7`
+MIT License - 零外部依赖，纯Python标准库实现
 
-## License
+## 参考
 
-MIT License
+- [ISBN国际组织](https://www.isbn-international.org/)
+- [ISBN Wikipedia](https://en.wikipedia.org/wiki/International_Standard_Book_Number)
