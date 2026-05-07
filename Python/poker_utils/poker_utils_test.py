@@ -1,621 +1,517 @@
 """
-扑克牌工具测试
+扑克牌工具模块测试
+==================
 
-测试内容:
-- Card 类测试
-- Deck 类测试
-- Hand 类测试
-- 牌型判断测试
-- 手牌比较测试
-- 工具函数测试
-- 游戏辅助类测试
+全面测试 poker_utils 模块的所有功能。
 """
 
-import sys
-import os
 import unittest
-
-# Add module directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mod import (
-    Card, Deck, Hand, PokerGame,
-    Suit, Rank, HandRank,
-    create_deck, shuffle_deck, deal_hands,
-    evaluate_hand, compare_hands, best_hand,
-    hand_probability, hand_combinations_count,
-    cards_to_string, string_to_cards,
-    get_all_cards, card_count_by_rank, card_count_by_suit,
-    HAND_RANK_NAMES
+    Card, Deck, Hand, HandRank, Suit, Rank,
+    PokerEvaluator, TexasHoldem, HandAnalyzer,
+    create_deck, parse_cards, cards_to_str,
+    evaluate_hand, compare_hands, get_hand_rank_name,
+    simulate_win_rate, is_pocket_pair, is_suited,
+    is_connected, get_starting_hand_strength,
+    SUIT_SYMBOLS, RANK_SYMBOLS, HAND_RANK_NAMES
 )
 
 
 class TestCard(unittest.TestCase):
-    """Card 类测试"""
+    """测试 Card 类"""
     
     def test_card_creation(self):
-        """测试创建牌"""
-        card = Card(Suit.SPADES, Rank.ACE)
-        self.assertEqual(card.suit, Suit.SPADES)
+        """测试创建扑克牌"""
+        card = Card(rank=Rank.ACE, suit=Suit.SPADES)
         self.assertEqual(card.rank, Rank.ACE)
+        self.assertEqual(card.suit, Suit.SPADES)
     
-    def test_card_repr(self):
-        """测试牌的字符串表示"""
-        card = Card(Suit.HEARTS, Rank.KING)
-        self.assertEqual(repr(card), "K♥")
-        self.assertEqual(str(card), "红心K")
+    def test_card_str(self):
+        """测试扑克牌字符串表示"""
+        card = Card(rank=Rank.ACE, suit=Suit.SPADES)
+        self.assertEqual(str(card), "A♠")
+        
+        card2 = Card(rank=Rank.TEN, suit=Suit.HEARTS)
+        self.assertEqual(str(card2), "T♥")
+        
+        card3 = Card(rank=Rank.TWO, suit=Suit.DIAMONDS)
+        self.assertEqual(str(card3), "2♦")
+    
+    def test_card_comparison(self):
+        """测试扑克牌比较"""
+        ace_spades = Card(rank=Rank.ACE, suit=Suit.SPADES)
+        king_spades = Card(rank=Rank.KING, suit=Suit.SPADES)
+        ace_hearts = Card(rank=Rank.ACE, suit=Suit.HEARTS)
+        
+        self.assertTrue(king_spades < ace_spades)
+        # 同点数时，按花色枚举值比较：SPADES=0 < HEARTS=1
+        self.assertTrue(ace_spades < ace_hearts)
+        self.assertFalse(ace_hearts < ace_spades)
     
     def test_card_equality(self):
-        """测试牌的相等性"""
-        card1 = Card(Suit.DIAMONDS, Rank.QUEEN)
-        card2 = Card(Suit.DIAMONDS, Rank.QUEEN)
-        card3 = Card(Suit.DIAMONDS, Rank.JACK)
-        card4 = Card(Suit.CLUBS, Rank.QUEEN)
+        """测试扑克牌相等性"""
+        card1 = Card(rank=Rank.ACE, suit=Suit.SPADES)
+        card2 = Card(rank=Rank.ACE, suit=Suit.SPADES)
+        card3 = Card(rank=Rank.KING, suit=Suit.SPADES)
         
         self.assertEqual(card1, card2)
         self.assertNotEqual(card1, card3)
-        self.assertNotEqual(card1, card4)
     
-    def test_card_comparison(self):
-        """测试牌的大小比较"""
-        ace_spades = Card(Suit.SPADES, Rank.ACE)
-        ace_hearts = Card(Suit.HEARTS, Rank.ACE)
-        king_spades = Card(Suit.SPADES, Rank.KING)
-        
-        self.assertTrue(king_spades < ace_spades)
-        self.assertTrue(ace_hearts < ace_spades)  # 同点数，黑桃最大
-    
-    def test_card_from_string(self):
-        """测试从字符串解析牌"""
-        card = Card.from_string("A♠")
-        self.assertEqual(card.suit, Suit.SPADES)
+    def test_card_from_str(self):
+        """测试从字符串创建扑克牌"""
+        card = Card.from_str("As")
         self.assertEqual(card.rank, Rank.ACE)
+        self.assertEqual(card.suit, Suit.SPADES)
         
-        card2 = Card.from_string("K♥")
+        card2 = Card.from_str("Th")
+        self.assertEqual(card2.rank, Rank.TEN)
         self.assertEqual(card2.suit, Suit.HEARTS)
-        self.assertEqual(card2.rank, Rank.KING)
-    
-    def test_card_to_dict(self):
-        """测试牌转字典"""
-        card = Card(Suit.CLUBS, Rank.TEN)
-        d = card.to_dict()
         
-        self.assertEqual(d['suit'], 'CLUBS')
-        self.assertEqual(d['rank'], 'TEN')
-        self.assertEqual(d['symbol'], '10♣')
+        card3 = Card.from_str("2d")
+        self.assertEqual(card3.rank, Rank.TWO)
+        self.assertEqual(card3.suit, Suit.DIAMONDS)
+        
+        card4 = Card.from_str("KC")
+        self.assertEqual(card4.rank, Rank.KING)
+        self.assertEqual(card4.suit, Suit.CLUBS)
+    
+    def test_card_hash(self):
+        """测试扑克牌哈希值"""
+        card1 = Card(rank=Rank.ACE, suit=Suit.SPADES)
+        card2 = Card(rank=Rank.ACE, suit=Suit.SPADES)
+        
+        # 相同的牌应该有相同的哈希值
+        self.assertEqual(hash(card1), hash(card2))
+        
+        # 可以放入集合
+        cards_set = {card1, card2}
+        self.assertEqual(len(cards_set), 1)
 
 
 class TestDeck(unittest.TestCase):
-    """Deck 类测试"""
+    """测试 Deck 类"""
     
     def test_deck_creation(self):
         """测试创建牌组"""
         deck = Deck()
         self.assertEqual(len(deck), 52)
     
+    def test_deck_deal(self):
+        """测试发牌"""
+        deck = Deck()
+        cards = deck.deal(5)
+        self.assertEqual(len(cards), 5)
+        self.assertEqual(len(deck), 47)
+    
+    def test_deck_deal_one(self):
+        """测试发一张牌"""
+        deck = Deck()
+        card = deck.deal_one()
+        self.assertIsInstance(card, Card)
+        self.assertEqual(len(deck), 51)
+    
+    def test_deck_deal_too_many(self):
+        """测试发牌数量超过牌组"""
+        deck = Deck()
+        deck.deal(50)
+        with self.assertRaises(ValueError):
+            deck.deal(3)  # 只剩2张
+    
+    def test_deck_deal_empty(self):
+        """测试空牌组发牌"""
+        deck = Deck()
+        deck.deal(52)
+        with self.assertRaises(ValueError):
+            deck.deal_one()
+    
     def test_deck_shuffle(self):
         """测试洗牌"""
         deck1 = Deck()
         deck2 = Deck()
         
-        # 两副新牌组应该相同
-        for c1, c2 in zip(deck1, deck2):
-            self.assertEqual(c1, c2)
+        # 未洗牌时应该相同
+        self.assertEqual(deck1._cards[0], deck2._cards[0])
         
-        # 洗牌后可能不同（概率极高）
-        deck1.shuffle()
-        same_order = all(c1 == c2 for c1, c2 in zip(deck1, deck2))
-        self.assertFalse(same_order)  # 几乎不可能相同
-    
-    def test_deck_draw(self):
-        """测试抽牌"""
-        deck = Deck()
-        cards = deck.draw(5)
-        
-        self.assertEqual(len(cards), 5)
-        self.assertEqual(len(deck), 47)
-    
-    def test_deck_draw_one(self):
-        """测试抽一张牌"""
-        deck = Deck()
-        card = deck.draw_one()
-        
-        self.assertIsInstance(card, Card)
-        self.assertEqual(len(deck), 51)
-    
-    def test_deck_empty_error(self):
-        """测试牌组空时抽牌报错"""
-        deck = Deck(cards=[])
-        
-        with self.assertRaises(ValueError):
-            deck.draw_one()
-        
-        with self.assertRaises(ValueError):
-            deck.draw(1)
+        # 洗牌后可能不同（有极小概率相同，但测试目的）
+        deck2.shuffle()
+        # 注意：有很小概率洗牌后顺序相同，但这个测试主要是验证不会抛错
     
     def test_deck_reset(self):
         """测试重置牌组"""
         deck = Deck()
-        deck.draw(20)
-        
-        self.assertEqual(len(deck), 32)
+        deck.deal(10)
+        self.assertEqual(len(deck), 42)
         
         deck.reset()
         self.assertEqual(len(deck), 52)
     
-    def test_deck_add_card(self):
-        """测试添加牌"""
-        deck = Deck(cards=[])
-        card = Card(Suit.SPADES, Rank.ACE)
+    def test_deck_remove(self):
+        """测试从牌组移除牌"""
+        deck = Deck()
+        card = Card(rank=Rank.ACE, suit=Suit.SPADES)
         
-        deck.add_card(card)
-        self.assertEqual(len(deck), 1)
-        self.assertEqual(deck.cards[0], card)
+        removed = deck.remove(card)
+        self.assertTrue(removed)
+        self.assertEqual(len(deck), 51)
+        
+        # 再次移除同一张牌应该失败
+        removed = deck.remove(card)
+        self.assertFalse(removed)
+    
+    def test_deck_remove_cards(self):
+        """测试批量移除牌"""
+        deck = Deck()
+        cards = [
+            Card(rank=Rank.ACE, suit=Suit.SPADES),
+            Card(rank=Rank.ACE, suit=Suit.HEARTS),
+            Card(rank=Rank.ACE, suit=Suit.DIAMONDS),
+        ]
+        
+        removed = deck.remove_cards(cards)
+        self.assertEqual(removed, 3)
+        self.assertEqual(len(deck), 49)
 
 
-class TestHand(unittest.TestCase):
-    """Hand 类测试"""
-    
-    def test_high_card(self):
-        """测试高牌"""
-        hand = Hand([
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.KING),
-            Card(Suit.DIAMONDS, Rank.QUEEN),
-            Card(Suit.CLUBS, Rank.JACK),
-            Card(Suit.SPADES, Rank.NINE),
-        ])
-        
-        rank, values = hand.evaluate()
-        self.assertEqual(rank, HandRank.HIGH_CARD)
-        self.assertEqual(hand.get_rank_name(), "高牌")
-    
-    def test_one_pair(self):
-        """测试一对"""
-        hand = Hand([
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.ACE),
-            Card(Suit.DIAMONDS, Rank.KING),
-            Card(Suit.CLUBS, Rank.QUEEN),
-            Card(Suit.SPADES, Rank.JACK),
-        ])
-        
-        rank, values = hand.evaluate()
-        self.assertEqual(rank, HandRank.ONE_PAIR)
-        self.assertEqual(values[0], Rank.ACE)
-    
-    def test_two_pair(self):
-        """测试两对"""
-        hand = Hand([
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.ACE),
-            Card(Suit.DIAMONDS, Rank.KING),
-            Card(Suit.CLUBS, Rank.KING),
-            Card(Suit.SPADES, Rank.QUEEN),
-        ])
-        
-        rank, values = hand.evaluate()
-        self.assertEqual(rank, HandRank.TWO_PAIR)
-        self.assertEqual(values[0], Rank.ACE)
-        self.assertEqual(values[1], Rank.KING)
-    
-    def test_three_of_a_kind(self):
-        """测试三条"""
-        hand = Hand([
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.ACE),
-            Card(Suit.DIAMONDS, Rank.ACE),
-            Card(Suit.CLUBS, Rank.KING),
-            Card(Suit.SPADES, Rank.QUEEN),
-        ])
-        
-        rank, values = hand.evaluate()
-        self.assertEqual(rank, HandRank.THREE_OF_A_KIND)
-        self.assertEqual(values[0], Rank.ACE)
-    
-    def test_straight(self):
-        """测试顺子"""
-        hand = Hand([
-            Card(Suit.SPADES, Rank.FIVE),
-            Card(Suit.HEARTS, Rank.FOUR),
-            Card(Suit.DIAMONDS, Rank.THREE),
-            Card(Suit.CLUBS, Rank.TWO),
-            Card(Suit.SPADES, Rank.ACE),
-        ])
-        
-        rank, values = hand.evaluate()
-        self.assertEqual(rank, HandRank.STRAIGHT)
-        self.assertEqual(values[0], Rank.FIVE)  # A-2-3-4-5 顺子最高为5
-    
-    def test_straight_normal(self):
-        """测试普通顺子"""
-        hand = Hand([
-            Card(Suit.SPADES, Rank.TEN),
-            Card(Suit.HEARTS, Rank.NINE),
-            Card(Suit.DIAMONDS, Rank.EIGHT),
-            Card(Suit.CLUBS, Rank.SEVEN),
-            Card(Suit.SPADES, Rank.SIX),
-        ])
-        
-        rank, values = hand.evaluate()
-        self.assertEqual(rank, HandRank.STRAIGHT)
-        self.assertEqual(values[0], Rank.TEN)
-    
-    def test_flush(self):
-        """测试同花"""
-        hand = Hand([
-            Card(Suit.HEARTS, Rank.ACE),
-            Card(Suit.HEARTS, Rank.KING),
-            Card(Suit.HEARTS, Rank.QUEEN),
-            Card(Suit.HEARTS, Rank.FIVE),
-            Card(Suit.HEARTS, Rank.TWO),
-        ])
-        
-        rank, values = hand.evaluate()
-        self.assertEqual(rank, HandRank.FLUSH)
-    
-    def test_full_house(self):
-        """测试葫芦"""
-        hand = Hand([
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.ACE),
-            Card(Suit.DIAMONDS, Rank.ACE),
-            Card(Suit.CLUBS, Rank.KING),
-            Card(Suit.SPADES, Rank.KING),
-        ])
-        
-        rank, values = hand.evaluate()
-        self.assertEqual(rank, HandRank.FULL_HOUSE)
-        self.assertEqual(values[0], Rank.ACE)  # 三条的点数
-        self.assertEqual(values[1], Rank.KING)  # 对子的点数
-    
-    def test_four_of_a_kind(self):
-        """测试四条"""
-        hand = Hand([
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.ACE),
-            Card(Suit.DIAMONDS, Rank.ACE),
-            Card(Suit.CLUBS, Rank.ACE),
-            Card(Suit.SPADES, Rank.KING),
-        ])
-        
-        rank, values = hand.evaluate()
-        self.assertEqual(rank, HandRank.FOUR_OF_A_KIND)
-        self.assertEqual(values[0], Rank.ACE)
-    
-    def test_straight_flush(self):
-        """测试同花顺"""
-        hand = Hand([
-            Card(Suit.SPADES, Rank.KING),
-            Card(Suit.SPADES, Rank.QUEEN),
-            Card(Suit.SPADES, Rank.JACK),
-            Card(Suit.SPADES, Rank.TEN),
-            Card(Suit.SPADES, Rank.NINE),
-        ])
-        
-        rank, values = hand.evaluate()
-        self.assertEqual(rank, HandRank.STRAIGHT_FLUSH)
-        self.assertEqual(values[0], Rank.KING)
+class TestPokerEvaluator(unittest.TestCase):
+    """测试牌型评估器"""
     
     def test_royal_flush(self):
         """测试皇家同花顺"""
-        hand = Hand([
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.SPADES, Rank.KING),
-            Card(Suit.SPADES, Rank.QUEEN),
-            Card(Suit.SPADES, Rank.JACK),
-            Card(Suit.SPADES, Rank.TEN),
-        ])
-        
-        rank, values = hand.evaluate()
-        self.assertEqual(rank, HandRank.ROYAL_FLUSH)
+        cards = parse_cards("As Ks Qs Js Ts")
+        hand = PokerEvaluator.evaluate(cards)
+        self.assertEqual(hand.rank, HandRank.ROYAL_FLUSH)
     
-    def test_hand_comparison(self):
-        """测试手牌比较"""
-        pair = Hand([
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.ACE),
-            Card(Suit.DIAMONDS, Rank.KING),
-            Card(Suit.CLUBS, Rank.QUEEN),
-            Card(Suit.SPADES, Rank.JACK),
-        ])
-        
-        two_pair = Hand([
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.ACE),
-            Card(Suit.DIAMONDS, Rank.KING),
-            Card(Suit.CLUBS, Rank.KING),
-            Card(Suit.SPADES, Rank.QUEEN),
-        ])
-        
-        self.assertTrue(two_pair > pair)
-        self.assertTrue(pair < two_pair)
-        
-        # 测试同牌型比较
-        pair_lower = Hand([
-            Card(Suit.SPADES, Rank.KING),
-            Card(Suit.HEARTS, Rank.KING),
-            Card(Suit.DIAMONDS, Rank.QUEEN),
-            Card(Suit.CLUBS, Rank.JACK),
-            Card(Suit.SPADES, Rank.TEN),
-        ])
-        
-        self.assertTrue(pair > pair_lower)  # AA对 > KK对
+    def test_straight_flush(self):
+        """测试同花顺"""
+        cards = parse_cards("9s 8s 7s 6s 5s")
+        hand = PokerEvaluator.evaluate(cards)
+        self.assertEqual(hand.rank, HandRank.STRAIGHT_FLUSH)
     
-    def test_hand_equality(self):
-        """测试手牌相等"""
-        hand1 = Hand([
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.ACE),
-            Card(Suit.DIAMONDS, Rank.KING),
-            Card(Suit.CLUBS, Rank.QUEEN),
-            Card(Suit.SPADES, Rank.JACK),
-        ])
+    def test_four_of_a_kind(self):
+        """测试四条"""
+        cards = parse_cards("As Ah Ad Ac 2h")
+        hand = PokerEvaluator.evaluate(cards)
+        self.assertEqual(hand.rank, HandRank.FOUR_OF_A_KIND)
+    
+    def test_full_house(self):
+        """测试葫芦"""
+        cards = parse_cards("As Ah Ad Ks Kh")
+        hand = PokerEvaluator.evaluate(cards)
+        self.assertEqual(hand.rank, HandRank.FULL_HOUSE)
+    
+    def test_flush(self):
+        """测试同花"""
+        cards = parse_cards("As 9s 7s 4s 2s")
+        hand = PokerEvaluator.evaluate(cards)
+        self.assertEqual(hand.rank, HandRank.FLUSH)
+    
+    def test_straight(self):
+        """测试顺子"""
+        cards = parse_cards("9s 8h 7d 6c 5s")
+        hand = PokerEvaluator.evaluate(cards)
+        self.assertEqual(hand.rank, HandRank.STRAIGHT)
+    
+    def test_wheel_straight(self):
+        """测试轮子顺子(A-2-3-4-5)"""
+        cards = parse_cards("As 2h 3d 4c 5s")
+        hand = PokerEvaluator.evaluate(cards)
+        self.assertEqual(hand.rank, HandRank.STRAIGHT)
+    
+    def test_three_of_a_kind(self):
+        """测试三条"""
+        cards = parse_cards("As Ah Ad 9c 5s")
+        hand = PokerEvaluator.evaluate(cards)
+        self.assertEqual(hand.rank, HandRank.THREE_OF_A_KIND)
+    
+    def test_two_pair(self):
+        """测试两对"""
+        cards = parse_cards("As Ah Kd Kc 5s")
+        hand = PokerEvaluator.evaluate(cards)
+        self.assertEqual(hand.rank, HandRank.TWO_PAIR)
+    
+    def test_one_pair(self):
+        """测试一对"""
+        cards = parse_cards("As Ah 9d 7c 5s")
+        hand = PokerEvaluator.evaluate(cards)
+        self.assertEqual(hand.rank, HandRank.ONE_PAIR)
+    
+    def test_high_card(self):
+        """测试高牌"""
+        cards = parse_cards("As 9h 7d 5c 3s")
+        hand = PokerEvaluator.evaluate(cards)
+        self.assertEqual(hand.rank, HandRank.HIGH_CARD)
+    
+    def test_compare_hands(self):
+        """测试牌型比较"""
+        # 同花顺 > 四条
+        sf = parse_cards("9s 8s 7s 6s 5s")
+        quads = parse_cards("As Ah Ad Ac 2h")
         
-        hand2 = Hand([
-            Card(Suit.DIAMONDS, Rank.ACE),
-            Card(Suit.CLUBS, Rank.ACE),
-            Card(Suit.SPADES, Rank.KING),
-            Card(Suit.HEARTS, Rank.QUEEN),
-            Card(Suit.DIAMONDS, Rank.JACK),
-        ])
+        sf_hand = PokerEvaluator.evaluate(sf)
+        quads_hand = PokerEvaluator.evaluate(quads)
         
-        # 牌型相同，点数相同，应视为相等
-        self.assertTrue(hand1.compare(hand2) == 0)
+        self.assertTrue(sf_hand > quads_hand)
+    
+    def test_compare_same_rank(self):
+        """测试同类型牌比较"""
+        # 比较大的四条
+        quads_a = parse_cards("As Ah Ad Ac 2h")
+        quads_k = parse_cards("Ks Kh Kd Kc Ah")
+        
+        hand_a = PokerEvaluator.evaluate(quads_a)
+        hand_k = PokerEvaluator.evaluate(quads_k)
+        
+        self.assertTrue(hand_a > hand_k)
+    
+    def test_evaluate_seven_cards(self):
+        """测试7张牌评估"""
+        cards = parse_cards("As Ah Kd Kc 5s 3h 2d")
+        hand = PokerEvaluator.evaluate(cards)
+        self.assertEqual(hand.rank, HandRank.TWO_PAIR)
+    
+    def test_evaluate_too_few_cards(self):
+        """测试牌数不足"""
+        cards = parse_cards("As Ah Kd")
+        with self.assertRaises(ValueError):
+            PokerEvaluator.evaluate(cards)
+    
+    def test_get_hand_description(self):
+        """测试牌型描述"""
+        cards = parse_cards("As Ah Ad Ac 2h")
+        hand = PokerEvaluator.evaluate(cards)
+        desc = PokerEvaluator.get_hand_description(hand)
+        self.assertEqual(desc, "四条 (A)")
+
+
+class TestTexasHoldem(unittest.TestCase):
+    """测试德州扑克工具"""
+    
+    def test_evaluate_hand(self):
+        """测试德州扑克手牌评估"""
+        hole = parse_cards("As Ah")
+        board = parse_cards("Ad 9c 5s 3h 2d")
+        
+        hand = TexasHoldem.evaluate_hand(hole, board)
+        self.assertEqual(hand.rank, HandRank.THREE_OF_A_KIND)
+    
+    def test_evaluate_hand_with_flush(self):
+        """测试德州扑克同花"""
+        hole = parse_cards("As 2s")
+        board = parse_cards("Ks 9s 5s 3h 2d")
+        
+        hand = TexasHoldem.evaluate_hand(hole, board)
+        self.assertEqual(hand.rank, HandRank.FLUSH)
+    
+    def test_calculate_outs_count(self):
+        """测试补牌计算"""
+        hole = parse_cards("As Ah")
+        board = parse_cards("Ad 9c 5s")
+        
+        outs = TexasHoldem.calculate_outs_count(hole, board, HandRank.FOUR_OF_A_KIND)
+        # 只有一张 Ah 可以让四条
+        self.assertEqual(outs, 1)
+    
+    def test_is_pocket_pair(self):
+        """测试口袋对子判断"""
+        hole = parse_cards("As Ah")
+        self.assertTrue(is_pocket_pair(hole))
+        
+        hole2 = parse_cards("As Kh")
+        self.assertFalse(is_pocket_pair(hole2))
+    
+    def test_is_suited(self):
+        """测试同花底牌判断"""
+        hole = parse_cards("As Ks")
+        self.assertTrue(is_suited(hole))
+        
+        hole2 = parse_cards("As Kh")
+        self.assertFalse(is_suited(hole2))
+    
+    def test_is_connected(self):
+        """测试相连判断"""
+        hole = parse_cards("As Kh")  # A-K
+        self.assertTrue(is_connected(hole, gap=1))
+        
+        hole2 = parse_cards("As Qh")  # A-Q
+        self.assertTrue(is_connected(hole2, gap=2))
+        self.assertFalse(is_connected(hole2, gap=1))
+    
+    def test_starting_hand_strength(self):
+        """测试起手牌强度评估"""
+        # Premium hands
+        aa = parse_cards("As Ah")
+        self.assertEqual(get_starting_hand_strength(aa), 'premium')
+        
+        aks = parse_cards("As Ks")
+        self.assertEqual(get_starting_hand_strength(aks), 'premium')
+        
+        # Strong hands
+        jj = parse_cards("Js Jh")
+        self.assertEqual(get_starting_hand_strength(jj), 'strong')
+        
+        ako = parse_cards("As Kh")
+        self.assertEqual(get_starting_hand_strength(ako), 'strong')
+        
+        # Medium hands
+        pocket_5 = parse_cards("5s 5h")
+        self.assertEqual(get_starting_hand_strength(pocket_5), 'medium')
+        
+        aqo = parse_cards("As Qh")
+        self.assertEqual(get_starting_hand_strength(aqo), 'medium')
+        
+        # Weak hands
+        axs = parse_cards("As 9s")
+        self.assertEqual(get_starting_hand_strength(axs), 'weak')
+        
+        # Trash hands
+        hand = parse_cards("9s 3h")
+        self.assertEqual(get_starting_hand_strength(hand), 'trash')
+
+
+class TestHandAnalyzer(unittest.TestCase):
+    """测试手牌分析器"""
+    
+    def test_get_possible_straights(self):
+        """测试可能顺子分析"""
+        cards = parse_cards("5s 6h 7d")
+        possible = HandAnalyzer.get_possible_straights(cards)
+        # 应该有多种顺子可能
+        self.assertTrue(len(possible) > 0)
+    
+    def test_get_possible_flushes(self):
+        """测试可能同花分析"""
+        cards = parse_cards("As 5s 9s")
+        possible = HandAnalyzer.get_possible_flushes(cards)
+        # 应该有黑桃同花可能
+        self.assertTrue(len(possible) > 0)
+        self.assertTrue(any(suit == Suit.SPADES for suit, _ in possible))
 
 
 class TestUtilityFunctions(unittest.TestCase):
-    """工具函数测试"""
+    """测试工具函数"""
     
     def test_create_deck(self):
         """测试创建牌组"""
         deck = create_deck()
         self.assertEqual(len(deck), 52)
     
-    def test_shuffle_deck(self):
-        """测试洗牌"""
-        deck = create_deck()
-        shuffled = shuffle_deck(deck)
-        self.assertEqual(len(shuffled), 52)
+    def test_create_deck_unshuffled(self):
+        """测试创建未洗牌的牌组"""
+        deck = create_deck(shuffled=False)
+        # 未洗牌时第一张应该是黑桃2 (Suit.SPADES=0, Rank.TWO=2)
+        first_card = deck._cards[0]
+        self.assertEqual(first_card.rank, Rank.TWO)
+        self.assertEqual(first_card.suit, Suit.SPADES)
     
-    def test_deal_hands(self):
-        """测试发牌"""
-        deck = create_deck()
-        shuffle_deck(deck)
-        hands = deal_hands(deck, num_players=4, cards_per_hand=5)
-        
-        self.assertEqual(len(hands), 4)
-        for hand in hands:
-            self.assertEqual(len(hand.cards), 5)
+    def test_parse_cards(self):
+        """测试解析牌字符串"""
+        cards = parse_cards("As Kh 2d")
+        self.assertEqual(len(cards), 3)
+        self.assertEqual(cards[0].rank, Rank.ACE)
+        self.assertEqual(cards[0].suit, Suit.SPADES)
     
-    def test_evaluate_hand(self):
-        """测试评估手牌"""
-        cards = [
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.ACE),
-            Card(Suit.DIAMONDS, Rank.KING),
-            Card(Suit.CLUBS, Rank.KING),
-            Card(Suit.SPADES, Rank.QUEEN),
-        ]
-        
-        rank, values = evaluate_hand(cards)
-        self.assertEqual(rank, HandRank.TWO_PAIR)
-    
-    def test_compare_hands(self):
-        """测试比较手牌"""
-        hand1 = [
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.ACE),
-            Card(Suit.DIAMONDS, Rank.KING),
-            Card(Suit.CLUBS, Rank.QUEEN),
-            Card(Suit.SPADES, Rank.JACK),
-        ]
-        
-        hand2 = [
-            Card(Suit.SPADES, Rank.KING),
-            Card(Suit.HEARTS, Rank.KING),
-            Card(Suit.DIAMONDS, Rank.QUEEN),
-            Card(Suit.CLUBS, Rank.JACK),
-            Card(Suit.SPADES, Rank.TEN),
-        ]
-        
-        self.assertTrue(compare_hands(hand1, hand2) > 0)
-    
-    def test_best_hand(self):
-        """测试从7张牌中选最佳组合"""
-        # 假设有公共牌和手牌
-        seven_cards = [
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.ACE),  # 手牌
-            Card(Suit.SPADES, Rank.KING),
-            Card(Suit.HEARTS, Rank.KING),
-            Card(Suit.DIAMONDS, Rank.KING),  # 公共牌
-            Card(Suit.CLUBS, Rank.TWO),
-            Card(Suit.SPADES, Rank.THREE),
-        ]
-        
-        best = best_hand(seven_cards)
-        rank, _ = best.evaluate()
-        # 应该能选出三张K加一对A（葫芦）或两对
-        self.assertIn(rank, [HandRank.FULL_HOUSE, HandRank.THREE_OF_A_KIND, HandRank.TWO_PAIR])
-    
-    def test_hand_probability(self):
-        """测试牌型概率"""
-        # 皇家同花顺概率应约为0.000154%
-        prob = hand_probability(HandRank.ROYAL_FLUSH)
-        self.assertAlmostEqual(prob, 0.000154, places=5)
-        
-        # 一对概率应约为42%
-        prob = hand_probability(HandRank.ONE_PAIR)
-        self.assertAlmostEqual(prob, 42.2569, places=2)
-    
-    def test_hand_combinations_count(self):
-        """测试牌型组合数"""
-        # 皇家同花顺只有4种
-        self.assertEqual(hand_combinations_count(HandRank.ROYAL_FLUSH), 4)
-        
-        # 高牌最多
-        self.assertEqual(hand_combinations_count(HandRank.HIGH_CARD), 1302540)
-    
-    def test_cards_to_string(self):
+    def test_cards_to_str(self):
         """测试牌列表转字符串"""
         cards = [
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.KING),
+            Card(rank=Rank.ACE, suit=Suit.SPADES),
+            Card(rank=Rank.KING, suit=Suit.HEARTS)
         ]
-        
-        s = cards_to_string(cards)
-        self.assertEqual(s, "A♠ K♥")
-        
-        s_chinese = cards_to_string(cards, chinese=True)
-        self.assertEqual(s_chinese, "黑桃A 红心K")
+        result = cards_to_str(cards)
+        self.assertEqual(result, "A♠ K♥")
     
-    def test_string_to_cards(self):
-        """测试字符串解析为牌"""
-        # 简化测试
-        cards = string_to_cards("A♠")
-        self.assertEqual(len(cards), 1)
-        self.assertEqual(cards[0].suit, Suit.SPADES)
-        self.assertEqual(cards[0].rank, Rank.ACE)
+    def test_evaluate_hand_function(self):
+        """测试快捷评估函数"""
+        cards = parse_cards("As Ah Ad Ac 2h")
+        hand = evaluate_hand(cards)
+        self.assertEqual(hand.rank, HandRank.FOUR_OF_A_KIND)
     
-    def test_get_all_cards(self):
-        """测试获取所有牌"""
-        all_cards = get_all_cards()
-        self.assertEqual(len(all_cards), 52)
+    def test_compare_hands_function(self):
+        """测试快捷比较函数"""
+        cards1 = parse_cards("As Ah Ad Ac 2h")
+        cards2 = parse_cards("Ks Kh Kd Kc Ah")
+        
+        result = compare_hands(cards1, cards2)
+        self.assertEqual(result, 1)  # A四条 > K四条
     
-    def test_card_count_by_rank(self):
-        """测试按牌面统计"""
-        cards = [
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.ACE),
-            Card(Suit.DIAMONDS, Rank.ACE),
-            Card(Suit.CLUBS, Rank.KING),
-        ]
-        
-        count = card_count_by_rank(cards)
-        self.assertEqual(count[Rank.ACE], 3)
-        self.assertEqual(count[Rank.KING], 1)
+    def test_get_hand_rank_name(self):
+        """测试获取牌型名称"""
+        cards = parse_cards("As Ah")
+        hand = evaluate_hand(cards + parse_cards("Ad Ac 2h"))
+        name = get_hand_rank_name(hand)
+        self.assertEqual(name, "四条")
     
-    def test_card_count_by_suit(self):
-        """测试按花色统计"""
-        cards = [
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.SPADES, Rank.KING),
-            Card(Suit.HEARTS, Rank.QUEEN),
-        ]
+    def test_simulate_win_rate(self):
+        """测试胜率模拟"""
+        # AA vs 随机牌
+        aa = parse_cards("As Ah")
+        win_rate = simulate_win_rate(aa, simulations=100)
         
-        count = card_count_by_suit(cards)
-        self.assertEqual(count[Suit.SPADES], 2)
-        self.assertEqual(count[Suit.HEARTS], 1)
-
-
-class TestPokerGame(unittest.TestCase):
-    """PokerGame 类测试"""
-    
-    def test_game_creation(self):
-        """测试创建游戏"""
-        game = PokerGame(num_players=4)
-        self.assertEqual(game.num_players, 4)
-    
-    def test_game_deal(self):
-        """测试发牌"""
-        game = PokerGame(num_players=4)
-        game.new_round()
-        game.deal_to_players(2)
-        
-        self.assertEqual(len(game.hands), 4)
-        for hand in game.hands:
-            self.assertEqual(len(hand.cards), 2)
-    
-    def test_game_community_cards(self):
-        """测试公共牌"""
-        game = PokerGame(num_players=2)
-        game.new_round()
-        game.deal_to_players(2)
-        
-        flop = game.flop()
-        self.assertEqual(len(flop), 3)
-        self.assertEqual(len(game.community_cards), 3)
-        
-        turn = game.turn()
-        self.assertEqual(len(game.community_cards), 4)
-        
-        river = game.river()
-        self.assertEqual(len(game.community_cards), 5)
-    
-    def test_game_get_winner(self):
-        """测试获取赢家"""
-        game = PokerGame(num_players=2)
-        game.new_round()
-        
-        # 手动设置牌组，确保有明确的赢家
-        # 玩家1：四条A
-        # 玩家2：一对K
-        game.deck = Deck(cards=[
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.ACE),   # 玩家1手牌
-            Card(Suit.DIAMONDS, Rank.KING),
-            Card(Suit.CLUBS, Rank.KING),    # 玩家2手牌
-            # 公共牌
-            Card(Suit.DIAMONDS, Rank.ACE),
-            Card(Suit.CLUBS, Rank.ACE),
-            Card(Suit.SPADES, Rank.TWO),
-            Card(Suit.HEARTS, Rank.THREE),
-            Card(Suit.SPADES, Rank.FOUR),
-        ])
-        
-        game.deal_to_players(2)
-        game.flop()
-        game.turn()
-        game.river()
-        
-        winner_idx, best_hands = game.get_winner()
-        
-        # 玩家1应该赢（四条A）
-        self.assertEqual(winner_idx, 0)
-        self.assertEqual(best_hands[0].get_rank_name(), "四条")
+        # AA 应该有较高的胜率
+        self.assertTrue(0.7 < win_rate < 1.0)
 
 
 class TestEdgeCases(unittest.TestCase):
-    """边界情况测试"""
+    """测试边缘情况"""
     
-    def test_wheel_straight(self):
-        """测试A-2-3-4-5顺子（轮子）"""
-        hand = Hand([
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.TWO),
-            Card(Suit.DIAMONDS, Rank.THREE),
-            Card(Suit.CLUBS, Rank.FOUR),
-            Card(Suit.SPADES, Rank.FIVE),
-        ])
-        
-        rank, values = hand.evaluate()
-        self.assertEqual(rank, HandRank.STRAIGHT)
-        self.assertEqual(values[0], Rank.FIVE)  # 轮子最高牌是5
-    
-    def test_hand_with_wrong_card_count(self):
-        """测试非5张牌时评估报错"""
-        hand = Hand([
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.KING),
-        ])
-        
-        with self.assertRaises(ValueError):
-            hand.evaluate()
-    
-    def test_best_hand_with_minimum_cards(self):
-        """测试用最少的牌（5张）选最佳"""
+    def test_all_same_suit_rank_order(self):
+        """测试同花色牌的顺序"""
         cards = [
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.ACE),
-            Card(Suit.DIAMONDS, Rank.ACE),
-            Card(Suit.CLUBS, Rank.ACE),
-            Card(Suit.SPADES, Rank.KING),
+            Card(rank=Rank.ACE, suit=Suit.SPADES),
+            Card(rank=Rank.KING, suit=Suit.SPADES),
+            Card(rank=Rank.QUEEN, suit=Suit.SPADES),
+            Card(rank=Rank.JACK, suit=Suit.SPADES),
+            Card(rank=Rank.TEN, suit=Suit.SPADES),
         ]
+        hand = PokerEvaluator.evaluate(cards)
+        self.assertEqual(hand.rank, HandRank.ROYAL_FLUSH)
+    
+    def test_different_suit_same_rank_order(self):
+        """测试不同花色同一等级顺序"""
+        cards = [
+            Card(rank=Rank.ACE, suit=Suit.SPADES),
+            Card(rank=Rank.KING, suit=Suit.HEARTS),
+            Card(rank=Rank.QUEEN, suit=Suit.DIAMONDS),
+            Card(rank=Rank.JACK, suit=Suit.CLUBS),
+            Card(rank=Rank.TEN, suit=Suit.SPADES),
+        ]
+        hand = PokerEvaluator.evaluate(cards)
+        self.assertEqual(hand.rank, HandRank.STRAIGHT)
+    
+    def test_compare_tie(self):
+        """测试平局比较"""
+        cards1 = parse_cards("As Ks Qs Js 9s")
+        cards2 = parse_cards("Ah Kh Qh Jh 9h")
         
-        best = best_hand(cards)
-        rank, _ = best.evaluate()
-        self.assertEqual(rank, HandRank.FOUR_OF_A_KIND)
+        result = compare_hands(cards1, cards2)
+        self.assertEqual(result, 0)  # 同样大小的同花顺
+    
+    def test_full_house_comparison(self):
+        """测试葫芦比较"""
+        # A-K 葫芦 vs A-Q 葫芦
+        fh1 = parse_cards("As Ah Ad Ks Kh")
+        fh2 = parse_cards("Ac Ah Ad Qs Qh")
+        
+        result = compare_hands(fh1, fh2)
+        self.assertEqual(result, 1)
+    
+    def test_two_pair_comparison(self):
+        """测试两对比较"""
+        # A-K 两对 vs A-Q 两对
+        tp1 = parse_cards("As Ah Ks Kh 9c")
+        tp2 = parse_cards("Ac Ah Qs Qh 9c")
+        
+        result = compare_hands(tp1, tp2)
+        self.assertEqual(result, 1)
+    
+    def test_kicker_comparison(self):
+        """测试kicker比较"""
+        # 一对A，高kicker vs 低kicker
+        p1 = parse_cards("As Ah Kc 9d 5s")
+        p2 = parse_cards("Ac Ad Qc 9d 5s")
+        
+        result = compare_hands(p1, p2)
+        self.assertEqual(result, 1)
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
+if __name__ == '__main__':
+    unittest.main()

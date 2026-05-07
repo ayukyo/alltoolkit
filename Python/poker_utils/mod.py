@@ -1,35 +1,37 @@
 """
-扑克牌工具集 (Poker Utils)
-==========================
+扑克牌工具模块 (Poker Utils)
+============================
 
-零外部依赖的扑克牌处理工具，支持：
-- 创建牌组、洗牌、发牌
-- 牌型判断（高牌到皇家同花顺）
-- 手牌比较和胜负判定
-- 概率计算
+提供扑克牌相关的核心功能：
+- 扑克牌表示和操作
+- 牌型判断（同花顺、四条、葫芦、同花、顺子、三条、两对、一对、高牌）
+- 牌型比较和评分
+- 洗牌和发牌
+- 德州扑克牌型评估
 
-作者: AllToolkit 自动生成
-日期: 2026-04-24
+零外部依赖，纯 Python 实现。
+
+Author: AllToolkit
+Date: 2026-05-08
 """
 
-from typing import List, Tuple, Optional, Dict, Set
-from enum import IntEnum
-from collections import Counter
 import random
+from enum import IntEnum
+from typing import List, Tuple, Optional, Set
+from dataclasses import dataclass
+from collections import Counter
 
-
-# ==================== 常量定义 ====================
 
 class Suit(IntEnum):
-    """花色枚举"""
-    CLUBS = 0      # ♣ 梅花
-    DIAMONDS = 1   # ♦ 方块
-    HEARTS = 2     # ♥ 红心
-    SPADES = 3     # ♠ 黑桃
+    """扑克牌花色"""
+    SPADES = 0    # 黑桃 ♠
+    HEARTS = 1    # 红心 ♥
+    DIAMONDS = 2  # 方块 ♦
+    CLUBS = 3     # 梅花 ♣
 
 
 class Rank(IntEnum):
-    """牌面大小枚举"""
+    """扑克牌点数"""
     TWO = 2
     THREE = 3
     FOUR = 4
@@ -39,42 +41,21 @@ class Rank(IntEnum):
     EIGHT = 8
     NINE = 9
     TEN = 10
-    JACK = 11      # J
-    QUEEN = 12     # Q
-    KING = 13      # K
-    ACE = 14       # A (默认为14，A可作为1用于顺子)
+    JACK = 11
+    QUEEN = 12
+    KING = 13
+    ACE = 14
 
 
-class HandRank(IntEnum):
-    """牌型等级"""
-    HIGH_CARD = 0       # 高牌
-    ONE_PAIR = 1        # 一对
-    TWO_PAIR = 2        # 两对
-    THREE_OF_A_KIND = 3 # 三条
-    STRAIGHT = 4        # 顺子
-    FLUSH = 5           # 同花
-    FULL_HOUSE = 6      # 葫芦
-    FOUR_OF_A_KIND = 7  # 四条
-    STRAIGHT_FLUSH = 8  # 同花顺
-    ROYAL_FLUSH = 9     # 皇家同花顺
-
-
-# 花色符号映射
+# 花色显示符号
 SUIT_SYMBOLS = {
-    Suit.CLUBS: '♣',
-    Suit.DIAMONDS: '♦',
+    Suit.SPADES: '♠',
     Suit.HEARTS: '♥',
-    Suit.SPADES: '♠'
+    Suit.DIAMONDS: '♦',
+    Suit.CLUBS: '♣'
 }
 
-SUIT_NAMES = {
-    Suit.CLUBS: '梅花',
-    Suit.DIAMONDS: '方块',
-    Suit.HEARTS: '红心',
-    Suit.SPADES: '黑桃'
-}
-
-# 牌面符号映射
+# 点数显示符号
 RANK_SYMBOLS = {
     Rank.TWO: '2',
     Rank.THREE: '3',
@@ -84,735 +65,760 @@ RANK_SYMBOLS = {
     Rank.SEVEN: '7',
     Rank.EIGHT: '8',
     Rank.NINE: '9',
-    Rank.TEN: '10',
+    Rank.TEN: 'T',
     Rank.JACK: 'J',
     Rank.QUEEN: 'Q',
     Rank.KING: 'K',
     Rank.ACE: 'A'
 }
 
-RANK_NAMES = {
-    Rank.TWO: '2',
-    Rank.THREE: '3',
-    Rank.FOUR: '4',
-    Rank.FIVE: '5',
-    Rank.SIX: '6',
-    Rank.SEVEN: '7',
-    Rank.EIGHT: '8',
-    Rank.NINE: '9',
-    Rank.TEN: '10',
-    Rank.JACK: 'J',
-    Rank.QUEEN: 'Q',
-    Rank.KING: 'K',
-    Rank.ACE: 'A'
-}
 
-HAND_RANK_NAMES = {
-    HandRank.HIGH_CARD: '高牌',
-    HandRank.ONE_PAIR: '一对',
-    HandRank.TWO_PAIR: '两对',
-    HandRank.THREE_OF_A_KIND: '三条',
-    HandRank.STRAIGHT: '顺子',
-    HandRank.FLUSH: '同花',
-    HandRank.FULL_HOUSE: '葫芦',
-    HandRank.FOUR_OF_A_KIND: '四条',
-    HandRank.STRAIGHT_FLUSH: '同花顺',
-    HandRank.ROYAL_FLUSH: '皇家同花顺'
-}
-
-
-# ==================== Card 类 ====================
-
+@dataclass(frozen=True)
 class Card:
-    """扑克牌类"""
-    
-    def __init__(self, suit: Suit, rank: Rank):
-        """
-        初始化一张牌
-        
-        Args:
-            suit: 花色
-            rank: 牌面大小
-        """
-        self.suit = suit
-        self.rank = rank
-    
-    def __repr__(self) -> str:
-        """字符串表示"""
-        return f"{RANK_SYMBOLS[self.rank]}{SUIT_SYMBOLS[self.suit]}"
+    """扑克牌"""
+    rank: Rank
+    suit: Suit
     
     def __str__(self) -> str:
-        """中文字符串表示"""
-        return f"{SUIT_NAMES[self.suit]}{RANK_NAMES[self.rank]}"
+        return f"{RANK_SYMBOLS[self.rank]}{SUIT_SYMBOLS[self.suit]}"
     
-    def __eq__(self, other) -> bool:
-        """判断两张牌是否相同"""
-        if not isinstance(other, Card):
-            return False
-        return self.suit == other.suit and self.rank == other.rank
+    def __repr__(self) -> str:
+        return str(self)
     
-    def __lt__(self, other) -> bool:
-        """比较大小（先比牌面，再比花色）"""
+    def __lt__(self, other: 'Card') -> bool:
         if self.rank != other.rank:
             return self.rank < other.rank
         return self.suit < other.suit
     
-    def __hash__(self) -> int:
-        """哈希值"""
-        return hash((self.suit, self.rank))
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Card):
+            return False
+        return self.rank == other.rank and self.suit == other.suit
     
-    def to_dict(self) -> Dict:
-        """转换为字典"""
-        return {
-            'suit': self.suit.name,
-            'rank': self.rank.name,
-            'symbol': repr(self),
-            'chinese': str(self)
-        }
+    def __hash__(self) -> int:
+        return hash((self.rank, self.suit))
     
     @classmethod
-    def from_string(cls, s: str) -> 'Card':
-        """
-        从字符串解析牌
+    def from_str(cls, s: str) -> 'Card':
+        """从字符串创建扑克牌
         
         Args:
-            s: 牌的字符串表示，如 "A♠" 或 "黑桃A" 或 "SA" (Spade Ace)
+            s: 牌字符串，如 'Ah' (红心A), 'Ts' (黑桃T), '2d' (方块2)
         
         Returns:
             Card 对象
-        
-        Examples:
-            >>> Card.from_string("A♠")
-            Card(HEARTS, ACE)  # 注意：这里实际返回黑桃A
-            >>> Card.from_string("SA")  # S=Spade, A=Ace
-            Card(SPADES, ACE)
         """
-        s = s.strip().upper()
-        
-        # 尝试解析花色符号
-        suit_map = {
-            '♣': Suit.CLUBS, 'C': Suit.CLUBS,
-            '♦': Suit.DIAMONDS, 'D': Suit.DIAMONDS,
-            '♥': Suit.HEARTS, 'H': Suit.HEARTS,
-            '♠': Suit.SPADES, 'S': Suit.SPADES
-        }
-        
-        # 尝试解析牌面
+        s = s.upper()
         rank_map = {
-            '2': Rank.TWO, '3': Rank.THREE, '4': Rank.FOUR,
-            '5': Rank.FIVE, '6': Rank.SIX, '7': Rank.SEVEN,
-            '8': Rank.EIGHT, '9': Rank.NINE, '10': Rank.TEN,
-            'J': Rank.JACK, 'Q': Rank.QUEEN, 'K': Rank.KING, 'A': Rank.ACE
+            '2': Rank.TWO, '3': Rank.THREE, '4': Rank.FOUR, '5': Rank.FIVE,
+            '6': Rank.SIX, '7': Rank.SEVEN, '8': Rank.EIGHT, '9': Rank.NINE,
+            'T': Rank.TEN, 'J': Rank.JACK, 'Q': Rank.QUEEN, 'K': Rank.KING, 'A': Rank.ACE
+        }
+        suit_map = {
+            'S': Suit.SPADES, 'H': Suit.HEARTS, 'D': Suit.DIAMONDS, 'C': Suit.CLUBS
         }
         
-        suit = None
-        rank = None
+        rank_char = s[0]
+        suit_char = s[1]
         
-        # 解析花色
-        for char in s:
-            if char in suit_map:
-                suit = suit_map[char]
-                break
-        
-        # 解析牌面
-        for r, rank_val in rank_map.items():
-            if r in s:
-                rank = rank_val
-                break
-        
-        if suit is None or rank is None:
-            raise ValueError(f"无法解析牌: {s}")
-        
-        return cls(suit, rank)
+        return cls(rank=rank_map[rank_char], suit=suit_map[suit_char])
 
 
-# ==================== Deck 类 ====================
+class HandRank(IntEnum):
+    """牌型等级"""
+    HIGH_CARD = 0       # 高牌
+    ONE_PAIR = 1        # 一对
+    TWO_PAIR = 2         # 两对
+    THREE_OF_A_KIND = 3  # 三条
+    STRAIGHT = 4        # 顺子
+    FLUSH = 5           # 同花
+    FULL_HOUSE = 6      # 葫芦
+    FOUR_OF_A_KIND = 7   # 四条
+    STRAIGHT_FLUSH = 8   # 同花顺
+    ROYAL_FLUSH = 9      # 皇家同花顺
+
+
+# 牌型中文名称
+HAND_RANK_NAMES = {
+    HandRank.HIGH_CARD: "高牌",
+    HandRank.ONE_PAIR: "一对",
+    HandRank.TWO_PAIR: "两对",
+    HandRank.THREE_OF_A_KIND: "三条",
+    HandRank.STRAIGHT: "顺子",
+    HandRank.FLUSH: "同花",
+    HandRank.FULL_HOUSE: "葫芦",
+    HandRank.FOUR_OF_A_KIND: "四条",
+    HandRank.STRAIGHT_FLUSH: "同花顺",
+    HandRank.ROYAL_FLUSH: "皇家同花顺"
+}
+
+
+@dataclass
+class Hand:
+    """手牌评估结果"""
+    rank: HandRank
+    cards: List[Card]
+    kickers: List[Rank]  # 用于比较的 kicker
+    
+    def __str__(self) -> str:
+        return f"{HAND_RANK_NAMES[self.rank]}: {' '.join(str(c) for c in self.cards)}"
+    
+    def __lt__(self, other: 'Hand') -> bool:
+        if self.rank != other.rank:
+            return self.rank < other.rank
+        return self.kickers < other.kickers
+    
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Hand):
+            return False
+        return self.rank == other.rank and self.kickers == other.kickers
+
 
 class Deck:
-    """牌组类"""
+    """扑克牌组"""
     
-    def __init__(self, cards: Optional[List[Card]] = None):
-        """
-        初始化牌组
+    def __init__(self):
+        self._cards: List[Card] = []
+        self.reset()
+    
+    def reset(self) -> None:
+        """重置牌组为完整52张牌"""
+        self._cards = [
+            Card(rank=rank, suit=suit)
+            for suit in Suit
+            for rank in Rank
+        ]
+    
+    def shuffle(self) -> None:
+        """洗牌"""
+        random.shuffle(self._cards)
+    
+    def deal(self, count: int = 1) -> List[Card]:
+        """发牌
         
         Args:
-            cards: 可选的初始牌列表
-        """
-        if cards is None:
-            self.cards = self._create_standard_deck()
-        else:
-            self.cards = list(cards)
-    
-    def _create_standard_deck(self) -> List[Card]:
-        """创建标准52张牌组"""
-        return [Card(suit, rank) 
-                for suit in Suit 
-                for rank in Rank]
-    
-    def shuffle(self) -> 'Deck':
-        """洗牌（原地修改）"""
-        random.shuffle(self.cards)
-        return self
-    
-    def draw(self, n: int = 1) -> List[Card]:
-        """
-        从牌组顶部抽牌
-        
-        Args:
-            n: 抽牌数量
+            count: 发牌数量
         
         Returns:
-            抽出的牌列表
+            发出的牌列表
         """
-        if n > len(self.cards):
-            raise ValueError(f"牌组只有 {len(self.cards)} 张牌，无法抽 {n} 张")
+        if count > len(self._cards):
+            raise ValueError(f"牌组只有 {len(self._cards)} 张牌，无法发 {count} 张")
         
-        drawn = self.cards[:n]
-        self.cards = self.cards[n:]
-        return drawn
+        dealt = self._cards[:count]
+        self._cards = self._cards[count:]
+        return dealt
     
-    def draw_one(self) -> Card:
-        """抽一张牌"""
-        if not self.cards:
+    def deal_one(self) -> Card:
+        """发一张牌"""
+        if not self._cards:
             raise ValueError("牌组已空")
-        return self.cards.pop(0)
-    
-    def add_card(self, card: Card) -> 'Deck':
-        """添加一张牌到牌组底部"""
-        self.cards.append(card)
-        return self
-    
-    def add_cards(self, cards: List[Card]) -> 'Deck':
-        """添加多张牌到牌组底部"""
-        self.cards.extend(cards)
-        return self
-    
-    def reset(self) -> 'Deck':
-        """重置牌组为完整的52张牌"""
-        self.cards = self._create_standard_deck()
-        return self
+        return self._cards.pop(0)
     
     def __len__(self) -> int:
-        return len(self.cards)
+        return len(self._cards)
     
-    def __repr__(self) -> str:
-        return f"Deck({len(self.cards)} cards)"
+    def __str__(self) -> str:
+        return f"Deck({len(self._cards)} cards)"
     
-    def __iter__(self):
-        return iter(self.cards)
-    
-    def remaining(self) -> int:
-        """剩余牌数"""
-        return len(self.cards)
-    
-    def is_empty(self) -> bool:
-        """牌组是否为空"""
-        return len(self.cards) == 0
-    
-    def peek(self, n: int = 1) -> List[Card]:
-        """查看牌组顶部的牌（不抽走）"""
-        return self.cards[:n]
-    
-    def to_dict(self) -> Dict:
-        """转换为字典"""
-        return {
-            'count': len(self.cards),
-            'cards': [c.to_dict() for c in self.cards]
-        }
-
-
-# ==================== Hand 类 ====================
-
-class Hand:
-    """手牌类"""
-    
-    def __init__(self, cards: List[Card]):
-        """
-        初始化手牌
+    def remove(self, card: Card) -> bool:
+        """从牌组中移除指定牌
         
         Args:
-            cards: 手牌列表（通常为5张）
-        """
-        self.cards = sorted(cards, key=lambda c: (c.rank, c.suit), reverse=True)
-        self._rank_cache: Optional[Tuple[HandRank, List[int]]] = None
-    
-    def evaluate(self) -> Tuple[HandRank, List[int]]:
-        """
-        评估手牌牌型
+            card: 要移除的牌
         
         Returns:
-            (牌型等级, 用于比较的关键牌值列表)
+            是否成功移除
         """
-        if self._rank_cache is not None:
-            return self._rank_cache
+        if card in self._cards:
+            self._cards.remove(card)
+            return True
+        return False
+    
+    def remove_cards(self, cards: List[Card]) -> int:
+        """从牌组中移除多张牌
         
-        if len(self.cards) != 5:
-            raise ValueError("必须为5张牌才能评估牌型")
+        Args:
+            cards: 要移除的牌列表
         
-        ranks = [c.rank for c in self.cards]
-        suits = [c.suit for c in self.cards]
+        Returns:
+            成功移除的数量
+        """
+        removed = 0
+        for card in cards:
+            if self.remove(card):
+                removed += 1
+        return removed
+
+
+class PokerEvaluator:
+    """扑克牌型评估器"""
+    
+    @staticmethod
+    def evaluate(cards: List[Card]) -> Hand:
+        """评估最佳5张牌型
         
+        Args:
+            cards: 手牌列表（可以是5-7张）
+        
+        Returns:
+            最佳牌型的 Hand 对象
+        """
+        if len(cards) < 5:
+            raise ValueError("至少需要5张牌才能评估牌型")
+        
+        if len(cards) == 5:
+            return PokerEvaluator._evaluate_five(cards)
+        
+        # 从多张牌中找出最佳5张组合
+        best_hand: Optional[Hand] = None
+        from itertools import combinations
+        
+        for combo in combinations(cards, 5):
+            hand = PokerEvaluator._evaluate_five(list(combo))
+            if best_hand is None or hand > best_hand:
+                best_hand = hand
+        
+        return best_hand
+    
+    @staticmethod
+    def _evaluate_five(cards: List[Card]) -> Hand:
+        """评估恰好5张牌的牌型"""
+        ranks = sorted([c.rank for c in cards], reverse=True)
+        suits = [c.suit for c in cards]
+        
+        # 统计点数出现次数
         rank_counts = Counter(ranks)
-        suit_counts = Counter(suits)
+        counts = sorted(rank_counts.values(), reverse=True)
         
-        # 检查是否为同花
-        is_flush = len(suit_counts) == 1
+        # 判断是否同花
+        is_flush = len(set(suits)) == 1
         
-        # 检查是否为顺子
-        is_straight, straight_high = self._check_straight(ranks)
+        # 判断是否顺子
+        is_straight, straight_high = PokerEvaluator._check_straight(ranks)
         
-        # 统计牌型
-        count_values = sorted(rank_counts.values(), reverse=True)
+        # 特殊情况：A-2-3-4-5 顺子（轮子）
+        if not is_straight and set(ranks) == {Rank.ACE, Rank.TWO, Rank.THREE, Rank.FOUR, Rank.FIVE}:
+            is_straight = True
+            straight_high = Rank.FIVE
         
         # 判断牌型
         if is_straight and is_flush:
             if straight_high == Rank.ACE:
-                result = (HandRank.ROYAL_FLUSH, [straight_high])
+                # 皇家同花顺
+                return Hand(
+                    rank=HandRank.ROYAL_FLUSH,
+                    cards=cards,
+                    kickers=[straight_high]
+                )
             else:
-                result = (HandRank.STRAIGHT_FLUSH, [straight_high])
-        elif count_values == [4, 1]:
-            # 四条：4张相同 + 1张散牌
-            four_rank = [r for r, c in rank_counts.items() if c == 4][0]
-            kicker = [r for r, c in rank_counts.items() if c == 1][0]
-            result = (HandRank.FOUR_OF_A_KIND, [four_rank, kicker])
-        elif count_values == [3, 2]:
-            # 葫芦：3张相同 + 2张相同
-            three_rank = [r for r, c in rank_counts.items() if c == 3][0]
-            pair_rank = [r for r, c in rank_counts.items() if c == 2][0]
-            result = (HandRank.FULL_HOUSE, [three_rank, pair_rank])
-        elif is_flush:
-            result = (HandRank.FLUSH, sorted(ranks, reverse=True))
-        elif is_straight:
-            result = (HandRank.STRAIGHT, [straight_high])
-        elif count_values == [3, 1, 1]:
-            # 三条：3张相同 + 2张散牌
-            three_rank = [r for r, c in rank_counts.items() if c == 3][0]
-            kickers = sorted([r for r, c in rank_counts.items() if c == 1], reverse=True)
-            result = (HandRank.THREE_OF_A_KIND, [three_rank] + kickers)
-        elif count_values == [2, 2, 1]:
-            # 两对：2对 + 1张散牌
-            pairs = sorted([r for r, c in rank_counts.items() if c == 2], reverse=True)
-            kicker = [r for r, c in rank_counts.items() if c == 1][0]
-            result = (HandRank.TWO_PAIR, pairs + [kicker])
-        elif count_values == [2, 1, 1, 1]:
-            # 一对：2张相同 + 3张散牌
-            pair_rank = [r for r, c in rank_counts.items() if c == 2][0]
-            kickers = sorted([r for r, c in rank_counts.items() if c == 1], reverse=True)
-            result = (HandRank.ONE_PAIR, [pair_rank] + kickers)
-        else:
-            # 高牌
-            result = (HandRank.HIGH_CARD, sorted(ranks, reverse=True))
+                # 同花顺
+                return Hand(
+                    rank=HandRank.STRAIGHT_FLUSH,
+                    cards=cards,
+                    kickers=[straight_high]
+                )
         
-        self._rank_cache = result
-        return result
+        if counts == [4, 1]:
+            # 四条
+            quad_rank = [r for r, c in rank_counts.items() if c == 4][0]
+            kicker = [r for r, c in rank_counts.items() if c == 1][0]
+            return Hand(
+                rank=HandRank.FOUR_OF_A_KIND,
+                cards=cards,
+                kickers=[quad_rank, kicker]
+            )
+        
+        if counts == [3, 2]:
+            # 葫芦
+            trip_rank = [r for r, c in rank_counts.items() if c == 3][0]
+            pair_rank = [r for r, c in rank_counts.items() if c == 2][0]
+            return Hand(
+                rank=HandRank.FULL_HOUSE,
+                cards=cards,
+                kickers=[trip_rank, pair_rank]
+            )
+        
+        if is_flush:
+            # 同花
+            return Hand(
+                rank=HandRank.FLUSH,
+                cards=cards,
+                kickers=ranks
+            )
+        
+        if is_straight:
+            # 顺子
+            return Hand(
+                rank=HandRank.STRAIGHT,
+                cards=cards,
+                kickers=[straight_high]
+            )
+        
+        if counts == [3, 1, 1]:
+            # 三条
+            trip_rank = [r for r, c in rank_counts.items() if c == 3][0]
+            kickers = sorted([r for r, c in rank_counts.items() if c == 1], reverse=True)
+            return Hand(
+                rank=HandRank.THREE_OF_A_KIND,
+                cards=cards,
+                kickers=[trip_rank] + kickers
+            )
+        
+        if counts == [2, 2, 1]:
+            # 两对
+            pair_ranks = sorted([r for r, c in rank_counts.items() if c == 2], reverse=True)
+            kicker = [r for r, c in rank_counts.items() if c == 1][0]
+            return Hand(
+                rank=HandRank.TWO_PAIR,
+                cards=cards,
+                kickers=pair_ranks + [kicker]
+            )
+        
+        if counts == [2, 1, 1, 1]:
+            # 一对
+            pair_rank = [r for r, c in rank_counts.items() if c == 2][0]
+            kickers = sorted([r for r, c in rank_counts.items() if c == 1], reverse=True)
+            return Hand(
+                rank=HandRank.ONE_PAIR,
+                cards=cards,
+                kickers=[pair_rank] + kickers
+            )
+        
+        # 高牌
+        return Hand(
+            rank=HandRank.HIGH_CARD,
+            cards=cards,
+            kickers=ranks
+        )
     
-    def _check_straight(self, ranks: List[Rank]) -> Tuple[bool, Optional[Rank]]:
-        """
-        检查是否为顺子
+    @staticmethod
+    def _check_straight(ranks: List[Rank]) -> Tuple[bool, Optional[Rank]]:
+        """检查是否为顺子
+        
+        Args:
+            ranks: 排序后的点数列表（降序）
         
         Returns:
-            (是否为顺子, 顺子最高牌)
+            (是否顺子, 最高牌点数)
         """
-        unique_ranks = sorted(set(ranks))
-        
+        unique_ranks = sorted(set(ranks), reverse=True)
         if len(unique_ranks) != 5:
             return False, None
         
-        # 检查普通顺子
-        if unique_ranks[-1] - unique_ranks[0] == 4:
-            return True, unique_ranks[-1]
+        # 检查连续性
+        for i in range(4):
+            if unique_ranks[i] - unique_ranks[i + 1] != 1:
+                return False, None
         
-        # 检查 A-2-3-4-5 特殊顺子（轮子）
-        if set(unique_ranks) == {Rank.ACE, Rank.TWO, Rank.THREE, Rank.FOUR, Rank.FIVE}:
-            return True, Rank.FIVE  # 轮子的最高牌是5
+        return True, unique_ranks[0]
+    
+    @staticmethod
+    def compare_hands(hand1: Hand, hand2: Hand) -> int:
+        """比较两手牌
         
-        return False, None
-    
-    def get_rank_name(self) -> str:
-        """获取牌型名称"""
-        rank, _ = self.evaluate()
-        return HAND_RANK_NAMES[rank]
-    
-    def compare(self, other: 'Hand') -> int:
-        """
-        比较两手牌
+        Args:
+            hand1: 第一手牌
+            hand2: 第二手牌
         
         Returns:
-            >0: 当前手牌赢
-            <0: 当前手牌输
-            0: 平局
+            1: hand1胜, -1: hand2胜, 0: 平局
         """
-        my_rank, my_values = self.evaluate()
-        other_rank, other_values = other.evaluate()
-        
-        # 先比较牌型
-        if my_rank != other_rank:
-            return my_rank - other_rank
-        
-        # 牌型相同，比较关键牌
-        for my_val, other_val in zip(my_values, other_values):
-            if my_val != other_val:
-                return my_val - other_val
-        
+        if hand1 > hand2:
+            return 1
+        elif hand1 < hand2:
+            return -1
         return 0
     
-    def __gt__(self, other: 'Hand') -> bool:
-        return self.compare(other) > 0
-    
-    def __lt__(self, other: 'Hand') -> bool:
-        return self.compare(other) < 0
-    
-    def __eq__(self, other: 'Hand') -> bool:
-        return self.compare(other) == 0
-    
-    def __repr__(self) -> str:
-        cards_str = ' '.join(repr(c) for c in self.cards)
-        return f"Hand({cards_str})"
-    
-    def __str__(self) -> str:
-        return f"{self.get_rank_name()}: {' '.join(str(c) for c in self.cards)}"
-    
-    def to_dict(self) -> Dict:
-        """转换为字典"""
-        rank, values = self.evaluate()
-        return {
-            'cards': [c.to_dict() for c in self.cards],
-            'hand_rank': rank.name,
-            'hand_rank_name': HAND_RANK_NAMES[rank],
-            'key_values': [int(v) for v in values]
+    @staticmethod
+    def get_hand_description(hand: Hand) -> str:
+        """获取牌型的详细描述
+        
+        Args:
+            hand: 手牌对象
+        
+        Returns:
+            牌型描述字符串
+        """
+        rank_names = {
+            Rank.TWO: '2', Rank.THREE: '3', Rank.FOUR: '4', Rank.FIVE: '5',
+            Rank.SIX: '6', Rank.SEVEN: '7', Rank.EIGHT: '8', Rank.NINE: '9',
+            Rank.TEN: 'T', Rank.JACK: 'J', Rank.QUEEN: 'Q', Rank.KING: 'K', Rank.ACE: 'A'
         }
+        
+        if hand.rank == HandRank.ROYAL_FLUSH:
+            suit = hand.cards[0].suit
+            return f"皇家同花顺 ({SUIT_SYMBOLS[suit]})"
+        
+        if hand.rank == HandRank.STRAIGHT_FLUSH:
+            return f"同花顺 ({rank_names[hand.kickers[0]]}高)"
+        
+        if hand.rank == HandRank.FOUR_OF_A_KIND:
+            return f"四条 ({rank_names[hand.kickers[0]]})"
+        
+        if hand.rank == HandRank.FULL_HOUSE:
+            return f"葫芦 ({rank_names[hand.kickers[0]]}带{rank_names[hand.kickers[1]]})"
+        
+        if hand.rank == HandRank.FLUSH:
+            return f"同花 ({rank_names[hand.kickers[0]]}高)"
+        
+        if hand.rank == HandRank.STRAIGHT:
+            return f"顺子 ({rank_names[hand.kickers[0]]}高)"
+        
+        if hand.rank == HandRank.THREE_OF_A_KIND:
+            return f"三条 ({rank_names[hand.kickers[0]]})"
+        
+        if hand.rank == HandRank.TWO_PAIR:
+            return f"两对 ({rank_names[hand.kickers[0]]}和{rank_names[hand.kickers[1]]})"
+        
+        if hand.rank == HandRank.ONE_PAIR:
+            return f"一对 ({rank_names[hand.kickers[0]]})"
+        
+        return f"高牌 ({rank_names[hand.kickers[0]]}高)"
 
 
-# ==================== 工具函数 ====================
+class TexasHoldem:
+    """德州扑克工具类"""
+    
+    @staticmethod
+    def evaluate_hand(hole_cards: List[Card], board: List[Card]) -> Hand:
+        """评估德州扑克手牌
+        
+        Args:
+            hole_cards: 底牌（2张）
+            board: 公共牌（3-5张）
+        
+        Returns:
+            最佳牌型
+        """
+        all_cards = hole_cards + board
+        return PokerEvaluator.evaluate(all_cards)
+    
+    @staticmethod
+    def calculate_outs(hole_cards: List[Card], board: List[Card], 
+                        target_rank: HandRank = HandRank.ONE_PAIR) -> List[Card]:
+        """计算补牌（可以改进牌型的牌）
+        
+        Args:
+            hole_cards: 底牌
+            board: 公共牌
+            target_rank: 目标牌型
+        
+        Returns:
+            能使牌型达到目标的补牌列表
+        """
+        current_hand = TexasHoldem.evaluate_hand(hole_cards, board)
+        if current_hand.rank >= target_rank:
+            return []  # 已经达到目标
+        
+        # 创建剩余牌组
+        deck = Deck()
+        used_cards = set(hole_cards + board)
+        remaining = [c for c in deck._cards if c not in used_cards]
+        
+        outs = []
+        for card in remaining:
+            new_hand = TexasHoldem.evaluate_hand(hole_cards, board + [card])
+            if new_hand.rank >= target_rank and new_hand.rank > current_hand.rank:
+                outs.append(card)
+        
+        return outs
+    
+    @staticmethod
+    def calculate_outs_count(hole_cards: List[Card], board: List[Card],
+                            target_rank: HandRank = HandRank.ONE_PAIR) -> int:
+        """计算补牌数量
+        
+        Args:
+            hole_cards: 底牌
+            board: 公共牌
+            target_rank: 目标牌型
+        
+        Returns:
+            补牌数量
+        """
+        return len(TexasHoldem.calculate_outs(hole_cards, board, target_rank))
 
-def create_deck() -> Deck:
-    """创建新的牌组"""
-    return Deck()
+
+class HandAnalyzer:
+    """手牌分析器"""
+    
+    @staticmethod
+    def get_possible_straights(cards: List[Card]) -> List[List[Rank]]:
+        """获取可能的顺子补牌
+        
+        Args:
+            cards: 当前手牌
+        
+        Returns:
+            可能的顺子列表（每项为缺失的点数列表）
+        """
+        ranks = set(c.rank for c in cards)
+        possible = []
+        
+        # 检查所有可能的顺子
+        straights = [
+            [Rank.ACE, Rank.KING, Rank.QUEEN, Rank.JACK, Rank.TEN],  # A-K-Q-J-T
+            [Rank.KING, Rank.QUEEN, Rank.JACK, Rank.TEN, Rank.NINE],
+            [Rank.QUEEN, Rank.JACK, Rank.TEN, Rank.NINE, Rank.EIGHT],
+            [Rank.JACK, Rank.TEN, Rank.NINE, Rank.EIGHT, Rank.SEVEN],
+            [Rank.TEN, Rank.NINE, Rank.EIGHT, Rank.SEVEN, Rank.SIX],
+            [Rank.NINE, Rank.EIGHT, Rank.SEVEN, Rank.SIX, Rank.FIVE],
+            [Rank.EIGHT, Rank.SEVEN, Rank.SIX, Rank.FIVE, Rank.FOUR],
+            [Rank.SEVEN, Rank.SIX, Rank.FIVE, Rank.FOUR, Rank.THREE],
+            [Rank.SIX, Rank.FIVE, Rank.FOUR, Rank.THREE, Rank.TWO],
+            [Rank.FIVE, Rank.FOUR, Rank.THREE, Rank.TWO, Rank.ACE],  # 轮子 A-2-3-4-5
+        ]
+        
+        for straight in straights:
+            missing = [r for r in straight if r not in ranks]
+            if len(missing) <= 2:  # 最多缺2张才考虑
+                possible.append(missing)
+        
+        return possible
+    
+    @staticmethod
+    def get_possible_flushes(cards: List[Card]) -> List[Tuple[Suit, int]]:
+        """获取可能的同花补牌
+        
+        Args:
+            cards: 当前手牌
+        
+        Returns:
+            [(花色, 缺少张数), ...]
+        """
+        suit_counts = Counter(c.suit for c in cards)
+        possible = [(suit, 5 - count) for suit, count in suit_counts.items() if count >= 3]
+        return sorted(possible, key=lambda x: x[1])
 
 
-def shuffle_deck(deck: Deck) -> Deck:
-    """洗牌"""
-    return deck.shuffle()
+# ============== 工具函数 ==============
 
-
-def deal_hands(deck: Deck, num_players: int, cards_per_hand: int = 5) -> List[Hand]:
-    """
-    发牌给多个玩家
+def create_deck(shuffled: bool = True) -> Deck:
+    """创建并返回一副牌
     
     Args:
-        deck: 牌组
-        num_players: 玩家数量
-        cards_per_hand: 每位玩家的牌数
+        shuffled: 是否洗牌
     
     Returns:
-        手牌列表
+        Deck 对象
     """
-    hands = []
-    for _ in range(num_players):
-        cards = deck.draw(cards_per_hand)
-        hands.append(Hand(cards))
-    return hands
+    deck = Deck()
+    if shuffled:
+        deck.shuffle()
+    return deck
 
 
-def evaluate_hand(cards: List[Card]) -> Tuple[HandRank, List[int]]:
-    """
-    评估手牌牌型
+def parse_cards(cards_str: str) -> List[Card]:
+    """解析牌字符串为 Card 列表
     
     Args:
-        cards: 5张牌的列表
-    
-    Returns:
-        (牌型等级, 关键牌值列表)
-    """
-    return Hand(cards).evaluate()
-
-
-def compare_hands(hand1: List[Card], hand2: List[Card]) -> int:
-    """
-    比较两手牌
-    
-    Args:
-        hand1: 第一手牌
-        hand2: 第二手牌
-    
-    Returns:
-        >0: hand1赢, <0: hand2赢, 0:平局
-    """
-    return Hand(hand1).compare(Hand(hand2))
-
-
-def best_hand(seven_cards: List[Card]) -> Hand:
-    """
-    从7张牌中选出最佳的5张牌组合（德州扑克场景）
-    
-    Args:
-        seven_cards: 7张牌（2张手牌 + 5张公共牌）
-    
-    Returns:
-        最佳的5张牌手牌
-    """
-    from itertools import combinations
-    
-    if len(seven_cards) < 5:
-        raise ValueError("需要至少5张牌")
-    
-    if len(seven_cards) == 5:
-        return Hand(seven_cards)
-    
-    best = None
-    for combo in combinations(seven_cards, 5):
-        current = Hand(list(combo))
-        if best is None or current > best:
-            best = current
-    
-    return best
-
-
-def hand_probability(hand_rank: HandRank) -> float:
-    """
-    获取牌型概率（在5张随机牌中出现的概率）
-    
-    Args:
-        hand_rank: 牌型等级
-    
-    Returns:
-        概率百分比
-    """
-    # 标准52张牌中随机抽取5张的牌型概率
-    probabilities = {
-        HandRank.ROYAL_FLUSH: 0.000154,      # 约1/649,740
-        HandRank.STRAIGHT_FLUSH: 0.00139,    # 约1/72,193
-        HandRank.FOUR_OF_A_KIND: 0.0240,    # 约1/4,165
-        HandRank.FULL_HOUSE: 0.1441,         # 约1/694
-        HandRank.FLUSH: 0.1965,              # 约1/509
-        HandRank.STRAIGHT: 0.3925,           # 约1/255
-        HandRank.THREE_OF_A_KIND: 2.1128,    # 约1/47
-        HandRank.TWO_PAIR: 4.7539,            # 约1/21
-        HandRank.ONE_PAIR: 42.2569,           # 约1/2.4
-        HandRank.HIGH_CARD: 50.1177,          # 约1/2
-    }
-    return probabilities.get(hand_rank, 0.0)
-
-
-def hand_combinations_count(hand_rank: HandRank) -> int:
-    """
-    获取牌型的组合数
-    
-    Args:
-        hand_rank: 牌型等级
-    
-    Returns:
-        可能的组合数
-    """
-    counts = {
-        HandRank.ROYAL_FLUSH: 4,           # 4种花色
-        HandRank.STRAIGHT_FLUSH: 36,       # 4花色 × 9种顺子（不含皇家）
-        HandRank.FOUR_OF_A_KIND: 624,
-        HandRank.FULL_HOUSE: 3744,
-        HandRank.FLUSH: 5108,
-        HandRank.STRAIGHT: 10200,
-        HandRank.THREE_OF_A_KIND: 54912,
-        HandRank.TWO_PAIR: 123552,
-        HandRank.ONE_PAIR: 1098240,
-        HandRank.HIGH_CARD: 1302540,
-    }
-    return counts.get(hand_rank, 0)
-
-
-def cards_to_string(cards: List[Card], chinese: bool = False) -> str:
-    """
-    将牌列表转换为字符串
-    
-    Args:
-        cards: 牌列表
-        chinese: 是否使用中文
-    
-    Returns:
-        牌的字符串表示
-    """
-    if chinese:
-        return ' '.join(str(c) for c in cards)
-    return ' '.join(repr(c) for c in cards)
-
-
-def string_to_cards(s: str) -> List[Card]:
-    """
-    从字符串解析多张牌
-    
-    Args:
-        s: 牌的字符串，如 "A♠ K♠ Q♠ J♠ 10♠"
+        cards_str: 牌字符串，如 'Ah Ks Qd Jc Th'
     
     Returns:
         Card 列表
     """
-    # 按空格分割，处理10需要两位的情况
-    parts = s.split()
-    cards = []
+    parts = cards_str.strip().split()
+    return [Card.from_str(p) for p in parts]
+
+
+def cards_to_str(cards: List[Card]) -> str:
+    """将 Card 列表转为字符串
     
-    i = 0
-    while i < len(parts):
-        part = parts[i]
-        # 如果是"10"后面可能跟着花色
-        if part == '10' and i + 1 < len(parts):
-            # 合并
-            part = '10' + parts[i + 1]
-            i += 2
-        else:
-            i += 1
+    Args:
+        cards: Card 列表
+    
+    Returns:
+        牌字符串
+    """
+    return ' '.join(str(c) for c in cards)
+
+
+def evaluate_hand(cards: List[Card]) -> Hand:
+    """评估牌型（快捷函数）
+    
+    Args:
+        cards: 牌列表（5-7张）
+    
+    Returns:
+        最佳牌型
+    """
+    return PokerEvaluator.evaluate(cards)
+
+
+def compare_hands(cards1: List[Card], cards2: List[Card]) -> int:
+    """比较两组牌
+    
+    Args:
+        cards1: 第一组牌
+        cards2: 第二组牌
+    
+    Returns:
+        1: cards1胜, -1: cards2胜, 0: 平局
+    """
+    hand1 = PokerEvaluator.evaluate(cards1)
+    hand2 = PokerEvaluator.evaluate(cards2)
+    return PokerEvaluator.compare_hands(hand1, hand2)
+
+
+def get_hand_rank_name(hand: Hand) -> str:
+    """获取牌型名称
+    
+    Args:
+        hand: Hand 对象
+    
+    Returns:
+        牌型中文名称
+    """
+    return HAND_RANK_NAMES[hand.rank]
+
+
+def simulate_win_rate(hole_cards: List[Card], board: List[Card] = None,
+                     num_players: int = 2, simulations: int = 1000) -> float:
+    """模拟胜率（蒙特卡洛方法）
+    
+    Args:
+        hole_cards: 底牌
+        board: 已知公共牌
+        num_players: 玩家数量
+        simulations: 模拟次数
+    
+    Returns:
+        胜率（0-1之间的浮点数）
+    """
+    if board is None:
+        board = []
+    
+    deck = Deck()
+    used = set(hole_cards + board)
+    deck._cards = [c for c in deck._cards if c not in used]
+    
+    wins = 0
+    ties = 0
+    
+    for _ in range(simulations):
+        deck.shuffle()
+        remaining = deck._cards.copy()
         
-        cards.append(Card.from_string(part))
-    
-    return cards
-
-
-def get_all_cards() -> List[Card]:
-    """获取所有52张牌"""
-    return [Card(suit, rank) for suit in Suit for rank in Rank]
-
-
-def card_count_by_rank(cards: List[Card]) -> Dict[Rank, int]:
-    """统计各牌面出现的次数"""
-    return dict(Counter(c.rank for c in cards))
-
-
-def card_count_by_suit(cards: List[Card]) -> Dict[Suit, int]:
-    """统计各花色出现的次数"""
-    return dict(Counter(c.suit for c in cards))
-
-
-# ==================== 游戏辅助类 ====================
-
-class PokerGame:
-    """扑克游戏辅助类"""
-    
-    def __init__(self, num_players: int = 2):
-        """
-        初始化游戏
+        # 发完公共牌
+        sim_board = board + remaining[:max(0, 5 - len(board))]
+        board_cards_needed = 5 - len(board)
+        remaining = remaining[board_cards_needed:]
         
-        Args:
-            num_players: 玩家数量
-        """
-        self.num_players = num_players
-        self.deck = Deck()
-        self.hands: List[Hand] = []
-        self.community_cards: List[Card] = []
-    
-    def new_round(self) -> 'PokerGame':
-        """开始新一轮"""
-        self.deck.reset().shuffle()
-        self.hands = []
-        self.community_cards = []
-        return self
-    
-    def deal_to_players(self, cards_per_player: int = 2) -> 'PokerGame':
-        """给每位玩家发牌"""
-        for _ in range(self.num_players):
-            self.hands.append(Hand(self.deck.draw(cards_per_player)))
-        return self
-    
-    def deal_community(self, count: int) -> List[Card]:
-        """发公共牌"""
-        cards = self.deck.draw(count)
-        self.community_cards.extend(cards)
-        return cards
-    
-    def flop(self) -> List[Card]:
-        """翻牌（发3张公共牌）"""
-        return self.deal_community(3)
-    
-    def turn(self) -> Card:
-        """转牌（发1张公共牌）"""
-        return self.deal_community(1)[0]
-    
-    def river(self) -> Card:
-        """河牌（发1张公共牌）"""
-        return self.deal_community(1)[0]
-    
-    def get_player_hand(self, player_index: int) -> Hand:
-        """获取玩家的完整手牌（手牌+公共牌）"""
-        if player_index >= len(self.hands):
-            raise IndexError(f"玩家索引 {player_index} 超出范围")
+        # 发其他玩家的底牌
+        opponents = []
+        for _ in range(num_players - 1):
+            opponents.append(remaining[:2])
+            remaining = remaining[2:]
         
-        all_cards = list(self.hands[player_index].cards) + self.community_cards
-        return best_hand(all_cards)
+        # 评估
+        my_hand = TexasHoldem.evaluate_hand(hole_cards, sim_board)
+        opp_hands = [TexasHoldem.evaluate_hand(opp, sim_board) for opp in opponents]
+        
+        best_opp = max(opp_hands) if opp_hands else None
+        
+        if best_opp is None or my_hand > best_opp:
+            wins += 1
+        elif my_hand == best_opp:
+            ties += 1
     
-    def get_winner(self) -> Tuple[Optional[int], List[Hand]]:
-        """
-        获取赢家
-        
-        Returns:
-            (赢家索引, 所有玩家的最佳手牌列表)
-            如果平局返回 None
-        """
-        if not self.hands:
-            return None, []
-        
-        best_hands = []
-        for i in range(len(self.hands)):
-            all_cards = list(self.hands[i].cards) + self.community_cards
-            best_hands.append(best_hand(all_cards))
-        
-        # 找出最佳手牌
-        winner_idx = 0
-        is_tie = False
-        
-        for i in range(1, len(best_hands)):
-            comparison = best_hands[i].compare(best_hands[winner_idx])
-            if comparison > 0:
-                winner_idx = i
-                is_tie = False
-            elif comparison == 0:
-                is_tie = True
-        
-        if is_tie:
-            return None, best_hands
-        
-        return winner_idx, best_hands
-    
-    def __repr__(self) -> str:
-        return f"PokerGame(players={self.num_players}, deck={len(self.deck)} cards)"
+    return (wins + ties * 0.5) / simulations
 
 
-# ==================== 示例用法 ====================
+def is_pocket_pair(hole_cards: List[Card]) -> bool:
+    """判断是否为口袋对子
+    
+    Args:
+        hole_cards: 底牌（2张）
+    
+    Returns:
+        是否为口袋对子
+    """
+    return len(hole_cards) == 2 and hole_cards[0].rank == hole_cards[1].rank
 
-if __name__ == "__main__":
-    # 创建并洗牌
-    deck = create_deck()
-    deck.shuffle()
-    print(f"牌组: {deck}")
+
+def is_suited(hole_cards: List[Card]) -> bool:
+    """判断底牌是否同花
     
-    # 发牌
-    hands = deal_hands(deck, num_players=4, cards_per_hand=5)
+    Args:
+        hole_cards: 底牌（2张）
     
-    print("\n玩家手牌:")
-    for i, hand in enumerate(hands):
-        print(f"  玩家{i+1}: {hand} -> {hand.get_rank_name()}")
+    Returns:
+        是否同花
+    """
+    return len(hole_cards) == 2 and hole_cards[0].suit == hole_cards[1].suit
+
+
+def is_connected(hole_cards: List[Card], gap: int = 1) -> bool:
+    """判断底牌是否相连（可用于判断顺子潜力）
     
-    # 评估特定手牌
-    print("\n特定手牌测试:")
-    # 皇家同花顺
-    royal_flush = Hand([
-        Card(Suit.SPADES, Rank.ACE),
-        Card(Suit.SPADES, Rank.KING),
-        Card(Suit.SPADES, Rank.QUEEN),
-        Card(Suit.SPADES, Rank.JACK),
-        Card(Suit.SPADES, Rank.TEN),
-    ])
-    print(f"  皇家同花顺: {royal_flush.get_rank_name()}")
+    Args:
+        hole_cards: 底牌（2张）
+        gap: 允许的间隔（默认1表示相邻）
     
-    # 四条
-    four_kind = Hand([
-        Card(Suit.HEARTS, Rank.ACE),
-        Card(Suit.DIAMONDS, Rank.ACE),
-        Card(Suit.CLUBS, Rank.ACE),
-        Card(Suit.SPADES, Rank.ACE),
-        Card(Suit.HEARTS, Rank.KING),
-    ])
-    print(f"  四条: {four_kind.get_rank_name()}")
+    Returns:
+        是否相连
+    """
+    if len(hole_cards) != 2:
+        return False
     
-    # 牌型概率
-    print("\n牌型概率:")
-    for rank in HandRank:
-        prob = hand_probability(rank)
-        count = hand_combinations_count(rank)
-        print(f"  {HAND_RANK_NAMES[rank]}: {prob:.4f}% ({count:,} 种组合)")
+    r1, r2 = hole_cards[0].rank, hole_cards[1].rank
+    return abs(r1 - r2) <= gap
+
+
+def get_starting_hand_strength(hole_cards: List[Card]) -> str:
+    """评估起手牌强度（简单版本）
+    
+    Args:
+        hole_cards: 底牌（2张）
+    
+    Returns:
+        牌力等级: 'premium', 'strong', 'medium', 'weak', 'trash'
+    """
+    if len(hole_cards) != 2:
+        raise ValueError("起手牌必须是2张")
+    
+    ranks = sorted([c.rank for c in hole_cards], reverse=True)
+    suited = is_suited(hole_cards)
+    paired = is_pocket_pair(hole_cards)
+    
+    # Premium: AA, KK, QQ, AKs
+    if paired and ranks[0] >= Rank.QUEEN:
+        return 'premium'
+    if ranks == [Rank.ACE, Rank.KING] and suited:
+        return 'premium'
+    
+    # Strong: JJ, TT, AKo, AQs, KQs
+    if paired and ranks[0] >= Rank.TEN:
+        return 'strong'
+    if ranks == [Rank.ACE, Rank.KING]:
+        return 'strong'
+    if ranks == [Rank.ACE, Rank.QUEEN] and suited:
+        return 'strong'
+    if ranks == [Rank.KING, Rank.QUEEN] and suited:
+        return 'strong'
+    
+    # Medium: 99-22, AQo, AJs, KQo, QJs
+    if paired:
+        return 'medium'
+    if ranks == [Rank.ACE, Rank.QUEEN]:
+        return 'medium'
+    if ranks == [Rank.ACE, Rank.JACK] and suited:
+        return 'medium'
+    if ranks == [Rank.KING, Rank.QUEEN]:
+        return 'medium'
+    if ranks == [Rank.QUEEN, Rank.JACK] and suited:
+        return 'medium'
+    
+    # Weak: AXs, KJs, QTs+, connected suited
+    if ranks[0] == Rank.ACE and suited:
+        return 'weak'
+    if ranks == [Rank.KING, Rank.JACK] and suited:
+        return 'weak'
+    if ranks[0] == Rank.QUEEN and ranks[1] >= Rank.TEN and suited:
+        return 'weak'
+    if is_connected(hole_cards, gap=1) and suited:
+        return 'weak'
+    
+    # Trash: everything else
+    return 'trash'

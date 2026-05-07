@@ -1,334 +1,305 @@
 """
 扑克牌工具使用示例
+==================
 
-本示例展示 poker_utils 的主要功能：
-1. 创建牌组和洗牌
-2. 发牌和手牌评估
-3. 各种牌型的判断
-4. 手牌比较
-5. 简单游戏模拟
+本示例展示 poker_utils 模块的主要功能：
+1. 创建和管理扑克牌组
+2. 手牌评估和比较
+3. 德州扑克相关计算
+4. 胜率模拟
 """
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, '..')
 
-import mod
 from mod import (
-    Card, Deck, Hand, PokerGame,
-    Suit, Rank, HandRank,
-    create_deck, shuffle_deck, deal_hands,
-    evaluate_hand, compare_hands, best_hand,
-    hand_probability, hand_combinations_count,
-    cards_to_string, string_to_cards,
-    HAND_RANK_NAMES
+    Card, Deck, Suit, Rank, HandRank,
+    PokerEvaluator, TexasHoldem, HandAnalyzer,
+    create_deck, parse_cards, cards_to_str,
+    evaluate_hand, compare_hands, get_hand_rank_name,
+    simulate_win_rate, is_pocket_pair, is_suited,
+    is_connected, get_starting_hand_strength,
+    SUIT_SYMBOLS, RANK_SYMBOLS, HAND_RANK_NAMES
 )
 
 
-def print_separator(title: str):
-    """打印分隔线"""
-    print(f"\n{'='*50}")
-    print(f"  {title}")
-    print('='*50)
-
-
 def example_1_basic_operations():
-    """示例1：基本操作"""
-    print_separator("示例1：基本操作")
+    """示例1: 基本扑克牌操作"""
+    print("=" * 60)
+    print("示例1: 基本扑克牌操作")
+    print("=" * 60)
     
-    # 创建牌组
-    deck = create_deck()
-    print(f"创建牌组: {deck}")
-    print(f"牌组包含 {len(deck)} 张牌")
+    # 创建扑克牌
+    ace_spades = Card(rank=Rank.ACE, suit=Suit.SPADES)
+    king_hearts = Card(rank=Rank.KING, suit=Suit.HEARTS)
     
-    # 洗牌
-    shuffle_deck(deck)
-    print("洗牌完成")
-    
-    # 抽牌
-    cards = deck.draw(5)
-    print(f"抽5张牌: {cards_to_string(cards)}")
-    print(f"牌组剩余: {len(deck)} 张")
+    print(f"创建扑克牌: {ace_spades}, {king_hearts}")
     
     # 从字符串解析
-    card = Card.from_string("A♠")
-    print(f"从字符串解析: {card} -> {str(card)}")
+    card = Card.from_str("As")  # 黑桃A
+    print(f"从字符串解析: 'As' -> {card}")
+    
+    # 创建牌组
+    deck = create_deck(shuffled=True)
+    print(f"\n牌组创建完成，共 {len(deck)} 张牌")
+    
+    # 发牌
+    hand = deck.deal(5)
+    print(f"发5张牌: {cards_to_str(hand)}")
+    print(f"牌组剩余: {len(deck)} 张")
+    
+    print()
 
 
 def example_2_hand_evaluation():
-    """示例2：手牌评估"""
-    print_separator("示例2：手牌评估")
+    """示例2: 牌型评估"""
+    print("=" * 60)
+    print("示例2: 牌型评估")
+    print("=" * 60)
     
-    # 创建各种牌型
+    # 各种牌型示例
     hands = {
-        "高牌": [
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.KING),
-            Card(Suit.DIAMONDS, Rank.QUEEN),
-            Card(Suit.CLUBS, Rank.JACK),
-            Card(Suit.SPADES, Rank.NINE),
-        ],
-        "一对": [
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.ACE),
-            Card(Suit.DIAMONDS, Rank.KING),
-            Card(Suit.CLUBS, Rank.QUEEN),
-            Card(Suit.SPADES, Rank.JACK),
-        ],
-        "两对": [
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.ACE),
-            Card(Suit.DIAMONDS, Rank.KING),
-            Card(Suit.CLUBS, Rank.KING),
-            Card(Suit.SPADES, Rank.QUEEN),
-        ],
-        "三条": [
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.ACE),
-            Card(Suit.DIAMONDS, Rank.ACE),
-            Card(Suit.CLUBS, Rank.KING),
-            Card(Suit.SPADES, Rank.QUEEN),
-        ],
-        "顺子": [
-            Card(Suit.SPADES, Rank.TEN),
-            Card(Suit.HEARTS, Rank.NINE),
-            Card(Suit.DIAMONDS, Rank.EIGHT),
-            Card(Suit.CLUBS, Rank.SEVEN),
-            Card(Suit.SPADES, Rank.SIX),
-        ],
-        "同花": [
-            Card(Suit.HEARTS, Rank.ACE),
-            Card(Suit.HEARTS, Rank.KING),
-            Card(Suit.HEARTS, Rank.QUEEN),
-            Card(Suit.HEARTS, Rank.FIVE),
-            Card(Suit.HEARTS, Rank.TWO),
-        ],
-        "葫芦": [
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.ACE),
-            Card(Suit.DIAMONDS, Rank.ACE),
-            Card(Suit.CLUBS, Rank.KING),
-            Card(Suit.SPADES, Rank.KING),
-        ],
-        "四条": [
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.HEARTS, Rank.ACE),
-            Card(Suit.DIAMONDS, Rank.ACE),
-            Card(Suit.CLUBS, Rank.ACE),
-            Card(Suit.SPADES, Rank.KING),
-        ],
-        "同花顺": [
-            Card(Suit.SPADES, Rank.KING),
-            Card(Suit.SPADES, Rank.QUEEN),
-            Card(Suit.SPADES, Rank.JACK),
-            Card(Suit.SPADES, Rank.TEN),
-            Card(Suit.SPADES, Rank.NINE),
-        ],
-        "皇家同花顺": [
-            Card(Suit.SPADES, Rank.ACE),
-            Card(Suit.SPADES, Rank.KING),
-            Card(Suit.SPADES, Rank.QUEEN),
-            Card(Suit.SPADES, Rank.JACK),
-            Card(Suit.SPADES, Rank.TEN),
-        ],
+        "皇家同花顺": "As Ks Qs Js Ts",
+        "同花顺": "9s 8s 7s 6s 5s",
+        "四条": "As Ah Ad Ac 2h",
+        "葫芦": "As Ah Ad Ks Kh",
+        "同花": "As 9s 7s 4s 2s",
+        "顺子": "9s 8h 7d 6c 5s",
+        "轮子(最小顺子)": "As 2h 3d 4c 5s",
+        "三条": "As Ah Ad 9c 5s",
+        "两对": "As Ah Kd Kc 5s",
+        "一对": "As Ah 9d 7c 5s",
+        "高牌": "As 9h 7d 5c 3s",
     }
     
-    for name, cards in hands.items():
-        hand = Hand(cards)
-        rank, values = hand.evaluate()
-        print(f"{name}: {cards_to_string(cards)}")
-        print(f"  -> 识别为: {hand.get_rank_name()} (等级{rank})")
+    for name, cards_str in hands.items():
+        cards = parse_cards(cards_str)
+        hand = evaluate_hand(cards)
+        description = PokerEvaluator.get_hand_description(hand)
+        print(f"{name:15s}: {cards_str:20s} -> {description}")
+    
+    print()
 
 
 def example_3_hand_comparison():
-    """示例3：手牌比较"""
-    print_separator("示例3：手牌比较")
+    """示例3: 牌型比较"""
+    print("=" * 60)
+    print("示例3: 牌型比较")
+    print("=" * 60)
     
-    # 创建两手牌
-    hand1 = Hand([
-        Card(Suit.SPADES, Rank.ACE),
-        Card(Suit.HEARTS, Rank.ACE),
-        Card(Suit.DIAMONDS, Rank.KING),
-        Card(Suit.CLUBS, Rank.QUEEN),
-        Card(Suit.SPADES, Rank.JACK),
-    ])
-    
-    hand2 = Hand([
-        Card(Suit.SPADES, Rank.KING),
-        Card(Suit.HEARTS, Rank.KING),
-        Card(Suit.DIAMONDS, Rank.KING),
-        Card(Suit.CLUBS, Rank.TEN),
-        Card(Suit.SPADES, Rank.NINE),
-    ])
-    
-    print(f"手牌1: {hand1} ({hand1.get_rank_name()})")
-    print(f"手牌2: {hand2} ({hand2.get_rank_name()})")
-    
-    result = hand1.compare(hand2)
-    if result > 0:
-        print("结果: 手牌1 获胜!")
-    elif result < 0:
-        print("结果: 手牌2 获胜!")
-    else:
-        print("结果: 平局!")
-    
-    # 使用比较运算符
-    print(f"\n使用运算符比较:")
-    print(f"hand1 > hand2: {hand1 > hand2}")
-    print(f"hand1 < hand2: {hand1 < hand2}")
-
-
-def example_4_best_hand_selection():
-    """示例4：从7张牌中选最佳组合（德州扑克）"""
-    print_separator("示例4：最佳组合选择")
-    
-    # 模拟德州扑克：2张手牌 + 5张公共牌
-    hole_cards = [
-        Card(Suit.SPADES, Rank.ACE),
-        Card(Suit.HEARTS, Rank.ACE),
+    # 比较不同的牌
+    match-ups = [
+        ("同花顺 vs 四条", "9s 8s 7s 6s 5s", "As Ah Ad Ac 2h"),
+        ("四条A vs 四条K", "As Ah Ad Ac 2h", "Ks Kh Kd Kc Ah"),
+        ("葫芦A-K vs 葫芦A-Q", "As Ah Ad Ks Kh", "Ac Ah Ad Qs Qh"),
+        ("两对A-K vs 两对A-Q", "As Ah Ks Kh 9c", "Ac Ad Qs Qh 9c"),
+        ("一对A-K vs 一对A-Q", "As Ah Kc 9d 5s", "Ac Ad Qc 9d 5s"),
     ]
     
-    community_cards = [
-        Card(Suit.DIAMONDS, Rank.ACE),
-        Card(Suit.CLUBS, Rank.KING),
-        Card(Suit.SPADES, Rank.KING),
-        Card(Suit.HEARTS, Rank.TWO),
-        Card(Suit.DIAMONDS, Rank.THREE),
+    for name, cards1_str, cards2_str in match_ups:
+        cards1 = parse_cards(cards1_str)
+        cards2 = parse_cards(cards2_str)
+        result = compare_hands(cards1, cards2)
+        
+        winner = "左边胜" if result > 0 else "右边胜" if result < 0 else "平局"
+        hand1 = evaluate_hand(cards1)
+        hand2 = evaluate_hand(cards2)
+        
+        print(f"{name}")
+        print(f"  左: {get_hand_rank_name(hand1)} ({cards1_str})")
+        print(f"  右: {get_hand_rank_name(hand2)} ({cards2_str})")
+        print(f"  结果: {winner}")
+        print()
+    
+    print()
+
+
+def example_4_texas_holdem():
+    """示例4: 德州扑克分析"""
+    print("=" * 60)
+    print("示例4: 德州扑克分析")
+    print("=" * 60)
+    
+    # 底牌和公共牌
+    hole_cards = parse_cards("As Ah")
+    flop = parse_cards("Ad 9c 5s")
+    
+    print(f"底牌: {cards_to_str(hole_cards)}")
+    print(f"翻牌: {cards_to_str(flop)}")
+    
+    # 评估当前牌型
+    hand = TexasHoldem.evaluate_hand(hole_cards, flop)
+    print(f"当前牌型: {PokerEvaluator.get_hand_description(hand)}")
+    
+    # 计算补牌（达到四条需要的牌）
+    outs_count = TexasHoldem.calculate_outs_count(hole_cards, flop, HandRank.FOUR_OF_A_KIND)
+    print(f"四条补牌数: {outs_count}")
+    
+    # 起手牌分析
+    print("\n起手牌分析:")
+    hole_pairs = [
+        ("AA", "As Ah"),
+        ("AK同花", "As Ks"),
+        ("AK不同花", "As Kh"),
+        ("JJ", "Js Jh"),
+        ("口袋对2", "2s 2h"),
+        ("AX同花", "As 8s"),
+        ("垃圾牌", "9s 3h"),
     ]
     
-    all_cards = hole_cards + community_cards
+    for name, cards_str in hole_pairs:
+        cards = parse_cards(cards_str)
+        strength = get_starting_hand_strength(cards)
+        print(f"  {name:10s}: {strength}")
     
-    print(f"手牌: {cards_to_string(hole_cards)}")
-    print(f"公共牌: {cards_to_string(community_cards)}")
-    
-    best = best_hand(all_cards)
-    print(f"最佳组合: {best}")
-    print(f"牌型: {best.get_rank_name()}")
+    print()
 
 
-def example_5_probability_info():
-    """示例5：牌型概率信息"""
-    print_separator("示例5：牌型概率")
+def example_5_win_rate_simulation():
+    """示例5: 胜率模拟"""
+    print("=" * 60)
+    print("示例5: 胜率模拟 (蒙特卡洛)")
+    print("=" * 60)
     
-    print("各牌型在5张随机牌中出现的概率:")
-    print("-" * 50)
-    print(f"{'牌型':<12} {'概率':<12} {'组合数':<12}")
-    print("-" * 50)
-    
-    for rank in HandRank:
-        prob = hand_probability(rank)
-        count = hand_combinations_count(rank)
-        print(f"{HAND_RANK_NAMES[rank]:<12} {prob:>8.4f}% {count:>12,}")
-    
-    print("-" * 50)
-    print(f"总组合数: {sum(hand_combinations_count(r) for r in HandRank):,}")
-
-
-def example_6_game_simulation():
-    """示例6：简单游戏模拟"""
-    print_separator("示例6：游戏模拟")
-    
-    # 创建4人游戏
-    game = PokerGame(num_players=4)
-    game.new_round()
-    
-    print(f"开始新游戏，{game.num_players} 位玩家")
-    
-    # 发手牌
-    game.deal_to_players(2)
-    print("\n手牌已发放:")
-    for i, hand in enumerate(game.hands):
-        print(f"  玩家{i+1}: {cards_to_string(hand.cards)}")
-    
-    # 翻牌
-    flop = game.flop()
-    print(f"\n翻牌: {cards_to_string(flop)}")
-    
-    # 转牌
-    turn = game.turn()
-    print(f"转牌: {turn}")
-    
-    # 河牌
-    river = game.river()
-    print(f"河牌: {river}")
-    
-    print(f"\n公共牌: {cards_to_string(game.community_cards)}")
-    
-    # 判定胜负
-    winner_idx, best_hands = game.get_winner()
-    
-    print("\n各玩家最佳手牌:")
-    for i, hand in enumerate(best_hands):
-        print(f"  玩家{i+1}: {hand} ({hand.get_rank_name()})")
-    
-    if winner_idx is not None:
-        print(f"\n🏆 玩家{winner_idx + 1} 获胜!")
-    else:
-        print("\n平局!")
-
-
-def example_7_card_utils():
-    """示例7：牌工具函数"""
-    print_separator("示例7：牌工具函数")
-    
-    # 创建一组牌
-    cards = [
-        Card(Suit.SPADES, Rank.ACE),
-        Card(Suit.HEARTS, Rank.ACE),
-        Card(Suit.DIAMONDS, Rank.ACE),
-        Card(Suit.CLUBS, Rank.KING),
-        Card(Suit.SPADES, Rank.KING),
+    scenarios = [
+        ("AA", "As Ah"),
+        ("KK", "Ks Kh"),
+        ("AK同花", "As Ks"),
+        ("AK不同花", "As Kh"),
+        ("口袋对中等", "8s 8h"),
+        ("AX同花", "As 9s"),
+        ("垃圾牌", "7s 2h"),
     ]
     
-    print(f"牌组: {cards_to_string(cards)}")
+    print("底牌 vs 随机牌 (模拟1000次)")
+    print("-" * 40)
     
-    # 统计牌面
-    from mod import card_count_by_rank, card_count_by_suit
-    rank_count = card_count_by_rank(cards)
-    print(f"\n牌面统计: {dict((r.name, c) for r, c in rank_count.items())}")
+    for name, cards_str in scenarios:
+        cards = parse_cards(cards_str)
+        win_rate = simulate_win_rate(cards, simulations=1000)
+        print(f"{name:12s}: {win_rate:.1%} 胜率")
     
-    # 统计花色
-    suit_count = card_count_by_suit(cards)
-    print(f"花色统计: {dict((s.name, c) for s, c in suit_count.items())}")
-    
-    # 中英文显示
-    print(f"\n英文显示: {cards_to_string(cards)}")
-    print(f"中文显示: {cards_to_string(cards, chinese=True)}")
+    print()
 
 
-def example_8_wheel_straight():
-    """示例8：轮子（A-2-3-4-5）顺子"""
-    print_separator("示例8：特殊顺子 - 轮子")
+def example_6_hand_analysis():
+    """示例6: 手牌分析"""
+    print("=" * 60)
+    print("示例6: 手牌分析")
+    print("=" * 60)
     
-    # A-2-3-4-5 顺子（轮子）
-    wheel = Hand([
-        Card(Suit.SPADES, Rank.ACE),
-        Card(Suit.HEARTS, Rank.TWO),
-        Card(Suit.DIAMONDS, Rank.THREE),
-        Card(Suit.CLUBS, Rank.FOUR),
-        Card(Suit.SPADES, Rank.FIVE),
-    ])
+    # 分析可能的顺子
+    cards = parse_cards("5s 6h 7d")
+    possible_straights = HandAnalyzer.get_possible_straights(cards)
     
-    print(f"手牌: {cards_to_string(wheel.cards)}")
-    print(f"牌型: {wheel.get_rank_name()}")
+    print(f"手牌: {cards_to_str(cards)}")
+    print("可能的顺子补牌:")
+    rank_names = {
+        Rank.TWO: '2', Rank.THREE: '3', Rank.FOUR: '4', Rank.FIVE: '5',
+        Rank.SIX: '6', Rank.SEVEN: '7', Rank.EIGHT: '8', Rank.NINE: '9',
+        Rank.TEN: 'T', Rank.JACK: 'J', Rank.QUEEN: 'Q', Rank.KING: 'K', Rank.ACE: 'A'
+    }
+    for missing in possible_straights[:5]:
+        missing_str = ', '.join(rank_names.get(r, str(r)) for r in missing)
+        print(f"  缺: {missing_str}")
     
-    rank, values = wheel.evaluate()
-    print(f"最高牌: {Rank(values[0]).name} (A作为1使用)")
+    # 分析可能的同花
+    print("\n可能的同花补牌:")
+    cards = parse_cards("As 5s 9s")
+    print(f"手牌: {cards_to_str(cards)}")
+    possible_flushes = HandAnalyzer.get_possible_flushes(cards)
     
-    # 与普通顺子比较
-    normal_straight = Hand([
-        Card(Suit.SPADES, Rank.SIX),
-        Card(Suit.HEARTS, Rank.FIVE),
-        Card(Suit.DIAMONDS, Rank.FOUR),
-        Card(Suit.CLUBS, Rank.THREE),
-        Card(Suit.SPADES, Rank.TWO),
-    ])
+    suit_names = {Suit.SPADES: '黑桃', Suit.HEARTS: '红心', Suit.DIAMONDS: '方块', Suit.CLUBS: '梅花'}
+    for suit, needed in possible_flushes:
+        print(f"  {suit_names[suit]}: 还需要 {needed} 张")
     
-    print(f"\n普通顺子: {cards_to_string(normal_straight.cards)}")
+    print()
+
+
+def example_7_full_game_simulation():
+    """示例7: 完整游戏模拟"""
+    print("=" * 60)
+    print("示例7: 德州扑克游戏模拟")
+    print("=" * 60)
     
-    # 比较结果
-    if normal_straight > wheel:
-        print("普通顺子(6高) > 轮子(5高)")
+    # 创建牌组并洗牌
+    deck = create_deck(shuffled=True)
+    
+    # 发给4个玩家
+    num_players = 4
+    players = []
+    for i in range(num_players):
+        hole = deck.deal(2)
+        players.append(hole)
+        print(f"玩家{i+1}: {cards_to_str(hole)}")
+    
+    print("\n公共牌:")
+    # 翻牌 (3张)
+    flop = deck.deal(3)
+    print(f"翻牌: {cards_to_str(flop)}")
+    
+    # 转牌 (1张)
+    turn = deck.deal(1)
+    print(f"转牌: {cards_to_str(turn)}")
+    
+    # 河牌 (1张)
+    river = deck.deal(1)
+    print(f"河牌: {cards_to_str(river)}")
+    
+    # 公共牌
+    board = flop + turn + river
+    
+    # 评估每个玩家
+    print("\n最终牌型:")
+    results = []
+    for i, hole in enumerate(players):
+        hand = TexasHoldem.evaluate_hand(hole, board)
+        desc = PokerEvaluator.get_hand_description(hand)
+        print(f"玩家{i+1}: {desc}")
+        results.append((i + 1, hand))
+    
+    # 找出赢家
+    results.sort(key=lambda x: x[1], reverse=True)
+    winner = results[0]
+    print(f"\n赢家: 玩家{winner[0]} ({PokerEvaluator.get_hand_description(winner[1])})")
+    
+    print()
+
+
+def example_8_odds_and_ends():
+    """示例8: 杂项功能"""
+    print("=" * 60)
+    print("示例8: 杂项功能")
+    print("=" * 60)
+    
+    # 花色和点数符号
+    print("花色符号:")
+    for suit, symbol in SUIT_SYMBOLS.items():
+        print(f"  {suit.name}: {symbol}")
+    
+    print("\n点数符号:")
+    for rank, symbol in RANK_SYMBOLS.items():
+        print(f"  {rank.name}: {symbol}")
+    
+    # 牌型判断工具
+    print("\n底牌判断:")
+    hands = [
+        ("As Ah", "口袋对?"),
+        ("As Ks", "同花?"),
+        ("As Kh", "相连?"),
+    ]
+    
+    for cards_str, question in hands:
+        cards = parse_cards(cards_str)
+        if "口袋" in question:
+            result = is_pocket_pair(cards)
+        elif "同花" in question:
+            result = is_suited(cards)
+        else:
+            result = is_connected(cards, gap=1)
+        print(f"  {cards_str}: {question} {result}")
+    
+    print()
 
 
 def main():
@@ -336,16 +307,12 @@ def main():
     example_1_basic_operations()
     example_2_hand_evaluation()
     example_3_hand_comparison()
-    example_4_best_hand_selection()
-    example_5_probability_info()
-    example_6_game_simulation()
-    example_7_card_utils()
-    example_8_wheel_straight()
-    
-    print("\n" + "="*50)
-    print("  所有示例运行完成!")
-    print("="*50)
+    example_4_texas_holdem()
+    example_5_win_rate_simulation()
+    example_6_hand_analysis()
+    example_7_full_game_simulation()
+    example_8_odds_and_end()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
