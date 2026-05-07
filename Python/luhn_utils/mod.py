@@ -1,544 +1,351 @@
 """
-Luhn Algorithm Utilities
-========================
+Luhn Algorithm Utilities - 零依赖Luhn算法工具
 
-A comprehensive implementation of the Luhn algorithm (also known as the
-"modulus 10" or "mod 10" algorithm) for validating and generating check digits.
+功能:
+- 验证数字字符串是否符合Luhn算法（信用卡、IMEI等）
+- 生成校验位
+- 格式化数字字符串
+- 识别常见卡号类型
 
-The Luhn algorithm is used for validating:
-- Credit card numbers
-- IMEI numbers (International Mobile Equipment Identity)
-- National Provider Identifier numbers (US healthcare)
-- Canadian Social Insurance Numbers
-- Greek Social Security Numbers (AMKA)
-- South African ID numbers
-- And many other identification numbers
-
-Features:
-- Validate numbers using Luhn algorithm
-- Calculate check digits
-- Generate valid test numbers
-- Format and parse numbers
-- Zero external dependencies
-
-Reference: https://en.wikipedia.org/wiki/Luhn_algorithm
+Luhn算法 (又称模10算法) 用于验证各种识别号码：
+- 信用卡号
+- IMEI号码
+- 加拿大社会保险号
+- 美国雇主识别号等
 """
 
-from typing import Tuple, List, Optional
-import random
+from typing import Optional, Tuple, List
+
+
+def luhn_checksum(number: str) -> int:
+    """
+    计算Luhn校验和
+    
+    Args:
+        number: 数字字符串（不含校验位）
+    
+    Returns:
+        校验和值 (0-9)
+    """
+    # 移除非数字字符
+    digits = [int(d) for d in number if d.isdigit()]
+    
+    # 从右到左，每隔一位乘以2
+    total = 0
+    for i, digit in enumerate(reversed(digits)):
+        if i % 2 == 0:  # 奇数位（从0开始计数）
+            total += digit
+        else:  # 偶数位
+            doubled = digit * 2
+            total += doubled - 9 if doubled > 9 else doubled
+    
+    return total % 10
 
 
 def calculate_check_digit(number: str) -> int:
     """
-    Calculate the Luhn check digit for a given number.
-    
-    The check digit is the digit that, when appended to the number,
-    makes it pass the Luhn validation.
+    计算Luhn校验位
     
     Args:
-        number: The number string (without check digit).
-                Can contain spaces and hyphens (will be stripped).
+        number: 数字字符串（不含校验位）
     
     Returns:
-        The check digit (0-9).
-    
-    Example:
-        >>> calculate_check_digit("453201511283036")
-        6
-        >>> # Visa card number: 4532015112830366
+        校验位 (0-9)
     """
-    # Remove non-digit characters
-    clean_number = ''.join(c for c in number if c.isdigit())
-    
-    if not clean_number:
-        raise ValueError("Number must contain at least one digit")
-    
-    # Double every other digit from right to left, starting with the first
-    total = 0
-    digits = [int(d) for d in clean_number]
-    
-    # We're calculating the check digit, so we double positions that would
-    # NOT be doubled if the check digit was present (odd positions from right)
-    for i, digit in enumerate(reversed(digits)):
-        if i % 2 == 0:  # Double every other digit starting from the rightmost
-            doubled = digit * 2
-            if doubled > 9:
-                doubled = doubled - 9
-            total += doubled
-        else:
-            total += digit
-    
-    # Check digit is (10 - (total % 10)) % 10
-    return (10 - (total % 10)) % 10
+    checksum = luhn_checksum(number + "0")
+    return (10 - checksum) % 10
 
 
 def validate(number: str) -> bool:
     """
-    Validate a number using the Luhn algorithm.
+    验证数字字符串是否符合Luhn算法
     
     Args:
-        number: The number string to validate.
-                Can contain spaces and hyphens (will be stripped).
+        number: 包含校验位的完整数字字符串
     
     Returns:
-        True if the number is valid according to Luhn algorithm, False otherwise.
-    
-    Example:
-        >>> validate("4532015112830366")  # Valid Visa card
-        True
-        >>> validate("4532015112830367")  # Invalid
-        False
-        >>> validate("4532-0151-1283-0366")  # With formatting
-        True
+        True 如果有效，False 如果无效
     """
-    # Remove non-digit characters
-    clean_number = ''.join(c for c in number if c.isdigit())
+    # 移除非数字字符
+    digits = ''.join(d for d in number if d.isdigit())
     
-    if len(clean_number) < 2:
+    if len(digits) < 2:
         return False
     
-    total = 0
-    digits = [int(d) for d in clean_number]
-    
-    # Double every second digit from right to left
-    for i, digit in enumerate(reversed(digits)):
-        if i % 2 == 1:  # Double every second digit
-            doubled = digit * 2
-            if doubled > 9:
-                doubled = doubled - 9
-            total += doubled
-        else:
-            total += digit
-    
-    return total % 10 == 0
+    return luhn_checksum(digits) == 0
 
 
-def add_check_digit(number: str) -> str:
+def generate_with_check_digit(number: str) -> str:
     """
-    Append the Luhn check digit to a number.
+    生成带校验位的完整号码
     
     Args:
-        number: The number string (without check digit).
+        number: 不含校验位的数字字符串
     
     Returns:
-        The number with the check digit appended.
-    
-    Example:
-        >>> add_check_digit("453201511283036")
-        '4532015112830366'
+        包含校验位的完整号码
     """
     check_digit = calculate_check_digit(number)
-    clean_number = ''.join(c for c in number if c.isdigit())
-    return clean_number + str(check_digit)
+    return ''.join(d for d in number if d.isdigit()) + str(check_digit)
 
 
-def strip_formatting(number: str) -> str:
+def format_card_number(number: str, separator: str = " ") -> str:
     """
-    Remove all non-digit characters from a number string.
+    格式化卡号为4位一组
     
     Args:
-        number: The number string possibly containing spaces, hyphens, etc.
+        number: 数字字符串
+        separator: 分隔符，默认为空格
     
     Returns:
-        The number string with only digits.
-    
-    Example:
-        >>> strip_formatting("4532-0151-1283-0366")
-        '4532015112830366'
-        >>> strip_formatting("4532 0151 1283 0366")
-        '4532015112830366'
+        格式化后的字符串
     """
-    return ''.join(c for c in number if c.isdigit())
+    digits = ''.join(d for d in number if d.isdigit())
+    return separator.join(digits[i:i+4] for i in range(0, len(digits), 4))
 
 
-def format_number(number: str, group_size: int = 4, separator: str = " ") -> str:
+def mask_card_number(number: str, show_first: int = 4, show_last: int = 4, mask_char: str = "*") -> str:
     """
-    Format a number by grouping digits.
+    遮蔽卡号中间部分
     
     Args:
-        number: The number string.
-        group_size: Number of digits per group (default: 4).
-        separator: Separator between groups (default: space).
+        number: 数字字符串
+        show_first: 显示前几位，默认4
+        show_last: 显示后几位，默认4
+        mask_char: 遮蔽字符，默认*
     
     Returns:
-        The formatted number string.
-    
-    Example:
-        >>> format_number("4532015112830366")
-        '4532 0151 1283 0366'
-        >>> format_number("4532015112830366", group_size=4, separator="-")
-        '4532-0151-1283-0366'
+        遮蔽后的字符串
     """
-    clean_number = strip_formatting(number)
+    digits = ''.join(d for d in number if d.isdigit())
     
-    if not clean_number:
-        return ""
+    if len(digits) <= show_first + show_last:
+        return digits
     
-    groups = [clean_number[i:i+group_size] for i in range(0, len(clean_number), group_size)]
-    return separator.join(groups)
+    masked_length = len(digits) - show_first - show_last
+    return digits[:show_first] + mask_char * masked_length + digits[-show_last:]
 
 
-def generate_valid_number(prefix: str, length: int = 16) -> str:
-    """
-    Generate a valid Luhn number with the given prefix.
-    
-    This is useful for generating test credit card numbers.
-    
-    Args:
-        prefix: The prefix for the number (e.g., "4" for Visa).
-        length: The desired total length of the number (default: 16).
-    
-    Returns:
-        A valid Luhn number with the specified prefix and length.
-    
-    Example:
-        >>> number = generate_valid_number("4", 16)  # Generate Visa-like number
-        >>> validate(number)
-        True
-        >>> number = generate_valid_number("5", 16)  # Generate MasterCard-like number
-        >>> validate(number)
-        True
-    """
-    if length <= len(prefix):
-        raise ValueError(f"Length must be greater than prefix length ({len(prefix)})")
-    
-    clean_prefix = strip_formatting(prefix)
-    
-    if not clean_prefix:
-        raise ValueError("Prefix must contain at least one digit")
-    
-    # Fill remaining digits (except check digit) with random digits
-    remaining_length = length - len(clean_prefix) - 1
-    random_digits = ''.join(str(random.randint(0, 9)) for _ in range(remaining_length))
-    
-    # Combine prefix and random digits
-    number_without_check = clean_prefix + random_digits
-    
-    # Calculate and append check digit
-    return add_check_digit(number_without_check)
-
-
-def generate_test_credit_cards(count: int = 5) -> List[Tuple[str, str]]:
-    """
-    Generate test credit card numbers for various card types.
-    
-    These are TEST numbers only and will not work for actual transactions.
-    They are generated to pass Luhn validation.
-    
-    Args:
-        count: Number of cards to generate per type (default: 5).
-    
-    Returns:
-        List of tuples (card_type, card_number).
-    
-    Example:
-        >>> cards = generate_test_credit_cards(2)
-        >>> for card_type, number in cards:
-        ...     print(f"{card_type}: {number}")
-        ...     assert validate(number)
-    """
-    # Common card prefixes
-    card_prefixes = {
-        "Visa": ["4"],
-        "MasterCard": ["51", "52", "53", "54", "55", "2221", "2222", "2223"],
-        "American Express": ["34", "37"],
-        "Discover": ["6011", "622126", "644", "645", "65"],
-        "JCB": ["3528", "3529", "353"],
-        "Diners Club": ["300", "301", "302", "303", "304", "305", "36", "38"],
-        "UnionPay": ["62"],
-    }
-    
-    cards = []
-    
-    for card_type, prefixes in card_prefixes.items():
-        for _ in range(count):
-            prefix = random.choice(prefixes)
-            # Use appropriate length based on card type
-            if card_type == "American Express":
-                length = 15
-            elif card_type == "Diners Club":
-                length = 14
-            else:
-                length = 16
-            
-            try:
-                number = generate_valid_number(prefix, length)
-                cards.append((card_type, number))
-            except ValueError:
-                continue
-    
-    return cards
-
-
-def find_check_digit_errors(number: str) -> List[int]:
-    """
-    Find positions where a single digit error would make the number valid.
-    
-    This is useful for error detection and correction suggestions.
-    
-    Args:
-        number: The potentially invalid number string.
-    
-    Returns:
-        List of positions (0-indexed) where changing the digit could fix the number.
-    
-    Example:
-        >>> # If a number is invalid, find potential error positions
-        >>> errors = find_check_digit_errors("4532015112830367")
-    """
-    clean_number = strip_formatting(number)
-    
-    if not clean_number:
-        return []
-    
-    if validate(clean_number):
-        return []  # Already valid
-    
-    error_positions = []
-    digits = list(clean_number)
-    
-    for i in range(len(digits)):
-        original = digits[i]
-        for new_digit in '0123456789':
-            if new_digit == original:
-                continue
-            digits[i] = new_digit
-            if validate(''.join(digits)):
-                error_positions.append(i)
-                break
-        digits[i] = original
-    
-    return error_positions
-
-
-def calculate_luhn_sum(number: str) -> Tuple[int, bool]:
-    """
-    Calculate the Luhn sum and return both the sum and validity.
-    
-    This is useful for debugging or educational purposes.
-    
-    Args:
-        number: The number string to calculate sum for.
-    
-    Returns:
-        Tuple of (total_sum, is_valid).
-    
-    Example:
-        >>> total, valid = calculate_luhn_sum("4532015112830366")
-        >>> print(f"Sum: {total}, Valid: {valid}")
-        Sum: 80, Valid: True
-    """
-    clean_number = ''.join(c for c in number if c.isdigit())
-    
-    if not clean_number:
-        return (0, False)
-    
-    total = 0
-    digits = [int(d) for d in clean_number]
-    
-    for i, digit in enumerate(reversed(digits)):
-        if i % 2 == 1:
-            doubled = digit * 2
-            if doubled > 9:
-                doubled = doubled - 9
-            total += doubled
-        else:
-            total += digit
-    
-    return (total, total % 10 == 0)
-
-
-def get_luhn_digit_transformations(digit: int, position: int, total_length: int) -> List[int]:
-    """
-    Get the valid transformations for a digit at a given position.
-    
-    This shows what values a digit can be changed to while maintaining
-    Luhn validity.
-    
-    Args:
-        digit: The current digit value (0-9).
-        position: The position of the digit (0-indexed from left).
-        total_length: The total length of the number.
-    
-    Returns:
-        List of valid digit values that could replace the current digit.
-    
-    Example:
-        >>> get_luhn_digit_transformations(5, 0, 16)
-    """
-    if digit < 0 or digit > 9:
-        raise ValueError("Digit must be between 0 and 9")
-    
-    # Calculate position from right
-    position_from_right = total_length - position - 1
-    
-    # If position from right is odd, digit is doubled
-    is_doubled = position_from_right % 2 == 1
-    
-    valid_values = []
-    for new_digit in range(10):
-        if new_digit == digit:
-            continue
-        # Calculate the Luhn contribution of each digit
-        if is_doubled:
-            orig_contribution = digit * 2
-            if orig_contribution > 9:
-                orig_contribution -= 9
-            new_contribution = new_digit * 2
-            if new_contribution > 9:
-                new_contribution -= 9
-        else:
-            orig_contribution = digit
-            new_contribution = new_digit
-        
-        # The difference in contribution
-        diff = new_contribution - orig_contribution
-        
-        # If difference is a multiple of 10, validity is preserved
-        if diff % 10 == 0:
-            valid_values.append(new_digit)
-    
-    return valid_values
-
-
-class LuhnValidator:
-    """
-    A class-based validator for Luhn numbers.
-    
-    Provides a convenient interface for validating and generating
-    Luhn-compliant numbers.
-    
-    Example:
-        >>> validator = LuhnValidator()
-        >>> validator.validate("4532015112830366")
-        True
-        >>> validator.generate("4", 16)  # Generate Visa-like number
-        '4...'
-    """
-    
-    def __init__(self, group_size: int = 4, separator: str = " "):
-        """
-        Initialize the validator with formatting options.
-        
-        Args:
-            group_size: Default group size for formatting.
-            separator: Default separator for formatting.
-        """
-        self.group_size = group_size
-        self.separator = separator
-    
-    def validate(self, number: str) -> bool:
-        """Validate a number using the Luhn algorithm."""
-        return validate(number)
-    
-    def calculate_check_digit(self, number: str) -> int:
-        """Calculate the check digit for a number."""
-        return calculate_check_digit(number)
-    
-    def add_check_digit(self, number: str) -> str:
-        """Append the check digit to a number."""
-        return add_check_digit(number)
-    
-    def format(self, number: str) -> str:
-        """Format a number with the default group size and separator."""
-        return format_number(number, self.group_size, self.separator)
-    
-    def strip(self, number: str) -> str:
-        """Remove formatting from a number."""
-        return strip_formatting(number)
-    
-    def generate(self, prefix: str, length: int = 16) -> str:
-        """Generate a valid Luhn number with the given prefix."""
-        return generate_valid_number(prefix, length)
-    
-    def generate_batch(self, prefix: str, count: int, length: int = 16) -> List[str]:
-        """Generate multiple valid Luhn numbers."""
-        return [self.generate(prefix, length) for _ in range(count)]
-
-
-# Convenience constants for common card prefixes
-CARD_PREFIXES = {
-    "visa": ["4"],
-    "mastercard": ["51", "52", "53", "54", "55", "2221", "2222", "2223", "2224", "2225"],
-    "amex": ["34", "37"],
-    "discover": ["6011", "622126", "644", "645", "646", "647", "648", "649", "65"],
-    "jcb": ["3528", "3529", "353", "354", "355", "356", "357", "358"],
-    "diners": ["300", "301", "302", "303", "304", "305", "36", "38", "39"],
-    "unionpay": ["62", "81"],
-    "maestro": ["5018", "5020", "5038", "5893", "6304", "6759", "6761", "6762", "6763"],
-    "mir": ["2200", "2201", "2202", "2203", "2204"],
+# 卡号类型识别模式
+CARD_PATTERNS = {
+    "Visa": [
+        (r"^4", "13,16"),  # 以4开头，13或16位
+    ],
+    "MasterCard": [
+        (r"^5[1-5]", "16"),  # 以51-55开头，16位
+        (r"^2[2-7]", "16"),  # 以2221-2720开头，16位
+    ],
+    "American Express": [
+        (r"^3[47]", "15"),  # 以34或37开头，15位
+    ],
+    "Discover": [
+        (r"^6011", "16"),
+        (r"^65", "16"),
+        (r"^64[4-9]", "16"),
+    ],
+    "JCB": [
+        (r"^35", "16"),
+    ],
+    "Diners Club": [
+        (r"^3(?:0[0-5]|[68])", "14"),
+    ],
+    "UnionPay": [
+        (r"^62", "16-19"),
+    ],
+    "Maestro": [
+        (r"^(5018|5020|5038|6304|6759|6761|6762|6763)", "12-19"),
+    ],
 }
 
 
 def identify_card_type(number: str) -> Optional[str]:
     """
-    Attempt to identify the card type based on the number prefix.
-    
-    This uses common prefix patterns and does not validate the number.
-    Always validate the number separately before use.
+    识别信用卡类型
     
     Args:
-        number: The card number string.
+        number: 卡号字符串
     
     Returns:
-        The card type name or None if not recognized.
-    
-    Example:
-        >>> identify_card_type("4111111111111111")
-        'visa'
-        >>> identify_card_type("5500000000000004")
-        'mastercard'
+        卡类型名称，如果无法识别返回 None
     """
-    clean_number = strip_formatting(number)
+    import re
     
-    if not clean_number:
-        return None
+    digits = ''.join(d for d in number if d.isdigit())
     
-    for card_type, prefixes in CARD_PREFIXES.items():
-        for prefix in prefixes:
-            if clean_number.startswith(prefix):
-                return card_type
+    for card_type, patterns in CARD_PATTERNS.items():
+        for pattern, lengths in patterns:
+            # 使用正则匹配前缀
+            if re.match(pattern, digits):
+                # 检查长度
+                valid_lengths = []
+                for l in lengths.split(","):
+                    if "-" in l:
+                        start, end = map(int, l.split("-"))
+                        valid_lengths.extend(range(start, end + 1))
+                    else:
+                        valid_lengths.append(int(l))
+                
+                if len(digits) in valid_lengths:
+                    return card_type
     
     return None
 
 
-if __name__ == "__main__":
-    # Demo
-    print("Luhn Algorithm Utilities Demo")
-    print("=" * 50)
+def validate_card(number: str) -> Tuple[bool, Optional[str], str]:
+    """
+    验证信用卡号（包括Luhn校验和类型识别）
     
-    # Validate examples
-    test_numbers = [
-        ("Valid Visa", "4532015112830366"),
-        ("Valid MasterCard", "5500000000000004"),
-        ("Valid Amex", "378282246310005"),
-        ("Invalid", "4532015112830367"),
+    Args:
+        number: 卡号字符串
+    
+    Returns:
+        (是否有效, 卡类型, 格式化后的卡号)
+    """
+    digits = ''.join(d for d in number if d.isdigit())
+    
+    is_valid = validate(digits)
+    card_type = identify_card_type(digits) if is_valid else None
+    formatted = format_card_number(digits)
+    
+    return is_valid, card_type, formatted
+
+
+def generate_test_card(card_type: str = "Visa") -> str:
+    """
+    生成测试用信用卡号（仅供测试，非真实有效卡号）
+    
+    Args:
+        card_type: 卡类型 ("Visa", "MasterCard", "American Express", "Discover")
+    
+    Returns:
+        测试卡号
+    """
+    # 测试用前缀（符合各卡组织规范）
+    # 16位卡号需要15位前缀，15位卡号需要14位前缀
+    test_prefixes = {
+        "Visa": "411111111111111",  # 15位，以4开头
+        "MasterCard": "555555555555555",  # 15位，以55开头
+        "American Express": "3782822463100",  # 14位，以37开头
+        "Discover": "601111111111111",  # 15位，以6011开头
+        "JCB": "353011133330000",  # 15位，以35开头
+    }
+    
+    prefix = test_prefixes.get(card_type, "411111111111111")
+    
+    # 前缀长度已经正确，直接生成
+    return generate_with_check_digit(prefix)
+
+
+# IMEI 相关工具
+
+def validate_imei(imei: str) -> bool:
+    """
+    验证IMEI号码
+    
+    Args:
+        imei: IMEI号码字符串
+    
+    Returns:
+        True 如果有效
+    """
+    digits = ''.join(d for d in imei if d.isdigit())
+    
+    if len(digits) != 15:
+        return False
+    
+    return validate(digits)
+
+
+def generate_imei(tac: str = "01234567", serial: str = "123456") -> str:
+    """
+    生成IMEI号码（仅供测试）
+    
+    Args:
+        tac: Type Allocation Code (8位，新版IMEI标准)
+        serial: 序列号 (6位)
+    
+    Returns:
+        15位IMEI号码（TAC 8位 + SNR 6位 + 校验位 1位）
+    """
+    tac = ''.join(d for d in tac if d.isdigit())[:8].ljust(8, '0')
+    serial = ''.join(d for d in serial if d.isdigit())[:6].ljust(6, '0')
+    
+    # IMEI = TAC(8) + SNR(6) + 校验位(1) = 15位
+    base = tac + serial
+    check_digit = calculate_check_digit(base)
+    return base + str(check_digit)
+
+
+def extract_luhn_info(number: str) -> dict:
+    """
+    提取Luhn相关信息
+    
+    Args:
+        number: 数字字符串
+    
+    Returns:
+        包含校验信息的字典
+    """
+    digits = ''.join(d for d in number if d.isdigit())
+    
+    if not digits:
+        return {
+            "valid": False,
+            "error": "无有效数字"
+        }
+    
+    check_digit = int(digits[-1]) if digits else None
+    calculated_check = calculate_check_digit(digits[:-1]) if len(digits) > 1 else None
+    
+    return {
+        "number": digits,
+        "length": len(digits),
+        "valid": validate(digits),
+        "check_digit": check_digit,
+        "calculated_check_digit": calculated_check,
+        "check_digit_correct": check_digit == calculated_check if check_digit and calculated_check else False,
+        "formatted": format_card_number(digits),
+        "masked": mask_card_number(digits),
+        "card_type": identify_card_type(digits) if validate(digits) else None,
+    }
+
+
+if __name__ == "__main__":
+    # 简单演示
+    print("=== Luhn算法工具演示 ===\n")
+    
+    # 测试卡号验证
+    test_cards = [
+        "4532015112830366",  # Visa
+        "5555555555554444",  # MasterCard
+        "378282246310005",   # American Express
+        "6011111111111117",  # Discover
+        "1234567890123456",  # 无效
     ]
     
-    print("\nValidation Tests:")
-    for name, number in test_numbers:
-        result = validate(number)
-        status = "✓ Valid" if result else "✗ Invalid"
-        print(f"  {name}: {number} -> {status}")
+    print("信用卡验证测试:")
+    for card in test_cards:
+        is_valid, card_type, formatted = validate_card(card)
+        status = "✓ 有效" if is_valid else "✗ 无效"
+        type_str = f" ({card_type})" if card_type else ""
+        print(f"  {formatted}: {status}{type_str}")
     
-    # Generate test numbers
-    print("\nGenerated Test Credit Cards:")
-    cards = generate_test_credit_cards(3)
-    for card_type, number in cards[:10]:
-        print(f"  {card_type}: {format_number(number)}")
+    print("\n生成测试卡号:")
+    for card_type in ["Visa", "MasterCard", "American Express", "Discover"]:
+        test_num = generate_test_card(card_type)
+        is_valid = validate(test_num)
+        print(f"  {card_type}: {test_num} ({'有效' if is_valid else '无效'})")
     
-    # Check digit calculation
-    print("\nCheck Digit Calculation:")
-    partial = "453201511283036"
-    check = calculate_check_digit(partial)
-    full = add_check_digit(partial)
-    print(f"  Partial: {partial}")
-    print(f"  Check digit: {check}")
-    print(f"  Full number: {full}")
-    print(f"  Validation: {validate(full)}")
+    print("\nIMEI验证:")
+    test_imei = "490154203237518"
+    print(f"  {test_imei}: {'有效' if validate_imei(test_imei) else '无效'}")
+    print(f"  生成测试IMEI: {generate_imei()}")
     
-    # Card type identification
-    print("\nCard Type Identification:")
-    for name, number in test_numbers[:3]:
-        card_type = identify_card_type(number)
-        print(f"  {number} -> {card_type}")
+    print("\n卡号遮蔽:")
+    print(f"  原始: 4532015112830366")
+    print(f"  遮蔽: {mask_card_number('4532015112830366')}")
+    
+    print("\n详细信息提取:")
+    info = extract_luhn_info("4532015112830366")
+    for key, value in info.items():
+        print(f"  {key}: {value}")

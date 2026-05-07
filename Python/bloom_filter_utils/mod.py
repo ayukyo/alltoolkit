@@ -1,306 +1,338 @@
 """
-Bloom Filter Utils - 布隆过滤器工具集
+Bloom Filter Utils - 布隆过滤器工具模块
 
-零依赖实现的高效概率数据结构，用于快速判断元素是否在集合中。
-
+布隆过滤器是一种空间高效的概率数据结构，用于判断元素是否在集合中。
 特点：
-- 空间效率极高：比传统集合节省 90%+ 内存
-- 查询时间复杂度 O(k)，k 为哈希函数数量
-- 可配置的误判率
-- 支持序列化/反序列化
-- 线程安全
+- 空间效率极高：相比哈希表，占用空间极小
+- 查询时间恒定：O(k)，k为哈希函数数量
+- 可能产生假阳性（误判存在），但不会假阴性（不会漏判）
+- 不支持删除操作（标准版本）
 
-使用场景：
-- URL 去重（爬虫）
+应用场景：
+- 数据库查询优化（避免不必要的磁盘查找）
 - 缓存穿透防护
-- 垃圾邮件过滤
-- 推荐系统内容去重
+- 网页爬虫URL去重
+- 垃圾邮件/恶意网站过滤
+- 拼写检查器
+- 分布式系统数据同步
+
+零外部依赖，仅使用 Python 标准库。
 """
 
 import math
 import struct
-from typing import Optional, Union, List
-from threading import Lock
 import hashlib
+from typing import Any, Optional, Iterator, List
+from dataclasses import dataclass
+
+
+@dataclass
+class BloomFilterStats:
+    """布隆过滤器统计信息"""
+    capacity: int           # 设计容量
+    error_rate: float       # 设计错误率
+    num_bits: int          # 位数组大小
+    num_hashes: int        # 哈希函数数量
+    num_elements: int      # 已插入元素数量
+    fill_ratio: float      # 填充率
+    current_error_rate: float  # 当前估计错误率
 
 
 class BloomFilter:
     """
     布隆过滤器实现
     
-    一种空间高效的概率数据结构，用于测试元素是否为集合成员。
-    可能产生假阳性（误判存在），但不会产生假阴性（不会漏判）。
-    
-    示例:
-        >>> bf = BloomFilter(expected_items=10000, false_positive_rate=0.01)
-        >>> bf.add("example.com")
-        >>> "example.com" in bf
+    使用示例：
+        >>> bf = BloomFilter(capacity=10000, error_rate=0.01)
+        >>> bf.add("hello")
+        >>> bf.add("world")
+        >>> "hello" in bf
         True
-        >>> "unknown.com" in bf
+        >>> "unknown" in bf
         False
     """
     
     def __init__(
         self,
-        expected_items: int = 10000,
-        false_positive_rate: float = 0.01,
-        bit_size: Optional[int] = None,
-        hash_count: Optional[int] = None
+        capacity: int = 10000,
+        error_rate: float = 0.01,
+        hash_algorithm: str = 'sha256'
     ):
         """
         初始化布隆过滤器
         
         Args:
-            expected_items: 预期存储的元素数量
-            false_positive_rate: 可接受的误判率 (0-1)
-            bit_size: 比特数组大小（可选，自动计算）
-            hash_count: 哈希函数数量（可选，自动计算）
+            capacity: 预期存储的元素数量
+            error_rate: 可接受的假阳性率（0-1之间）
+            hash_algorithm: 哈希算法（md5, sha1, sha256, sha512）
         """
-        if expected_items <= 0:
-            raise ValueError("expected_items must be positive")
-        if not 0 < false_positive_rate < 1:
-            raise ValueError("false_positive_rate must be between 0 and 1")
+        if capacity <= 0:
+            raise ValueError("capacity 必须大于 0")
+        if not 0 < error_rate < 1:
+            raise ValueError("error_rate 必须在 0 和 1 之间")
+        if hash_algorithm not in ('md5', 'sha1', 'sha256', 'sha512'):
+            raise ValueError(f"不支持的哈希算法: {hash_algorithm}")
         
-        self._n = expected_items
-        self._p = false_positive_rate
+        self._capacity = capacity
+        self._error_rate = error_rate
+        self._hash_algorithm = hash_algorithm
         
-        # 自动计算最优参数
-        if bit_size is None:
-            # m = -n * ln(p) / (ln(2))^2
-            self._m = int(-expected_items * math.log(false_positive_rate) / (math.log(2) ** 2))
-        else:
-            self._m = bit_size
+        # 计算最优参数
+        # m = -n * ln(p) / (ln(2)^2)
+        # k = m * ln(2) / n
+        self._num_bits = self._calculate_optimal_bits(capacity, error_rate)
+        self._num_hashes = self._calculate_optimal_hashes(self._num_bits, capacity)
         
-        if hash_count is None:
-            # k = m / n * ln(2)
-            self._k = max(1, int(self._m / expected_items * math.log(2)))
-        else:
-            self._k = hash_count
-        
-        # 初始化比特数组（使用整数数组提高效率）
-        self._bits = [0] * ((self._m + 31) // 32)
-        self._count = 0  # 设置的 bit 数量
-        self._item_count = 0  # 添加的元素数量
-        self._lock = Lock()
+        # 位数组（使用整数列表模拟）
+        self._bit_array = [0] * ((self._num_bits + 31) // 32)  # 每32位一个整数
+        self._count = 0
     
-    def _hashes(self, item: Union[str, bytes]) -> List[int]:
+    @staticmethod
+    def _calculate_optimal_bits(n: int, p: float) -> int:
+        """计算最优位数组大小"""
+        return int(-n * math.log(p) / (math.log(2) ** 2))
+    
+    @staticmethod
+    def _calculate_optimal_hashes(m: int, n: int) -> int:
+        """计算最优哈希函数数量"""
+        return max(1, int(m * math.log(2) / n))
+    
+    def _hash(self, item: Any, seed: int) -> int:
         """
-        生成 k 个哈希值
+        使用双重哈希生成第 seed 个哈希值
         
-        使用双重哈希技术，通过两个基础哈希函数生成 k 个哈希值
-        h(i) = h1 + i * h2
+        双重哈希技术：h_i(x) = (h1(x) + i * h2(x)) % m
+        这样只需两次哈希计算就能生成 k 个哈希值
         """
-        if isinstance(item, str):
-            item = item.encode('utf-8')
+        # 序列化对象为字节
+        if isinstance(item, bytes):
+            data = item
+        elif isinstance(item, str):
+            data = item.encode('utf-8')
+        else:
+            data = str(item).encode('utf-8')
         
-        # 使用 MD5 和 SHA1 作为两个基础哈希函数
-        h1 = int(hashlib.md5(item).hexdigest(), 16)
-        h2 = int(hashlib.sha1(item).hexdigest(), 16)
+        # 计算基础哈希值
+        h1 = int(hashlib.new(self._hash_algorithm, data).hexdigest(), 16)
         
-        hashes = []
-        for i in range(self._k):
-            # 双重哈希组合
-            h = (h1 + i * h2) % self._m
-            hashes.append(h)
-        return hashes
+        # 使用不同的种子计算第二个哈希值
+        h2 = int(hashlib.new(
+            self._hash_algorithm, 
+            data + seed.to_bytes(4, 'big')
+        ).hexdigest(), 16)
+        
+        # 双重哈希公式
+        return (h1 + seed * h2) % self._num_bits
     
     def _set_bit(self, index: int) -> bool:
-        """设置比特位，返回是否为新设置的位"""
-        word_idx = index // 32
-        bit_idx = index % 32
-        mask = 1 << bit_idx
+        """设置位，返回是否是新设置的"""
+        array_index = index // 32
+        bit_offset = index % 32
+        mask = 1 << bit_offset
         
-        old_value = self._bits[word_idx]
-        self._bits[word_idx] |= mask
-        return (old_value & mask) == 0
+        old_value = self._bit_array[array_index] & mask
+        self._bit_array[array_index] |= mask
+        return old_value == 0
     
     def _get_bit(self, index: int) -> bool:
-        """获取比特位状态"""
-        word_idx = index // 32
-        bit_idx = index % 32
-        return bool(self._bits[word_idx] & (1 << bit_idx))
+        """获取位值"""
+        array_index = index // 32
+        bit_offset = index % 32
+        return bool(self._bit_array[array_index] & (1 << bit_offset))
     
-    def add(self, item: Union[str, bytes]) -> None:
+    def add(self, item: Any) -> None:
         """
-        向布隆过滤器添加元素
+        添加元素到布隆过滤器
         
         Args:
-            item: 要添加的元素（字符串或字节）
+            item: 要添加的元素（可以是任何可哈希的对象）
         """
-        with self._lock:
-            for h in self._hashes(item):
-                self._set_bit(h)
-            self._item_count += 1
+        for i in range(self._num_hashes):
+            index = self._hash(item, i)
+            self._set_bit(index)
+        self._count += 1
     
-    def __contains__(self, item: Union[str, bytes]) -> bool:
+    def __contains__(self, item: Any) -> bool:
         """
-        检查元素是否可能在集合中
+        检查元素可能在集合中
         
         Args:
             item: 要检查的元素
             
         Returns:
-            True: 元素可能在集合中（可能有误判）
-            False: 元素一定不在集合中
+            True 如果元素可能在集合中（可能有假阳性）
+            False 如果元素一定不在集合中（不会假阴性）
         """
-        for h in self._hashes(item):
-            if not self._get_bit(h):
+        for i in range(self._num_hashes):
+            index = self._hash(item, i)
+            if not self._get_bit(index):
                 return False
         return True
     
+    def might_contain(self, item: Any) -> bool:
+        """检查元素可能存在（__contains__ 的别名）"""
+        return item in self
+    
     def __len__(self) -> int:
-        """返回已添加元素的数量"""
-        return self._item_count
+        """返回已插入元素数量"""
+        return self._count
     
     def __repr__(self) -> str:
         return (
-            f"BloomFilter(items={self._item_count}, "
-            f"capacity={self._n}, "
-            f"bits={self._m}, "
-            f"hashes={self._k}, "
-            f"fp_rate={self._p:.4f})"
+            f"BloomFilter(capacity={self._capacity}, error_rate={self._error_rate}, "
+            f"bits={self._num_bits}, hashes={self._num_hashes}, elements={self._count})"
         )
     
-    @property
-    def bit_size(self) -> int:
-        """比特数组大小"""
-        return self._m
-    
-    @property
-    def hash_count(self) -> int:
-        """哈希函数数量"""
-        return self._k
-    
-    @property
-    def estimated_false_positive_rate(self) -> float:
-        """估算当前误判率"""
-        if self._count == 0:
-            return 0.0
-        # p = (1 - e^(-kn/m))^k
-        ratio = self._k * self._count / self._m
-        return (1 - math.exp(-ratio)) ** self._k
-    
-    @property
-    def load_factor(self) -> float:
-        """负载因子（已设置比特位比例）"""
-        total_bits = sum(bin(word).count('1') for word in self._bits)
-        return total_bits / self._m
-    
-    def clear(self) -> None:
-        """清空布隆过滤器"""
-        with self._lock:
-            self._bits = [0] * ((self._m + 31) // 32)
-            self._count = 0
-            self._item_count = 0
-    
-    def serialize(self) -> bytes:
-        """
-        序列化布隆过滤器为字节
+    def get_stats(self) -> BloomFilterStats:
+        """获取统计信息"""
+        # 计算当前填充率
+        filled_bits = sum(
+            bin(word).count('1') 
+            for word in self._bit_array
+        )
+        fill_ratio = filled_bits / self._num_bits if self._num_bits > 0 else 0
         
-        格式: [n(4)] [p(8)] [m(4)] [k(4)] [item_count(4)] [bits...]
+        # 估计当前错误率：(1 - e^(-kn/m))^k
+        if self._count == 0:
+            current_error_rate = 0.0
+        else:
+            current_error_rate = (1 - math.exp(
+                -self._num_hashes * self._count / self._num_bits
+            )) ** self._num_hashes
+        
+        return BloomFilterStats(
+            capacity=self._capacity,
+            error_rate=self._error_rate,
+            num_bits=self._num_bits,
+            num_hashes=self._num_hashes,
+            num_elements=self._count,
+            fill_ratio=fill_ratio,
+            current_error_rate=current_error_rate
+        )
+    
+    def to_bytes(self) -> bytes:
         """
-        with self._lock:
-            header = struct.pack(
-                '>IfIII',
-                self._n,          # expected items
-                self._p,          # false positive rate
-                self._m,          # bit size
-                self._k,          # hash count
-                self._item_count  # actual item count
-            )
-            bits_data = struct.pack(f'>{len(self._bits)}I', *self._bits)
-            return header + bits_data
+        序列化为字节
+        
+        Returns:
+            字节表示，可用于持久化存储
+        """
+        # 格式：版本(1) + capacity(8) + error_rate(8) + hash_algorithm_len(1) + hash_algorithm + num_bits(8) + count(8) + bit_array
+        algo_bytes = self._hash_algorithm.encode('utf-8')
+        header = (
+            b'\x01' +  # 版本
+            self._capacity.to_bytes(8, 'big') +
+            struct.pack('>d', self._error_rate) +
+            len(algo_bytes).to_bytes(1, 'big') +
+            algo_bytes +
+            self._num_bits.to_bytes(8, 'big') +
+            self._count.to_bytes(8, 'big')
+        )
+        
+        # 压缩位数组
+        bit_bytes = b''.join(
+            word.to_bytes(4, 'big') 
+            for word in self._bit_array
+        )
+        
+        return header + bit_bytes
     
     @classmethod
-    def deserialize(cls, data: bytes) -> 'BloomFilter':
-        """从字节反序列化布隆过滤器"""
-        header_size = struct.calcsize('>IfIII')
-        n, p, m, k, item_count = struct.unpack('>IfIII', data[:header_size])
+    def from_bytes(cls, data: bytes) -> 'BloomFilter':
+        """
+        从字节反序列化
         
-        bf = cls(expected_items=n, false_positive_rate=p, bit_size=m, hash_count=k)
-        bf._item_count = item_count
+        Args:
+            data: to_bytes() 方法产生的字节数据
+            
+        Returns:
+            反序列化的 BloomFilter 实例
+        """
+        import struct
         
-        bits_count = (m + 31) // 32
-        bf._bits = list(struct.unpack(f'>{bits_count}I', data[header_size:header_size + bits_count * 4]))
+        if len(data) < 26:
+            raise ValueError("数据太短，无法解析")
+        
+        version = data[0]
+        if version != 1:
+            raise ValueError(f"不支持的版本: {version}")
+        
+        offset = 1
+        capacity = int.from_bytes(data[offset:offset+8], 'big')
+        offset += 8
+        
+        error_rate = struct.unpack('>d', data[offset:offset+8])[0]
+        offset += 8
+        
+        algo_len = data[offset]
+        offset += 1
+        
+        hash_algorithm = data[offset:offset+algo_len].decode('utf-8')
+        offset += algo_len
+        
+        num_bits = int.from_bytes(data[offset:offset+8], 'big')
+        offset += 8
+        
+        count = int.from_bytes(data[offset:offset+8], 'big')
+        offset += 8
+        
+        # 创建实例
+        bf = cls(capacity=capacity, error_rate=error_rate, hash_algorithm=hash_algorithm)
+        bf._count = count
+        
+        # 恢复位数组
+        num_words = (num_bits + 31) // 32
+        bf._bit_array = [
+            int.from_bytes(data[offset+i*4:offset+i*4+4], 'big')
+            for i in range(num_words)
+        ]
         
         return bf
     
-    def union(self, other: 'BloomFilter') -> 'BloomFilter':
-        """
-        合并两个布隆过滤器
-        
-        Args:
-            other: 另一个布隆过滤器
-            
-        Returns:
-            新的布隆过滤器，包含两个过滤器的并集
-            
-        Raises:
-            ValueError: 如果两个过滤器参数不兼容
-        """
-        if self._m != other._m or self._k != other._k:
-            raise ValueError("Cannot union bloom filters with different sizes or hash counts")
-        
-        result = BloomFilter(
-            expected_items=self._n,
-            false_positive_rate=self._p,
-            bit_size=self._m,
-            hash_count=self._k
-        )
-        
-        for i in range(len(self._bits)):
-            result._bits[i] = self._bits[i] | other._bits[i]
-        
-        result._item_count = min(self._item_count + other._item_count, self._n)
-        return result
+    def clear(self) -> None:
+        """清空布隆过滤器"""
+        self._bit_array = [0] * ((self._num_bits + 31) // 32)
+        self._count = 0
     
-    def intersection(self, other: 'BloomFilter') -> 'BloomFilter':
-        """
-        计算两个布隆过滤器的交集
-        
-        Args:
-            other: 另一个布隆过滤器
-            
-        Returns:
-            新的布隆过滤器，包含两个过滤器的交集
-        """
-        if self._m != other._m or self._k != other._k:
-            raise ValueError("Cannot intersect bloom filters with different sizes or hash counts")
-        
-        result = BloomFilter(
-            expected_items=self._n,
-            false_positive_rate=self._p,
-            bit_size=self._m,
-            hash_count=self._k
-        )
-        
-        for i in range(len(self._bits)):
-            result._bits[i] = self._bits[i] & other._bits[i]
-        
-        # 交集的计数是估计值
-        result._item_count = min(self._item_count, other._item_count)
-        return result
+    @property
+    def capacity(self) -> int:
+        """设计容量"""
+        return self._capacity
+    
+    @property
+    def error_rate(self) -> float:
+        """设计错误率"""
+        return self._error_rate
+    
+    @property
+    def num_bits(self) -> int:
+        """位数组大小"""
+        return self._num_bits
+    
+    @property
+    def num_hashes(self) -> int:
+        """哈希函数数量"""
+        return self._num_hashes
 
 
 class ScalableBloomFilter:
     """
     可扩展布隆过滤器
     
-    当元素数量超过预期时自动扩展容量，
-    同时保持较低的误判率。
+    当元素数量超过预期时自动扩展，保持假阳性率在控制范围内。
     
-    示例:
-        >>> sbf = ScalableBloomFilter(initial_capacity=1000)
+    使用示例：
+        >>> sbf = ScalableBloomFilter(initial_capacity=1000, error_rate=0.01)
         >>> for i in range(10000):
         ...     sbf.add(f"item_{i}")
-        >>> "item_5000" in sbf
+        >>> "item_5" in sbf
         True
     """
     
     def __init__(
         self,
         initial_capacity: int = 1000,
-        false_positive_rate: float = 0.01,
+        error_rate: float = 0.01,
         growth_factor: int = 2
     ):
         """
@@ -308,61 +340,76 @@ class ScalableBloomFilter:
         
         Args:
             initial_capacity: 初始容量
-            false_positive_rate: 目标误判率
-            growth_factor: 扩展因子
+            error_rate: 目标假阳性率
+            growth_factor: 扩展因子（新过滤器容量是当前的多少倍）
         """
-        self._filters: List[BloomFilter] = []
+        if initial_capacity <= 0:
+            raise ValueError("initial_capacity 必须大于 0")
+        if not 0 < error_rate < 1:
+            raise ValueError("error_rate 必须在 0 和 1 之间")
+        if growth_factor < 2:
+            raise ValueError("growth_factor 必须至少为 2")
+        
         self._initial_capacity = initial_capacity
-        self._fp_rate = false_positive_rate
+        self._error_rate = error_rate
         self._growth_factor = growth_factor
-        self._lock = Lock()
+        
+        self._filters: List[BloomFilter] = []
         self._total_count = 0
         
-        self._add_filter()
+        # 创建第一个过滤器
+        self._add_filter(initial_capacity)
     
-    def _add_filter(self) -> None:
+    def _add_filter(self, capacity: int) -> None:
         """添加新的布隆过滤器层"""
-        # 每层的误判率递减，确保总体误判率不变
-        layer = len(self._filters)
-        capacity = self._initial_capacity * (self._growth_factor ** layer)
-        fp_rate = self._fp_rate / (self._growth_factor ** layer)
-        
-        self._filters.append(BloomFilter(
-            expected_items=capacity,
-            false_positive_rate=fp_rate
-        ))
+        # 每层的错误率逐渐降低，以保持整体错误率
+        layer_error_rate = self._error_rate / (2 ** len(self._filters))
+        bf = BloomFilter(capacity=capacity, error_rate=layer_error_rate)
+        self._filters.append(bf)
     
-    def add(self, item: Union[str, bytes]) -> None:
+    def add(self, item: Any) -> None:
         """添加元素"""
-        with self._lock:
-            # 检查是否已存在
-            for bf in self._filters:
-                if item in bf:
-                    return
-            
-            # 添加到当前活跃过滤器
-            active = self._filters[-1]
-            active.add(item)
-            self._total_count += 1
-            
-            # 如果活跃过滤器接近容量，创建新的
-            if len(active) >= active._n * 0.8:
-                self._add_filter()
+        # 如果当前过滤器满了，创建新的
+        if len(self._filters[-1]) >= self._filters[-1].capacity:
+            new_capacity = self._filters[-1].capacity * self._growth_factor
+            self._add_filter(new_capacity)
+        
+        self._filters[-1].add(item)
+        self._total_count += 1
     
-    def __contains__(self, item: Union[str, bytes]) -> bool:
+    def __contains__(self, item: Any) -> bool:
         """检查元素是否存在"""
-        for bf in self._filters:
-            if item in bf:
-                return True
-        return False
+        return any(item in bf for bf in self._filters)
+    
+    def might_contain(self, item: Any) -> bool:
+        """检查元素可能存在"""
+        return item in self
     
     def __len__(self) -> int:
+        """返回总元素数量"""
         return self._total_count
+    
+    def get_stats(self) -> dict:
+        """获取统计信息"""
+        return {
+            'total_elements': self._total_count,
+            'num_layers': len(self._filters),
+            'layers': [
+                {
+                    'layer': i,
+                    'capacity': bf.capacity,
+                    'elements': len(bf),
+                    'error_rate': bf.error_rate,
+                    'fill_ratio': bf.get_stats().fill_ratio
+                }
+                for i, bf in enumerate(self._filters)
+            ]
+        }
     
     def __repr__(self) -> str:
         return (
-            f"ScalableBloomFilter(items={self._total_count}, "
-            f"layers={len(self._filters)})"
+            f"ScalableBloomFilter(layers={len(self._filters)}, "
+            f"total_elements={self._total_count})"
         )
 
 
@@ -370,196 +417,171 @@ class CountingBloomFilter:
     """
     计数布隆过滤器
     
-    支持删除操作的布隆过滤器变体，
-    每个比特位使用计数器。
+    支持删除操作的布隆过滤器变体，使用计数器代替位数组。
     
-    示例:
-        >>> cbf = CountingBloomFilter(expected_items=1000)
-        >>> cbf.add("test")
-        >>> "test" in cbf
+    使用示例：
+        >>> cbf = CountingBloomFilter(capacity=1000, error_rate=0.01)
+        >>> cbf.add("hello")
+        >>> "hello" in cbf
         True
-        >>> cbf.remove("test")
-        >>> "test" in cbf
+        >>> cbf.remove("hello")
+        >>> "hello" in cbf
         False
     """
     
     def __init__(
         self,
-        expected_items: int = 10000,
-        false_positive_rate: float = 0.01,
-        counter_bits: int = 4
+        capacity: int = 10000,
+        error_rate: float = 0.01,
+        max_count: int = 15
     ):
         """
         初始化计数布隆过滤器
         
         Args:
-            expected_items: 预期元素数量
-            false_positive_rate: 误判率
-            counter_bits: 每个计数器的位数（默认4位，最大值15）
+            capacity: 预期容量
+            error_rate: 目标错误率
+            max_count: 每个位置的最大计数值（默认15，用4位表示）
         """
-        self._n = expected_items
-        self._p = false_positive_rate
-        self._counter_bits = counter_bits
-        self._max_count = (1 << counter_bits) - 1
+        if capacity <= 0:
+            raise ValueError("capacity 必须大于 0")
+        if not 0 < error_rate < 1:
+            raise ValueError("error_rate 必须在 0 和 1 之间")
         
-        # 计算参数
-        self._m = int(-expected_items * math.log(false_positive_rate) / (math.log(2) ** 2))
-        self._k = max(1, int(self._m / expected_items * math.log(2)))
+        self._capacity = capacity
+        self._error_rate = error_rate
+        self._max_count = max_count
         
-        # 计数器数组
-        self._counters = [0] * self._m
-        self._item_count = 0
-        self._lock = Lock()
+        # 计算最优参数
+        self._num_bits = BloomFilter._calculate_optimal_bits(capacity, error_rate)
+        self._num_hashes = BloomFilter._calculate_optimal_hashes(self._num_bits, capacity)
+        
+        # 计数器数组（每个计数器用4位，所以每字节存2个计数器）
+        self._counters = [0] * self._num_bits
+        self._count = 0
     
-    def _hashes(self, item: Union[str, bytes]) -> List[int]:
-        """生成哈希值"""
-        if isinstance(item, str):
-            item = item.encode('utf-8')
+    def _hash(self, item: Any, seed: int) -> int:
+        """计算哈希值"""
+        if isinstance(item, bytes):
+            data = item
+        elif isinstance(item, str):
+            data = item.encode('utf-8')
+        else:
+            data = str(item).encode('utf-8')
         
-        h1 = int(hashlib.md5(item).hexdigest(), 16)
-        h2 = int(hashlib.sha1(item).hexdigest(), 16)
+        h1 = int(hashlib.sha256(data).hexdigest(), 16)
+        h2 = int(hashlib.sha256(data + seed.to_bytes(4, 'big')).hexdigest(), 16)
         
-        return [(h1 + i * h2) % self._m for i in range(self._k)]
+        return (h1 + seed * h2) % self._num_bits
     
-    def add(self, item: Union[str, bytes], count: int = 1) -> bool:
+    def add(self, item: Any) -> bool:
         """
         添加元素
         
-        Args:
-            item: 元素
-            count: 添加次数
-            
         Returns:
-            是否成功添加（计数器溢出返回False）
+            True 如果成功添加，False 如果计数器已满
         """
-        with self._lock:
-            for h in self._hashes(item):
-                if self._counters[h] + count > self._max_count:
-                    return False
-                self._counters[h] += count
-            self._item_count += 1
-            return True
+        success = True
+        for i in range(self._num_hashes):
+            index = self._hash(item, i)
+            if self._counters[index] < self._max_count:
+                self._counters[index] += 1
+            else:
+                success = False  # 计数器溢出
+        
+        if success:
+            self._count += 1
+        return success
     
-    def remove(self, item: Union[str, bytes]) -> bool:
+    def remove(self, item: Any) -> bool:
         """
         删除元素
         
-        Args:
-            item: 要删除的元素
-            
         Returns:
-            是否成功删除
+            True 如果成功删除，False 如果元素不存在
         """
-        with self._lock:
-            # 先检查是否存在
-            hashes = self._hashes(item)
-            for h in hashes:
-                if self._counters[h] == 0:
-                    return False
-            
-            # 执行删除
-            for h in hashes:
-                self._counters[h] -= 1
-            self._item_count -= 1
-            return True
+        # 先检查是否存在
+        if item not in self:
+            return False
+        
+        for i in range(self._num_hashes):
+            index = self._hash(item, i)
+            if self._counters[index] > 0:
+                self._counters[index] -= 1
+        
+        self._count -= 1
+        return True
     
-    def __contains__(self, item: Union[str, bytes]) -> bool:
+    def __contains__(self, item: Any) -> bool:
         """检查元素是否存在"""
-        for h in self._hashes(item):
-            if self._counters[h] == 0:
+        for i in range(self._num_hashes):
+            index = self._hash(item, i)
+            if self._counters[index] == 0:
                 return False
         return True
     
     def __len__(self) -> int:
-        return self._item_count
+        """返回元素数量"""
+        return self._count
     
-    def count(self, item: Union[str, bytes]) -> int:
-        """
-        估计元素的出现次数
-        
-        返回所有计数器中的最小值
-        """
-        hashes = self._hashes(item)
-        return min(self._counters[h] for h in hashes)
-    
-    def clear(self) -> None:
-        """清空过滤器"""
-        with self._lock:
-            self._counters = [0] * self._m
-            self._item_count = 0
+    def __repr__(self) -> str:
+        return (
+            f"CountingBloomFilter(capacity={self._capacity}, "
+            f"error_rate={self._error_rate}, elements={self._count})"
+        )
 
 
-# ============ 便捷函数 ============
-
+# 便捷函数
 def create_filter(
-    expected_items: int = 10000,
-    false_positive_rate: float = 0.01
+    capacity: int = 10000,
+    error_rate: float = 0.01
 ) -> BloomFilter:
-    """
-    创建布隆过滤器的便捷函数
-    
-    Args:
-        expected_items: 预期元素数量
-        false_positive_rate: 误判率
-        
-    Returns:
-        配置好的布隆过滤器
-    """
-    return BloomFilter(expected_items, false_positive_rate)
+    """创建标准布隆过滤器"""
+    return BloomFilter(capacity=capacity, error_rate=error_rate)
 
 
-def create_scalable(
+def create_scalable_filter(
     initial_capacity: int = 1000,
-    false_positive_rate: float = 0.01
+    error_rate: float = 0.01
 ) -> ScalableBloomFilter:
-    """
-    创建可扩展布隆过滤器
-    """
-    return ScalableBloomFilter(initial_capacity, false_positive_rate)
+    """创建可扩展布隆过滤器"""
+    return ScalableBloomFilter(
+        initial_capacity=initial_capacity,
+        error_rate=error_rate
+    )
 
 
-def estimate_size(
-    expected_items: int,
-    false_positive_rate: float
-) -> dict:
-    """
-    估算布隆过滤器所需资源
-    
-    Args:
-        expected_items: 预期元素数量
-        false_positive_rate: 误判率
-        
-    Returns:
-        包含 bits, bytes, hash_functions 的字典
-    """
-    m = int(-expected_items * math.log(false_positive_rate) / (math.log(2) ** 2))
-    k = max(1, int(m / expected_items * math.log(2)))
-    
-    return {
-        'bits': m,
-        'bytes': m // 8,
-        'kb': round(m / 8 / 1024, 2),
-        'mb': round(m / 8 / 1024 / 1024, 4),
-        'hash_functions': k
-    }
+def create_counting_filter(
+    capacity: int = 10000,
+    error_rate: float = 0.01
+) -> CountingBloomFilter:
+    """创建计数布隆过滤器"""
+    return CountingBloomFilter(capacity=capacity, error_rate=error_rate)
 
 
 if __name__ == "__main__":
     # 简单演示
-    bf = BloomFilter(10000, 0.01)
+    print("=== Bloom Filter 演示 ===")
+    
+    # 创建过滤器
+    bf = BloomFilter(capacity=1000, error_rate=0.01)
+    print(f"创建: {bf}")
     
     # 添加元素
-    urls = ["http://example.com", "http://test.com", "http://demo.com"]
-    for url in urls:
-        bf.add(url)
+    words = ["apple", "banana", "cherry", "date", "elderberry"]
+    for word in words:
+        bf.add(word)
     
-    # 检查存在
-    print(f"'http://example.com' in filter: {'http://example.com' in bf}")
-    print(f"'http://unknown.com' in filter: {'http://unknown.com' in bf}")
-    print(f"\nFilter stats: {bf}")
-    print(f"Estimated FP rate: {bf.estimated_false_positive_rate:.6f}")
+    print(f"\n添加 {len(words)} 个元素后:")
+    print(f"  'apple' 存在: {'apple' in bf}")
+    print(f"  'grape' 存在: {'grape' in bf}")
     
-    # 序列化测试
-    data = bf.serialize()
-    bf2 = BloomFilter.deserialize(data)
-    print(f"\nDeserialized filter works: {'http://example.com' in bf2}")
+    # 统计信息
+    stats = bf.get_stats()
+    print(f"\n统计信息:")
+    print(f"  容量: {stats.capacity}")
+    print(f"  位数: {stats.num_bits}")
+    print(f"  哈希数: {stats.num_hashes}")
+    print(f"  元素数: {stats.num_elements}")
+    print(f"  填充率: {stats.fill_ratio:.4f}")
+    print(f"  当前错误率: {stats.current_error_rate:.6f}")

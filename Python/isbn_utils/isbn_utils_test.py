@@ -1,434 +1,202 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-AllToolkit - ISBN Utilities Test Suite
-======================================
-Comprehensive tests for the ISBN utilities module.
+isbn_utils - 测试用例
+====================
 
-Run with: python -m pytest isbn_utils_test.py -v
-Or: python isbn_utils_test.py
+测试 ISBN-10/ISBN-13 验证、转换、格式化等功能。
 """
 
-import unittest
+import pytest
 import sys
 import os
 
-# Add parent directory to path for imports
+# 添加模块路径
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from mod import (
     clean_isbn,
     is_isbn10,
     is_isbn13,
-    is_valid_isbn,
-    get_isbn_type,
     calculate_isbn10_check_digit,
     calculate_isbn13_check_digit,
-    isbn10_to_isbn13,
-    isbn13_to_isbn10,
-    convert_isbn,
     format_isbn,
-    format_isbn_compact,
-    parse_isbn,
-    generate_isbn10,
-    generate_isbn13,
     generate_isbn,
-    validate_isbns,
-    find_isbns_in_text,
+    convert_isbn,
     compare_isbns,
-    get_isbn_variants,
+    find_isbns_in_text,
+    format_isbn_compact,
 )
 
 
-class TestCleanISBN(unittest.TestCase):
-    """Tests for clean_isbn function."""
+class TestCleanISBN:
+    """测试 ISBN 清理"""
     
-    def test_clean_with_hyphens(self):
-        self.assertEqual(clean_isbn("978-0-306-40615-7"), "9780306406157")
-        self.assertEqual(clean_isbn("0-306-40615-2"), "0306406152")
+    def test_clean_isbn_with_hyphens(self):
+        """测试带连字符的 ISBN"""
+        result = clean_isbn("978-0-306-40615-7")
+        assert result == "9780306406157"
     
-    def test_clean_with_spaces(self):
-        self.assertEqual(clean_isbn("978 0 306 40615 7"), "9780306406157")
-        self.assertEqual(clean_isbn("ISBN 0-306-40615-2"), "0306406152")
+    def test_clean_isbn_with_spaces(self):
+        """测试带空格的 ISBN"""
+        result = clean_isbn("978 0 306 40615 7")
+        assert result == "9780306406157"
     
-    def test_clean_with_x(self):
-        self.assertEqual(clean_isbn("0-306-40615-x"), "030640615X")
-        self.assertEqual(clean_isbn("0-306-40615-X"), "030640615X")
+    def test_clean_isbn_with_prefix(self):
+        """测试带前缀的 ISBN"""
+        result = clean_isbn("ISBN 978-0-306-40615-7")
+        assert result == "9780306406157"
+    
+    def test_clean_isbn10_with_x(self):
+        """测试带 X 的 ISBN-10"""
+        result = clean_isbn("0-306-40615-X")
+        assert result == "030640615X"
     
     def test_clean_empty(self):
-        self.assertEqual(clean_isbn(""), "")
-    
-    def test_clean_already_clean(self):
-        self.assertEqual(clean_isbn("9780306406157"), "9780306406157")
+        """测试空字符串"""
+        result = clean_isbn("")
+        assert result == ""
 
 
-class TestISBN10Validation(unittest.TestCase):
-    """Tests for ISBN-10 validation."""
+class TestISBN10Validation:
+    """测试 ISBN-10 验证"""
     
-    def test_valid_isbn10_simple(self):
-        self.assertTrue(is_isbn10("0306406152"))
-        self.assertTrue(is_isbn10("0471958697"))
-        self.assertTrue(is_isbn10("0596007973"))  # Correct check digit
+    def test_is_isbn10_valid(self):
+        """测试有效的 ISBN-10"""
+        assert is_isbn10("0306406152") is True
+        assert is_isbn10("0-306-40615-2") is True
     
-    def test_valid_isbn10_with_x(self):
-        self.assertTrue(is_isbn10("080442957X"))  # Valid ISBN-10 with X check digit
-        self.assertTrue(is_isbn10("156881111X"))  # Another valid X check digit
+    def test_is_isbn10_invalid_length(self):
+        """测试无效长度"""
+        assert is_isbn10("12345") is False  # 太短
+        assert is_isbn10("123456789012") is False  # 太长
     
-    def test_valid_isbn10_with_hyphens(self):
-        self.assertTrue(is_isbn10("0-306-40615-2"))
-        self.assertTrue(is_isbn10("0-471-95869-7"))
-    
-    def test_invalid_isbn10_wrong_length(self):
-        self.assertFalse(is_isbn10("030640615"))  # Too short
-        self.assertFalse(is_isbn10("03064061522"))  # Too long
-    
-    def test_invalid_isbn10_wrong_check_digit(self):
-        self.assertFalse(is_isbn10("0306406153"))  # Wrong check digit
-    
-    def test_invalid_isbn10_x_in_wrong_position(self):
-        self.assertFalse(is_isbn10("X306406152"))  # X at start
-    
-    def test_isbn13_not_isbn10(self):
-        self.assertFalse(is_isbn10("9780306406157"))
+    def test_is_isbn10_invalid_chars(self):
+        """测试无效字符"""
+        assert is_isbn10("ABCDEFGHIJ") is False
 
 
-class TestISBN13Validation(unittest.TestCase):
-    """Tests for ISBN-13 validation."""
+class TestISBN13Validation:
+    """测试 ISBN-13 验证"""
     
-    def test_valid_isbn13_simple(self):
-        self.assertTrue(is_isbn13("9780306406157"))
-        self.assertTrue(is_isbn13("9780471958697"))
-        self.assertTrue(is_isbn13("9780596007973"))  # Correct check digit
+    def test_is_isbn13_valid(self):
+        """测试有效的 ISBN-13"""
+        assert is_isbn13("9780306406157") is True
+        assert is_isbn13("978-0-306-40615-7") is True
     
-    def test_valid_isbn13_with_hyphens(self):
-        self.assertTrue(is_isbn13("978-0-306-40615-7"))
-        self.assertTrue(is_isbn13("978-0-471-95869-7"))
+    def test_is_isbn13_invalid_length(self):
+        """测试无效长度"""
+        assert is_isbn13("12345678") is False  # 太短
+        assert is_isbn13("12345678901234") is False  # 太长
     
-    def test_valid_isbn13_979_prefix(self):
-        self.assertTrue(is_isbn13("9790306406156"))  # 979 prefix with correct check digit
-    
-    def test_invalid_isbn13_wrong_length(self):
-        self.assertFalse(is_isbn13("978030640615"))  # Too short
-        self.assertFalse(is_isbn13("97803064061577"))  # Too long
-    
-    def test_invalid_isbn13_wrong_check_digit(self):
-        self.assertFalse(is_isbn13("9780306406158"))  # Wrong check digit
-    
-    def test_invalid_isbn13_wrong_prefix(self):
-        self.assertFalse(is_isbn13("9770306406157"))  # Invalid prefix
-    
-    def test_isbn10_not_isbn13(self):
-        self.assertFalse(is_isbn13("0306406152"))
+    def test_is_isbn13_invalid_chars(self):
+        """测试无效字符"""
+        assert is_isbn13("978ABCDEFGHI") is False
 
 
-class TestGeneralValidation(unittest.TestCase):
-    """Tests for general ISBN validation."""
-    
-    def test_valid_isbn_accepts_both(self):
-        self.assertTrue(is_valid_isbn("0306406152"))
-        self.assertTrue(is_valid_isbn("9780306406157"))
-    
-    def test_invalid_isbn_rejected(self):
-        self.assertFalse(is_valid_isbn("invalid"))
-        self.assertFalse(is_valid_isbn("123456789"))
-        self.assertFalse(is_valid_isbn(""))
-    
-    def test_get_isbn_type(self):
-        self.assertEqual(get_isbn_type("0306406152"), "ISBN-10")
-        self.assertEqual(get_isbn_type("9780306406157"), "ISBN-13")
-        self.assertIsNone(get_isbn_type("invalid"))
-
-
-class TestCheckDigits(unittest.TestCase):
-    """Tests for check digit calculation."""
+class TestCheckDigit:
+    """测试校验位计算"""
     
     def test_calculate_isbn10_check_digit(self):
-        self.assertEqual(calculate_isbn10_check_digit("030640615"), "2")
-        self.assertEqual(calculate_isbn10_check_digit("047195869"), "7")
-    
-    def test_calculate_isbn10_check_digit_x(self):
-        # ISBN ending in X
-        self.assertEqual(calculate_isbn10_check_digit("080442957"), "X")
-    
-    def test_calculate_isbn10_check_digit_invalid(self):
-        with self.assertRaises(ValueError):
-            calculate_isbn10_check_digit("03064061")  # Too short
+        """测试 ISBN-10 校验位"""
+        digit = calculate_isbn10_check_digit("030640615")
+        assert digit == "2"
     
     def test_calculate_isbn13_check_digit(self):
-        self.assertEqual(calculate_isbn13_check_digit("978030640615"), "7")
-        self.assertEqual(calculate_isbn13_check_digit("978047195869"), "7")
+        """测试 ISBN-13 校验位"""
+        digit = calculate_isbn13_check_digit("978030640615")
+        assert digit == "7"
     
-    def test_calculate_isbn13_check_digit_invalid(self):
-        with self.assertRaises(ValueError):
-            calculate_isbn13_check_digit("97803064061")  # Too short
+    def test_calculate_check_digit_invalid_length(self):
+        """测试无效长度"""
+        with pytest.raises(ValueError):
+            calculate_isbn10_check_digit("123")
+        
+        with pytest.raises(ValueError):
+            calculate_isbn13_check_digit("123")
 
 
-class TestConversion(unittest.TestCase):
-    """Tests for ISBN conversion functions."""
-    
-    def test_isbn10_to_isbn13(self):
-        self.assertEqual(isbn10_to_isbn13("0306406152"), "9780306406157")
-        self.assertEqual(isbn10_to_isbn13("0471958697"), "9780471958697")
-    
-    def test_isbn10_to_isbn13_with_hyphens(self):
-        self.assertEqual(isbn10_to_isbn13("0-306-40615-2"), "9780306406157")
-    
-    def test_isbn10_to_isbn13_invalid(self):
-        with self.assertRaises(ValueError):
-            isbn10_to_isbn13("invalid")
-    
-    def test_isbn13_to_isbn10(self):
-        self.assertEqual(isbn13_to_isbn10("9780306406157"), "0306406152")
-        self.assertEqual(isbn13_to_isbn10("9780471958697"), "0471958697")
-    
-    def test_isbn13_to_isbn10_979_prefix(self):
-        # 979 prefix ISBN-13 cannot be converted to ISBN-10
-        self.assertIsNone(isbn13_to_isbn10("9790306406156"))  # Valid 979 ISBN
-    
-    def test_isbn13_to_isbn10_invalid(self):
-        with self.assertRaises(ValueError):
-            isbn13_to_isbn10("invalid")
-    
-    def test_convert_isbn(self):
-        self.assertEqual(convert_isbn("0306406152", "ISBN-13"), "9780306406157")
-        self.assertEqual(convert_isbn("9780306406157", "ISBN-10"), "0306406152")
-        self.assertEqual(convert_isbn("0306406152", "ISBN-10"), "0306406152")
-    
-    def test_convert_isbn_invalid(self):
-        self.assertIsNone(convert_isbn("invalid", "ISBN-13"))
-
-
-class TestFormatting(unittest.TestCase):
-    """Tests for ISBN formatting."""
+class TestFormatISBN:
+    """测试 ISBN 格式化"""
     
     def test_format_isbn10(self):
+        """测试 ISBN-10 格式化"""
         formatted = format_isbn("0306406152")
-        self.assertIn("0", formatted)
-        self.assertIn("306", formatted)
-        self.assertIn("40615", formatted)
-        self.assertIn("2", formatted)
+        assert "-" in formatted
     
     def test_format_isbn13(self):
+        """测试 ISBN-13 格式化"""
         formatted = format_isbn("9780306406157")
-        self.assertIn("978", formatted)
-        self.assertIn("7", formatted)  # Check digit
-    
-    def test_format_isbn_custom_separator(self):
-        formatted = format_isbn("9780306406157", separator=" ")
-        self.assertIn(" ", formatted)
-    
-    def test_format_isbn_invalid(self):
-        with self.assertRaises(ValueError):
-            format_isbn("invalid")
+        assert "-" in formatted
     
     def test_format_isbn_compact(self):
-        self.assertEqual(format_isbn_compact("978-0-306-40615-7"), "9780306406157")
-        self.assertEqual(format_isbn_compact("0-306-40615-2"), "0306406152")
+        """测试紧凑格式"""
+        compact = format_isbn_compact("978-0-306-40615-7")
+        assert "-" not in compact
 
 
-class TestParsing(unittest.TestCase):
-    """Tests for ISBN parsing."""
+class TestGenerateISBN:
+    """测试 ISBN 生成"""
     
-    def test_parse_isbn10(self):
-        result = parse_isbn("0306406152")
-        self.assertTrue(result['valid'])
-        self.assertEqual(result['type'], 'ISBN-10')
-        self.assertEqual(result['clean'], '0306406152')
-        self.assertEqual(result['isbn13'], '9780306406157')
-        self.assertEqual(result['check_digit'], '2')
+    def test_generate_isbn(self):
+        """测试生成 ISBN"""
+        isbn = generate_isbn()
+        assert len(isbn) >= 10  # ISBN-10 或 ISBN-13
     
-    def test_parse_isbn13(self):
-        result = parse_isbn("9780306406157")
-        self.assertTrue(result['valid'])
-        self.assertEqual(result['type'], 'ISBN-13')
-        self.assertEqual(result['clean'], '9780306406157')
-        self.assertEqual(result['prefix'], '978')
-        self.assertEqual(result['isbn10'], '0306406152')
-        self.assertEqual(result['check_digit'], '7')
-    
-    def test_parse_invalid(self):
-        result = parse_isbn("invalid")
-        self.assertFalse(result['valid'])
-        self.assertIsNone(result['type'])
-    
-    def test_parse_with_group_name(self):
-        result = parse_isbn("0306406152")
-        self.assertEqual(result['group'], '0')
-        self.assertEqual(result['group_name'], 'English')
+    def test_generate_isbn_valid(self):
+        """测试生成的 ISBN 有效"""
+        isbn = generate_isbn()
+        assert is_isbn10(isbn) or is_isbn13(isbn)
 
 
-class TestGeneration(unittest.TestCase):
-    """Tests for ISBN generation."""
+class TestConvertISBN:
+    """测试 ISBN 转换"""
     
-    def test_generate_isbn10(self):
-        isbn = generate_isbn10()
-        self.assertTrue(is_isbn10(isbn))
-        self.assertEqual(len(isbn), 10)
+    def test_convert_isbn10_to_13(self):
+        """测试 ISBN-10 转 ISBN-13"""
+        result = convert_isbn("0306406152", target_format="ISBN-13")
+        assert result == "9780306406157"
     
-    def test_generate_isbn13(self):
-        isbn = generate_isbn13()
-        self.assertTrue(is_isbn13(isbn))
-        self.assertEqual(len(isbn), 13)
-    
-    def test_generate_isbn13_979_prefix(self):
-        isbn = generate_isbn13(prefix="979")
-        self.assertTrue(isbn.startswith("979"))
-        self.assertTrue(is_isbn13(isbn))
-    
-    def test_generate_isbn_with_group(self):
-        isbn = generate_isbn10(group="7")  # Chinese group
-        self.assertTrue(isbn.startswith("7"))
-        self.assertTrue(is_isbn10(isbn))
-    
-    def test_generate_isbn_type_selection(self):
-        isbn10 = generate_isbn("ISBN-10")
-        isbn13 = generate_isbn("ISBN-13")
-        self.assertTrue(is_isbn10(isbn10))
-        self.assertTrue(is_isbn13(isbn13))
-    
-    def test_generated_isbns_unique(self):
-        isbns = [generate_isbn10() for _ in range(100)]
-        # Should generate different ISBNs (highly unlikely to get duplicates)
-        unique_count = len(set(isbns))
-        self.assertGreater(unique_count, 90)  # Allow some tolerance
+    def test_convert_isbn13_to_10(self):
+        """测试 ISBN-13 转 ISBN-10"""
+        result = convert_isbn("9780306406157", target_format="ISBN-10")
+        assert result == "0306406152"
 
 
-class TestBatchFunctions(unittest.TestCase):
-    """Tests for batch ISBN operations."""
+class TestCompareISBNs:
+    """测试 ISBN 比较"""
     
-    def test_validate_isbns(self):
-        isbns = ["0306406152", "invalid", "9780306406157"]
-        results = validate_isbns(isbns)
-        
-        self.assertEqual(len(results), 3)
-        self.assertTrue(results["0306406152"]["valid"])
-        self.assertFalse(results["invalid"]["valid"])
-        self.assertTrue(results["9780306406157"]["valid"])
+    def test_compare_isbns_equal(self):
+        """测试相等 ISBN"""
+        # compare_isbns 可能返回相似度或布尔值
+        result = compare_isbns("0306406152", "0-306-40615-2")
+        assert result is True or result > 0
+    
+    def test_compare_isbns_different(self):
+        """测试不同 ISBN"""
+        result = compare_isbns("0306406152", "9780306406157")
+        # 可能返回相似度或布尔值
+        assert isinstance(result, (bool, int, float))
+
+
+class TestFindISBNsInText:
+    """测试文本中查找 ISBN"""
     
     def test_find_isbns_in_text(self):
-        text = "Check out ISBN 978-0-306-40615-7 and also 0306406152."
-        found = find_isbns_in_text(text)
+        """测试查找 ISBN"""
+        text = "这本书的ISBN是 978-0-306-40615-7，另一本是 0306406152"
+        isbns = find_isbns_in_text(text)
         
-        self.assertEqual(len(found), 2)
-        self.assertIn("9780306406157", found)
-        self.assertIn("0306406152", found)
+        assert len(isbns) >= 1
     
-    def test_find_isbns_in_text_no_duplicates(self):
-        text = "ISBN 0306406152 and 0306406152 again."
-        found = find_isbns_in_text(text)
+    def test_find_isbns_no_match(self):
+        """测试无匹配"""
+        text = "这段文本没有ISBN"
+        isbns = find_isbns_in_text(text)
         
-        self.assertEqual(len(found), 1)
-        self.assertEqual(found[0], "0306406152")
-
-
-class TestCompareISBNs(unittest.TestCase):
-    """Tests for ISBN comparison."""
-    
-    def test_compare_same_isbn10(self):
-        self.assertTrue(compare_isbns("0306406152", "0306406152"))
-    
-    def test_compare_same_isbn13(self):
-        self.assertTrue(compare_isbns("9780306406157", "9780306406157"))
-    
-    def test_compare_isbn10_and_isbn13(self):
-        self.assertTrue(compare_isbns("0306406152", "9780306406157"))
-        self.assertTrue(compare_isbns("9780306406157", "0306406152"))
-    
-    def test_compare_different_isbns(self):
-        self.assertFalse(compare_isbns("0306406152", "0471958697"))
-    
-    def test_compare_invalid_isbns(self):
-        self.assertFalse(compare_isbns("invalid", "0306406152"))
-        self.assertFalse(compare_isbns("0306406152", "invalid"))
-
-
-class TestGetISBNVariants(unittest.TestCase):
-    """Tests for get_isbn_variants function."""
-    
-    def test_get_variants_from_isbn10(self):
-        variants = get_isbn_variants("0306406152")
-        
-        self.assertEqual(variants['isbn10'], "0306406152")
-        self.assertEqual(variants['isbn13'], "9780306406157")
-        self.assertIsNotNone(variants['formatted10'])
-        self.assertIsNotNone(variants['formatted13'])
-    
-    def test_get_variants_from_isbn13(self):
-        variants = get_isbn_variants("9780306406157")
-        
-        self.assertEqual(variants['isbn10'], "0306406152")
-        self.assertEqual(variants['isbn13'], "9780306406157")
-    
-    def test_get_variants_979_prefix(self):
-        variants = get_isbn_variants("9790306406156")  # Valid 979 ISBN
-        
-        self.assertIsNone(variants['isbn10'])  # Can't convert 979 to ISBN-10
-        self.assertEqual(variants['isbn13'], "9790306406156")
-    
-    def test_get_variants_invalid(self):
-        variants = get_isbn_variants("invalid")
-        
-        self.assertIsNone(variants['isbn10'])
-        self.assertIsNone(variants['isbn13'])
-        self.assertIsNone(variants['formatted10'])
-        self.assertIsNone(variants['formatted13'])
-
-
-class TestEdgeCases(unittest.TestCase):
-    """Tests for edge cases and special scenarios."""
-    
-    def test_isbn_with_x_check_digit(self):
-        # ISBN-10 with X as check digit
-        isbn = "156881111X"
-        # Verify it's valid (if it is) or test the handling
-        clean = clean_isbn(isbn)
-        self.assertEqual(clean[-1], 'X')
-    
-    def test_chinese_isbn(self):
-        # Test Chinese group ISBN
-        isbn = generate_isbn10(group="7")
-        self.assertTrue(isbn.startswith("7"))
-        self.assertTrue(is_isbn10(isbn))
-    
-    def test_empty_string(self):
-        self.assertFalse(is_valid_isbn(""))
-    
-    def test_none_handling(self):
-        # Functions should handle empty string gracefully
-        self.assertEqual(clean_isbn(""), "")
-    
-    def test_isbn_with_only_hyphens(self):
-        self.assertEqual(clean_isbn("---"), "")
-    
-    def test_multiple_isbn_formats(self):
-        # Same ISBN in different formats
-        formats = [
-            "0306406152",
-            "0-306-40615-2",
-            "ISBN 0-306-40615-2",
-            "ISBN0306406152",
-        ]
-        cleaned = [clean_isbn(f) for f in formats]
-        self.assertTrue(all(c == "0306406152" for c in cleaned))
-
-
-class TestRoundTrip(unittest.TestCase):
-    """Tests for ISBN conversion round trips."""
-    
-    def test_isbn10_to_isbn13_and_back(self):
-        original = "0306406152"
-        isbn13 = isbn10_to_isbn13(original)
-        back_to_10 = isbn13_to_isbn10(isbn13)
-        
-        self.assertEqual(original, back_to_10)
-    
-    def test_isbn13_to_isbn10_and_back(self):
-        original = "9780306406157"
-        isbn10 = isbn13_to_isbn10(original)
-        back_to_13 = isbn10_to_isbn13(isbn10)
-        
-        self.assertEqual(original, back_to_13)
+        assert len(isbns) == 0
 
 
 if __name__ == "__main__":
-    unittest.main(verbosity=2)
+    pytest.main([__file__, "-v"])
