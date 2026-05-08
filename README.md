@@ -168,6 +168,12 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ### 最近新增测试
 
+- **Python uuidv7_utils**: 30 个测试用例，覆盖 UUIDv7 生成、时间戳提取、单调生成、验证、集合操作、范围查询等 🆔
+- **Python grade_utils**: 30 个测试用例，覆盖 GPA 计算（4.0/5.0制）、成绩转换（百分制/字母/中文）、学分绩点、成绩分析、趋势预测等 📊
+- **Python blood_pressure_utils**: 44 个测试用例，覆盖血压分类（WHO标准）、脉压差、MAP计算、年龄适宜性、儿童血压百分位数、单位转换等 🩺
+- **Python luhn_utils**: 30 个测试用例，覆盖 Luhn 校验、信用卡验证、卡类型识别、IMEI验证、格式化、遮蔽等 💳
+- **Python tournament_utils**: 34 个测试用例，覆盖单败淘汰赛、双败淘汰赛、循环赛、瑞士制、种子分配、比赛管理等 🏆
+
 - **Python issn_utils**: 21 个测试用例，覆盖 ISSN-8/ISSN-13 验证、转换、格式化、ISSN-L 处理、批量验证、文本提取等 📚
 - **Python keyboard_utils**: 21 个测试用例，覆盖键盘布局分析、距离计算、效率评分、布局转换、多种布局支持（QWERTY/Dvorak/Colemak/AZERTY/QWERTZ）等 ⌨️
 - **Python levenshtein_utils**: 16 个测试用例，覆盖 Levenshtein/Damerau-Levenshtein 距离、相似度计算、模糊搜索、编辑序列、汉明距离等 🔤
@@ -290,6 +296,11 @@ perl Perl/csv_utils/csv_utils_test.pl
 | radix_utils | Python | 30 | ✅ 100% |
 | tictactoe_utils | Python | 34 | ✅ 100% |
 | xor_utils | Python | 49 | ✅ 100% |
+| uuidv7_utils | Python | 30 | ✅ 100% |
+| grade_utils | Python | 30 | ✅ 100% |
+| blood_pressure_utils | Python | 44 | ✅ 100% |
+| luhn_utils | Python | 30 | ✅ 100% |
+| tournament_utils | Python | 34 | ✅ 100% |
 
 **总计**: Python 221 模块，232 测试文件，3600+ 测试用例，100% 通过率 ✅
 
