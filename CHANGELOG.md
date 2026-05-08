@@ -1,5 +1,21 @@
 # AllToolkit 更新日志
 
+## [2026-05-08]
+
+### 新增
+- **Python: domino_utils (80 单元测试，完整多米诺骨牌游戏工具库)** 🎲
+  - Domino类：牌面表示、翻转、连接检测、pip计数、包含值检测
+  - DominoSet类：标准双六套牌(28张)、双九套牌(55张)、双十二套牌(91张)
+  - DominoChain类：链式连接、自动方向处理、可出牌检测、链复制
+  - DominoHand类：玩家手牌管理、pip统计、双牌检测、最佳出牌策略
+  - DominoSolver类：最长链查找、多米诺独解求解、单链可行性检测、指定端点链查找
+  - DominoGame类：发牌、首局玩家判定、平局计分、回合结束检测
+  - 算法特性：回溯搜索、欧拉路径准则、多策略最佳出牌
+  - 出牌策略：highest(最高pip)、lowest(最低pip)、double(先出双)、strategic(保连通)
+  - 便捷函数：domino()、domino_set()、find_chain()、longest_chain()、can_chain_all()、deal_hands()
+  - 零外部依赖，纯 Python 标准库实现
+  - 测试覆盖：80 测试全部通过
+
 ## [2026-05-07]
 
 ### 新增
