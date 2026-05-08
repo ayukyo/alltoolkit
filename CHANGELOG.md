@@ -3,6 +3,19 @@
 ## [2026-05-08]
 
 ### 新增
+- **Python: blackjack_utils (68 单元测试，完整二十一点游戏工具库)** 🃏
+  - Card/Deck类：牌面表示、多牌堆支持(1-8副)、发牌、洗牌、穿透度追踪
+  - Hand类：手牌评估、硬/软手牌、自然21点、爆牌检测、对子检测、可分牌/加倍判断
+  - BasicStrategy类：完整基础策略表(硬手牌/软手牌/对子分牌)、策略图生成
+  - CardCounter类：多种计数系统(Hi-Lo/KO/Hi-Opt I/Hi-Opt II/Omega II)、真数计算、优势估算
+  - ProbabilityCalculator类：爆牌概率、庄家结果概率、21点概率计算
+  - GameSimulator类：完整游戏模拟、回合执行、长期统计分析
+  - Illustrious 18偏离：基于真数的策略偏离建议
+  - 下注策略：根据计数调整下注大小、保险决策
+  - 便捷函数：card()、create_deck()、create_hand()、get_basic_strategy_action()、simulate_games()
+  - 零外部依赖，纯 Python 标准库实现
+  - 测试覆盖：68 测试全部通过
+
 - **Go: dice_utils (45 单元测试，完整骰子游戏和概率计算工具库)** 🎲
   - 基础掷骰：单骰/多骰/带修饰符/骰子表达式解析(如 "2d6+5")
   - 快速函数：RollD4/D6/D8/D10/D12/D20/D100
