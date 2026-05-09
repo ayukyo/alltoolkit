@@ -33,8 +33,8 @@ from mod import (
 )
 
 
-class TestResult:
-    """Simple test result tracker."""
+class TestOutcome:
+    """Simple test outcome tracker."""
     
     def __init__(self):
         self.passed = 0
@@ -105,7 +105,7 @@ class ArchiveTestContext:
 
 def run_tests():
     """Run all tests."""
-    result = TestResult()
+    result = TestOutcome()
     utils = ArchiveUtils()
     
     print("=" * 60)

@@ -506,7 +506,7 @@ class TestEdgeCases(unittest.TestCase):
         self.assertEqual(result.max_value, 20.0)  # 选A和B或只选C
 
 
-class TestResultFormat(unittest.TestCase):
+class TestOutcomeFormat(unittest.TestCase):
     """测试结果格式"""
     
     def test_result_fields(self):

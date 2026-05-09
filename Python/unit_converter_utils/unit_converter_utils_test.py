@@ -56,7 +56,7 @@ from mod import (
 # Test Framework
 # ============================================================================
 
-class TestResult:
+class TestOutcome:
     def __init__(self):
         self.passed = 0
         self.failed = 0
@@ -91,7 +91,7 @@ class TestResult:
             return True
 
 
-result = TestResult()
+result = TestOutcome()
 
 
 def assert_almost_equal(name: str, actual: float, expected: float, tolerance: float = 1e-6):

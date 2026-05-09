@@ -34,7 +34,7 @@ from hashid_utils.mod import (
 )
 
 
-class TestResult:
+class OutcomeCollector:
     """Test result collector."""
     
     def __init__(self):
@@ -68,7 +68,7 @@ class TestResult:
         return self.failed == 0
 
 
-def test_basic_encode_decode(result: TestResult):
+def test_basic_encode_decode(result: OutcomeCollector):
     """Test basic encode and decode operations."""
     print("\n[test_basic_encode_decode]")
     
@@ -94,7 +94,7 @@ def test_basic_encode_decode(result: TestResult):
     result.test("encoded string is alphanumeric", is_alnum, f"got: {encoded}")
 
 
-def test_multiple_numbers(result: TestResult):
+def test_multiple_numbers(result: OutcomeCollector):
     """Test encoding/decoding multiple numbers."""
     print("\n[test_multiple_numbers]")
     
@@ -122,7 +122,7 @@ def test_multiple_numbers(result: TestResult):
     result.test("encode/decode mixed sizes", decoded == [1, 999999, 5, 12345], f"got {decoded}")
 
 
-def test_custom_salt(result: TestResult):
+def test_custom_salt(result: OutcomeCollector):
     """Test encoding with custom salt."""
     print("\n[test_custom_salt]")
     
@@ -149,7 +149,7 @@ def test_custom_salt(result: TestResult):
                 wrong_decode != [12345])
 
 
-def test_min_length(result: TestResult):
+def test_min_length(result: OutcomeCollector):
     """Test minimum length padding."""
     print("\n[test_min_length]")
     
@@ -179,7 +179,7 @@ def test_min_length(result: TestResult):
                     f"got length {len(encoded)}")
 
 
-def test_custom_alphabet(result: TestResult):
+def test_custom_alphabet(result: OutcomeCollector):
     """Test encoding with custom alphabet."""
     print("\n[test_custom_alphabet]")
     
@@ -207,7 +207,7 @@ def test_custom_alphabet(result: TestResult):
     result.test("numbers+letters only hex chars", all(c in "0123456789ABCDEF" for c in encoded), f"got: {encoded}")
 
 
-def test_encode_single_decode_single(result: TestResult):
+def test_encode_single_decode_single(result: OutcomeCollector):
     """Test single number encode/decode methods."""
     print("\n[test_encode_single_decode_single]")
     
@@ -225,7 +225,7 @@ def test_encode_single_decode_single(result: TestResult):
                 decoded == decoded_multi[0] and encoded == encoded_multi)
 
 
-def test_convenience_functions(result: TestResult):
+def test_convenience_functions(result: OutcomeCollector):
     """Test module-level convenience functions."""
     print("\n[test_convenience_functions]")
     
@@ -250,7 +250,7 @@ def test_convenience_functions(result: TestResult):
                 f"length: {len(encoded)}")
 
 
-def test_preconfigured_classes(result: TestResult):
+def test_preconfigured_classes(result: OutcomeCollector):
     """Test pre-configured HashID classes."""
     print("\n[test_preconfigured_classes]")
     
@@ -269,7 +269,7 @@ def test_preconfigured_classes(result: TestResult):
     result.test("ShortHashID min length", len(encoded) >= 4, f"length: {len(encoded)}")
 
 
-def test_is_valid_hashid(result: TestResult):
+def test_is_valid_hashid(result: OutcomeCollector):
     """Test hashid validation function."""
     print("\n[test_is_valid_hashid]")
     
@@ -290,7 +290,7 @@ def test_is_valid_hashid(result: TestResult):
     result.test("generated hashid is valid", is_valid_hashid(encoded))
 
 
-def test_estimate_length(result: TestResult):
+def test_estimate_length(result: OutcomeCollector):
     """Test length estimation function."""
     print("\n[test_estimate_length]")
     
@@ -321,7 +321,7 @@ def test_estimate_length(result: TestResult):
                     f"actual: {len(encoded)}, estimated: {estimated}")
 
 
-def test_edge_cases(result: TestResult):
+def test_edge_cases(result: OutcomeCollector):
     """Test edge cases and boundary conditions."""
     print("\n[test_edge_cases]")
     
@@ -355,7 +355,7 @@ def test_edge_cases(result: TestResult):
     result.test("decode empty string returns empty list", decoded == [])
 
 
-def test_error_handling(result: TestResult):
+def test_error_handling(result: OutcomeCollector):
     """Test error handling and invalid inputs."""
     print("\n[test_error_handling]")
     
@@ -390,7 +390,7 @@ def test_error_handling(result: TestResult):
     result.test("duplicate chars in alphabet are handled", decoded == [100], f"got {decoded}")
 
 
-def test_deterministic(result: TestResult):
+def test_deterministic(result: OutcomeCollector):
     """Test that encoding is deterministic."""
     print("\n[test_deterministic]")
     
@@ -411,7 +411,7 @@ def test_deterministic(result: TestResult):
     result.test("multi-number encoding is deterministic", encoded1 == encoded2)
 
 
-def test_url_safety(result: TestResult):
+def test_url_safety(result: OutcomeCollector):
     """Test that encoded strings are URL-safe."""
     print("\n[test_url_safety]")
     
@@ -430,7 +430,7 @@ def test_url_safety(result: TestResult):
         result.test(f"No URL-breaking chars for {num}", not has_bad_chars)
 
 
-def test_collisions(result: TestResult):
+def test_collisions(result: OutcomeCollector):
     """Test that there are no collisions in a large set."""
     print("\n[test_collisions]")
     
@@ -463,7 +463,7 @@ def test_collisions(result: TestResult):
                 f"collisions: {collisions[:5]}")
 
 
-def test_performance(result: TestResult):
+def test_performance(result: OutcomeCollector):
     """Test encoding/decoding performance."""
     print("\n[test_performance]")
     
@@ -489,7 +489,7 @@ def test_performance(result: TestResult):
                 f"time: {decode_time:.3f}s")
 
 
-def test_reversible(result: TestResult):
+def test_reversible(result: OutcomeCollector):
     """Test that all encodings are reversible."""
     print("\n[test_reversible]")
     
@@ -529,7 +529,7 @@ def run_all_tests():
     print("HashID Utils - Comprehensive Test Suite")
     print("="*60)
     
-    result = TestResult()
+    result = OutcomeCollector()
     
     test_basic_encode_decode(result)
     test_multiple_numbers(result)

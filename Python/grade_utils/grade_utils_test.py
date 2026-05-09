@@ -13,7 +13,7 @@ from mod import (
 )
 
 
-class TestResultCollector:
+class TestOutcomeCollector:
     """收集测试结果"""
     def __init__(self):
         self.passed = 0
@@ -41,7 +41,7 @@ class TestResultCollector:
 
 
 def run_tests():
-    results = TestResultCollector()
+    results = TestOutcomeCollector()
     
     # Test 1: Course creation
     try:

@@ -59,7 +59,7 @@ from mod import (
 )
 
 
-class TestResult:
+class TestOutcome:
     """测试结果收集器"""
     def __init__(self):
         self.passed = 0
@@ -404,7 +404,7 @@ def test_temperature_description(r):
 
 def run_all_tests():
     """运行所有测试"""
-    r = TestResult()
+    r = TestOutcome()
     
     print("="*60)
     print("Temperature Utils 测试套件")

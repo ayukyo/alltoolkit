@@ -78,7 +78,7 @@ import math
 import random
 
 
-class TestResult:
+class TestOutcome:
     """Test result tracker."""
     
     def __init__(self):
@@ -142,7 +142,7 @@ class TestResult:
 
 def run_tests():
     """Run all tests."""
-    result = TestResult()
+    result = TestOutcome()
     
     print("\n" + "="*60)
     print("AllToolkit - Probability Distribution Utilities Tests")

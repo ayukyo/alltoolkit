@@ -29,7 +29,7 @@ from mod import (
 # Test Results Tracking
 # =============================================================================
 
-class TestResults:
+class TestOutcomes:
     """Track test results."""
     def __init__(self):
         self.passed = 0
@@ -57,7 +57,7 @@ class TestResults:
         return self.failed == 0
 
 
-results = TestResults()
+results = TestOutcomes()
 
 
 # =============================================================================

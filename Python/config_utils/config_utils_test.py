@@ -33,7 +33,7 @@ from mod import (
 )
 
 
-class TestResult:
+class TestOutcome:
     """Simple test result tracker."""
     
     def __init__(self):
@@ -61,7 +61,7 @@ class TestResult:
         return self.failed == 0
 
 
-result = TestResult()
+result = TestOutcome()
 
 
 def test_parser_key_value():

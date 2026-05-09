@@ -33,7 +33,7 @@ from mod import (
 # Test Framework
 # ============================================================================
 
-class TestResult:
+class TestOutcome:
     """Simple test result tracker."""
     def __init__(self):
         self.passed = 0
@@ -55,7 +55,7 @@ class TestResult:
         return self.failed == 0
 
 
-result = TestResult()
+result = TestOutcome()
 
 
 def test(name: str, condition: bool, error_msg: str = None):

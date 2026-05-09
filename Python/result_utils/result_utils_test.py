@@ -536,7 +536,7 @@ class TestSafeOperations(unittest.TestCase):
         self.assertEqual(r2.unwrap_error(), "invalid float")
 
 
-class TestResultContext(unittest.TestCase):
+class TestOutcomeContext(unittest.TestCase):
     """测试 ResultContext"""
     
     def test_success_context(self):

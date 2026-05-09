@@ -35,7 +35,7 @@ from mod import (
 )
 
 
-class TestResult:
+class TestOutcome:
     """测试结果收集器"""
     def __init__(self):
         self.passed = 0
@@ -65,7 +65,7 @@ class TestResult:
 def test_graph_basic():
     """测试图的基本操作"""
     print("\n测试图基本操作...")
-    r = TestResult()
+    r = TestOutcome()
     
     # 创建无向图
     g = Graph[str](directed=False)
@@ -133,7 +133,7 @@ def test_graph_basic():
 def test_traversal():
     """测试遍历算法"""
     print("\n测试遍历算法...")
-    r = TestResult()
+    r = TestOutcome()
     
     # 创建测试图
     #     A
@@ -187,7 +187,7 @@ def test_traversal():
 def test_shortest_path():
     """测试最短路径算法"""
     print("\n测试最短路径算法...")
-    r = TestResult()
+    r = TestOutcome()
     
     # 创建测试图
     #      4
@@ -298,7 +298,7 @@ def test_shortest_path():
 def test_mst():
     """测试最小生成树算法"""
     print("\n测试最小生成树...")
-    r = TestResult()
+    r = TestOutcome()
     
     # 创建测试图
     #    A---2---B
@@ -366,7 +366,7 @@ def test_mst():
 def test_topological_sort():
     """测试拓扑排序"""
     print("\n测试拓扑排序...")
-    r = TestResult()
+    r = TestOutcome()
     
     # 创建 DAG
     #   A --> B --> D
@@ -431,7 +431,7 @@ def test_topological_sort():
 def test_connectivity():
     """测试连通性算法"""
     print("\n测试连通性算法...")
-    r = TestResult()
+    r = TestOutcome()
     
     # 连通无向图
     g1 = Graph[int]()
@@ -482,7 +482,7 @@ def test_connectivity():
 def test_cycle_detection():
     """测试环检测"""
     print("\n测试环检测...")
-    r = TestResult()
+    r = TestOutcome()
     
     # 无向图有环
     g_cycle = Graph[int]()
@@ -536,7 +536,7 @@ def test_cycle_detection():
 def test_bipartite():
     """测试二分图检测"""
     print("\n测试二分图检测...")
-    r = TestResult()
+    r = TestOutcome()
     
     # 二分图
     g1 = Graph[int]()
@@ -580,7 +580,7 @@ def test_bipartite():
 def test_special_algorithms():
     """测试特殊算法"""
     print("\n测试特殊算法...")
-    r = TestResult()
+    r = TestOutcome()
     
     # 欧拉图（所有节点度数都是偶数且连通）
     eulerian = Graph[int]()
@@ -649,7 +649,7 @@ def test_special_algorithms():
 def test_centrality():
     """测试中心性算法"""
     print("\n测试中心性算法...")
-    r = TestResult()
+    r = TestOutcome()
     
     # 度中心性
     g = Graph[str]()
@@ -684,7 +684,7 @@ def test_centrality():
 def test_clustering():
     """测试聚类系数"""
     print("\n测试聚类系数...")
-    r = TestResult()
+    r = TestOutcome()
     
     # 完全图聚类系数 = 1
     complete = Graph[int]()
@@ -720,7 +720,7 @@ def test_clustering():
 def test_edge_cases():
     """测试边界情况"""
     print("\n测试边界情况...")
-    r = TestResult()
+    r = TestOutcome()
     
     # 空图
     empty = Graph[int]()
@@ -772,7 +772,7 @@ def test_edge_cases():
 def test_complex_types():
     """测试复杂节点类型"""
     print("\n测试复杂节点类型...")
-    r = TestResult()
+    r = TestOutcome()
     
     # 整数节点
     g_int = Graph[int]()
@@ -798,7 +798,7 @@ def test_complex_types():
 def test_more_edge_cases():
     """测试更多边界值情况"""
     print("\n测试更多边界值情况...")
-    r = TestResult()
+    r = TestOutcome()
     
     # 测试大量节点
     g_large = Graph[int]()

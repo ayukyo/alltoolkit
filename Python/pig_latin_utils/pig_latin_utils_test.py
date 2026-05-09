@@ -22,7 +22,7 @@ from mod import (
 )
 
 
-class TestResult:
+class TestOutcome:
     """Simple test result collector."""
     
     def __init__(self):
@@ -71,7 +71,7 @@ class TestResult:
 
 def test_basic_vowel_words():
     """Test translation of vowel-starting words."""
-    result = TestResult()
+    result = TestOutcome()
     translator = PigLatinTranslator()
     
     result.assert_equal(translator.translate_word("apple"), "appleway", "apple -> appleway")
@@ -86,7 +86,7 @@ def test_basic_vowel_words():
 
 def test_basic_consonant_words():
     """Test translation of consonant-starting words."""
-    result = TestResult()
+    result = TestOutcome()
     translator = PigLatinTranslator()
     
     result.assert_equal(translator.translate_word("hello"), "ellohay", "hello -> ellohay")
@@ -101,7 +101,7 @@ def test_basic_consonant_words():
 
 def test_consonant_clusters():
     """Test words with consonant clusters."""
-    result = TestResult()
+    result = TestOutcome()
     translator = PigLatinTranslator()
     
     result.assert_equal(translator.translate_word("string"), "ingstray", "string -> ingstray")
@@ -116,7 +116,7 @@ def test_consonant_clusters():
 
 def test_capitalization():
     """Test capitalization preservation."""
-    result = TestResult()
+    result = TestOutcome()
     translator = PigLatinTranslator()
     
     result.assert_equal(translator.translate_word("Hello"), "Ellohay", "Hello -> Ellohay")
@@ -129,7 +129,7 @@ def test_capitalization():
 
 def test_punctuation():
     """Test punctuation handling."""
-    result = TestResult()
+    result = TestOutcome()
     translator = PigLatinTranslator()
     
     result.assert_equal(translator.translate_word("hello!"), "ellohay!", "hello! -> ellohay!")
@@ -143,7 +143,7 @@ def test_punctuation():
 
 def test_sentences():
     """Test sentence translation."""
-    result = TestResult()
+    result = TestOutcome()
     translator = PigLatinTranslator()
     
     result.assert_equal(
@@ -167,7 +167,7 @@ def test_sentences():
 
 def test_decode_vowel_words():
     """Test decoding of vowel-starting words."""
-    result = TestResult()
+    result = TestOutcome()
     translator = PigLatinTranslator()
     
     result.assert_equal(translator.decode_word("appleway"), "apple", "appleway -> apple")
@@ -180,7 +180,7 @@ def test_decode_vowel_words():
 
 def test_decode_consonant_words():
     """Test decoding of consonant-starting words."""
-    result = TestResult()
+    result = TestOutcome()
     translator = PigLatinTranslator()
     
     result.assert_equal(translator.decode_word("ellohay"), "hello", "ellohay -> hello")
@@ -195,7 +195,7 @@ def test_decode_consonant_words():
 
 def test_decode_capitalization():
     """Test decoding with capitalization."""
-    result = TestResult()
+    result = TestOutcome()
     translator = PigLatinTranslator()
     
     result.assert_equal(translator.decode_word("Ellohay"), "Hello", "Ellohay -> Hello")
@@ -207,7 +207,7 @@ def test_decode_capitalization():
 
 def test_decode_punctuation():
     """Test decoding with punctuation."""
-    result = TestResult()
+    result = TestOutcome()
     translator = PigLatinTranslator()
     
     result.assert_equal(translator.decode_word("ellohay!"), "hello!", "ellohay! -> hello!")
@@ -219,7 +219,7 @@ def test_decode_punctuation():
 
 def test_decode_sentences():
     """Test sentence decoding."""
-    result = TestResult()
+    result = TestOutcome()
     translator = PigLatinTranslator()
     
     result.assert_equal(
@@ -238,7 +238,7 @@ def test_decode_sentences():
 
 def test_roundtrip():
     """Test encoding then decoding returns original."""
-    result = TestResult()
+    result = TestOutcome()
     translator = PigLatinTranslator()
     
     test_words = ["hello", "apple", "string", "quiet", "smile", "chair", "school", "world"]
@@ -253,7 +253,7 @@ def test_roundtrip():
 
 def test_is_pig_latin():
     """Test Pig Latin detection."""
-    result = TestResult()
+    result = TestOutcome()
     translator = PigLatinTranslator()
     
     # Should be detected as Pig Latin
@@ -271,7 +271,7 @@ def test_is_pig_latin():
 
 def test_empty_and_special():
     """Test empty strings and special cases."""
-    result = TestResult()
+    result = TestOutcome()
     translator = PigLatinTranslator()
     
     result.assert_equal(translator.translate_word(""), "", "Empty string")
@@ -286,7 +286,7 @@ def test_empty_and_special():
 
 def test_convenience_functions():
     """Test convenience functions."""
-    result = TestResult()
+    result = TestOutcome()
     
     result.assert_equal(translate_word("hello"), "ellohay", "translate_word function")
     result.assert_equal(decode_word("ellohay"), "hello", "decode_word function")
@@ -306,7 +306,7 @@ def test_convenience_functions():
 
 def test_list_functions():
     """Test list translation functions."""
-    result = TestResult()
+    result = TestOutcome()
     
     words = ["hello", "apple", "string"]
     expected = ["ellohay", "appleway", "ingstray"]
@@ -319,7 +319,7 @@ def test_list_functions():
 
 def test_custom_suffixes():
     """Test custom suffix configuration."""
-    result = TestResult()
+    result = TestOutcome()
     
     # Custom suffixes
     translator = PigLatinTranslator(vowel_suffix="yay", consonant_suffix="yay")
@@ -334,7 +334,7 @@ def test_custom_suffixes():
 
 def test_custom_vowels():
     """Test custom vowel configuration."""
-    result = TestResult()
+    result = TestOutcome()
     
     # Treat 'y' as vowel
     translator = PigLatinTranslator(vowels="aeiouy")
@@ -347,7 +347,7 @@ def test_custom_vowels():
 
 def test_get_pig_latin_rules():
     """Test rules retrieval."""
-    result = TestResult()
+    result = TestOutcome()
     
     rules = get_pig_latin_rules()
     
@@ -360,7 +360,7 @@ def test_get_pig_latin_rules():
 
 def test_no_vowel_words():
     """Test words without vowels."""
-    result = TestResult()
+    result = TestOutcome()
     translator = PigLatinTranslator()
     
     # Words like "nth", "tsk" (rare cases)
@@ -372,7 +372,7 @@ def test_no_vowel_words():
 
 def test_complex_sentences():
     """Test complex sentence structures."""
-    result = TestResult()
+    result = TestOutcome()
     translator = PigLatinTranslator()
     
     sentence = "The quick brown fox jumps over the lazy dog."
@@ -388,7 +388,7 @@ def test_complex_sentences():
 
 def test_numbers_and_mixed():
     """Test words with numbers and mixed content."""
-    result = TestResult()
+    result = TestOutcome()
     translator = PigLatinTranslator()
     
     result.assert_equal(translator.translate_word("hello123"), "ellohay123", "Word with numbers")
@@ -399,7 +399,7 @@ def test_numbers_and_mixed():
 
 def test_single_consonant():
     """Test single consonant words."""
-    result = TestResult()
+    result = TestOutcome()
     translator = PigLatinTranslator()
     
     result.assert_equal(translator.translate_word("be"), "ebay", "be -> ebay")
@@ -411,7 +411,7 @@ def test_single_consonant():
 
 def test_y_handling():
     """Test handling of 'y' (sometimes vowel, sometimes consonant)."""
-    result = TestResult()
+    result = TestOutcome()
     translator = PigLatinTranslator()
     
     # 'y' at start is consonant

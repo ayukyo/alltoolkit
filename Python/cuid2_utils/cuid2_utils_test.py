@@ -32,7 +32,7 @@ from cuid2_utils.mod import (
 )
 
 
-class TestResult:
+class OutcomeCollector:
     """测试结果收集器"""
     def __init__(self):
         self.passed = 0
@@ -78,7 +78,7 @@ class TestResult:
 
 def test_basic_generation():
     """测试基本 ID 生成"""
-    result = TestResult()
+    result = OutcomeCollector()
     
     # 测试默认长度
     cuid = Cuid2()
@@ -105,7 +105,7 @@ def test_basic_generation():
 
 def test_validity():
     """测试 ID 验证"""
-    result = TestResult()
+    result = OutcomeCollector()
     cuid = Cuid2()
     
     # 测试有效 ID
@@ -137,7 +137,7 @@ def test_validity():
 
 def test_uniqueness():
     """测试唯一性"""
-    result = TestResult()
+    result = OutcomeCollector()
     cuid = Cuid2()
     
     # 生成大量 ID 并检查唯一性
@@ -156,7 +156,7 @@ def test_uniqueness():
 
 def test_batch_generation():
     """测试批量生成"""
-    result = TestResult()
+    result = OutcomeCollector()
     cuid = Cuid2()
     
     # 测试批量生成
@@ -181,7 +181,7 @@ def test_batch_generation():
 
 def test_shortcuts():
     """测试快捷函数"""
-    result = TestResult()
+    result = OutcomeCollector()
     
     # 测试 create_id
     id1 = create_id()
@@ -204,7 +204,7 @@ def test_shortcuts():
 
 def test_fingerprint():
     """测试指纹功能"""
-    result = TestResult()
+    result = OutcomeCollector()
     
     # 测试默认指纹
     cuid1 = Cuid2()
@@ -225,7 +225,7 @@ def test_fingerprint():
 
 def test_thread_safety():
     """测试线程安全"""
-    result = TestResult()
+    result = OutcomeCollector()
     cuid = Cuid2()
     
     ids = []
@@ -257,7 +257,7 @@ def test_thread_safety():
 
 def test_secure_cuid2():
     """测试安全 CUID2"""
-    result = TestResult()
+    result = OutcomeCollector()
     
     # 测试默认长度（32）
     secure = SecureCuid2()
@@ -281,7 +281,7 @@ def test_secure_cuid2():
 
 def test_prefixed_cuid2():
     """测试带前缀的 CUID2"""
-    result = TestResult()
+    result = OutcomeCollector()
     
     # 测试生成
     prefixed = PrefixedCuid2(prefix="user")
@@ -315,7 +315,7 @@ def test_prefixed_cuid2():
 
 def test_length_validation():
     """测试长度验证"""
-    result = TestResult()
+    result = OutcomeCollector()
     
     # 测试过短
     result.assert_raises(ValueError, lambda: Cuid2(length=1))
@@ -343,7 +343,7 @@ def test_length_validation():
 
 def test_get_info():
     """测试 ID 信息获取"""
-    result = TestResult()
+    result = OutcomeCollector()
     cuid = Cuid2()
     
     id1 = cuid.generate()
@@ -360,7 +360,7 @@ def test_get_info():
 
 def test_character_set():
     """测试字符集"""
-    result = TestResult()
+    result = OutcomeCollector()
     
     # 验证 Base36 字符集
     result.assert_equal(len(BASE36_CHARS), 36, "Base36 应有 36 个字符")
@@ -377,7 +377,7 @@ def test_character_set():
 
 def test_edge_cases():
     """测试边界情况"""
-    result = TestResult()
+    result = OutcomeCollector()
     cuid = Cuid2()
     
     # 测试快速连续生成（同一毫秒）
@@ -402,7 +402,7 @@ def test_edge_cases():
 
 def test_performance():
     """测试性能"""
-    result = TestResult()
+    result = OutcomeCollector()
     cuid = Cuid2()
     
     # 测试生成 10000 个 ID 的时间
@@ -419,7 +419,7 @@ def test_performance():
 
 def test_different_lengths():
     """测试不同长度"""
-    result = TestResult()
+    result = OutcomeCollector()
     
     for length in [2, 4, 8, 12, 16, 20, 24, 28, 32]:
         cuid = Cuid2(length=length)
@@ -432,7 +432,7 @@ def test_different_lengths():
 
 def test_concurrent_fingerprints():
     """测试不同指纹生成不同 ID"""
-    result = TestResult()
+    result = OutcomeCollector()
     
     cuid1 = Cuid2(fingerprint="fp1")
     cuid2 = Cuid2(fingerprint="fp2")
@@ -449,7 +449,7 @@ def test_concurrent_fingerprints():
 
 def test_deterministic_fingerprint():
     """测试确定性指纹"""
-    result = TestResult()
+    result = OutcomeCollector()
     
     # 相同指纹应可重复
     cuid = Cuid2(fingerprint="test_deterministic")
@@ -463,7 +463,7 @@ def test_deterministic_fingerprint():
 
 def test_base62_encoding():
     """测试 Base62 编码表"""
-    result = TestResult()
+    result = OutcomeCollector()
     
     result.assert_equal(len(BASE62_CHARS), 62, "Base62 应有 62 个字符")
     
@@ -481,7 +481,7 @@ def test_base62_encoding():
 
 def test_uppercase_validation():
     """测试大写字母验证"""
-    result = TestResult()
+    result = OutcomeCollector()
     cuid = Cuid2()
     
     # 生成 ID 并转为大写

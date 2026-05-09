@@ -31,7 +31,7 @@ from mod import (
 )
 
 
-class TestResult:
+class TestOutcome:
     """Simple test result tracker."""
     
     def __init__(self):
@@ -67,7 +67,7 @@ class TestResult:
 
 def run_tests():
     """Run all tests."""
-    result = TestResult()
+    result = TestOutcome()
     utils = PasswordUtils()
     
     print("\n" + "="*60)

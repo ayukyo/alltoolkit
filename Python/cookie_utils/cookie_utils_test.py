@@ -35,7 +35,7 @@ from cookie_utils.mod import (
 )
 
 
-class TestResult:
+class OutcomeCollector:
     """Test result collector."""
     def __init__(self):
         self.passed = 0
@@ -107,7 +107,7 @@ class TestResult:
 
 def test_cookie_creation():
     """Test Cookie dataclass creation and defaults."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     # Basic cookie
     c = Cookie(name="session", value="abc123")
@@ -146,7 +146,7 @@ def test_cookie_creation():
 
 def test_cookie_expiration():
     """Test cookie expiration logic."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     # No expiration
     c1 = Cookie(name="session", value="abc")
@@ -177,7 +177,7 @@ def test_cookie_expiration():
 
 def test_cookie_domain_matching():
     """Test cookie domain matching."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     # Host-only cookie
     c1 = Cookie(name="host", value="only", domain="example.com", host_only=True)
@@ -205,7 +205,7 @@ def test_cookie_domain_matching():
 
 def test_cookie_path_matching():
     """Test cookie path matching."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     # Root path matches everything
     c1 = Cookie(name="root", value="1", path="/")
@@ -233,7 +233,7 @@ def test_cookie_path_matching():
 
 def test_cookie_matches_url():
     """Test full URL matching."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     # Basic matching - default host_only=True means exact domain match only
     c1 = Cookie(name="test", value="1", domain="example.com", path="/")
@@ -267,7 +267,7 @@ def test_cookie_matches_url():
 
 def test_parse_set_cookie():
     """Test Set-Cookie header parsing."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     # Simple cookie
     c1 = parse_set_cookie("session=abc123")
@@ -318,7 +318,7 @@ def test_parse_set_cookie():
 
 def test_parse_cookie_header():
     """Test Cookie header parsing."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     # Simple
     cookies = parse_cookie_header("session=abc123")
@@ -347,7 +347,7 @@ def test_parse_cookie_header():
 
 def test_build_cookie_header():
     """Test Cookie header building."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     # Single cookie
     header = build_cookie_header({"session": "abc123"})
@@ -368,7 +368,7 @@ def test_build_cookie_header():
 
 def test_cookie_to_headers():
     """Test cookie to header conversion."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     # Cookie header
     c = Cookie(name="session", value="abc123")
@@ -402,7 +402,7 @@ def test_cookie_to_headers():
 
 def test_cookie_jar_basic():
     """Test CookieJar basic operations."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     jar = CookieJar()
     r.assert_equal(len(jar), 0)
@@ -443,7 +443,7 @@ def test_cookie_jar_basic():
 
 def test_cookie_jar_update():
     """Test CookieJar updates replace existing cookies."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     jar = CookieJar()
     
@@ -470,7 +470,7 @@ def test_cookie_jar_update():
 
 def test_cookie_jar_expiration():
     """Test CookieJar expiration handling."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     jar = CookieJar()
     
@@ -501,7 +501,7 @@ def test_cookie_jar_expiration():
 
 def test_cookie_jar_url_matching():
     """Test CookieJar URL-based retrieval."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     jar = CookieJar()
     
@@ -557,7 +557,7 @@ def test_cookie_jar_url_matching():
 
 def test_cookie_jar_serialization():
     """Test CookieJar serialization."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     jar = CookieJar()
     jar.add(Cookie(name="a", value="1", domain="example.com"))
@@ -587,7 +587,7 @@ def test_cookie_jar_serialization():
 
 def test_cookie_jar_update_from_headers():
     """Test updating jar from Set-Cookie headers."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     jar = CookieJar()
     
@@ -608,7 +608,7 @@ def test_cookie_jar_update_from_headers():
 
 def test_validate_cookie_name():
     """Test cookie name validation."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     # Valid names
     r.assert_true(validate_cookie_name("session"))
@@ -639,7 +639,7 @@ def test_validate_cookie_name():
 
 def test_validate_cookie_value():
     """Test cookie value validation."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     # Valid values
     r.assert_true(validate_cookie_value(""))
@@ -661,7 +661,7 @@ def test_validate_cookie_value():
 
 def test_encode_decode_value():
     """Test Base64 encoding/decoding for cookie values."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     # Basic encoding
     encoded = encode_cookie_value("hello world")
@@ -694,7 +694,7 @@ def test_encode_decode_value():
 
 def test_same_site_matches():
     """Test SameSite policy matching."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     # Strict - same site only
     r.assert_true(same_site_matches("Strict", "example.com", "example.com", True))
@@ -721,7 +721,7 @@ def test_same_site_matches():
 
 def test_make_session_cookie():
     """Test session cookie factory."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     c = make_session_cookie("session", "abc123")
     r.assert_equal(c.name, "session")
@@ -743,7 +743,7 @@ def test_make_session_cookie():
 
 def test_make_persistent_cookie():
     """Test persistent cookie factory."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     c = make_persistent_cookie("remember", "user123", max_age=86400)
     r.assert_equal(c.name, "remember")
@@ -772,7 +772,7 @@ def test_make_persistent_cookie():
 
 def test_parse_expires():
     """Test Expires date parsing."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     # RFC 1123 format
     ts = _parse_expires("Wed, 09 Jun 2021 10:18:14 GMT")
@@ -798,7 +798,7 @@ def test_parse_expires():
 
 def test_cookie_copy():
     """Test cookie copying."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     original = Cookie(
         name="session",
@@ -830,7 +830,7 @@ def test_cookie_copy():
 
 def test_cookie_jar_iteration():
     """Test CookieJar iteration."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     jar = CookieJar()
     jar.add(Cookie(name="a", value="1"))
@@ -852,7 +852,7 @@ def test_cookie_jar_iteration():
 
 def test_boundary_values():
     """Test boundary values and edge cases."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     # Empty cookie value
     c = Cookie(name="empty", value="")

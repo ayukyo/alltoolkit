@@ -20,7 +20,7 @@ from keyboard_utils.mod import (
 )
 
 
-class TestResultCollector:
+class OutcomeCollector:
     """Collects test results"""
     def __init__(self):
         self.passed = 0
@@ -47,7 +47,7 @@ class TestResultCollector:
         return self.failed == 0
 
 
-results = TestResultCollector()
+results = OutcomeCollector()
 
 
 def test_enums():

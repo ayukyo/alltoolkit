@@ -30,7 +30,7 @@ from mod import (
 )
 
 
-class TestResult:
+class TestOutcome:
     """测试结果记录"""
     def __init__(self):
         self.passed = 0
@@ -79,7 +79,7 @@ def teardown_module():
     print(f"已清理测试目录")
 
 
-def test_csv_handler_basic(result: TestResult):
+def test_csv_handler_basic(result: TestOutcome):
     """测试 CSVHandler 基本功能"""
     print("\n[测试] CSVHandler 基本功能")
     
@@ -135,7 +135,7 @@ def test_csv_handler_basic(result: TestResult):
         result.error("二维列表读写", str(e))
 
 
-def test_read_functions(result: TestResult):
+def test_read_functions(result: TestOutcome):
     """测试读取函数"""
     print("\n[测试] 读取函数")
     
@@ -188,7 +188,7 @@ def test_read_functions(result: TestResult):
         result.error("parse_csv_string_rows", str(e))
 
 
-def test_write_functions(result: TestResult):
+def test_write_functions(result: TestOutcome):
     """测试写入函数"""
     print("\n[测试] 写入函数")
     
@@ -239,7 +239,7 @@ def test_write_functions(result: TestResult):
         result.error("写入空数据", str(e))
 
 
-def test_filter_functions(result: TestResult):
+def test_filter_functions(result: TestOutcome):
     """测试过滤函数"""
     print("\n[测试] 过滤函数")
     
@@ -281,7 +281,7 @@ def test_filter_functions(result: TestResult):
         result.error("filter_by_contains", str(e))
 
 
-def test_sort_functions(result: TestResult):
+def test_sort_functions(result: TestOutcome):
     """测试排序函数"""
     print("\n[测试] 排序函数")
     
@@ -312,7 +312,7 @@ def test_sort_functions(result: TestResult):
         result.error("sort_rows 降序", str(e))
 
 
-def test_column_operations(result: TestResult):
+def test_column_operations(result: TestOutcome):
     """测试列操作"""
     print("\n[测试] 列操作")
     
@@ -395,7 +395,7 @@ def test_column_operations(result: TestResult):
         result.error("get_unique_values", str(e))
 
 
-def test_statistics(result: TestResult):
+def test_statistics(result: TestOutcome):
     """测试统计函数"""
     print("\n[测试] 统计函数")
     
@@ -437,7 +437,7 @@ def test_statistics(result: TestResult):
         result.error("get_numeric_stats", str(e))
 
 
-def test_transformations(result: TestResult):
+def test_transformations(result: TestOutcome):
     """测试转换函数"""
     print("\n[测试] 转换函数")
     
@@ -480,7 +480,7 @@ def test_transformations(result: TestResult):
         result.error("join_tables", str(e))
 
 
-def test_file_operations(result: TestResult):
+def test_file_operations(result: TestOutcome):
     """测试文件操作"""
     print("\n[测试] 文件操作")
     
@@ -537,7 +537,7 @@ def test_file_operations(result: TestResult):
         result.error("json_to_csv", str(e))
 
 
-def test_stream_processing(result: TestResult):
+def test_stream_processing(result: TestOutcome):
     """测试流式处理"""
     print("\n[测试] 流式处理")
     
@@ -577,7 +577,7 @@ def test_stream_processing(result: TestResult):
         result.error("process_csv_stream", str(e))
 
 
-def test_edge_cases(result: TestResult):
+def test_edge_cases(result: TestOutcome):
     """测试边界情况"""
     print("\n[测试] 边界情况")
     
@@ -633,7 +633,7 @@ def main():
     
     setup_module()
     
-    result = TestResult()
+    result = TestOutcome()
     
     # 运行所有测试
     test_csv_handler_basic(result)

@@ -32,7 +32,7 @@ from mod import (
 )
 
 
-class TestResult:
+class TestOutcome:
     """Simple test result tracker."""
     
     def __init__(self):
@@ -68,7 +68,7 @@ def assert_true(condition: bool, name: str, message: str = ""):
     raise AssertionError(message or f"{name} failed")
 
 
-def test_token_bucket_basic(result: TestResult):
+def test_token_bucket_basic(result: TestOutcome):
     """Test basic token bucket functionality."""
     print("\n📦 TokenBucket - Basic Tests")
     
@@ -94,7 +94,7 @@ def test_token_bucket_basic(result: TestResult):
     result.record_pass("Reset functionality")
 
 
-def test_token_bucket_refill(result: TestResult):
+def test_token_bucket_refill(result: TestOutcome):
     """Test token bucket refill mechanism."""
     print("\n📦 TokenBucket - Refill Tests")
     
@@ -123,7 +123,7 @@ def test_token_bucket_refill(result: TestResult):
     result.record_pass("Wait time calculation")
 
 
-def test_token_bucket_check(result: TestResult):
+def test_token_bucket_check(result: TestOutcome):
     """Test token bucket check method."""
     print("\n📦 TokenBucket - Check Tests")
     
@@ -155,7 +155,7 @@ def test_token_bucket_check(result: TestResult):
     result.record_pass("Check empty")
 
 
-def test_token_bucket_multi_consume(result: TestResult):
+def test_token_bucket_multi_consume(result: TestOutcome):
     """Test consuming multiple tokens at once."""
     print("\n📦 TokenBucket - Multi-token Consume")
     
@@ -171,7 +171,7 @@ def test_token_bucket_multi_consume(result: TestResult):
     result.record_pass("Over-consume rejection")
 
 
-def test_token_bucket_threading(result: TestResult):
+def test_token_bucket_threading(result: TestOutcome):
     """Test thread safety of token bucket."""
     print("\n📦 TokenBucket - Thread Safety")
     
@@ -196,7 +196,7 @@ def test_token_bucket_threading(result: TestResult):
     result.record_pass("Thread safety")
 
 
-def test_sliding_window_counter_basic(result: TestResult):
+def test_sliding_window_counter_basic(result: TestOutcome):
     """Test basic sliding window counter functionality."""
     print("\n🪟 SlidingWindowCounter - Basic Tests")
     
@@ -217,7 +217,7 @@ def test_sliding_window_counter_basic(result: TestResult):
     result.record_pass("Reset functionality")
 
 
-def test_sliding_window_counter_window(result: TestResult):
+def test_sliding_window_counter_window(result: TestOutcome):
     """Test sliding window counter window expiration."""
     print("\n🪟 SlidingWindowCounter - Window Tests")
     
@@ -236,7 +236,7 @@ def test_sliding_window_counter_window(result: TestResult):
     result.record_pass("Window expiration")
 
 
-def test_sliding_window_counter_check(result: TestResult):
+def test_sliding_window_counter_check(result: TestOutcome):
     """Test sliding window counter check method."""
     print("\n🪟 SlidingWindowCounter - Check Tests")
     
@@ -249,7 +249,7 @@ def test_sliding_window_counter_check(result: TestResult):
     result.record_pass("Check method")
 
 
-def test_sliding_window_log_basic(result: TestResult):
+def test_sliding_window_log_basic(result: TestOutcome):
     """Test basic sliding window log functionality."""
     print("\n📜 SlidingWindowLog - Basic Tests")
     
@@ -263,7 +263,7 @@ def test_sliding_window_log_basic(result: TestResult):
     result.record_pass("Over-limit rejection")
 
 
-def test_sliding_window_log_precision(result: TestResult):
+def test_sliding_window_log_precision(result: TestOutcome):
     """Test sliding window log precision."""
     print("\n📜 SlidingWindowLog - Precision Tests")
     
@@ -285,7 +285,7 @@ def test_sliding_window_log_precision(result: TestResult):
     result.record_pass("Count property")
 
 
-def test_fixed_window_basic(result: TestResult):
+def test_fixed_window_basic(result: TestOutcome):
     """Test basic fixed window counter functionality."""
     print("\n🔲 FixedWindowCounter - Basic Tests")
     
@@ -303,7 +303,7 @@ def test_fixed_window_basic(result: TestResult):
     result.record_pass("Reset functionality")
 
 
-def test_fixed_window_expiration(result: TestResult):
+def test_fixed_window_expiration(result: TestOutcome):
     """Test fixed window expiration."""
     print("\n🔲 FixedWindowCounter - Window Expiration")
     
@@ -320,7 +320,7 @@ def test_fixed_window_expiration(result: TestResult):
     result.record_pass("Window expiration")
 
 
-def test_rate_limiter_multi_key(result: TestResult):
+def test_rate_limiter_multi_key(result: TestOutcome):
     """Test multi-key rate limiter."""
     print("\n🔑 RateLimiter - Multi-key Tests")
     
@@ -349,7 +349,7 @@ def test_rate_limiter_multi_key(result: TestResult):
     result.record_pass("Reset all")
 
 
-def test_rate_limiter_strategies(result: TestResult):
+def test_rate_limiter_strategies(result: TestOutcome):
     """Test different rate limiting strategies."""
     print("\n🔑 RateLimiter - Strategy Tests")
     
@@ -371,7 +371,7 @@ def test_rate_limiter_strategies(result: TestResult):
         result.record_pass(f"Strategy: {strategy}")
 
 
-def test_rate_limit_decorator(result: TestResult):
+def test_rate_limit_decorator(result: TestOutcome):
     """Test rate limit decorator."""
     print("\n🎭 Rate Limit Decorator Tests")
     
@@ -403,7 +403,7 @@ def test_rate_limit_decorator(result: TestResult):
     result.record_pass("Decorator functionality")
 
 
-def test_rate_limit_decorator_key_func(result: TestResult):
+def test_rate_limit_decorator_key_func(result: TestOutcome):
     """Test rate limit decorator with custom key function."""
     print("\n🎭 Rate Limit Decorator - Key Function")
     
@@ -428,7 +428,7 @@ def test_rate_limit_decorator_key_func(result: TestResult):
     result.record_pass("Custom key function")
 
 
-def test_rate_limit_strict(result: TestResult):
+def test_rate_limit_strict(result: TestOutcome):
     """Test strict rate limit decorator."""
     print("\n🎭 Rate Limit Strict Decorator")
     
@@ -450,7 +450,7 @@ def test_rate_limit_strict(result: TestResult):
         result.record_pass("Exception on limit")
 
 
-def test_rate_limit_context(result: TestResult):
+def test_rate_limit_context(result: TestOutcome):
     """Test rate limit context manager."""
     print("\n🎭 Rate Limit Context Manager")
     
@@ -478,7 +478,7 @@ def test_rate_limit_context(result: TestResult):
     result.record_pass("Context manager")
 
 
-def test_rate_limit_result(result: TestResult):
+def test_rate_limit_result(result: TestOutcome):
     """Test RateLimitResult class."""
     print("\n📊 RateLimitResult Tests")
     
@@ -508,7 +508,7 @@ def test_rate_limit_result(result: TestResult):
     result.record_pass("False result")
 
 
-def test_generate_rate_limit_key(result: TestResult):
+def test_generate_rate_limit_key(result: TestOutcome):
     """Test key generation function."""
     print("\n🔑 Key Generation Tests")
     
@@ -522,7 +522,7 @@ def test_generate_rate_limit_key(result: TestResult):
     result.record_pass("Key generation")
 
 
-def test_error_handling(result: TestResult):
+def test_error_handling(result: TestOutcome):
     """Test error handling for invalid inputs."""
     print("\n⚠️ Error Handling Tests")
     
@@ -555,7 +555,7 @@ def test_error_handling(result: TestResult):
         result.record_pass("Invalid strategy rejected")
 
 
-def test_consume_multiple_tokens(result: TestResult):
+def test_consume_multiple_tokens(result: TestOutcome):
     """Test consuming multiple tokens at once."""
     print("\n📦 Multi-token Operations")
     
@@ -576,7 +576,7 @@ def test_consume_multiple_tokens(result: TestResult):
     result.record_pass("Consume exact")
 
 
-def test_wait_time_calculation(result: TestResult):
+def test_wait_time_calculation(result: TestOutcome):
     """Test wait time calculations."""
     print("\n⏱️ Wait Time Tests")
     
@@ -603,7 +603,7 @@ def run_all_tests():
     print("AllToolkit - Rate Limit Utilities Test Suite")
     print("="*60)
     
-    result = TestResult()
+    result = TestOutcome()
     
     # TokenBucket tests
     test_token_bucket_basic(result)

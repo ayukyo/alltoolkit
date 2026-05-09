@@ -21,7 +21,7 @@ from mod import (
 )
 
 
-class TestResult:
+class TestOutcome:
     """Test result collector."""
     def __init__(self):
         self.passed = 0
@@ -49,7 +49,7 @@ class TestResult:
         return self.failed == 0
 
 
-results = TestResult()
+results = TestOutcome()
 
 
 def test(name: str):

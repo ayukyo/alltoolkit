@@ -35,7 +35,7 @@ from idempotency_utils.mod import (
 )
 
 
-class TestResultCollector:
+class OutcomeCollector:
     """Collect test results."""
     
     def __init__(self):
@@ -64,7 +64,7 @@ class TestResultCollector:
         return self.failed == 0
 
 
-def run_test(name: str, func, collector: TestResultCollector):
+def run_test(name: str, func, collector: OutcomeCollector):
     """Run a single test."""
     try:
         func()
@@ -856,7 +856,7 @@ def main():
     print("="*60)
     print()
     
-    collector = TestResultCollector()
+    collector = OutcomeCollector()
     
     # Record tests
     run_test("record_creation", test_record_creation, collector)

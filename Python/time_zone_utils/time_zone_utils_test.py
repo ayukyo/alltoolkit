@@ -27,7 +27,7 @@ from mod import (
 )
 
 
-class TestResult:
+class TestOutcome:
     """Simple test result tracker."""
     def __init__(self):
         self.passed = 0
@@ -58,7 +58,7 @@ class TestResult:
 
 def run_tests():
     """Run all tests."""
-    result = TestResult()
+    result = TestOutcome()
     
     print("=" * 60)
     print("AllToolkit - Time Zone Utils Test Suite")

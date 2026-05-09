@@ -25,7 +25,7 @@ from reversi_utils.mod import (
 )
 
 
-class TestResult:
+class OutcomeCollector:
     """Simple test result collector."""
     def __init__(self):
         self.passed = 0
@@ -70,7 +70,7 @@ class TestResult:
 
 def test_board_initialization():
     """Test board initialization with various sizes."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     # Test default 8x8 board
     board = ReversiBoard()
@@ -114,7 +114,7 @@ def test_board_initialization():
 
 def test_move_validation():
     """Test move validation logic."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     board = ReversiBoard()
     
@@ -144,7 +144,7 @@ def test_move_validation():
 
 def test_piece_flipping():
     """Test piece flipping mechanics."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     board = ReversiBoard()
     
@@ -202,7 +202,7 @@ def test_piece_flipping():
 
 def test_game_completion():
     """Test game completion detection."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     # Create a board in end-game state (all Black)
     board = ReversiBoard()
@@ -244,7 +244,7 @@ def test_game_completion():
 
 def test_board_copy():
     """Test board copying."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     board = ReversiBoard()
     board_copy = board.copy()
@@ -261,7 +261,7 @@ def test_board_copy():
 
 def test_serialization():
     """Test serialization and deserialization."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     board = ReversiBoard()
     board.make_move(2, 3)
@@ -296,7 +296,7 @@ def test_serialization():
 
 def test_ai_functions():
     """Test AI decision making."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     board = ReversiBoard()
     
@@ -324,7 +324,7 @@ def test_ai_functions():
 
 def test_skip_turn():
     """Test turn skipping when no valid moves."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     board = ReversiBoard()
     
@@ -355,7 +355,7 @@ def test_skip_turn():
 
 def test_game_analysis():
     """Test game analysis function."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     board = ReversiBoard()
     analysis = analyze_game(board)
@@ -375,7 +375,7 @@ def test_game_analysis():
 
 def test_get_pieces():
     """Test getting all pieces for a player."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     board = ReversiBoard()
     
@@ -398,7 +398,7 @@ def test_get_pieces():
 
 def test_board_display():
     """Test board string representation."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     board = ReversiBoard()
     display = board.to_string()
@@ -419,7 +419,7 @@ def test_board_display():
 
 def test_full_game():
     """Test playing a full game."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     board = ReversiBoard()
     moves_made = 0
@@ -456,7 +456,7 @@ def test_full_game():
 
 def test_edge_cases():
     """Test edge cases and boundary conditions."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     # Test empty board behavior (we create it but initial pieces are placed)
     board = ReversiBoard()
@@ -488,7 +488,7 @@ def test_edge_cases():
 
 def test_opponent_parameter():
     """Test that player parameter works correctly."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     board = ReversiBoard()
     
@@ -513,7 +513,7 @@ def test_opponent_parameter():
 
 def test_random_game():
     """Test random game simulation."""
-    r = TestResult()
+    r = OutcomeCollector()
     
     # Play multiple random games
     for _ in range(5):

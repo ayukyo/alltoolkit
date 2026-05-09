@@ -25,7 +25,7 @@ from playlist_utils.mod import (
 )
 
 
-class TestResult:
+class OutcomeCollector:
     """测试结果收集器"""
     def __init__(self):
         self.passed = 0
@@ -128,7 +128,7 @@ class TestResult:
 
 # ============== Track 测试 ==============
 
-def test_track_creation(r: TestResult):
+def test_track_creation(r: OutcomeCollector):
     """测试 Track 创建"""
     print("\n--- 测试 Track 创建 ---")
     
@@ -147,7 +147,7 @@ def test_track_creation(r: TestResult):
     r.assert_equal(track.album, "Test Album", "Track album")
 
 
-def test_track_format_duration(r: TestResult):
+def test_track_format_duration(r: OutcomeCollector):
     """测试 Track 时长格式化"""
     print("\n--- 测试 Track 时长格式化 ---")
     
@@ -164,7 +164,7 @@ def test_track_format_duration(r: TestResult):
     r.assert_equal(track4.format_duration(), "?:??", "None 时长")
 
 
-def test_track_to_dict(r: TestResult):
+def test_track_to_dict(r: OutcomeCollector):
     """测试 Track 字典转换"""
     print("\n--- 测试 Track 字典转换 ---")
     
@@ -198,7 +198,7 @@ def test_track_to_dict(r: TestResult):
 
 # ============== Playlist 测试 ==============
 
-def test_playlist_creation(r: TestResult):
+def test_playlist_creation(r: OutcomeCollector):
     """测试 Playlist 创建"""
     print("\n--- 测试 Playlist 创建 ---")
     
@@ -209,7 +209,7 @@ def test_playlist_creation(r: TestResult):
     r.assert_equal(len(playlist), 0, "Empty playlist")
 
 
-def test_playlist_add_remove(r: TestResult):
+def test_playlist_add_remove(r: OutcomeCollector):
     """测试 Playlist 添加和移除"""
     print("\n--- 测试 Playlist 添加和移除 ---")
     
@@ -233,7 +233,7 @@ def test_playlist_add_remove(r: TestResult):
     r.assert_is_none(removed, "移除无效索引返回 None")
 
 
-def test_playlist_total_duration(r: TestResult):
+def test_playlist_total_duration(r: OutcomeCollector):
     """测试 Playlist 总时长"""
     print("\n--- 测试 Playlist 总时长 ---")
     
@@ -250,7 +250,7 @@ def test_playlist_total_duration(r: TestResult):
     r.assert_in("5", formatted, "格式化时长包含分钟")
 
 
-def test_playlist_deduplicate(r: TestResult):
+def test_playlist_deduplicate(r: OutcomeCollector):
     """测试 Playlist 去重"""
     print("\n--- 测试 Playlist 去重 ---")
     
@@ -269,7 +269,7 @@ def test_playlist_deduplicate(r: TestResult):
     r.assert_equal(len(deduped), 3, "按标题去重后3首")
 
 
-def test_playlist_sort(r: TestResult):
+def test_playlist_sort(r: OutcomeCollector):
     """测试 Playlist 排序"""
     print("\n--- 测试 Playlist 排序 ---")
     
@@ -298,7 +298,7 @@ def test_playlist_sort(r: TestResult):
     r.assert_equal(sorted_playlist[0].duration, 300, "降序排序第一个")
 
 
-def test_playlist_filter(r: TestResult):
+def test_playlist_filter(r: OutcomeCollector):
     """测试 Playlist 筛选"""
     print("\n--- 测试 Playlist 筛选 ---")
     
@@ -322,7 +322,7 @@ def test_playlist_filter(r: TestResult):
 
 # ============== M3U 格式测试 ==============
 
-def test_parse_simple_m3u(r: TestResult):
+def test_parse_simple_m3u(r: OutcomeCollector):
     """测试解析简单 M3U"""
     print("\n--- 测试解析简单 M3U ---")
     
@@ -339,7 +339,7 @@ http://example.com/song4.mp3
     r.assert_equal(playlist[3].location, "http://example.com/song4.mp3", "URL 位置")
 
 
-def test_parse_extended_m3u(r: TestResult):
+def test_parse_extended_m3u(r: OutcomeCollector):
     """测试解析扩展 M3U (M3U8)"""
     print("\n--- 测试解析扩展 M3U ---")
     
@@ -366,7 +366,7 @@ song3.mp3
     r.assert_is_none(playlist[2].duration, "未知时长为 None")
 
 
-def test_generate_m3u(r: TestResult):
+def test_generate_m3u(r: OutcomeCollector):
     """测试生成 M3U"""
     print("\n--- 测试生成 M3U ---")
     
@@ -389,7 +389,7 @@ def test_generate_m3u(r: TestResult):
     r.assert_in("song1.mp3", content, "简单格式包含文件路径")
 
 
-def test_m3u_roundtrip(r: TestResult):
+def test_m3u_roundtrip(r: OutcomeCollector):
     """测试 M3U 往返转换"""
     print("\n--- 测试 M3U 往返转换 ---")
     
@@ -408,7 +408,7 @@ def test_m3u_roundtrip(r: TestResult):
 
 # ============== PLS 格式测试 ==============
 
-def test_parse_pls(r: TestResult):
+def test_parse_pls(r: OutcomeCollector):
     """测试解析 PLS"""
     print("\n--- 测试解析 PLS ---")
     
@@ -432,7 +432,7 @@ Version=2
     r.assert_equal(playlist[1].location, "/music/song2.mp3", "第二首位置")
 
 
-def test_generate_pls(r: TestResult):
+def test_generate_pls(r: OutcomeCollector):
     """测试生成 PLS"""
     print("\n--- 测试生成 PLS ---")
     
@@ -450,7 +450,7 @@ def test_generate_pls(r: TestResult):
     r.assert_in("Version=2", content, "包含 Version")
 
 
-def test_pls_roundtrip(r: TestResult):
+def test_pls_roundtrip(r: OutcomeCollector):
     """测试 PLS 往返转换"""
     print("\n--- 测试 PLS 往返转换 ---")
     
@@ -468,7 +468,7 @@ def test_pls_roundtrip(r: TestResult):
 
 # ============== XSPF 格式测试 ==============
 
-def test_parse_xspf(r: TestResult):
+def test_parse_xspf(r: OutcomeCollector):
     """测试解析 XSPF"""
     print("\n--- 测试解析 XSPF ---")
     
@@ -509,7 +509,7 @@ def test_parse_xspf(r: TestResult):
     r.assert_equal(playlist[0].track_number, 1, "第一首音轨号")
 
 
-def test_generate_xspf(r: TestResult):
+def test_generate_xspf(r: OutcomeCollector):
     """测试生成 XSPF"""
     print("\n--- 测试生成 XSPF ---")
     
@@ -535,7 +535,7 @@ def test_generate_xspf(r: TestResult):
     r.assert_in('<duration>180000</duration>', content, "包含时长（毫秒）")
 
 
-def test_xspf_roundtrip(r: TestResult):
+def test_xspf_roundtrip(r: OutcomeCollector):
     """测试 XSPF 往返转换"""
     print("\n--- 测试 XSPF 往返转换 ---")
     
@@ -554,7 +554,7 @@ def test_xspf_roundtrip(r: TestResult):
 
 # ============== 格式检测测试 ==============
 
-def test_detect_format(r: TestResult):
+def test_detect_format(r: OutcomeCollector):
     """测试格式检测"""
     print("\n--- 测试格式检测 ---")
     
@@ -575,7 +575,7 @@ def test_detect_format(r: TestResult):
     r.assert_equal(detect_format(simple_content), "m3u", "检测简单 M3U")
 
 
-def test_parse_auto(r: TestResult):
+def test_parse_auto(r: OutcomeCollector):
     """测试自动解析"""
     print("\n--- 测试自动解析 ---")
     
@@ -595,7 +595,7 @@ def test_parse_auto(r: TestResult):
 
 # ============== 格式转换测试 ==============
 
-def test_convert_format(r: TestResult):
+def test_convert_format(r: OutcomeCollector):
     """测试格式转换"""
     print("\n--- 测试格式转换 ---")
     
@@ -624,7 +624,7 @@ song2.mp3
 
 # ============== 实用函数测试 ==============
 
-def test_merge_playlists(r: TestResult):
+def test_merge_playlists(r: OutcomeCollector):
     """测试合并播放列表"""
     print("\n--- 测试合并播放列表 ---")
     
@@ -642,7 +642,7 @@ def test_merge_playlists(r: TestResult):
     r.assert_equal(merged.title, "Merged", "合并后标题")
 
 
-def test_statistics(r: TestResult):
+def test_statistics(r: OutcomeCollector):
     """测试统计信息"""
     print("\n--- 测试统计信息 ---")
     
@@ -664,7 +664,7 @@ def test_statistics(r: TestResult):
     r.assert_equal(stats['max_duration'], 240, "最长时长")
 
 
-def test_find_duplicates(r: TestResult):
+def test_find_duplicates(r: OutcomeCollector):
     """测试查找重复"""
     print("\n--- 测试查找重复 ---")
     
@@ -684,7 +684,7 @@ def test_find_duplicates(r: TestResult):
     r.assert_equal(len(duplicates), 1, "按标题找到1个重复")
 
 
-def test_json_export_import(r: TestResult):
+def test_json_export_import(r: OutcomeCollector):
     """测试 JSON 导出导入"""
     print("\n--- 测试 JSON 导出导入 ---")
     
@@ -703,7 +703,7 @@ def test_json_export_import(r: TestResult):
     r.assert_equal(imported[0].location, playlist[0].location, "导入位置一致")
 
 
-def test_shuffle(r: TestResult):
+def test_shuffle(r: OutcomeCollector):
     """测试随机排序"""
     print("\n--- 测试随机排序 ---")
     
@@ -721,7 +721,7 @@ def test_shuffle(r: TestResult):
     r.assert_equal(original_locations, shuffled_locations, "所有元素都存在")
 
 
-def test_validate_locations(r: TestResult):
+def test_validate_locations(r: OutcomeCollector):
     """测试位置验证"""
     print("\n--- 测试位置验证 ---")
     
@@ -740,7 +740,7 @@ def test_validate_locations(r: TestResult):
     r.assert_greater_equal(len(result['remote']), 1, "至少有1个远程")
 
 
-def test_empty_playlist(r: TestResult):
+def test_empty_playlist(r: OutcomeCollector):
     """测试空播放列表"""
     print("\n--- 测试空播放列表 ---")
     
@@ -760,7 +760,7 @@ def test_empty_playlist(r: TestResult):
     r.assert_in("trackList", xspf, "空 XSPF 有 trackList")
 
 
-def test_special_characters(r: TestResult):
+def test_special_characters(r: OutcomeCollector):
     """测试特殊字符处理"""
     print("\n--- 测试特殊字符处理 ---")
     
@@ -785,7 +785,7 @@ def test_special_characters(r: TestResult):
     r.assert_in("特殊", parsed_xspf[0].title, "解析后包含特殊字符")
 
 
-def test_unicode_support(r: TestResult):
+def test_unicode_support(r: OutcomeCollector):
     """测试 Unicode 支持"""
     print("\n--- 测试 Unicode 支持 ---")
     
@@ -812,7 +812,7 @@ def test_unicode_support(r: TestResult):
 
 def run_all_tests():
     """运行所有测试"""
-    r = TestResult()
+    r = OutcomeCollector()
     
     print("="*60)
     print("Playlist Utils 测试套件")
