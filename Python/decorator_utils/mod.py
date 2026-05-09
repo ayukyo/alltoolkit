@@ -27,7 +27,7 @@ import threading
 import warnings
 import inspect
 from typing import Any, Callable, TypeVar, Optional, Union, Tuple, Dict
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from datetime import datetime
 from contextlib import contextmanager
 
@@ -319,18 +319,28 @@ def rate_limit(
         @rate_limit(calls=5, period=1.0)
         def api_call():
             return "response"
+    
+    Note:
+        Optimized version using deque for efficient timestamp management.
+        - O(1) append and pop operations
+        - Automatic cleanup of expired timestamps
+        - Better memory efficiency than list-based approach
     """
     def decorator(func: F) -> F:
-        call_times: list = []
+        # Use deque for efficient O(1) operations
+        call_times: deque = deque(maxlen=calls * 2)  # Extra capacity for pending
         lock = threading.Lock()
         
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             with lock:
                 now = time.time()
+                cutoff = now - period
                 
-                # Remove old timestamps
-                call_times[:] = [t for t in call_times if t > now - period]
+                # Efficient removal of expired timestamps from left side
+                # deque allows O(1) removal from both ends
+                while call_times and call_times[0] < cutoff:
+                    call_times.popleft()
                 
                 # Check rate limit
                 if len(call_times) >= calls:
@@ -339,13 +349,18 @@ def rate_limit(
                             f"Rate limit exceeded: {calls} calls per {period} seconds"
                         )
                     else:
-                        # Wait until oldest call expires
+                        # Calculate wait time (oldest call + period - now)
                         wait_time = call_times[0] + period - now
                         if wait_time > 0:
                             time.sleep(wait_time)
-                        call_times[:] = [t for t in call_times if t > time.time() - period]
+                            # Re-check after waiting
+                            now = time.time()
+                            cutoff = now - period
+                            while call_times and call_times[0] < cutoff:
+                                call_times.popleft()
                 
-                call_times.append(time.time())
+                # Append current time (O(1) for deque)
+                call_times.append(now)
             
             return func(*args, **kwargs)
         

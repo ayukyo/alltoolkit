@@ -444,7 +444,7 @@ def satisfies(version: str, range_str: str) -> bool:
         - ">=1.2.3": 大于等于
         - "<1.2.3": 小于
         - "<=1.2.3": 小于等于
-        - "1.2.3 - 2.0.0": 范围（>=1.2.3 <=2.0.0）
+        - "1.2.3 - 2.0.0": 茆围（>=1.2.3 <=2.0.0）
         - "~1.2.3": 兼容版本（>=1.2.3 <1.3.0）
         - "^1.2.3": 主版本兼容（>=1.2.3 <2.0.0）
         - "1.2.*": 通配符（>=1.2.0 <1.3.0）
@@ -457,58 +457,118 @@ def satisfies(version: str, range_str: str) -> bool:
         True
         >>> satisfies("2.0.0", "^1.0.0")
         False
+    
+    Note:
+        优化版本：减少重复解析，使用预解析版本对象进行批量条件检查。
     """
     range_str = range_str.strip()
     v = parse(version)
     
-    # 精确匹配
+    # 通配符匹配需要特殊处理（不使用 parse）
+    if "x" in range_str.lower() or "*" in range_str:
+        return _satisfies_wildcard(v, range_str)
+    
+    # 精确匹配 - 直接比较
     if SEMVER_PATTERN.match(range_str):
         return v == parse(range_str)
     
-    # 范围格式 "1.2.3 - 2.0.0"
+    # 范围格式 "1.2.3 - 2.0.0" - 检查边界
     if " - " in range_str:
         low, high = range_str.split(" - ", 1)
         return parse(low) <= v <= parse(high)
     
-    # 复合条件（空格分隔）
-    if " " in range_str and not any(op in range_str for op in ["~", "^", "*"]):
+    # 复合条件（空格分隔，不含特殊符号）
+    if " " in range_str and not any(range_str.startswith(s) for s in ["~", "^"]):
+        # 解析所有条件一次，避免重复解析
         parts = range_str.split()
-        return all(_satisfies_single(version, part) for part in parts)
+        
+        for part in parts:
+            # 先检查通配符
+            if "x" in part.lower() or "*" in part:
+                if not _satisfies_wildcard(v, part):
+                    return False
+                continue
+            
+            op, ver_str = _parse_condition(part)
+            ver = parse(ver_str)
+            if not _check_condition(v, op, ver):
+                return False
+        return True
     
     # 单一条件
-    return _satisfies_single(version, range_str)
+    op, ver_str = _parse_condition(range_str)
+    ver = parse(ver_str)
+    return _check_condition(v, op, ver)
 
 
-def _satisfies_single(version: str, range_str: str) -> bool:
-    """处理单一版本条件"""
-    v = parse(version)
+def _parse_condition(range_str: str) -> Tuple[str, str]:
+    """
+    解析单个条件，返回操作符和版本字符串
     
-    # 通配符匹配
+    Args:
+        range_str: 条件字符串
+    
+    Returns:
+        (操作符, 版本字符串)
+    """
+    # 通配符
     if "x" in range_str.lower() or "*" in range_str:
-        return _satisfies_wildcard(v, range_str)
+        return ("wildcard", range_str)
     
     # 插入号范围 ^
     if range_str.startswith("^"):
-        return _satisfies_caret(v, range_str[1:])
+        return ("caret", range_str[1:].strip())
     
     # 波浪号范围 ~
     if range_str.startswith("~"):
-        return _satisfies_tilde(v, range_str[1:])
+        return ("tilde", range_str[1:].strip())
     
     # 比较运算符
     if range_str.startswith(">="):
-        return v >= parse(range_str[2:].strip())
+        return ("gte", range_str[2:].strip())
     if range_str.startswith(">"):
-        return v > parse(range_str[1:].strip())
+        return ("gt", range_str[1:].strip())
     if range_str.startswith("<="):
-        return v <= parse(range_str[2:].strip())
+        return ("lte", range_str[2:].strip())
     if range_str.startswith("<"):
-        return v < parse(range_str[1:].strip())
+        return ("lt", range_str[1:].strip())
     if range_str.startswith("="):
-        return v == parse(range_str[1:].strip())
+        return ("eq", range_str[1:].strip())
     
     # 默认精确匹配
-    return v == parse(range_str)
+    return ("eq", range_str)
+
+
+def _check_condition(v: SemanticVersion, op: str, ver: SemanticVersion) -> bool:
+    """
+    检查版本是否满足单个条件
+    
+    Args:
+        v: 待检查版本
+        op: 操作符
+        ver: 条件版本
+    
+    Returns:
+        是否满足条件
+    """
+    if op == "wildcard":
+        return _satisfies_wildcard(v, ver.__str__())
+    elif op == "caret":
+        return _satisfies_caret(v, ver)
+    elif op == "tilde":
+        return _satisfies_tilde(v, ver)
+    elif op == "gte":
+        return v >= ver
+    elif op == "gt":
+        return v > ver
+    elif op == "lte":
+        return v <= ver
+    elif op == "lt":
+        return v < ver
+    elif op == "eq":
+        return v == ver
+    
+    return False
 
 
 def _satisfies_wildcard(v: SemanticVersion, range_str: str) -> bool:
@@ -535,38 +595,40 @@ def _satisfies_wildcard(v: SemanticVersion, range_str: str) -> bool:
     return False
 
 
-def _satisfies_caret(v: SemanticVersion, base: str) -> bool:
+def _satisfies_caret(v: SemanticVersion, base: SemanticVersion) -> bool:
     """
     插入号范围 ^
     ^1.2.3 := >=1.2.3 <2.0.0
     ^0.2.3 := >=0.2.3 <0.3.0
     ^0.0.3 := >=0.0.3 <0.0.4
+    
+    优化：直接使用预解析的版本对象
     """
-    base_v = parse(base)
-    if v < base_v:
+    if v < base:
         return False
     
-    if base_v.major != 0:
+    if base.major != 0:
         # ^1.2.3 -> <2.0.0
-        return v.major == base_v.major
-    elif base_v.minor != 0:
+        return v.major == base.major
+    elif base.minor != 0:
         # ^0.2.3 -> <0.3.0
-        return v.major == 0 and v.minor == base_v.minor
+        return v.major == 0 and v.minor == base.minor
     else:
         # ^0.0.3 -> <0.0.4
-        return v.major == 0 and v.minor == 0 and v.patch == base_v.patch
+        return v.major == 0 and v.minor == 0 and v.patch == base.patch
 
 
-def _satisfies_tilde(v: SemanticVersion, base: str) -> bool:
+def _satisfies_tilde(v: SemanticVersion, base: SemanticVersion) -> bool:
     """
     波浪号范围 ~
     ~1.2.3 := >=1.2.3 <1.3.0
+    
+    优化：直接使用预解析的版本对象
     """
-    base_v = parse(base)
-    if v < base_v:
+    if v < base:
         return False
     
-    return v.major == base_v.major and v.minor == base_v.minor
+    return v.major == base.major and v.minor == base.minor
 
 
 def max_satisfying(versions: List[str], range_str: str) -> Optional[str]:

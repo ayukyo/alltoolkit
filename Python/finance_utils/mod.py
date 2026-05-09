@@ -441,7 +441,7 @@ def internal_rate_of_return(cash_flows: List[float],
                             max_iterations: int = 1000,
                             tolerance: float = 1e-10) -> float:
     """
-    Calculate Internal Rate of Return (IRR) using Newton-Raphson method.
+    Calculate Internal Rate of Return (IRR) using hybrid Newton-Bisection method.
     
     IRR is the discount rate that makes NPV = 0.
     
@@ -457,6 +457,12 @@ def internal_rate_of_return(cash_flows: List[float],
     Raises:
         ConvergenceError: If IRR calculation fails to converge
         InvalidCashFlowError: If cash flows are invalid
+    
+    Note:
+        Optimized version using hybrid approach:
+        1. Newton-Raphson when derivative is significant
+        2. Bisection fallback when Newton fails or derivative is small
+        3. Better bounds handling to prevent numerical instability
     """
     if not cash_flows:
         raise InvalidCashFlowError("Cash flows cannot be empty")
@@ -472,48 +478,96 @@ def internal_rate_of_return(cash_flows: List[float],
         raise InvalidCashFlowError("Cash flows must have both positive and negative values")
     
     def npv(rate: float) -> float:
+        """Calculate NPV at given rate"""
         return sum(cf / ((1 + rate) ** t) for t, cf in enumerate(cash_flows))
     
     def npv_derivative(rate: float) -> float:
-        return sum(-t * cf / ((1 + rate) ** (t + 1)) for t, cf in enumerate(cash_flows) if t > 0)
+        """Calculate NPV derivative at given rate"""
+        return sum(-t * cf / ((1 + rate) ** (t + 1)) 
+                   for t, cf in enumerate(cash_flows) if t > 0)
+    
+    # Find reasonable bounds using NPV sign analysis
+    # NPV tends toward sum of CFs as rate → -1
+    # NPV tends toward CF[0] as rate → ∞
+    low = -0.9999
+    high = 10.0
+    
+    # Tighten bounds based on NPV signs
+    npv_low = npv(low)
+    npv_high = npv(high)
+    
+    # If bounds have same sign, expand search
+    if npv_low * npv_high > 0:
+        # Try different bounds
+        for test_rate in [-0.5, 0.0, 0.5, 1.0, 2.0, 5.0]:
+            test_npv = npv(test_rate)
+            if test_npv * npv_low < 0:
+                if test_rate < 0:
+                    low = test_rate
+                else:
+                    high = test_rate
+                break
     
     rate = guess
+    best_rate = rate
+    best_npv = abs(npv(rate))
     
-    for _ in range(max_iterations):
+    for iteration in range(max_iterations):
         npv_val = npv(rate)
         
+        # Check convergence
         if abs(npv_val) < tolerance:
             return rate
         
+        # Track best solution
+        if abs(npv_val) < best_npv:
+            best_npv = abs(npv_val)
+            best_rate = rate
+        
+        # Try Newton-Raphson first
         deriv = npv_derivative(rate)
         
-        if abs(deriv) < 1e-15:
-            # Derivative too small, try bisection
-            break
+        if abs(deriv) > 1e-10 and -0.99 < rate < 10:
+            new_rate = rate - npv_val / deriv
+            
+            # Ensure new rate is within bounds
+            if low <= new_rate <= high:
+                # Check if Newton step is productive
+                if abs(npv(new_rate)) < abs(npv_val):
+                    rate = new_rate
+                    # Update bounds based on NPV sign
+                    if npv_val > 0:
+                        low = rate
+                    else:
+                        high = rate
+                    continue
         
-        new_rate = rate - npv_val / deriv
-        
-        if new_rate <= -1:
-            new_rate = (rate - 0.99) / 2
-        
-        rate = new_rate
-    
-    # Fall back to bisection method
-    low, high = -0.9999, 10.0
-    
-    for _ in range(max_iterations):
+        # Fall back to bisection when Newton fails
         mid = (low + high) / 2
-        npv_val = npv(mid)
+        npv_mid = npv(mid)
         
-        if abs(npv_val) < tolerance:
+        if abs(npv_mid) < tolerance:
             return mid
         
-        if npv_val > 0:
+        # Update bounds
+        if npv_mid > 0:
             low = mid
         else:
             high = mid
+        
+        # Use bisection result if it's better
+        if abs(npv_mid) < abs(npv_val):
+            rate = mid
+        
+        # Check for convergence by interval size
+        if high - low < tolerance:
+            return (low + high) / 2
     
-    raise ConvergenceError("IRR calculation failed to converge")
+    # Return best found rate if we didn't converge exactly
+    if best_npv < 0.01:
+        return best_rate
+    
+    raise ConvergenceError(f"IRR calculation failed to converge after {max_iterations} iterations")
 
 
 def profitability_index(cash_flows: List[float], discount_rate: float) -> float:

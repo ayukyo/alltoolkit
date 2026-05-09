@@ -667,14 +667,37 @@ class Leaderboard:
     def __init__(self, name: str = "Leaderboard"):
         self.name = name
         self.players: Dict[str, Player] = {}
+        self._rank_cache: Dict[str, int] = {}
+        self._cache_valid: bool = False
     
     def add_player(self, player: Player) -> None:
         """添加玩家"""
         self.players[player.id] = player
+        self._cache_valid = False
     
     def remove_player(self, player_id: str) -> Optional[Player]:
         """移除玩家"""
-        return self.players.pop(player_id, None)
+        player = self.players.pop(player_id, None)
+        if player:
+            self._cache_valid = False
+        return player
+    
+    def _update_rank_cache(self) -> None:
+        """更新排名缓存（O(n) 操作，但之后 rank 查询变为 O(1)）"""
+        if self._cache_valid:
+            return
+        
+        sorted_players = sorted(
+            self.players.values(),
+            key=lambda p: p.rating,
+            reverse=True
+        )
+        
+        self._rank_cache = {}
+        for rank, player in enumerate(sorted_players, 1):
+            self._rank_cache[player.id] = rank
+        
+        self._cache_valid = True
     
     def get_player(self, player_id: str) -> Optional[Player]:
         """获取玩家"""
@@ -689,18 +712,16 @@ class Leaderboard:
         
         Returns:
             排名（1为最高），如果玩家不存在则返回 None
+        
+        Note:
+            使用缓存优化，使查询变为 O(1) 而不是 O(n)。
+            当排行榜更新时自动重建缓存。
         """
         if player_id not in self.players:
             return None
         
-        player_rating = self.players[player_id].rating
-        rank = 1
-        
-        for p in self.players.values():
-            if p.rating > player_rating:
-                rank += 1
-        
-        return rank
+        self._update_rank_cache()
+        return self._rank_cache.get(player_id)
     
     def get_top_players(self, n: int = 10) -> List[Player]:
         """
