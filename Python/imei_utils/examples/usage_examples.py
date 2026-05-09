@@ -1,251 +1,273 @@
 """
-IMEI Utilities - Usage Examples
+IMEI 工具模块使用示例
 
-This file demonstrates the key features of the IMEI utilities module.
-
-Run with: python usage_examples.py
+演示如何使用 imei_utils 模块处理国际移动设备识别码
 """
 
 import sys
 sys.path.insert(0, '..')
+
 from mod import (
-    validate, parse, format_imei, generate_random, generate_batch,
-    calculate_check_digit, get_tac_info, compare_imei, extract_digits,
-    IMEIValidator
+    validate_imei,
+    parse_imei,
+    format_imei,
+    generate_random_imei,
+    generate_batch_imeis,
+    get_imei_type,
+    compare_imeis,
+    extract_tac_info,
+    IMEIValidator,
+    TEST_TAC_SAMPLE
 )
 
 
-def print_section(title):
-    """Print a section header."""
-    print(f"\n{'=' * 50}")
-    print(f" {title}")
-    print('=' * 50)
-
-
 def example_validation():
-    """Demonstrate IMEI validation."""
-    print_section("IMEI Validation")
+    """示例：验证 IMEI"""
+    print("=" * 50)
+    print("IMEI 验证示例")
+    print("=" * 50)
     
-    # Valid IMEI (verified correct)
-    imei = "490154203237518"
-    print(f"Validating '{imei}':")
-    print(f"  Result: {validate(imei)}")
-    print()
+    # 生成有效 IMEI 用于演示
+    valid_imei = generate_random_imei(tac="35905001")
+    valid_formatted = f"{valid_imei[:8]}-{valid_imei[8:14]}-{valid_imei[14]}"
+    valid_spaced = f"{valid_imei[:8]} {valid_imei[8:14]} {valid_imei[14]}"
     
-    # IMEI with separators
-    imei_formatted = "49-015420-323751-8"
-    print(f"Validating '{imei_formatted}' (with separators):")
-    print(f"  Result: {validate(imei_formatted)}")
-    print()
+    # 创建无效 IMEI（修改校验位）
+    wrong_checksum = str((int(valid_imei[14]) + 1) % 10)
+    invalid_imei = valid_imei[:14] + wrong_checksum
     
-    # Invalid IMEI (wrong check digit)
-    imei_invalid = "490154203237519"
-    print(f"Validating '{imei_invalid}' (wrong check digit):")
-    print(f"  Result: {validate(imei_invalid)}")
+    test_imeis = [
+        valid_formatted,       # 有效，标准格式
+        valid_imei,            # 有效，无分隔符
+        valid_spaced,          # 有效，空格分隔
+        invalid_imei,          # 无效，校验位错误
+        "12345",               # 无效，长度错误
+        "imei123456789",       # 无效，包含字母
+    ]
+    
+    for imei in test_imeis:
+        result = "有效 ✓" if validate_imei(imei) else "无效 ✗"
+        print(f"  {imei:25s} -> {result}")
 
 
 def example_parsing():
-    """Demonstrate IMEI parsing."""
-    print_section("IMEI Parsing")
+    """示例：解析 IMEI"""
+    print("\n" + "=" * 50)
+    print("IMEI 解析示例")
+    print("=" * 50)
     
-    imei = "490154203237518"
-    result = parse(imei)
+    # 使用动态生成的有效 IMEI
+    imei = generate_random_imei(tac="35905001")
+    imei_formatted = f"{imei[:8]}-{imei[8:14]}-{imei[14]}"
+    parsed = parse_imei(imei_formatted)
     
-    print(f"Parsing '{imei}':")
-    print(f"  TAC (Type Allocation Code): {result['tac']}")
-    print(f"  SNR (Serial Number): {result['snr']}")
-    print(f"  Check Digit: {result['cd']}")
-    print(f"  Valid: {result['valid']}")
+    if parsed:
+        print(f"  原始 IMEI: {imei_formatted}")
+        print(f"  清理后:    {parsed['imei']}")
+        print(f"  TAC:       {parsed['tac']} (Type Allocation Code)")
+        print(f"  SNR:       {parsed['snr']} (Serial Number)")
+        print(f"  校验位:    {parsed['checksum']}")
+        print(f"  格式化:    {parsed['formatted']}")
 
 
 def example_formatting():
-    """Demonstrate IMEI formatting."""
-    print_section("IMEI Formatting")
+    """示例：格式化 IMEI"""
+    print("\n" + "=" * 50)
+    print("IMEI 格式化示例")
+    print("=" * 50)
     
-    imei = "490154203237518"
+    # 使用生成的有效 IMEI
+    clean_imei = generate_random_imei()
     
-    print(f"Original: {imei}")
-    print(f"Standard: {format_imei(imei, 'standard')}")
-    print(f"Dashed:   {format_imei(imei, 'dashed')}")
-    print(f"Compact:  {format_imei(imei, 'compact')}")
-    print(f"Spaced:   {format_imei(imei, 'spaced')}")
+    print(f"  原始:     {clean_imei}")
+    print(f"  标准格式: {format_imei(clean_imei)}")
+    print(f"  空格分隔: {format_imei(clean_imei, separator=' ')}")
+    print(f"  点分隔:   {format_imei(clean_imei, separator='.')}")
 
 
 def example_generation():
-    """Demonstrate IMEI generation."""
-    print_section("IMEI Generation")
+    """示例：生成随机 IMEI"""
+    print("\n" + "=" * 50)
+    print("随机 IMEI 生成示例")
+    print("=" * 50)
     
-    # Random IMEI
-    print("Generating random IMEI:")
-    imei = generate_random()
-    print(f"  Generated: {imei}")
-    print(f"  Valid: {validate(imei)}")
-    print()
+    # 随机生成
+    random_imei = generate_random_imei()
+    print(f"  随机 IMEI: {random_imei}")
+    print(f"  验证结果: {validate_imei(random_imei)}")
     
-    # With specific TAC
-    print("Generating IMEI with specific TAC (35209900):")
-    imei = generate_random("35209900")
-    print(f"  Generated: {imei}")
-    print(f"  Starts with TAC: {imei.startswith('35209900')}")
-    print()
+    # 使用指定 TAC 生成
+    custom_tac = "35905001"
+    custom_imei = generate_random_imei(tac=custom_tac)
+    print(f"\n  自定义 TAC: {custom_tac}")
+    print(f"  生成的 IMEI: {custom_imei}")
+    print(f"  以 TAC 开头: {custom_imei.startswith(custom_tac)}")
     
-    # Batch generation
-    print("Generating batch of 5 IMEIs:")
-    imeis = generate_batch(5)
-    for i, imei in enumerate(imeis, 1):
-        print(f"  {i}. {imei}")
+    # 批量生成
+    batch = generate_batch_imeis(5, tac=custom_tac)
+    print(f"\n  批量生成 5 个:")
+    for i, imei in enumerate(batch, 1):
+        print(f"    {i}. {imei}")
 
 
-def example_check_digit():
-    """Demonstrate check digit calculation."""
-    print_section("Check Digit Calculation")
+def example_device_type():
+    """示例：获取设备类型"""
+    print("\n" + "=" * 50)
+    print("设备类型判断示例")
+    print("=" * 50)
     
-    imei14 = "49015420323751"
-    cd = calculate_check_digit(imei14)
+    test_tacs = [
+        "00123456",  # 测试/假设备
+        "35123456",  # 常见移动设备
+        "86123456",  # 中国 TAC
+        "99123456",  # 测试/保留范围
+    ]
     
-    print(f"IMEI body (14 digits): {imei14}")
-    print(f"Calculated check digit: {cd}")
-    print(f"Complete IMEI: {imei14}{cd}")
-
-
-def example_tac_info():
-    """Demonstrate TAC information lookup."""
-    print_section("TAC Information")
-    
-    tac = "49015420"
-    info = get_tac_info(tac)
-    
-    print(f"TAC: {tac}")
-    print(f"  Reporting Body Identifier: {info['reporting_body_identifier']}")
-    print(f"  Type: {info['type']}")
+    for tac in test_tacs:
+        device_type = get_imei_type(tac)
+        print(f"  TAC {tac} -> {device_type}")
 
 
 def example_comparison():
-    """Demonstrate IMEI comparison."""
-    print_section("IMEI Comparison")
+    """示例：比较 IMEI"""
+    print("\n" + "=" * 50)
+    print("IMEI 比较示例")
+    print("=" * 50)
     
-    imei1 = "490154203237518"
-    imei2 = "490154203237518"
-    imei3 = "490154203237519"  # Invalid (wrong check digit)
+    # 使用动态生成的 IMEI
+    imei = generate_random_imei(tac="35905001")
+    imei1 = f"{imei[:8]}-{imei[8:14]}-{imei[14]}"  # 相同 IMEI，不同格式
+    imei2 = imei  # 无分隔符格式
     
-    print(f"Comparing '{imei1}' and '{imei2}':")
-    result = compare_imei(imei1, imei2)
-    print(f"  Match: {result['match']}")
-    print(f"  Same TAC: {result['same_tac']}")
-    print(f"  Same SNR: {result['same_snr']}")
-    print()
+    imei4 = generate_random_imei(tac="35905001")
+    imei5 = generate_random_imei(tac="35905001")
     
-    print(f"Comparing '{imei1}' and '{imei3}':")
-    result = compare_imei(imei1, imei3)
-    print(f"  Match: {result['match']}")
-    print(f"  Same TAC: {result['same_tac']}")
-    print(f"  Same SNR: {result['same_snr']}")
-    print(f"  First valid: {result['valid1']}")
-    print(f"  Second valid: {result['valid2']}")
+    result = compare_imeis(imei1, imei2)
+    print(f"  比较 '{imei1}' 和 '{imei2}':")
+    print(f"    相同: {result['are_equal']}")
+    print(f"    相同 TAC: {result['same_tac']}")
+    
+    result = compare_imeis(imei4, imei5)
+    print(f"\n  比较 '{imei4}' 和 '{imei5}':")
+    print(f"    相同: {result['are_equal']}")
+    print(f"    相同 TAC: {result['same_tac']}")
+    print(f"    同批次: {result['same_manufacturer_batch']}")
 
 
-def example_extraction():
-    """Demonstrate IMEI extraction from text."""
-    print_section("IMEI Extraction")
+def example_tac_info():
+    """示例：提取 TAC 信息"""
+    print("\n" + "=" * 50)
+    print("TAC 信息提取示例")
+    print("=" * 50)
     
-    # Generate valid IMEIs for extraction
-    imei1 = "490154203237518"
-    imei2 = generate_random("12345678")
+    test_tacs = ["35209009", "86123456", "01123456"]
     
-    text = f"""
-    Device Information:
-    - Model: Smartphone X
-    - IMEI 1: {imei1}
-    - IMEI 2: {imei2}
-    - Serial: ABC123
-    
-    Some other number: 123456789012345 (invalid check digit)
-    """
-    
-    print("Extracting IMEIs from text:")
-    print(text)
-    imeis = extract_digits(text)
-    print(f"Found {len(imeis)} valid IMEI(s):")
-    for imei in imeis:
-        print(f"  - {imei}")
+    for tac in test_tacs:
+        info = extract_tac_info(tac)
+        print(f"  TAC: {tac}")
+        print(f"    RBI: {info.get('rbi', 'N/A')}")
+        print(f"    报告体: {info.get('reporting_body', 'N/A')}")
+        print(f"    设备类型: {info.get('device_type', 'N/A')}")
+        print()
 
 
 def example_validator_class():
-    """Demonstrate the IMEIValidator class."""
-    print_section("IMEIValidator Class")
+    """示例：使用 IMEIValidator 类"""
+    print("=" * 50)
+    print("IMEIValidator 类示例")
+    print("=" * 50)
     
-    imei = "490154203237518"
-    validator = IMEIValidator(imei)
+    # 使用动态生成的有效 IMEI
+    imei = generate_random_imei(tac="35905001")
+    valid_imei = f"{imei[:8]}-{imei[8:14]}-{imei[14]}"
+    validator = IMEIValidator(valid_imei)
     
-    print(f"Creating validator for '{imei}':")
-    print(f"  Is valid: {validator.is_valid}")
+    print(f"  输入: {valid_imei}")
+    print(f"  是否有效: {validator.is_valid}")
     print(f"  TAC: {validator.tac}")
     print(f"  SNR: {validator.snr}")
-    print(f"  Check digit: {validator.check_digit}")
-    print(f"  Formatted (standard): {validator.format('standard')}")
-    print(f"  String representation: {str(validator)}")
-    print(f"  Repr: {repr(validator)}")
-    print()
+    print(f"  校验位: {validator.checksum}")
+    print(f"  格式化: {validator.formatted}")
+    print(f"  字符串: {str(validator)}")
+    print(f"  repr: {repr(validator)}")
     
-    # Invalid IMEI
-    print("Testing invalid IMEI:")
-    bad_validator = IMEIValidator("12345")
-    print(f"  Is valid: {bad_validator.is_valid}")
-    print(f"  TAC: {bad_validator.tac}")
+    print("\n  无效 IMEI 示例:")
+    invalid_validator = IMEIValidator("invalid-imei")
+    print(f"  输入: invalid-imei")
+    print(f"  是否有效: {invalid_validator.is_valid}")
+    print(f"  repr: {repr(invalid_validator)}")
 
 
 def example_real_world_scenario():
-    """Demonstrate a real-world use case."""
-    print_section("Real-World Scenario: Device Registration")
+    """示例：实际应用场景"""
+    print("\n" + "=" * 50)
+    print("实际应用场景")
+    print("=" * 50)
     
-    print("Scenario: Validating device IMEIs for registration\n")
+    print("\n场景 1: 设备注册验证")
+    print("-" * 40)
+    # 使用动态生成的有效 IMEI
+    imei = generate_random_imei(tac="35905001")
+    user_input = f"{imei[:8]}-{imei[8:14]}-{imei[14]}"
+    if validate_imei(user_input):
+        parsed = parse_imei(user_input)
+        print(f"  IMEI 有效！设备信息:")
+        print(f"    TAC (型号): {parsed['tac']}")
+        print(f"    SNR (序列): {parsed['snr']}")
+    else:
+        print("  IMEI 无效，请检查输入")
     
-    # Generate a valid IMEI for demonstration
-    valid_imei = generate_random("35209900")
+    print("\n场景 2: 测试数据生成")
+    print("-" * 40)
+    test_tac = "35905001"
+    test_imeis = generate_batch_imeis(3, tac=test_tac)
+    print(f"  生成 {len(test_imeis)} 个测试用 IMEI:")
+    for imei in test_imeis:
+        print(f"    {imei}")
     
-    # Simulating device registration
-    device_data = [
-        {"name": "Phone A", "imei": "49-015420-323751-8"},
-        {"name": "Phone B", "imei": "490154203237519"},  # Invalid
-        {"name": "Phone C", "imei": valid_imei},
+    print("\n场景 3: 批量验证")
+    print("-" * 40)
+    # 生成混合批次
+    valid1 = generate_random_imei()
+    valid2 = generate_random_imei()
+    invalid1 = valid1[:14] + str((int(valid1[14]) + 1) % 10)  # 错误校验位
+    
+    batch = [
+        valid1,       # 有效
+        invalid1,     # 无效（校验位错误）
+        valid2,       # 有效
+        "invalid",    # 无效
     ]
     
-    print("Processing devices:")
-    for device in device_data:
-        validator = IMEIValidator(device['imei'])
-        status = "✓ Valid" if validator.is_valid else "✗ Invalid"
-        print(f"\n{device['name']}:")
-        print(f"  IMEI: {device['imei']}")
-        print(f"  Status: {status}")
-        
-        if validator.is_valid:
-            print(f"  TAC: {validator.tac}")
-            print(f"  Formatted: {validator.format('standard')}")
-        else:
-            # Try to fix by recalculating check digit
-            clean = str(validator)
-            if len(clean) >= 14:
-                correct_cd = calculate_check_digit(clean[:14])
-                corrected = clean[:14] + str(correct_cd)
-                print(f"  Suggested correction: {corrected}")
-
-
-if __name__ == "__main__":
-    print("=" * 60)
-    print("        IMEI UTILITIES - USAGE EXAMPLES")
-    print("=" * 60)
+    valid_count = sum(1 for imei in batch if validate_imei(imei))
+    print(f"  总数: {len(batch)}")
+    print(f"  有效: {valid_count}")
+    print(f"  无效: {len(batch) - valid_count}")
     
+    print("\n场景 4: 设备溯源")
+    print("-" * 40)
+    device_imei = generate_random_imei(tac="86123456")
+    info = extract_tac_info(device_imei[:8])
+    print(f"  IMEI: {device_imei}")
+    print(f"  来源: {info.get('reporting_body', '未知')}")
+
+
+def main():
+    """主函数"""
     example_validation()
     example_parsing()
     example_formatting()
     example_generation()
-    example_check_digit()
-    example_tac_info()
+    example_device_type()
     example_comparison()
-    example_extraction()
+    example_tac_info()
     example_validator_class()
     example_real_world_scenario()
     
-    print("\n" + "=" * 60)
-    print("        All examples completed!")
-    print("=" * 60)
+    print("\n" + "=" * 50)
+    print("示例完成！")
+    print("=" * 50)
+
+
+if __name__ == "__main__":
+    main()

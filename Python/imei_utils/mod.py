@@ -1,481 +1,342 @@
 """
-IMEI Utilities - Validate, parse, and generate IMEI numbers
+IMEI 工具模块 - 国际移动设备识别码处理工具
 
-IMEI (International Mobile Equipment Identity) is a unique identifier
-for mobile devices. This module provides utilities for:
-- Validating IMEI numbers using Luhn algorithm
-- Parsing IMEI structure (TAC, SNR, Check Digit)
-- Calculating check digits
-- Generating random IMEI for testing
+功能:
+- IMEI 验证（Luhn算法）
+- IMEI 校验位计算
+- IMEI 解析（TAC、SNR、校验位）
+- 随机有效 IMEI 生成（测试用）
+- IMEI 格式化
 
-IMEI Structure (15 digits):
-- TAC (Type Allocation Code): First 8 digits
-- SNR (Serial Number): Next 6 digits
-- CD (Check Digit): Last 1 digit
-
-Example: 49-015420-323751-8
-    TAC: 49015420
-    SNR: 323751
-    CD: 8
-
-Author: AllToolkit
-Date: 2026-04-24
+作者: AllToolkit 自动生成
+日期: 2026-05-09
 """
 
 import random
 from typing import Optional, Dict, Tuple
 
 
-def luhn_checksum(number: str) -> int:
+def calculate_luhn_checksum(digits: str) -> int:
     """
-    Calculate Luhn checksum for a number string.
-    
-    The Luhn algorithm is used to validate various identification numbers
-    including IMEI, credit cards, etc.
+    使用 Luhn 算法计算校验位
     
     Args:
-        number: String of digits (without check digit)
-    
+        digits: 前14位数字字符串
+        
     Returns:
-        Checksum value (0-9)
-    
-    Example:
-        >>> luhn_checksum("49015420323751")
-        2
+        校验位 (0-9)
+        
+    Raises:
+        ValueError: 如果输入不是14位数字
     """
+    if not digits.isdigit() or len(digits) != 14:
+        raise ValueError("输入必须是14位数字")
+    
+    # 从右向左遍历，偶数位置乘以2
     total = 0
-    # Process from right to left
-    for i, digit in enumerate(reversed(number)):
-        d = int(digit)
-        # Double every second digit (from right, so odd positions from left)
-        if i % 2 == 0:
-            d *= 2
-            if d > 9:
-                d -= 9
-        total += d
-    return total % 10
+    digit_list = [int(d) for d in digits]
+    
+    # 从右向左，偶数位置（从右数第2,4,6...）乘以2
+    for i in range(len(digit_list) - 1, -1, -1):
+        # 计算从右向左的位置（1开始）
+        pos_from_right = len(digit_list) - i
+        if pos_from_right % 2 == 0:  # 偶数位置
+            digit_list[i] *= 2
+            if digit_list[i] > 9:
+                digit_list[i] -= 9
+        total += digit_list[i]
+    
+    # 校验位是让总和成为10的倍数的数
+    checksum = (10 - (total % 10)) % 10
+    return checksum
 
 
-def calculate_check_digit(imei14: str) -> int:
+def validate_imei(imei: str) -> bool:
     """
-    Calculate the check digit for a 14-digit IMEI body.
+    验证 IMEI 是否有效
     
     Args:
-        imei14: First 14 digits of IMEI (without check digit)
-    
+        imei: IMEI 字符串（15位数字，可包含分隔符）
+        
     Returns:
-        Check digit (0-9)
-    
-    Raises:
-        ValueError: If imei14 is not 14 digits
-    
-    Example:
-        >>> calculate_check_digit("49015420323751")
-        8
+        True 如果有效，False 否则
     """
-    if not imei14.isdigit():
-        raise ValueError("IMEI must contain only digits")
-    if len(imei14) != 14:
-        raise ValueError(f"IMEI body must be 14 digits, got {len(imei14)}")
+    # 移除分隔符
+    clean_imei = imei.replace('-', '').replace(' ', '')
     
-    checksum = luhn_checksum(imei14)
-    return (10 - checksum) % 10
-
-
-def validate(imei: str) -> bool:
-    """
-    Validate an IMEI number.
-    
-    Validates using Luhn algorithm and checks format.
-    Accepts IMEI with or without separators.
-    
-    Args:
-        imei: IMEI number (15 digits, optionally with separators)
-    
-    Returns:
-        True if valid, False otherwise
-    
-    Example:
-        >>> validate("490154203237518")
-        True
-        >>> validate("49-015420-323751-8")
-        True
-        >>> validate("490154203237519")
-        False
-    """
-    # Remove separators
-    clean_imei = ''.join(c for c in imei if c.isdigit())
-    
-    if len(clean_imei) != 15:
+    # 检查格式
+    if not clean_imei.isdigit() or len(clean_imei) != 15:
         return False
     
-    if not clean_imei.isdigit():
+    # 使用 Luhn 算法验证
+    digits = clean_imei[:14]
+    checksum = clean_imei[14]
+    
+    try:
+        expected = calculate_luhn_checksum(digits)
+        return int(checksum) == expected
+    except ValueError:
         return False
-    
-    # Verify check digit
-    imei14 = clean_imei[:14]
-    expected_cd = calculate_check_digit(imei14)
-    actual_cd = int(clean_imei[14])
-    
-    return expected_cd == actual_cd
 
 
-def parse(imei: str) -> Dict[str, str]:
+def parse_imei(imei: str) -> Optional[Dict[str, str]]:
     """
-    Parse an IMEI number and return its components.
+    解析 IMEI，提取各部分信息
+    
+    IMEI 结构 (15位):
+    - TAC (Type Allocation Code): 前8位，设备型号识别
+    - SNR (Serial Number): 中间6位，序列号
+    - CD (Check Digit): 最后1位，校验位
     
     Args:
-        imei: IMEI number (15 digits, optionally with separators)
-    
+        imei: IMEI 字符串
+        
     Returns:
-        Dictionary with keys:
-        - tac: Type Allocation Code (8 digits)
-        - snr: Serial Number (6 digits)
-        - cd: Check Digit (1 digit)
-        - valid: Whether the IMEI is valid
-    
-    Raises:
-        ValueError: If IMEI format is invalid
-    
-    Example:
-        >>> parse("490154203237518")
-        {'tac': '49015420', 'snr': '323751', 'cd': '8', 'valid': True}
+        包含解析结果的字典，或 None 如果无效
     """
-    # Remove separators
-    clean_imei = ''.join(c for c in imei if c.isdigit())
+    clean_imei = imei.replace('-', '').replace(' ', '')
     
-    if len(clean_imei) != 15:
-        raise ValueError(f"IMEI must be 15 digits, got {len(clean_imei)}")
-    
-    if not clean_imei.isdigit():
-        raise ValueError("IMEI must contain only digits")
+    if not validate_imei(clean_imei):
+        return None
     
     return {
-        'tac': clean_imei[:8],
-        'snr': clean_imei[8:14],
-        'cd': clean_imei[14],
-        'valid': validate(clean_imei)
+        'imei': clean_imei,
+        'tac': clean_imei[:8],      # Type Allocation Code
+        'snr': clean_imei[8:14],    # Serial Number
+        'checksum': clean_imei[14], # Check Digit
+        'formatted': format_imei(clean_imei)
     }
 
 
-def format_imei(imei: str, style: str = 'standard') -> str:
+def format_imei(imei: str, separator: str = '-') -> str:
     """
-    Format an IMEI number in different styles.
+    格式化 IMEI 显示
+    
+    标准格式: TAC-SNR-CD (8-6-1)
+    例如: 35-209009-176548-3
     
     Args:
-        imei: IMEI number (15 digits, optionally with separators)
-        style: Format style ('standard', 'compact', 'dashed')
-            - standard: AA-BBBBBB-CCCCCC-D (e.g., 35-209900-176148-8)
-            - compact: AABBBBBBCCCCCCD (no separators)
-            - dashed: AA-BBBBBB-CCCCCC-D
-            - spaced: AA BBBBBB CCCCCC D
-    
+        imei: IMEI 字符串
+        separator: 分隔符，默认为 '-'
+        
     Returns:
-        Formatted IMEI string
-    
-    Raises:
-        ValueError: If IMEI is invalid or style is unknown
-    
-    Example:
-        >>> format_imei("490154203237518", "standard")
-        '49-015420-323751-8'
-        >>> format_imei("490154203237518", "spaced")
-        '49 015420 323751 8'
+        格式化后的 IMEI
     """
-    # Remove separators
-    clean_imei = ''.join(c for c in imei if c.isdigit())
+    clean_imei = imei.replace('-', '').replace(' ', '')
     
-    if len(clean_imei) != 15:
-        raise ValueError(f"IMEI must be 15 digits, got {len(clean_imei)}")
+    if not clean_imei.isdigit() or len(clean_imei) != 15:
+        raise ValueError("IMEI 必须是15位数字")
     
-    tac = clean_imei[:8]
-    snr = clean_imei[8:14]
-    cd = clean_imei[14]
-    
-    if style == 'compact':
-        return clean_imei
-    elif style in ('standard', 'dashed'):
-        return f"{tac[:2]}-{tac[2:8]}-{snr}-{cd}"
-    elif style == 'spaced':
-        return f"{tac[:2]} {tac[2:8]} {snr} {cd}"
-    else:
-        raise ValueError(f"Unknown style: {style}")
+    return f"{clean_imei[:8]}{separator}{clean_imei[8:14]}{separator}{clean_imei[14]}"
 
 
-def generate_random(tac: Optional[str] = None) -> str:
+def generate_random_imei(tac: Optional[str] = None) -> str:
     """
-    Generate a random valid IMEI number.
-    
-    Useful for testing purposes. Generated IMEI will pass Luhn validation.
+    生成随机有效 IMEI（仅用于测试目的）
     
     Args:
-        tac: Optional 8-digit TAC (Type Allocation Code).
-             If not provided, a random TAC will be generated.
-    
+        tac: 可选的8位 TAC 码，如果不提供则随机生成
+        
     Returns:
-        15-digit valid IMEI number
-    
-    Raises:
-        ValueError: If TAC is provided but not 8 digits
-    
-    Example:
-        >>> imei = generate_random()
-        >>> validate(imei)
-        True
-        >>> imei = generate_random("35209900")
-        >>> imei.startswith("35209900")
-        True
+        15位有效 IMEI 字符串
+        
+    Note:
+        此函数仅用于测试，生成的 IMEI 不对应真实设备
     """
-    if tac is None:
-        # Generate random TAC (8 digits)
-        tac = ''.join(str(random.randint(0, 9)) for _ in range(8))
-    else:
+    # 生成或验证 TAC
+    if tac:
         if not tac.isdigit() or len(tac) != 8:
-            raise ValueError("TAC must be 8 digits")
+            raise ValueError("TAC 必须是8位数字")
+    else:
+        # 使用测试范围的 TAC (35xxxxxx 常见用于测试)
+        tac = ''.join([str(random.randint(0, 9)) for _ in range(8)])
     
-    # Generate random SNR (6 digits)
-    snr = ''.join(str(random.randint(0, 9)) for _ in range(6))
+    # 生成6位序列号
+    snr = ''.join([str(random.randint(0, 9)) for _ in range(6)])
     
-    # Calculate check digit
-    imei14 = tac + snr
-    cd = calculate_check_digit(imei14)
+    # 组合前14位
+    digits = tac + snr
     
-    return imei14 + str(cd)
+    # 计算校验位
+    checksum = calculate_luhn_checksum(digits)
+    
+    return digits + str(checksum)
 
 
-def generate_batch(count: int, tac: Optional[str] = None) -> list:
+def generate_batch_imeis(count: int, tac: Optional[str] = None) -> list:
     """
-    Generate multiple random valid IMEI numbers.
+    批量生成随机有效 IMEI（仅用于测试）
     
     Args:
-        count: Number of IMEI numbers to generate
-        tac: Optional 8-digit TAC for all generated IMEIs
-    
+        count: 生成数量
+        tac: 可选的8位 TAC 码
+        
     Returns:
-        List of valid IMEI numbers
-    
-    Example:
-        >>> imeis = generate_batch(5)
-        >>> len(imeis)
-        5
-        >>> all(validate(imei) for imei in imeis)
-        True
+        IMEI 字符串列表
+        
+    Raises:
+        ValueError: 如果数量不在 1-10000 范围内
     """
-    return [generate_random(tac) for _ in range(count)]
+    if count < 1 or count > 10000:
+        raise ValueError("数量必须在 1-10000 之间")
+    
+    return [generate_random_imei(tac) for _ in range(count)]
 
 
-def get_tac_info(tac: str) -> Dict[str, str]:
+def get_imei_type(tac: str) -> str:
     """
-    Get basic information about a TAC (Type Allocation Code).
+    根据 TAC 获取设备类型描述（简化版）
     
-    Note: This is a simplified lookup. Real TAC databases are much larger
-    and require external data sources.
+    注意：完整的 TAC 数据库需要外部数据源，
+    这里仅提供基本的范围判断
     
     Args:
-        tac: 8-digit TAC code
-    
+        tac: 8位 TAC 码
+        
     Returns:
-        Dictionary with TAC information:
-        - tac: The TAC code
-        - reporting_body_identifier: First 2 digits
-        - type: 'standard' or 'unknown'
-    
-    Example:
-        >>> info = get_tac_info("49015420")
-        >>> info['reporting_body_identifier']
-        '49'
+        设备类型描述
     """
     if not tac.isdigit() or len(tac) != 8:
-        raise ValueError("TAC must be 8 digits")
+        return "无效的 TAC"
     
-    # Reporting Body Identifier (first 2 digits)
-    # Common values:
-    # 01, 10: DECT devices
-    # 35: GSM devices
-    # 44: UK devices
-    # 45: Denmark
-    # etc.
+    # 常见测试 TAC 范围
+    tac_int = int(tac[:2])
+    
+    if tac.startswith('00'):
+        return "测试/假设备"
+    elif 35 <= tac_int <= 44:
+        return "常见移动设备"
+    elif 86 <= tac_int <= 99:
+        return "测试/保留范围"
+    else:
+        return "标准分配"
+
+
+def compare_imeis(imei1: str, imei2: str) -> Dict[str, any]:
+    """
+    比较两个 IMEI
+    
+    Args:
+        imei1: 第一个 IMEI
+        imei2: 第二个 IMEI
+        
+    Returns:
+        包含比较结果的字典
+    """
+    clean1 = imei1.replace('-', '').replace(' ', '')
+    clean2 = imei2.replace('-', '').replace(' ', '')
+    
+    result = {
+        'imei1_valid': validate_imei(clean1),
+        'imei2_valid': validate_imei(clean2),
+        'are_equal': clean1 == clean2,
+        'same_tac': clean1[:8] == clean2[:8] if len(clean1) >= 8 and len(clean2) >= 8 else False,
+        'same_manufacturer_batch': clean1[:10] == clean2[:10] if len(clean1) >= 10 and len(clean2) >= 10 else False
+    }
+    
+    return result
+
+
+def extract_tac_info(tac: str) -> Dict[str, str]:
+    """
+    从 TAC 提取基本信息
+    
+    TAC 前2位通常代表报告体标识符（Reporting Body Identifier）
+    
+    Args:
+        tac: 8位 TAC 码
+        
+    Returns:
+        包含 TAC 信息的字典
+    """
+    if not tac.isdigit() or len(tac) != 8:
+        return {'error': 'TAC 必须是8位数字'}
+    
+    # Reporting Body Identifier (RBI) - 前2位
     rbi = tac[:2]
     
-    # Simplified classification
-    tac_type = 'unknown'
-    if rbi == '35':
-        tac_type = 'gsm_standard'
-    elif rbi in ('01', '10'):
-        tac_type = 'dect_device'
-    elif rbi == '44':
-        tac_type = 'uk_device'
+    # 常见 RBI 对应的报告体
+    rbi_map = {
+        '01': 'CTIA (美国)',
+        '35': 'GSMA (全球)',
+        '44': 'PTCRB (北美)',
+        '50': 'GCF (全球认证论坛)',
+        '86': '中国 (TAF)',
+    }
+    
+    reporting_body = rbi_map.get(rbi, '未知报告体')
     
     return {
         'tac': tac,
-        'reporting_body_identifier': rbi,
-        'type': tac_type
+        'rbi': rbi,
+        'reporting_body': reporting_body,
+        'device_type': get_imei_type(tac)
     }
-
-
-def compare_imei(imei1: str, imei2: str) -> Dict[str, any]:
-    """
-    Compare two IMEI numbers and return comparison result.
-    
-    Args:
-        imei1: First IMEI number
-        imei2: Second IMEI number
-    
-    Returns:
-        Dictionary with comparison results:
-        - match: Whether IMEIs are identical
-        - same_tac: Whether TAC codes match
-        - same_snr: Whether serial numbers match
-        - valid1: Whether imei1 is valid
-        - valid2: Whether imei2 is valid
-    
-    Example:
-        >>> compare_imei("490154203237518", "490154203237519")
-        {'match': False, 'same_tac': True, 'same_snr': True, ...}
-    """
-    clean1 = ''.join(c for c in imei1 if c.isdigit())
-    clean2 = ''.join(c for c in imei2 if c.isdigit())
-    
-    if len(clean1) != 15 or len(clean2) != 15:
-        return {
-            'match': False,
-            'same_tac': False,
-            'same_snr': False,
-            'valid1': False,
-            'valid2': False,
-            'error': 'Invalid IMEI format'
-        }
-    
-    tac1, tac2 = clean1[:8], clean2[:8]
-    snr1, snr2 = clean1[8:14], clean2[8:14]
-    
-    return {
-        'match': clean1 == clean2,
-        'same_tac': tac1 == tac2,
-        'same_snr': snr1 == snr2,
-        'valid1': validate(clean1),
-        'valid2': validate(clean2)
-    }
-
-
-def extract_digits(text: str) -> list:
-    """
-    Extract potential IMEI numbers from text.
-    
-    Finds sequences of 15 digits that could be IMEI numbers.
-    
-    Args:
-        text: Text to search for IMEI numbers
-    
-    Returns:
-        List of potential IMEI numbers found (validated)
-    
-    Example:
-        >>> extract_digits("Device IMEI: 490154203237518 and 123456789012345")
-        ['490154203237518']
-    """
-    import re
-    
-    # Find all sequences of 15 digits
-    pattern = r'\d{15}'
-    matches = re.findall(pattern, text)
-    
-    # Filter to only valid IMEIs
-    valid_imeis = [m for m in matches if validate(m)]
-    
-    return valid_imeis
 
 
 class IMEIValidator:
     """
-    Class-based IMEI validator for repeated validations.
+    IMEI 验证器类
     
-    Provides a fluent interface for IMEI validation and manipulation.
-    
-    Example:
-        >>> validator = IMEIValidator("490154203237518")
-        >>> validator.is_valid
-        True
-        >>> validator.tac
-        '49015420'
+    提供面向对象的 IMEI 处理接口
     """
     
     def __init__(self, imei: str):
         """
-        Initialize validator with an IMEI number.
+        初始化验证器
         
         Args:
-            imei: IMEI number to validate
+            imei: IMEI 字符串
         """
-        self._raw = imei
-        self._clean = ''.join(c for c in imei if c.isdigit())
-        self._parsed = None
-        
-        if len(self._clean) == 15:
-            try:
-                self._parsed = parse(self._clean)
-            except ValueError:
-                pass
+        self._raw_imei = imei
+        self._clean_imei = imei.replace('-', '').replace(' ', '')
+        self._parsed = parse_imei(imei)
     
     @property
     def is_valid(self) -> bool:
-        """Check if IMEI is valid."""
-        return self._parsed is not None and self._parsed['valid']
+        """检查 IMEI 是否有效"""
+        return self._parsed is not None
     
     @property
     def tac(self) -> Optional[str]:
-        """Get TAC (Type Allocation Code)."""
+        """获取 TAC 码"""
         return self._parsed['tac'] if self._parsed else None
     
     @property
     def snr(self) -> Optional[str]:
-        """Get SNR (Serial Number)."""
+        """获取序列号"""
         return self._parsed['snr'] if self._parsed else None
     
     @property
-    def check_digit(self) -> Optional[str]:
-        """Get check digit."""
-        return self._parsed['cd'] if self._parsed else None
+    def checksum(self) -> Optional[str]:
+        """获取校验位"""
+        return self._parsed['checksum'] if self._parsed else None
     
-    def format(self, style: str = 'standard') -> str:
-        """Format the IMEI in the specified style."""
-        if not self._parsed:
-            raise ValueError("Cannot format invalid IMEI")
-        return format_imei(self._clean, style)
-    
-    def __repr__(self) -> str:
-        status = "valid" if self.is_valid else "invalid"
-        return f"IMEIValidator({self._clean}, {status})"
+    @property
+    def formatted(self) -> Optional[str]:
+        """获取格式化的 IMEI"""
+        return self._parsed['formatted'] if self._parsed else None
     
     def __str__(self) -> str:
-        return self._clean if self._clean else self._raw
+        return self._clean_imei
+    
+    def __repr__(self) -> str:
+        status = "有效" if self.is_valid else "无效"
+        return f"IMEIValidator('{self._clean_imei}' - {status})"
+
+
+# 模块级别的便捷常量
+TEST_TAC_SAMPLE = "35905001"  # 示例测试用 TAC
 
 
 if __name__ == "__main__":
-    # Demo
-    print("=" * 50)
-    print("IMEI Utilities Demo")
-    print("=" * 50)
+    # 简单测试
+    test_imei = "35-209009-176548-3"
+    print(f"验证 IMEI {test_imei}: {validate_imei(test_imei)}")
     
-    # Validate
-    test_imei = "490154203237518"
-    print(f"\nValidating {test_imei}: {validate(test_imei)}")
+    parsed = parse_imei(test_imei)
+    if parsed:
+        print(f"解析结果: TAC={parsed['tac']}, SNR={parsed['snr']}, 校验位={parsed['checksum']}")
     
-    # Parse
-    parsed = parse(test_imei)
-    print(f"Parsed: TAC={parsed['tac']}, SNR={parsed['snr']}, CD={parsed['cd']}")
-    
-    # Format
-    print(f"Standard format: {format_imei(test_imei, 'standard')}")
-    print(f"Compact format: {format_imei(test_imei, 'compact')}")
-    
-    # Generate
-    random_imei = generate_random()
-    print(f"\nGenerated random IMEI: {random_imei}")
-    print(f"Valid: {validate(random_imei)}")
-    
-    # Class-based
-    validator = IMEIValidator(test_imei)
-    print(f"\nClass-based validator: {validator}")
-    print(f"Is valid: {validator.is_valid}")
-    print(f"TAC: {validator.tac}")
+    random_imei = generate_random_imei()
+    print(f"随机生成 IMEI: {random_imei} (有效: {validate_imei(random_imei)})")
