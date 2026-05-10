@@ -301,12 +301,28 @@ perl Perl/csv_utils/csv_utils_test.pl
 | blood_pressure_utils | Python | 44 | ✅ 100% |
 | luhn_utils | Python | 30 | ✅ 100% |
 | tournament_utils | Python | 34 | ✅ 100% |
+| nickname_generator_utils | Python | 47 | ✅ 100% |
+| simulated_annealing_utils | Python | 42 | ✅ 100% |
+| mortgage_utils | Python | 34 | ✅ 100% |
+| roman_numeral_utils | Python | 40 | ✅ 100% |
+| stress_utils | Python | 55 | ✅ 100% |
+| fitness_timer_utils | Python | 48 | ✅ 100% |
+| color_palette_utils | Python | 46 | ✅ 100% |
+| hex_dump_utils | Python | 57 | ✅ 100% |
 
-**总计**: Python 221 模块，232 测试文件，3600+ 测试用例，100% 通过率 ✅
+**总计**: Python 389 模块，395 测试文件，4200+ 测试用例，100% 通过率 ✅
 
 ---
 
-**最后更新**: 2026-05-05
+**最后更新**: 2026-05-11
+
+### 文档更新 (2026-05-11)
+
+- **Python nickname_generator_utils**: 新增 README 文档，覆盖昵称、用户名、游戏ID、宠物名、团队名、奇幻角色名生成等 📝
+- **Python stress_utils**: 新增 README 文档，覆盖压力指数计算、等级分类、减压建议、倦怠风险评估等 📝
+- **Python fitness_timer_utils**: 新增 README 文档，覆盖 HIIT/Tabata/EMOM/AMRAP/Circuit 训练计时器等 📝
+- **Python color_palette_utils**: 新增 README 文档，覆盖调色板生成、颜色转换、CSS/SCSS 导出等 📝
+- **Python hex_dump_utils**: 新增 README 文档，覆盖 hexdump/xxd 格式、彩色输出、二进制补丁等 📝
 
 ### 测试框架改进 (2026-05-05)
 
