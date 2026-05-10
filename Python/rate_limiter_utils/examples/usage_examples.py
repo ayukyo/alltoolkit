@@ -1,326 +1,375 @@
 """
 Rate Limiter Utils 使用示例
 
-演示各种速率限制算法的使用场景。
+演示各种限流算法和场景应用。
 """
 
 import time
 import threading
 from mod import (
-    TokenBucket,
-    LeakyBucket,
-    SlidingWindow,
-    FixedWindow,
-    RateLimiter,
-    MultiRateLimiter,
-    create_token_bucket,
-    create_sliding_window,
+    TokenBucket, LeakyBucket, SlidingWindow, FixedWindow,
+    RateLimiter, RateLimitExceeded, MultiRateLimiter,
+    create_rate_limiter, rate_limit
 )
 
 
 def example_token_bucket():
-    """
-    令牌桶示例 - API请求限流
+    """令牌桶示例 - 适合需要突发流量的场景"""
+    print("\n" + "="*60)
+    print("=== 令牌桶 (Token Bucket) 示例 ===")
+    print("特点：允许突发流量，平滑限流")
+    print("="*60)
     
-    场景：允许一定程度的突发流量
-    """
-    print("=" * 50)
-    print("令牌桶示例 - API请求限流")
-    print("=" * 50)
+    # 创建容量10，每秒补充2个令牌的桶
+    bucket = TokenBucket(capacity=10, refill_rate=2)
     
-    # 创建容量100，每秒填充10个令牌的桶
-    bucket = TokenBucket(capacity=100, refill_rate=10.0)
+    print(f"\n初始状态：容量={bucket.capacity}, 可用={bucket.available:.0f}")
     
-    print(f"初始可用令牌: {bucket.available:.1f}")
+    # 突发请求演示
+    print("\n--- 突发请求演示 ---")
+    results = []
+    for i in range(15):
+        success = bucket.acquire(1)
+        results.append((i+1, success, bucket.available))
+        status = "✓ 成功" if success else "✗ 被限流"
+        print(f"请求 {i+1:2d}: {status} (剩余: {bucket.available:.1f})")
     
-    # 突发请求：一次消耗50个
-    print("\n突发请求50个...")
-    if bucket.acquire(50):
-        print("✓ 成功获取50个令牌")
-    print(f"剩余令牌: {bucket.available:.1f}")
+    print("\n等待令牌补充...")
+    time.sleep(2.0)  # 等待补充约4个令牌
+    print(f"补充后可用: {bucket.available:.1f}")
     
-    # 小请求
-    print("\n小请求10个...")
-    if bucket.acquire(10):
-        print("✓ 成功获取10个令牌")
-    print(f"剩余令牌: {bucket.available:.1f}")
-    
-    # 超出容量的请求
-    print("\n尝试获取100个令牌...")
-    if not bucket.acquire(100):
-        print("✗ 令牌不足，请求被拒绝")
-    
-    # 等待令牌填充
-    print("\n等待2秒让令牌填充...")
-    time.sleep(2)
-    print(f"当前可用令牌: {bucket.available:.1f}")
-    
-    # 再次尝试
-    if bucket.acquire(20):
-        print("✓ 成功获取20个令牌")
+    # 再次请求
+    print("\n--- 等待后请求 ---")
+    for i in range(5):
+        success = bucket.acquire(1)
+        status = "✓ 成功" if success else "✗ 被限流"
+        print(f"请求 {i+1}: {status} (剩余: {bucket.available:.1f})")
 
 
 def example_leaky_bucket():
-    """
-    漏桶示例 - 网络流量整形
+    """漏桶示例 - 适合需要固定输出速率的场景"""
+    print("\n" + "="*60)
+    print("=== 漏桶 (Leaky Bucket) 示例 ===")
+    print("特点：固定输出速率，严格限流")
+    print("="*60)
     
-    场景：平滑输出，防止网络拥塞
-    """
-    print("\n" + "=" * 50)
-    print("漏桶示例 - 网络流量整形")
-    print("=" * 50)
+    # 创建容量10，每秒处理2个请求的桶
+    bucket = LeakyBucket(capacity=10, leak_rate=2)
     
-    # 创建容量50，每秒漏出10个请求的桶
-    bucket = LeakyBucket(capacity=50, leak_rate=10.0)
+    print(f"\n初始状态：容量={bucket.capacity}, 可用空间={bucket.available:.0f}")
     
-    print(f"初始可用容量: {bucket.available:.1f}")
-    
-    # 模拟请求到达
-    print("\n模拟请求到达...")
-    for i in range(15):
-        if bucket.acquire(1):
-            print(f"  请求 {i+1}: ✓ 已接受")
-        else:
-            print(f"  请求 {i+1}: ✗ 被拒绝（桶满）")
-    
-    print(f"\n当前水量: {50 - bucket.available:.1f}")
+    # 快速填满桶
+    print("\n--- 快速填满桶 ---")
+    for i in range(12):
+        success = bucket.acquire(1)
+        status = "✓ 成功" if success else "✗ 桶已满"
+        print(f"请求 {i+1:2d}: {status} (可用空间: {bucket.available:.0f})")
     
     # 等待漏水
-    print("等待1秒让水漏出...")
-    time.sleep(1)
-    print(f"当前水量: {50 - bucket.available:.1f}")
-    print(f"当前可用容量: {bucket.available:.1f}")
+    print("\n等待桶处理请求...")
+    time.sleep(1.0)  # 漏约2个请求
+    print(f"处理后可用空间: {bucket.available:.1f}")
 
 
 def example_sliding_window():
-    """
-    滑动窗口示例 - 用户请求限制
+    """滑动窗口示例 - 适合需要精确限流的场景"""
+    print("\n" + "="*60)
+    print("=== 滑动窗口 (Sliding Window) 示例 ===")
+    print("特点：精确计数，无边界突发问题")
+    print("="*60)
     
-    场景：精确控制用户在时间窗口内的请求数
-    """
-    print("\n" + "=" * 50)
-    print("滑动窗口示例 - 用户请求限制")
-    print("=" * 50)
+    # 创建1秒内最多5个请求的窗口
+    window = SlidingWindow(max_requests=5, window_seconds=1.0)
     
-    # 限制：10秒内最多5个请求
-    window = SlidingWindow(max_requests=5, window_seconds=10.0)
+    print(f"\n初始状态：最大请求={window.max_requests}, 可用={window.available:.0f}")
     
-    print("限制：10秒内最多5个请求")
-    print(f"窗口大小: {window.window_seconds}秒")
+    # 快速请求
+    print("\n--- 快速请求 ---")
+    for i in range(8):
+        success = window.acquire(1)
+        status = "✓ 成功" if success else "✗ 被限流"
+        print(f"请求 {i+1}: {status} (剩余配额: {window.available:.0f})")
     
-    # 模拟用户请求
-    for i in range(7):
-        result = "✓ 允许" if window.acquire(1) else "✗ 拒绝"
-        count = window.current_count
-        print(f"  请求 {i+1}: {result} (当前窗口: {count}个)")
+    # 等待窗口滑动
+    print("\n等待窗口滑动...")
+    time.sleep(1.1)
+    print(f"窗口重置后可用: {window.available:.0f}")
     
-    print(f"\n当前窗口内请求数: {window.current_count}")
-    print(f"剩余可用: {window.available:.0f}")
-    
-    # 等待部分窗口时间
-    print("\n等待5秒...")
-    time.sleep(5)
-    print(f"当前窗口内请求数: {window.current_count}")
+    # 再次请求
+    print("\n--- 窗口重置后请求 ---")
+    for i in range(3):
+        success = window.acquire(1)
+        status = "✓ 成功" if success else "✗ 被限流"
+        print(f"请求 {i+1}: {status} (剩余配额: {window.available:.0f})")
 
 
 def example_fixed_window():
-    """
-    固定窗口示例 - 简单的访问计数
+    """固定窗口示例 - 适合简单高效的限流场景"""
+    print("\n" + "="*60)
+    print("=== 固定窗口 (Fixed Window) 示例 ===")
+    print("特点：实现简单，内存消耗低")
+    print("注意：存在边界突发问题")
+    print("="*60)
     
-    场景：简单的API配额限制
-    """
-    print("\n" + "=" * 50)
-    print("固定窗口示例 - 简单的访问计数")
-    print("=" * 50)
+    # 创建1秒内最多5个请求的窗口
+    window = FixedWindow(max_requests=5, window_seconds=1.0)
     
-    # 限制：每分钟最多60个请求
-    window = FixedWindow(max_requests=60, window_seconds=60.0)
+    print(f"\n初始状态：最大请求={window.max_requests}, 可用={window.available:.0f}")
     
-    print("限制：每分钟最多60个请求")
+    # 快速请求
+    print("\n--- 快速请求 ---")
+    for i in range(8):
+        success = window.acquire(1)
+        status = "✓ 成功" if success else "✗ 被限流"
+        print(f"请求 {i+1}: {status} (剩余配额: {window.available:.0f})")
     
-    # 模拟一批请求
-    print("\n发送30个请求...")
-    for _ in range(30):
-        window.acquire(1)
-    
-    print(f"当前窗口请求数: {window.current_count}")
-    print(f"剩余配额: {window.available:.0f}")
-    print(f"距窗口重置: {window.time_until_reset:.1f}秒")
+    # 等待新窗口
+    print("\n等待新窗口...")
+    time.sleep(1.1)
+    print(f"新窗口可用: {window.available:.0f}")
 
 
-def example_rate_limiter():
-    """
-    综合速率限制器示例 - 装饰器用法
-    """
-    print("\n" + "=" * 50)
-    print("综合速率限制器示例 - 装饰器用法")
-    print("=" * 50)
+def example_universal_rate_limiter():
+    """通用速率限制器示例"""
+    print("\n" + "="*60)
+    print("=== 通用速率限制器 (RateLimiter) 示例 ===")
+    print("="*60)
     
-    # 创建限制器：每秒最多3个请求
-    limiter = RateLimiter(max_requests=3, window_seconds=1.0,
-                          algorithm=RateLimiter.ALGORITHM_TOKEN_BUCKET)
+    algorithms = ['token_bucket', 'sliding_window', 'fixed_window', 'leaky_bucket']
     
-    @limiter.limit(on_limit=lambda: {"status": "rate_limited", "retry_after": 1})
-    def api_endpoint():
-        return {"status": "success", "data": "some data"}
+    for algo in algorithms:
+        print(f"\n--- {algo} 算法 ---")
+        limiter = RateLimiter(max_requests=5, window_seconds=1.0, algorithm=algo)
+        
+        for i in range(7):
+            success = limiter.acquire(1)
+            status = "✓" if success else "✗"
+            print(f"  请求 {i+1}: {status}")
+
+
+def example_context_manager():
+    """上下文管理器示例"""
+    print("\n" + "="*60)
+    print("=== 上下文管理器模式 ===")
+    print("="*60)
     
-    print("模拟API调用...")
+    limiter = RateLimiter(3, 10.0)  # 10秒内最多3次
+    
+    print("\n使用 with 语句自动限流:")
+    
+    for i in range(4):
+        try:
+            with limiter:
+                print(f"  执行操作 {i+1}: 成功")
+        except RateLimitExceeded:
+            print(f"  执行操作 {i+1}: 被限流 (配额用完)")
+
+
+def example_decorator():
+    """装饰器模式示例"""
+    print("\n" + "="*60)
+    print("=== 装饰器模式 ===")
+    print("="*60)
+    
+    # 简单装饰器
+    @rate_limit(3, 10.0)  # 10秒内最多3次
+    def api_call():
+        return "API 响应"
+    
+    print("\n使用装饰器限制函数调用频率:")
     for i in range(5):
-        result = api_endpoint()
-        status = result.get("status")
-        if status == "success":
-            print(f"  调用 {i+1}: ✓ 成功")
-        else:
-            print(f"  调用 {i+1}: ✗ 限流")
+        try:
+            result = api_call()
+            print(f"  调用 {i+1}: {result}")
+        except RateLimitExceeded:
+            print(f"  调用 {i+1}: 被限流")
+    
+    # 带参数装饰器
+    print("\n使用带参数装饰器 (消耗2个令牌):")
+    limiter = RateLimiter(6, 10.0)
+    
+    @limiter.decorate(tokens=2)
+    def heavy_api_call():
+        return "重型 API 响应"
+    
+    for i in range(4):
+        try:
+            result = heavy_api_call()
+            print(f"  调用 {i+1}: {result} (剩余: {limiter.available:.0f})")
+        except RateLimitExceeded:
+            print(f"  调用 {i+1}: 被限流")
 
 
 def example_multi_key():
-    """
-    多键速率限制器示例 - 多用户API限流
-    """
-    print("\n" + "=" * 50)
-    print("多键速率限制器示例 - 多用户API限流")
-    print("=" * 50)
+    """多键限流示例 - 多租户场景"""
+    print("\n" + "="*60)
+    print("=== 多键速率限制器 (MultiRateLimiter) ===")
+    print("适合多租户、多用户场景")
+    print("="*60)
     
-    # 每个用户每秒最多5个请求
-    limiter = MultiRateLimiter(max_requests=5, window_seconds=1.0,
-                               algorithm=RateLimiter.ALGORITHM_SLIDING_WINDOW)
+    # 每个用户每秒最多3次请求
+    limiter = MultiRateLimiter(max_requests=3, window_seconds=1.0, algorithm='sliding_window')
     
-    users = ["alice", "bob", "alice", "charlie", "alice", "bob"]
+    users = ['alice', 'bob', 'charlie']
     
-    print("模拟多用户请求...")
+    print("\n各用户独立限流:")
     for user in users:
-        if limiter.acquire(user, 1):
-            print(f"  {user}: ✓ 允许")
-        else:
-            print(f"  {user}: ✗ 限流")
+        print(f"\n--- {user} ---")
+        for i in range(5):
+            success = limiter.acquire(user)
+            status = "✓" if success else "✗"
+            print(f"  请求 {i+1}: {status} (剩余: {limiter.available(user):.0f})")
     
-    print(f"\n活跃用户数: {limiter.key_count}")
+    print(f"\n活跃用户: {limiter.keys()}")
     
-    # 查看各用户剩余配额
-    print("\n各用户剩余配额:")
-    for user in ["alice", "bob", "charlie"]:
-        available = limiter.available(user)
-        print(f"  {user}: {available:.0f}")
+    # 清除特定用户
+    limiter.clear('alice')
+    print(f"清除 alice 后: {limiter.keys()}")
 
 
-def example_wait_for():
-    """
-    等待获取示例 - 阻塞等待
-    """
-    print("\n" + "=" * 50)
-    print("等待获取示例 - 阻塞等待")
-    print("=" * 50)
+def example_wait_for_acquire():
+    """等待获取许可示例"""
+    print("\n" + "="*60)
+    print("=== wait_for_acquire 示例 ===")
+    print("等待直到获取许可或超时")
+    print("="*60)
     
-    # 创建一个很快会耗尽的限制器
-    limiter = create_sliding_window(max_requests=2, window_seconds=1.0)
+    limiter = TokenBucket(capacity=2, refill_rate=1)
     
     # 先用完配额
-    print("用完配额...")
-    limiter.acquire(1)
-    limiter.acquire(1)
-    print(f"剩余配额: {limiter.available:.0f}")
+    limiter.acquire(2)
+    print(f"配额已用完，可用: {limiter.available:.0f}")
     
-    # 尝试等待获取（带超时）
-    print("\n尝试等待获取（超时0.5秒）...")
+    print("\n尝试获取许可（最多等待3秒）...")
     start = time.time()
-    result = limiter.wait_for(1, timeout=0.5)
+    success = limiter.wait_for_acquire(1, timeout=3.0)
     elapsed = time.time() - start
-    print(f"结果: {'成功' if result else '超时'}")
-    print(f"耗时: {elapsed:.2f}秒")
     
-    # 等待足够长时间让窗口滑动
-    print("\n等待1.5秒让窗口滑动...")
-    time.sleep(1.5)
-    
-    print(f"剩余配额: {limiter.available:.0f}")
-    result = limiter.wait_for(1, timeout=1.0)
-    print(f"等待获取: {'成功' if result else '失败'}")
+    if success:
+        print(f"成功获取许可（等待 {elapsed:.2f} 秒）")
+    else:
+        print(f"获取许可超时（等待 {elapsed:.2f} 秒）")
 
 
 def example_concurrent_access():
-    """
-    并发访问示例 - 多线程安全
-    """
-    print("\n" + "=" * 50)
-    print("并发访问示例 - 多线程安全")
-    print("=" * 50)
+    """并发访问示例"""
+    print("\n" + "="*60)
+    print("=== 并发访问示例 ===")
+    print("="*60)
     
-    bucket = TokenBucket(capacity=100, refill_rate=50.0)
-    
-    success_count = [0]
-    fail_count = [0]
+    limiter = TokenBucket(capacity=20, refill_rate=5)
+    results = []
     lock = threading.Lock()
     
-    def worker(thread_id):
+    def worker(worker_id):
+        successes = 0
+        fails = 0
         for _ in range(10):
-            if bucket.acquire(1):
-                with lock:
-                    success_count[0] += 1
+            if limiter.acquire(1):
+                successes += 1
             else:
-                with lock:
-                    fail_count[0] += 1
+                fails += 1
+            time.sleep(0.01)
+        with lock:
+            results.append((worker_id, successes, fails))
     
-    threads = [threading.Thread(target=worker, args=(i,)) for i in range(10)]
-    
-    print("启动10个线程，每个尝试10次获取...")
-    start = time.time()
+    print("\n启动4个并发线程，每个线程尝试10次请求...")
+    threads = [threading.Thread(target=worker, args=(i,)) for i in range(4)]
     for t in threads:
         t.start()
     for t in threads:
         t.join()
     
-    elapsed = time.time() - start
-    print(f"完成时间: {elapsed:.3f}秒")
-    print(f"成功: {success_count[0]}, 失败: {fail_count[0]}")
-    print(f"最终可用令牌: {bucket.available:.1f}")
+    print("\n各线程结果:")
+    total_success = 0
+    total_fail = 0
+    for worker_id, successes, fails in sorted(results):
+        total_success += successes
+        total_fail += fails
+        print(f"  线程 {worker_id}: 成功={successes}, 失败={fails}")
+    
+    print(f"\n总计: 成功={total_success}, 失败={total_fail}")
+    print(f"成功请求不超过容量: {'✓' if total_success <= 20 else '✗'}")
 
 
-def example_rate_limiting_strategies():
+def example_api_rate_limiting():
+    """API 限流实战示例"""
+    print("\n" + "="*60)
+    print("=== API 限流实战示例 ===")
+    print("="*60)
+    
+    # 创建一个模拟 API 限流器
+    # 规则：每秒最多 10 次请求，突发最大 20 次
+    api_limiter = RateLimiter(
+        max_requests=10,
+        window_seconds=1.0,
+        algorithm='token_bucket',
+        capacity=20  # 允许突发到20
+    )
+    
+    # 模拟用户请求
+    def handle_request(request_id):
+        if api_limiter.acquire(1):
+            return f"请求 {request_id}: 处理成功"
+        else:
+            return f"请求 {request_id}: 429 Too Many Requests"
+    
+    print("\n模拟用户快速发起25个请求:")
+    for i in range(25):
+        print(handle_request(i + 1))
+    
+    print(f"\n剩余可用配额: {api_limiter.available:.1f}")
+
+
+def example_choose_algorithm():
+    """算法选择指南"""
+    print("\n" + "="*60)
+    print("=== 限流算法选择指南 ===")
+    print("="*60)
+    
+    guide = """
+    ┌─────────────────┬─────────────────────────────────────────────┐
+    │ 算法            │ 适用场景                                     │
+    ├─────────────────┼─────────────────────────────────────────────┤
+    │ Token Bucket    │ 需要允许突发流量的API、网络流量控制         │
+    │ (令牌桶)        │ 优点：平滑限流、允许突发                      │
+    ├─────────────────┼─────────────────────────────────────────────┤
+    │ Leaky Bucket    │ 需要严格固定输出速率的场景                  │
+    │ (漏桶)          │ 优点：流量整形、强制恒定速率                  │
+    ├─────────────────┼─────────────────────────────────────────────┤
+    │ Sliding Window  │ 需要精确限流的API、计费系统                  │
+    │ (滑动窗口)      │ 优点：精确计数、无边界突发                   │
+    ├─────────────────┼─────────────────────────────────────────────┤
+    │ Fixed Window    │ 简单限流需求、资源受限环境                   │
+    │ (固定窗口)      │ 优点：简单高效、内存消耗低                   │
+    └─────────────────┴─────────────────────────────────────────────┘
     """
-    不同策略对比
-    """
-    print("\n" + "=" * 50)
-    print("不同策略对比")
-    print("=" * 50)
-    
-    strategies = [
-        ("令牌桶", TokenBucket(10, 2.0)),
-        ("漏桶", LeakyBucket(10, 2.0)),
-        ("滑动窗口", SlidingWindow(10, 5.0)),
-        ("固定窗口", FixedWindow(10, 5.0)),
-    ]
-    
-    print("连续请求测试（每策略10个请求）:\n")
-    
-    for name, limiter in strategies:
-        results = []
-        for _ in range(15):
-            results.append("✓" if limiter.acquire(1) else "✗")
-        
-        available = limiter.available
-        print(f"{name}:")
-        print(f"  结果: {' '.join(results)}")
-        print(f"  剩余: {available:.1f}\n")
+    print(guide)
 
 
 def main():
     """运行所有示例"""
-    print("Rate Limiter Utils 使用示例")
-    print("=" * 50)
+    print("="*60)
+    print("Rate Limiter Utils - 完整使用示例")
+    print("="*60)
     
     example_token_bucket()
     example_leaky_bucket()
     example_sliding_window()
     example_fixed_window()
-    example_rate_limiter()
+    example_universal_rate_limiter()
+    example_context_manager()
+    example_decorator()
     example_multi_key()
-    example_wait_for()
+    example_wait_for_acquire()
     example_concurrent_access()
-    example_rate_limiting_strategies()
+    example_api_rate_limiting()
+    example_choose_algorithm()
     
-    print("\n所有示例完成！")
+    print("\n" + "="*60)
+    print("所有示例运行完成！")
+    print("="*60)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
