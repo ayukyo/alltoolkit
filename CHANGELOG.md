@@ -1,5 +1,28 @@
 # AllToolkit 更新日志
 
+## [2026-05-11]
+
+### 新增
+- **Go: anagram_utils (36 单元测试，完整字谜处理工具库)** 🎭
+  - 字谜检查：IsAnagram（忽略大小写/非字母），IsAnagramStrict（精确匹配）
+  - 字母签名：GetSignature/GetSignatureStrict（排序字母，用于分组）
+  - 字谜查找：FindAnagrams/FindAnagramsStrict（在单词列表中查找字谜）
+  - 字谜分组：GroupAnagrams/GroupAnagramsStrict（按签名分组单词）
+  - 字谜生成：GenerateAnagrams（所有排列），GenerateAnagramsLimit（限制数量）
+  - 字谜计数：CountAnagrams（计算唯一排列数，处理重复字符）
+  - 有效检查：IsValidAnagram（排除相同单词）
+  - 字母频率：GetLetterFrequency（统计字母出现次数）
+  - 字母组成：HasSameLetters（检查字母组成是否相同）
+  - 移除字母：RemoveLetter（移除首次出现的字母）
+  - 单词组成：CanFormWord（检查可用字母能否组成单词）
+  - 可能单词：FindPossibleWords（查找所有可组成的单词）
+  - 最长单词：LongestAnagram（查找最长可组成单词）
+  - Scrabble 分数：ScrabbleScore（标准字母分值计算）
+  - 最高分单词：HighestScoringWord（查找分数最高的单词）
+  - 零外部依赖，纯 Go 标准库实现
+  - 测试覆盖：36 测试全部通过
+  - 包含完整示例：17 个使用场景演示
+
 ## [2026-05-09]
 
 ### 新增
