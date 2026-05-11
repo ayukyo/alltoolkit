@@ -3,6 +3,26 @@
 ## [2026-05-11]
 
 ### 新增
+- **Go: genetic_algorithm_utils (42 单元测试，完整遗传算法优化工具库)** 🧬
+  - 核心类：GeneticAlgorithm（遗传算法主体）、Population（种群管理）、Individual（个体表示）
+  - 选择方法：TournamentSelection（锦标赛）、RouletteWheelSelection（轮盘赌）、RankSelection（排名）
+  - 交叉方法：SinglePointCrossover（单点）、TwoPointCrossover（双点）、UniformCrossover（均匀）
+  - 交叉方法：ArithmeticCrossover（算术）、SBXCrossover（模拟二进制）
+  - 变异方法：GaussianMutation（高斯）、UniformMutation（均匀）、PolynomialMutation（多项式）
+  - 变异方法：SwapMutation（交换）、BoundaryMutation（边界）
+  - 基准函数：Sphere/Rastrigin/Rosenbrock/Ackley/Griewank/Schwefel（经典优化测试函数）
+  - 多目标优化：MultiObjectiveIndividual、FastNonDominatedSort（NSGA-II非支配排序）
+  - 多目标优化：CalculateCrowdingDistance（拥挤距离）、ParetoFront（Pareto前沿）
+  - 工具函数：CalculateDiversity（种群多样性）、EuclideanDistance（欧氏距离）
+  - 工具函数：GetBestIndividual/GetWorstIndividual（最佳/最差个体查找）
+  - 配置选项：种群大小、基因数量、迭代代数、交叉率、变异率、精英保留数
+  - 配置选项：锦标赛大小、基因边界、收敛判定、目标适应度、随机种子
+  - 停止条件：MinFitness（目标适应度）、ConvergenceGen（收敛代数）
+  - 返回结果：BestIndividual、FitnessHistory、AvgFitnessHistory、Converged
+  - 零外部依赖，纯 Go 标准库实现
+  - 测试覆盖：42 测试全部通过
+  - 包含完整示例：10 个使用场景演示（Sphere优化、Rastrigin优化、自定义适应度、曲线拟合等）
+
 - **JavaScript: clone_utils (101 单元测试，完整克隆工具库)** 📋
   - 浅克隆：shallowClone（支持 array/object/date/regexp/map/set/error/buffer）
   - 深克隆：deepClone（支持循环引用、Symbol 属性、原型链保留）
