@@ -3,6 +3,24 @@
 ## [2026-05-11]
 
 ### 新增
+- **Python: dijkstra_utils (142 单元测试，完整 Dijkstra 最短路径算法工具库)** 🗺️
+  - 核心类：DijkstraGraph（支持有向/无向图）、PathResult、AllPathsResult、GraphEdge
+  - 最短路径：shortest_path（单目标）、shortest_paths_from（所有可达节点）
+  - K 最短路径：k_shortest_paths（Yen 算法，寻找多条备选路径）
+  - 图操作：add_node/add_edge/remove_node/remove_edge/clear/copy
+  - 图查询：has_node/has_edge/get_edge_weight/get_neighbors/node_count/edge_count
+  - 节点类型：支持 int、str、tuple（坐标网格）
+  - 权重类型：支持整数、浮点数、零权重
+  - 工厂方法：from_adjacency_list/from_edge_list/from_adjacency_matrix
+  - 转换方法：to_adjacency_matrix（邻接矩阵表示）
+  - 工具函数：dijkstra/shortest_path/all_shortest_paths/is_connected
+  - 图分析：graph_diameter（直径计算）、center_of_graph（中心节点）
+  - 连通性：get_reachable_nodes（可达节点集合）
+  - 零外部依赖，仅使用 Python 标准库 heapq 和 dataclasses
+  - 时间复杂度：O((V+E) log V) 使用二叉堆优化
+  - 测试覆盖：142 测试全部通过
+  - 包含完整示例：6 个使用场景演示（交通网络、网格图、K路径、图分析）
+
 - **Python: text_diff_utils (35 单元测试，完整文本差异比较工具库)** 📝
   - 行级差异检测：精确识别新增、删除、修改的行
   - 字符级差异检测：细粒度的字符变更追踪
