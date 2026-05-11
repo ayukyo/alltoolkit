@@ -3,6 +3,23 @@
 ## [2026-05-11]
 
 ### 新增
+- **JavaScript: clone_utils (101 单元测试，完整克隆工具库)** 📋
+  - 浅克隆：shallowClone（支持 array/object/date/regexp/map/set/error/buffer）
+  - 深克隆：deepClone（支持循环引用、Symbol 属性、原型链保留）
+  - 深度比较：deepCompare（返回差异详情，支持 strict 模式）
+  - 深度合并：deepMerge（支持多源合并、嵌套对象、Map/Set）
+  - JSON 克隆：cloneJSON（安全的 JSON 序列化克隆）
+  - 自定义克隆：cloneWithCustomizer（自定义类型处理）
+  - 深度相等：isDeepEqual（快速相等判断）
+  - 结构化克隆：structuralClone（现代 structuredClone API）
+  - 依赖注入克隆：cloneWithDeps（替换特定引用）
+  - 选择性克隆：clonePick/cloneOmit（挑选/排除属性）
+  - 深度限制：支持配置最大克隆深度
+  - 类型检测：getType（支持 18+ 种类型）
+  - 特殊类型：Date/RegExp/Map/Set/Error/ArrayBuffer/TypedArray/DataView
+  - 零外部依赖，纯 JavaScript 实现
+  - 测试覆盖：101 测试全部通过
+
 - **Python: dijkstra_utils (142 单元测试，完整 Dijkstra 最短路径算法工具库)** 🗺️
   - 核心类：DijkstraGraph（支持有向/无向图）、PathResult、AllPathsResult、GraphEdge
   - 最短路径：shortest_path（单目标）、shortest_paths_from（所有可达节点）
