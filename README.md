@@ -308,13 +308,24 @@ perl Perl/csv_utils/csv_utils_test.pl
 | stress_utils | Python | 55 | ✅ 100% |
 | fitness_timer_utils | Python | 48 | ✅ 100% |
 | color_palette_utils | Python | 46 | ✅ 100% |
+| memory_pool_utils | Python | 41 | ✅ 100% |
+| battery_utils | Python | 44 | ✅ 100% |
+| fuel_efficiency_utils | Python | 43 | ✅ 100% |
+| ohm_law_utils | Python | 44 | ✅ 100% |
 | hex_dump_utils | Python | 57 | ✅ 100% |
 
 **总计**: Python 389 模块，395 测试文件，4200+ 测试用例，100% 通过率 ✅
 
 ---
 
-**最后更新**: 2026-05-11
+**最后更新**: 2026-05-12
+
+### 文档更新 (2026-05-12)
+
+- **Python memory_pool_utils**: 新增 README 文档，覆盖内存池、对象池、缓冲区池、Arena 分配器、StringBuilder 等功能 📝
+- **Python battery_utils**: 新增 README 文档，覆盖充电时间、续航估算、健康度评估、衰减模型、充电器推荐等功能 🔋
+- **Python fuel_efficiency_utils**: 新增 README 文档，覆盖单位转换、燃油成本、续航里程、碳排放、车辆对比、效率评级等功能 ⛽
+- **Python ohm_law_utils**: 新增 README 文档，覆盖欧姆定律计算、电阻计算、分压/分流器、功率计算、电阻色环解码/编码等功能 ⚡
 
 ### 文档更新 (2026-05-11)
 
