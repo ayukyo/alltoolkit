@@ -3,7 +3,22 @@
 ## [2026-05-11]
 
 ### 新增
-- **Go: anagram_utils (36 单元测试，完整字谜处理工具库)** 🎭
+- **Python: text_diff_utils (35 单元测试，完整文本差异比较工具库)** 📝
+  - 行级差异检测：精确识别新增、删除、修改的行
+  - 字符级差异检测：细粒度的字符变更追踪
+  - 统一格式差异：生成类似 git diff 的标准差异报告
+  - 并排对比视图：直观的双栏对比展示
+  - 相似度计算：量化文本相似程度 (0.0 - 1.0)
+  - 差异统计：详细的变更数据统计
+  - 公共子串查找：发现两段文本的共同部分
+  - 忽略选项：支持忽略大小写、空白字符、空行
+  - DiffResult/DiffLine 数据类：结构化差异信息
+  - DiffType 枚举：EQUAL/INSERT/DELETE/REPLACE
+  - 便捷函数：compare_texts/get_unified_diff/get_similarity
+  - 格式化函数：format_diff_summary/format_side_by_side
+  - 零外部依赖，仅使用 Python 标准库 difflib 模块
+  - 测试覆盖：35 测试全部通过
+  - 包含完整示例：9 个使用场景演示
   - 字谜检查：IsAnagram（忽略大小写/非字母），IsAnagramStrict（精确匹配）
   - 字母签名：GetSignature/GetSignatureStrict（排序字母，用于分组）
   - 字谜查找：FindAnagrams/FindAnagramsStrict（在单词列表中查找字谜）
