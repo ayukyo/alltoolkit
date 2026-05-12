@@ -3,6 +3,41 @@
 ## [2026-05-12]
 
 ### 新增
+- **Python: tarjan_utils (30 单元测试，完整 Tarjan 算法工具库)** 🔄
+  - 核心算法：tarjan（查找所有强连通分量）、tarjan_with_info（返回完整信息）
+  - 强连通检查：is_strongly_connected（检查图是否强连通）
+  - SCC 分析：largest_scc/smallest_scc（最大/最小 SCC）
+  - SCC 统计：count_scc/scc_sizes/scc_distribution（数量、大小、分布）
+  - 环检测：has_cycle/find_cycles/is_in_cycle（检查环、查找所有环、节点是否在环中）
+  - 自环支持：正确处理自环节点（单节点环）
+  - 节点操作：get_scc_for_node（获取节点的 SCC）、sort_nodes_by_scc（按 SCC 排序）
+  - 图操作：condensation_graph（构建缩点图 DAG）、build_scc_adjacency（SCC 内部邻接表）
+  - 图构建：from_edge_list/from_adjacency_matrix（从边列表/邻接矩阵构建）
+  - TarjanResult 对象：sccs、scc_count、node_to_scc、is_dag 属性
+  - 时间复杂度：O(V + E)，单次遍历完成
+  - 支持任意节点类型（整数、字符串等）
+  - 零外部依赖，仅使用 Python 标准库
+  - 测试覆盖：30 测试全部通过
+  - 应用场景：社交网络分析、编译器优化、死锁检测、依赖分析
+
+- **Python: jsonpath_utils (35 单元测试，完整 JSONPath 查询工具库)** 🔍
+  - 核心查询：jsonpath（支持 first 参数，返回第一个或全部匹配）
+  - 路径查询：jsonpath_paths（返回匹配路径列表）
+  - 匹配对象：jsonpath_matches（返回 JSONPathMatch 对象，含 value 和 path）
+  - 计数检查：jsonpath_count/jsonpath_exists（快速检查匹配数量和存在性）
+  - 修改操作：jsonpath_set/jsonpath_delete（设置或删除元素，返回副本）
+  - 值迭代器：jsonpath_values（高效遍历匹配值）
+  - 语法支持：$（根节点）、.（子节点）、[]（索引/属性）、*（通配符）
+  - 语法支持：..（递归下降）、[start:end]（切片）、[n,m]（多索引）
+  - 语法支持：[?(expr)]（过滤表达式）、@（当前节点）
+  - 过滤运算：==, !=, <, >, <=, >=（比较运算符）
+  - 属性访问：支持带引号的属性名（$.['key-name']）
+  - 负索引：支持数组负索引访问（$.arr[-1]）
+  - 安全评估：过滤表达式使用安全评估，不直接执行代码
+  - 零外部依赖，仅使用 Python 标准库（copy、re、json）
+  - 测试覆盖：35 测试全部通过
+  - 包含完整示例：商店数据、数组切片、过滤表达式、修改操作
+
 - **Python: undo_redo_utils (47 单元测试，完整撤销/重做工具库)** 🔄
   - Command 模式实现：Command 抽象基类、execute/undo/redo 接口
   - 简单命令：SimpleCommand（使用函数实现）
