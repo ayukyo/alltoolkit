@@ -1,5 +1,29 @@
 # AllToolkit 更新日志
 
+## [2026-05-12]
+
+### 新增
+- **Python: undo_redo_utils (47 单元测试，完整撤销/重做工具库)** 🔄
+  - Command 模式实现：Command 抽象基类、execute/undo/redo 接口
+  - 简单命令：SimpleCommand（使用函数实现）
+  - 备忘录命令：MementoCommand（自动保存和恢复状态）
+  - 属性命令：SetValueCommand（设置对象属性，自动捕获旧值）
+  - 列表命令：ListInsertCommand/ListRemoveCommand（列表增删操作）
+  - 字典命令：DictSetCommand/DictDeleteCommand（字典键值操作）
+  - 宏命令：MacroCommand（组合多个命令为单个单元）
+  - 事务支持：Transaction（使用 with 语法批量执行命令）
+  - 状态快照管理：SnapshotManager（基于 Memento 模式）
+  - 管理器核心功能：UndoRedoManager（执行/撤销/重做/批量操作）
+  - 内存限制：可配置最大撤销/重做栈大小
+  - 回调事件：on_change/on_execute/on_undo/on_redo 回调
+  - 查询功能：get_undo_descriptions/get_redo_descriptions/peek_undo/peek_redo
+  - 统计信息：UndoRedoStats（命令计数、栈大小）
+  - 序列化支持：to_dict 方法（导出状态）
+  - 便捷函数：create_simple_undo_redo（快速创建撤销/重做函数）
+  - 零外部依赖，仅使用 Python 标准库
+  - 测试覆盖：47 测试全部通过
+  - 包含完整示例：10 个使用场景演示（基本操作、对象属性、列表/字典、事务、宏命令、状态快照、文本编辑器、绘图应用、回调事件）
+
 ## [2026-05-11]
 
 ### 新增
