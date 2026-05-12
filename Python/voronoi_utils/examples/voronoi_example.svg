@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400">
+<rect width="100%" height="100%" fill="white"/>
+<g stroke="black" stroke-width="1" fill="none">
+<polygon points="0.0,400.0 200.0,400.0 200.0,287.5 0.0,187.5" fill="#f0f0f0" stroke="black"/>
+<polygon points="200.0,400.0 400.0,400.0 400.0,187.5 200.0,287.5 200.0,287.5" fill="#f0f0f0" stroke="black"/>
+<polygon points="0.0,62.5 200.0,162.5 400.0,62.5 400.0,0.0 0.0,0.0" fill="#f0f0f0" stroke="black"/>
+<polygon points="200.0,287.5 200.0,287.5 200.0,162.5 0.0,62.5 0.0,187.5" fill="#f0f0f0" stroke="black"/>
+<polygon points="200.0,287.5 200.0,287.5 400.0,187.5 400.0,62.5 200.0,162.5" fill="#f0f0f0" stroke="black"/>
+</g>
+<g fill="red">
+<circle cx="100.0" cy="300.0" r="4"/>
+<circle cx="300.0" cy="300.0" r="4"/>
+<circle cx="200.0" cy="100.0" r="4"/>
+<circle cx="150.0" cy="200.0" r="4"/>
+<circle cx="250.0" cy="200.0" r="4"/>
+</g>
+</svg>
