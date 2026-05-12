@@ -1,7 +1,16 @@
 """
-Graph Utils 使用示例
+图论算法工具模块使用示例
 
-展示图论算法的各种应用场景。
+演示：
+1. 图的创建和基本操作
+2. 遍历算法（DFS、BFS）
+3. 最短路径算法（Dijkstra、Bellman-Ford、Floyd-Warshall）
+4. 最小生成树（Kruskal、Prim）
+5. 拓扑排序
+6. 连通性分析
+7. 环检测
+8. 二分图检测
+9. 图度量
 """
 
 import sys
@@ -9,358 +18,416 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from mod import (
-    Graph, bfs, dfs,
-    dijkstra, bellman_ford, floyd_warshall, get_path, shortest_path_bfs, all_paths,
-    prim, kruskal,
-    topological_sort,
-    connected_components, strongly_connected_components,
-    has_cycle, find_cycle,
-    is_bipartite,
-    articulation_points, bridges,
-    degree_centrality, betweenness_centrality,
-    clustering_coefficient, average_clustering_coefficient
+    Graph, dfs, bfs, dijkstra, get_shortest_path, bellman_ford, floyd_warshall,
+    kruskal, prim, topological_sort, is_connected, find_connected_components,
+    find_strongly_connected_components, has_cycle, is_bipartite, get_bipartition,
+    get_diameter, get_radius, get_center, to_adjacency_matrix, from_adjacency_matrix,
+    create_complete_graph, create_path_graph, create_cycle_graph, create_star_graph
 )
 
 
 def example_1_basic_operations():
-    """示例1：图的基本操作"""
-    print("\n" + "="*60)
-    print("示例1：图的基本操作")
-    print("="*60)
+    """示例1：图的创建和基本操作"""
+    print("\n" + "=" * 60)
+    print("示例1：图的创建和基本操作")
+    print("=" * 60)
     
-    # 创建无向图
-    g = Graph[str]()
+    # 创建无向无权图
+    print("\n【无向无权图】")
+    g = Graph()
+    g.add_edge('北京', '上海')
+    g.add_edge('北京', '广州')
+    g.add_edge('上海', '深圳')
+    g.add_edge('广州', '深圳')
+    g.add_edge('深圳', '香港')
     
-    # 添加边
-    g.add_edge("北京", "上海", weight=1200)
-    g.add_edge("北京", "广州", weight=1800)
-    g.add_edge("上海", "广州", weight=1200)
-    g.add_edge("上海", "深圳", weight=1000)
-    g.add_edge("广州", "深圳", weight=150)
+    print(f"图信息: {g}")
+    print(f"顶点数: {g.get_vertex_count()}")
+    print(f"边数: {g.get_edge_count()}")
+    print(f"北京的邻居: {list(g.get_neighbors('北京').keys())}")
+    print(f"北京-上海是否有边: {g.has_edge('北京', '上海')}")
+    print(f"上海-北京是否有边: {g.has_edge('上海', '北京')} (无向图双向)")
     
-    print(f"节点数: {g.node_count()}")
-    print(f"边数: {g.edge_count()}")
-    print(f"节点列表: {g.get_nodes()}")
+    # 创建有向带权图
+    print("\n【有向带权图】")
+    dg = Graph(directed=True, weighted=True)
+    dg.add_edge('A', 'B', 5)
+    dg.add_edge('A', 'C', 3)
+    dg.add_edge('B', 'D', 2)
+    dg.add_edge('C', 'D', 4)
+    dg.add_edge('D', 'E', 1)
     
-    # 获取邻居
-    print("\n上海连接的城市:")
-    for neighbor, distance in g.neighbors("上海"):
-        print(f"  -> {neighbor}: {distance}km")
+    print(f"图信息: {dg}")
+    print(f"边 A->B 的权重: {dg.get_edge_weight('A', 'B')}")
+    print(f"边 B->A 的权重: {dg.get_edge_weight('B', 'A')} (有向图单向)")
     
-    # 检查连通性
-    print(f"\n北京-上海是否连通: {g.has_edge('北京', '上海')}")
-    print(f"上海-北京是否连通: {g.has_edge('上海', '北京')}")
+    # 获取所有边
+    print("\n【所有边】")
+    for u, v, w in dg.get_edges():
+        print(f"  {u} --{w}--> {v}")
 
 
 def example_2_traversal():
-    """示例2：图的遍历"""
-    print("\n" + "="*60)
-    print("示例2：图的遍历（BFS/DFS）")
-    print("="*60)
+    """示例2：遍历算法"""
+    print("\n" + "=" * 60)
+    print("示例2：遍历算法（DFS 和 BFS）")
+    print("=" * 60)
     
-    # 创建社交网络图
-    g = Graph[str]()
-    g.add_edge("Alice", "Bob")
-    g.add_edge("Alice", "Carol")
-    g.add_edge("Bob", "David")
-    g.add_edge("Carol", "Eve")
-    g.add_edge("David", "Eve")
-    g.add_edge("Eve", "Frank")
+    # 创建树形结构
+    #         1
+    #       / | \
+    #      2  3  4
+    #     /|     |
+    #    5 6     7
+    g = Graph()
+    edges = [(1, 2), (1, 3), (1, 4), (2, 5), (2, 6), (4, 7)]
+    for u, v in edges:
+        g.add_edge(u, v)
     
-    # BFS - 适合找最近的朋友
-    print("BFS遍历（从Alice开始）:")
-    bfs_result = bfs(g, "Alice")
-    for i, person in enumerate(bfs_result):
-        print(f"  第{i+1}层: {person}")
+    print("\n【图结构】")
+    print("         1")
+    print("       / | \\")
+    print("      2  3  4")
+    print("     /|     |")
+    print("    5 6     7")
     
-    # DFS - 适合深入探索
-    print("\nDFS遍历（从Alice开始）:")
-    dfs_result = dfs(g, "Alice")
-    print(f"  访问顺序: {' -> '.join(dfs_result)}")
+    print("\n【深度优先搜索 DFS】")
+    dfs_result = dfs(g, 1)
+    print(f"遍历顺序: {' -> '.join(map(str, dfs_result))}")
+    
+    print("\n【广度优先搜索 BFS】")
+    bfs_result = bfs(g, 1)
+    print(f"遍历顺序: {' -> '.join(map(str, bfs_result))}")
+    
+    print("\n【BFS 层级距离】")
+    from mod import bfs_with_distance
+    _, distances = bfs_with_distance(g, 1)
+    for vertex in sorted(distances.keys()):
+        print(f"  节点 {vertex} 到根节点距离: {distances[vertex]}")
 
 
 def example_3_shortest_path():
     """示例3：最短路径算法"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("示例3：最短路径算法")
-    print("="*60)
+    print("=" * 60)
     
-    # 创建交通网络（有向图）
-    g = Graph[str](directed=True)
-    g.add_edge("A", "B", weight=4)
-    g.add_edge("A", "C", weight=2)
-    g.add_edge("B", "C", weight=1)
-    g.add_edge("B", "D", weight=5)
-    g.add_edge("C", "D", weight=8)
-    g.add_edge("C", "E", weight=10)
-    g.add_edge("D", "E", weight=2)
+    # 创建城市交通图
+    print("\n【城市交通图 - 正权重】")
+    #     北京 ---300-- 上海
+    #       |            |
+    #      500          200
+    #       |            |
+    #     广州 ---400-- 深圳
+    g = Graph(weighted=True)
+    g.add_edge('北京', '上海', 300)
+    g.add_edge('北京', '广州', 500)
+    g.add_edge('上海', '深圳', 200)
+    g.add_edge('广州', '深圳', 400)
     
-    # Dijkstra算法
-    print("Dijkstra最短路径（从A开始）:")
-    result = dijkstra(g, "A")
+    print("\n【Dijkstra 最短路径】")
+    distances, predecessors = dijkstra(g, '北京')
+    print(f"从北京出发到各城市的最短距离:")
+    for city, dist in sorted(distances.items()):
+        print(f"  {city}: {dist}km")
     
-    for dest, (dist, pred) in result.items():
+    path = get_shortest_path(g, '北京', '深圳')
+    print(f"\n北京到深圳的最短路径: {' -> '.join(path)}")
+    
+    # 负权边示例
+    print("\n【带负权边的图 - Bellman-Ford】")
+    # 有时某些路径有"奖励"，相当于负权重
+    bg = Graph(directed=True, weighted=True)
+    bg.add_edge('A', 'B', 4)
+    bg.add_edge('A', 'C', 2)
+    bg.add_edge('B', 'D', 3)
+    bg.add_edge('C', 'B', -1)  # 有奖励的路径
+    bg.add_edge('C', 'D', 5)
+    
+    distances, _, has_neg_cycle = bellman_ford(bg, 'A')
+    print(f"是否存在负环: {has_neg_cycle}")
+    print(f"从 A 出发的最短距离:")
+    for v, dist in sorted(distances.items()):
         if dist != float('inf'):
-            print(f"  A -> {dest}: 距离={dist}, 前驱={pred}")
+            print(f"  {v}: {dist}")
     
-    # 获取具体路径
-    path = get_path({n: (d, p) for n, (d, p) in result.items()}, "A", "E")
-    print(f"\n从A到E的路径: {' -> '.join(path)}")
+    # 全源最短路径
+    print("\n【Floyd-Warshall 全源最短路径】")
+    fg = Graph(weighted=True)
+    fg.add_edge('A', 'B', 3)
+    fg.add_edge('A', 'C', 8)
+    fg.add_edge('B', 'C', 2)
+    fg.add_edge('B', 'D', 5)
+    fg.add_edge('C', 'D', 1)
+    
+    dist_matrix = floyd_warshall(fg)
+    print("各城市间最短距离矩阵:")
+    vertices = sorted(fg.get_vertices())
+    print("     " + "  ".join(f"{v:>5}" for v in vertices))
+    for u in vertices:
+        row = [f"{dist_matrix[u][v]:>5.0f}" if dist_matrix[u][v] != float('inf') else "  inf" for v in vertices]
+        print(f"{u:>5} " + "  ".join(row))
 
 
-def example_4_mst():
+def example_4_minimum_spanning_tree():
     """示例4：最小生成树"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("示例4：最小生成树")
-    print("="*60)
+    print("=" * 60)
     
-    # 创建电网连接图
-    g = Graph[str]()
-    g.add_edge("城市1", "城市2", weight=10)
-    g.add_edge("城市1", "城市3", weight=15)
-    g.add_edge("城市1", "城市4", weight=20)
-    g.add_edge("城市2", "城市3", weight=35)
-    g.add_edge("城市2", "城市4", weight=25)
-    g.add_edge("城市3", "城市4", weight=30)
+    # 创建网络连接图
+    #     A ---2--- B
+    #     |\       /|
+    #     1 \     / 4
+    #     |  \   /  |
+    #     C   \ /   D
+    #     5   \|/   3
+    #     |   / \   |
+    #     E--6---F--7
+    g = Graph(weighted=True)
+    g.add_edge('A', 'B', 2)
+    g.add_edge('A', 'C', 1)
+    g.add_edge('A', 'F', 8)
+    g.add_edge('B', 'D', 4)
+    g.add_edge('C', 'E', 5)
+    g.add_edge('D', 'F', 3)
+    g.add_edge('E', 'F', 6)
     
-    # Prim算法
-    print("Prim算法最小生成树:")
-    mst_prim = prim(g)
-    total_cost = 0
-    for u, v, w in mst_prim:
-        print(f"  {u} -> {v}: {w}")
-        total_cost += w
-    print(f"总成本: {total_cost}")
+    print("\n【Kruskal 算法】")
+    edges, total = kruskal(g)
+    print("最小生成树的边:")
+    for u, v, w in sorted(edges, key=lambda e: e[2]):
+        print(f"  {u} -- {v}: {w}")
+    print(f"总权重: {total}")
     
-    # Kruskal算法
-    print("\nKruskal算法最小生成树:")
-    mst_kruskal = kruskal(g)
-    total_cost_k = 0
-    for u, v, w in mst_kruskal:
-        print(f"  {u} -> {v}: {w}")
-        total_cost_k += w
-    print(f"总成本: {total_cost_k}")
+    print("\n【Prim 算法】")
+    edges, total = prim(g, start='A')
+    print("最小生成树的边:")
+    for u, v, w in sorted(edges, key=lambda e: e[2]):
+        print(f"  {u} -- {v}: {w}")
+    print(f"总权重: {total}")
 
 
 def example_5_topological_sort():
     """示例5：拓扑排序"""
-    print("\n" + "="*60)
-    print("示例5：拓扑排序（任务依赖）")
-    print("="*60)
+    print("\n" + "=" * 60)
+    print("示例5：拓扑排序（任务调度）")
+    print("=" * 60)
     
-    # 创建任务依赖图
-    g = Graph[str](directed=True)
-    g.add_edge("编译", "测试")
-    g.add_edge("测试", "打包")
-    g.add_edge("打包", "部署")
-    g.add_edge("写代码", "编译")
-    g.add_edge("写代码", "单元测试")
-    g.add_edge("单元测试", "测试")
+    # 课程依赖关系
+    # CS101 -> CS201 -> CS301
+    # CS101 -> CS202 -> CS301
+    # MATH101 -> CS202
+    g = Graph(directed=True)
+    g.add_edge('CS101', 'CS201')
+    g.add_edge('CS101', 'CS202')
+    g.add_edge('CS201', 'CS301')
+    g.add_edge('CS202', 'CS301')
+    g.add_edge('MATH101', 'CS202')
     
-    # 拓扑排序
-    order = topological_sort(g)
-    if order:
-        print("任务执行顺序:")
-        for i, task in enumerate(order):
-            print(f"  {i+1}. {task}")
-    else:
-        print("存在循环依赖！")
+    print("\n【课程依赖图】")
+    print("CS101 -> CS201 -> CS301")
+    print("CS101 -> CS202 -> CS301")
+    print("MATH101 -> CS202")
+    
+    result = topological_sort(g)
+    print("\n【拓扑排序结果（学习顺序）】")
+    for i, course in enumerate(result, 1):
+        print(f"  第{i}学期: {course}")
 
 
-def example_6_cycle_detection():
-    """示例6：环检测"""
-    print("\n" + "="*60)
-    print("示例6：环检测")
-    print("="*60)
+def example_6_connectivity():
+    """示例6：连通性分析"""
+    print("\n" + "=" * 60)
+    print("示例6：连通性分析")
+    print("=" * 60)
     
-    # 无环图（树）
-    tree = Graph[int]()
-    tree.add_edge(1, 2)
-    tree.add_edge(1, 3)
-    tree.add_edge(2, 4)
-    tree.add_edge(2, 5)
+    # 连通图
+    print("\n【连通图】")
+    g1 = Graph()
+    for u, v in [('A', 'B'), ('B', 'C'), ('C', 'D')]:
+        g1.add_edge(u, v)
+    print(f"图是否连通: {is_connected(g1)}")
     
-    print(f"树是否有环: {has_cycle(tree)}")
+    # 非连通图
+    print("\n【非连通图】")
+    g2 = Graph()
+    g2.add_edge('A', 'B')
+    g2.add_edge('B', 'C')
+    g2.add_edge('D', 'E')  # 独立分量
     
-    # 有环图
-    cycle_graph = Graph[int]()
-    cycle_graph.add_edge(1, 2)
-    cycle_graph.add_edge(2, 3)
-    cycle_graph.add_edge(3, 1)
-    
-    print(f"环图是否有环: {has_cycle(cycle_graph)}")
-    
-    # 找环路径
-    cycle_path = find_cycle(cycle_graph)
-    if cycle_path:
-        print(f"环路径: {' -> '.join(map(str, cycle_path))}")
-
-
-def example_7_connectivity():
-    """示例7：连通性分析"""
-    print("\n" + "="*60)
-    print("示例7：连通性分析")
-    print("="*60)
-    
-    # 创建有多个连通分量的图
-    g = Graph[int]()
-    g.add_edge(1, 2)
-    g.add_edge(2, 3)
-    g.add_edge(4, 5)
-    g.add_edge(5, 6)
-    g.add_node(7)  # 孤立节点
-    
-    # 连通分量
-    components = connected_components(g)
+    components = find_connected_components(g2)
     print(f"连通分量数量: {len(components)}")
-    for i, comp in enumerate(components):
-        print(f"  分量{i+1}: {comp}")
+    for i, comp in enumerate(components, 1):
+        print(f"  分量 {i}: {comp}")
     
-    # 强连通分量（有向图）
-    dg = Graph[int](directed=True)
-    dg.add_edge(1, 2)
-    dg.add_edge(2, 3)
-    dg.add_edge(3, 1)
-    dg.add_edge(3, 4)
-    dg.add_edge(4, 5)
-    dg.add_edge(5, 4)
+    # 强连通分量
+    print("\n【强连通分量（有向图）】")
+    #     0 -> 1 -> 2
+    #     ^    |
+    #     |    v
+    #     4 <- 3
+    #     |
+    #     v
+    #     5
+    g3 = Graph(directed=True)
+    g3.add_edge(0, 1)
+    g3.add_edge(1, 2)
+    g3.add_edge(2, 3)
+    g3.add_edge(3, 4)
+    g3.add_edge(4, 0)  # 环 0-1-2-3-4
+    g3.add_edge(4, 5)  # 5 单独
     
-    sccs = strongly_connected_components(dg)
-    print(f"\n强连通分量数量: {len(sccs)}")
-    for i, scc in enumerate(sccs):
-        print(f"  SCC{i+1}: {scc}")
+    sccs = find_strongly_connected_components(g3)
+    print(f"强连通分量数量: {len(sccs)}")
+    for i, scc in enumerate(sccs, 1):
+        print(f"  分量 {i}: {scc}")
+
+
+def example_7_cycle_detection():
+    """示例7：环检测"""
+    print("\n" + "=" * 60)
+    print("示例7：环检测")
+    print("=" * 60)
+    
+    # 无向图有环
+    print("\n【无向图检测环】")
+    g1 = Graph()
+    g1.add_edge(1, 2)
+    g1.add_edge(2, 3)
+    g1.add_edge(3, 1)  # 环
+    print(f"图是否有环: {has_cycle(g1)}")
+    
+    # 无向图无环（树）
+    print("\n【无向图无环（树）】")
+    g2 = Graph()
+    g2.add_edge(1, 2)
+    g2.add_edge(2, 3)
+    g2.add_edge(2, 4)
+    print(f"图是否有环: {has_cycle(g2)}")
+    
+    # 有向图检测
+    print("\n【有向图检测环】")
+    g3 = Graph(directed=True)
+    g3.add_edge('A', 'B')
+    g3.add_edge('B', 'C')
+    g3.add_edge('C', 'A')  # 环
+    print(f"图是否有环: {has_cycle(g3)}")
 
 
 def example_8_bipartite():
     """示例8：二分图检测"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("示例8：二分图检测")
-    print("="*60)
+    print("=" * 60)
     
-    # 创建二分图（员工-部门关系）
-    g = Graph[str]()
-    employees = ["张三", "李四", "王五"]
-    departments = ["研发部", "市场部", "财务部"]
+    # 二分图 - 社交匹配
+    print("\n【二分图示例 - 用户与兴趣匹配】")
+    g = Graph()
+    # 左侧：用户
+    # 右侧：兴趣
+    g.add_edge('用户A', '音乐')
+    g.add_edge('用户A', '阅读')
+    g.add_edge('用户B', '运动')
+    g.add_edge('用户B', '音乐')
+    g.add_edge('用户C', '阅读')
+    g.add_edge('用户C', '运动')
     
-    # 添加边（员工可以属于多个部门）
-    g.add_edge("张三", "研发部")
-    g.add_edge("张三", "市场部")
-    g.add_edge("李四", "研发部")
-    g.add_edge("李四", "财务部")
-    g.add_edge("王五", "市场部")
-    g.add_edge("王五", "财务部")
+    print(f"是否为二分图: {is_bipartite(g)}")
     
-    is_bip, partition = is_bipartite(g)
-    print(f"是否为二分图: {is_bip}")
-    if partition:
-        print(f"分区A（员工）: {partition[0]}")
-        print(f"分区B（部门）: {partition[1]}")
+    set_a, set_b = get_bipartition(g)
+    print(f"分组 A: {set_a}")
+    print(f"分组 B: {set_b}")
+    
+    # 非二分图
+    print("\n【非二分图 - 奇数环】")
+    g2 = Graph()
+    g2.add_edge(1, 2)
+    g2.add_edge(2, 3)
+    g2.add_edge(3, 1)  # 三角形
+    print(f"是否为二分图: {is_bipartite(g2)}")
 
 
-def example_9_centrality():
-    """示例9：中心性分析"""
-    print("\n" + "="*60)
-    print("示例9：中心性分析（社交网络重要性）")
-    print("="*60)
+def example_9_graph_metrics():
+    """示例9：图度量"""
+    print("\n" + "=" * 60)
+    print("示例9：图度量")
+    print("=" * 60)
     
-    # 创建社交网络
-    g = Graph[str]()
-    g.add_edge("Alice", "Bob")
-    g.add_edge("Alice", "Carol")
-    g.add_edge("Alice", "David")
-    g.add_edge("Alice", "Eve")  # Alice是核心人物
-    g.add_edge("Bob", "Carol")
-    g.add_edge("Carol", "David")
-    g.add_edge("David", "Eve")
+    # 创建社交网络图
+    g = Graph()
+    # 中心人物 A 连接多人
+    g.add_edge('Alice', 'Bob')
+    g.add_edge('Alice', 'Carol')
+    g.add_edge('Alice', 'David')
+    g.add_edge('Bob', 'Carol')
+    g.add_edge('Carol', 'Eve')
+    g.add_edge('David', 'Eve')
     
-    # 度中心性
-    dc = degree_centrality(g)
-    print("度中心性:")
-    for person, value in sorted(dc.items(), key=lambda x: -x[1]):
-        print(f"  {person}: {value:.3f}")
+    print("\n【社交网络分析】")
+    print(f"直径（最长最短路径）: {get_diameter(g)}")
+    print(f"半径（最小离心率）: {get_radius(g)}")
+    print(f"中心节点（离心率等于半径）: {get_center(g)}")
     
-    # 介数中心性
-    bc = betweenness_centrality(g)
-    print("\n介数中心性:")
-    for person, value in sorted(bc.items(), key=lambda x: -x[1]):
-        print(f"  {person}: {value:.3f}")
+    from mod import get_degree_sequence
+    degrees = get_degree_sequence(g)
+    print(f"度序列（降序）: {degrees}")
 
 
-def example_10_clustering():
-    """示例10：聚类系数"""
-    print("\n" + "="*60)
-    print("示例10：聚类系数（朋友关系的紧密程度）")
-    print("="*60)
+def example_10_factory_functions():
+    """示例10：工厂函数创建特殊图"""
+    print("\n" + "=" * 60)
+    print("示例10：工厂函数创建特殊图")
+    print("=" * 60)
     
-    # 创建三角网络（朋友圈）
-    g = Graph[str]()
-    # 完全三角形
-    g.add_edge("A", "B")
-    g.add_edge("B", "C")
-    g.add_edge("C", "A")
-    # 另一个三角形
-    g.add_edge("D", "E")
-    g.add_edge("E", "F")
-    g.add_edge("F", "D")
-    # 连接两个三角形
-    g.add_edge("C", "D")
+    print("\n【完全图 K5】")
+    complete = create_complete_graph(5)
+    print(f"{complete}")
+    print(f"每个顶点的度: {complete.get_degree(0)} (n-1=4)")
     
-    # 聚类系数
-    cc = clustering_coefficient(g)
-    print("各节点聚类系数:")
-    for node, value in cc.items():
-        print(f"  {node}: {value:.3f}")
+    print("\n【路径图 P5】")
+    path = create_path_graph(5)
+    print(f"{path}")
+    print(f"顶点: {sorted(path.get_vertices())}")
     
-    # 平均聚类系数
-    avg_cc = average_clustering_coefficient(g)
-    print(f"\n平均聚类系数: {avg_cc:.3f}")
+    print("\n【环图 C5】")
+    cycle = create_cycle_graph(5)
+    print(f"{cycle}")
+    print(f"是否有环: {has_cycle(cycle)}")
+    
+    print("\n【星图 S4】")
+    star = create_star_graph(4)
+    print(f"{star}")
+    print(f"中心顶点的度: {star.get_degree(0)}")
+    print(f"叶子顶点的度: {star.get_degree(1)}")
 
 
-def example_11_articulation_bridges():
-    """示例11：割点和桥"""
-    print("\n" + "="*60)
-    print("示例11：割点和桥（网络脆弱性分析）")
-    print("="*60)
+def example_11_adjacency_matrix():
+    """示例11：邻接矩阵转换"""
+    print("\n" + "=" * 60)
+    print("示例11：邻接矩阵转换")
+    print("=" * 60)
     
-    # 创建网络拓扑
-    g = Graph[str]()
-    g.add_edge("A", "B")
-    g.add_edge("B", "C")
-    g.add_edge("C", "D")
-    g.add_edge("D", "E")
-    g.add_edge("E", "F")
-    g.add_edge("B", "E")  # 添加冗余路径
+    # 创建图
+    g = Graph(weighted=True)
+    g.add_edge(0, 1, 2)
+    g.add_edge(1, 2, 3)
+    g.add_edge(2, 0, 1)
     
-    # 割点
-    aps = articulation_points(g)
-    print(f"割点（关键节点）: {aps}")
+    print("\n【原图】")
+    print(g)
     
-    # 桥
-    bridges_list = bridges(g)
-    print(f"桥（关键连接）: {bridges_list}")
-
-
-def example_12_all_paths():
-    """示例12：所有路径查找"""
-    print("\n" + "="*60)
-    print("示例12：所有路径查找")
-    print("="*60)
+    print("\n【转换为邻接矩阵】")
+    matrix, vertices = to_adjacency_matrix(g)
+    print("顶点顺序:", vertices)
+    print("矩阵:")
+    for row in matrix:
+        print("  ", [f"{x:.0f}" if x != float('inf') else "∞" for x in row])
     
-    # 创建迷宫图
-    g = Graph[str]()
-    g.add_edge("入口", "A")
-    g.add_edge("入口", "B")
-    g.add_edge("A", "C")
-    g.add_edge("B", "C")
-    g.add_edge("C", "D")
-    g.add_edge("D", "出口")
-    g.add_edge("C", "出口")
-    
-    # 查找所有路径
-    paths = all_paths(g, "入口", "出口")
-    print(f"从入口到出口的所有路径（共{len(paths)}条）:")
-    for i, path in enumerate(paths):
-        print(f"  路径{i+1}: {' -> '.join(path)}")
+    print("\n【从邻接矩阵重建图】")
+    g2 = from_adjacency_matrix(matrix, vertices, weighted=True)
+    print(g2)
+    print(f"边数量: {g2.get_edge_count()}")
 
 
 def main():
@@ -368,20 +435,19 @@ def main():
     example_1_basic_operations()
     example_2_traversal()
     example_3_shortest_path()
-    example_4_mst()
+    example_4_minimum_spanning_tree()
     example_5_topological_sort()
-    example_6_cycle_detection()
-    example_7_connectivity()
+    example_6_connectivity()
+    example_7_cycle_detection()
     example_8_bipartite()
-    example_9_centrality()
-    example_10_clustering()
-    example_11_articulation_bridges()
-    example_12_all_paths()
+    example_9_graph_metrics()
+    example_10_factory_functions()
+    example_11_adjacency_matrix()
     
-    print("\n" + "="*60)
-    print("所有示例运行完成！")
-    print("="*60)
+    print("\n" + "=" * 60)
+    print("所有示例演示完成！")
+    print("=" * 60)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
