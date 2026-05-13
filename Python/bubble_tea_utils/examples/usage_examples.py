@@ -9,8 +9,8 @@ Usage examples for bubble_tea_utils module.
 import sys
 import os
 
-# Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add parent directory (Python/) to path for proper imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from bubble_tea_utils.mod import (
     BubbleTeaOrder,
