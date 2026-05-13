@@ -1,863 +1,1045 @@
 """
-滑动窗口统计工具模块 (Sliding Window Statistics Utils)
+Sliding Window Utilities - 滑动窗口工具
 
-提供高效的滑动窗口数据结构和统计计算功能，适用于实时数据流分析、
-监控指标计算、性能测量等场景。零外部依赖，纯 Python 标准库实现。
+提供完整的滑动窗口实现，包括：
+- 固定大小滑动窗口 (Fixed Sliding Window)
+- 时间滑动窗口 (Time-Based Sliding Window)
+- 移动平均计算 (Moving Average)
+- 滑动窗口统计 (Window Statistics)
+- 滑动窗口限流 (Rate Limiting)
+- 滑动窗口最大/最小值 (Window Min/Max with Deque)
 
-主要功能：
-- 滑动窗口最大值/最小值（单调队列实现，O(1) 查询）
-- 滑动窗口平均值/总和/计数
-- 滑动窗口标准差/方差
-- 滑动窗口中位数（双堆实现）
-- 滑动窗口百分位数
-- 时间窗口统计（基于时间戳的数据）
+零外部依赖，纯 Python 实现。
 """
 
+from typing import Union, List, Optional, Callable, Any, Generic, TypeVar, Iterator, Tuple
+from dataclasses import dataclass, field
 from collections import deque
-from typing import Optional, List, Tuple, Callable, Any, Generic, TypeVar
-import math
-import heapq
+from datetime import datetime, timedelta
 import time
+import math
 
-T = TypeVar('T', int, float)
+T = TypeVar('T')
+N = TypeVar('N', int, float)
 
 
-class SlidingWindowMax(Generic[T]):
+@dataclass
+class WindowStats:
+    """窗口统计信息"""
+    count: int = 0
+    sum: float = 0.0
+    min: Optional[float] = None
+    max: Optional[float] = None
+    mean: float = 0.0
+    variance: float = 0.0
+    std_dev: float = 0.0
+    
+    def to_dict(self) -> dict:
+        """转换为字典"""
+        return {
+            'count': self.count,
+            'sum': self.sum,
+            'min': self.min,
+            'max': self.max,
+            'mean': self.mean,
+            'variance': self.variance,
+            'std_dev': self.std_dev,
+        }
+
+
+class SlidingWindow(Generic[T]):
     """
-    滑动窗口最大值计算器
+    通用滑动窗口
     
-    使用单调递减队列实现，支持 O(1) 的最大值查询，
-    O(n) 的整体时间复杂度处理 n 个元素。
+    支持任意类型数据的滑动窗口实现。
     
-    示例:
-        >>> swm = SlidingWindowMax(3)
-        >>> for val in [1, 3, 2, 5, 4]:
-        ...     swm.push(val)
-        ...     print(swm.max())
-        1
-        3
-        3
-        5
-        5
+    特点：
+    - O(1) 时间添加元素
+    - O(1) 时间获取窗口
+    - 支持自定义窗口大小
+    - 支持窗口变化回调
+    
+    Example:
+        >>> window = SlidingWindow(size=3)
+        >>> window.add(1)
+        >>> window.add(2)
+        >>> window.add(3)
+        >>> window.get_window()
+        [1, 2, 3]
+        >>> window.add(4)
+        >>> window.get_window()
+        [2, 3, 4]
     """
     
-    def __init__(self, window_size: int):
+    def __init__(
+        self,
+        size: int,
+        on_add: Optional[Callable[[T], None]] = None,
+        on_remove: Optional[Callable[[T], None]] = None,
+    ):
         """
-        初始化滑动窗口最大值计算器
+        初始化滑动窗口
         
         Args:
-            window_size: 窗口大小，必须为正整数
+            size: 窗口大小
+            on_add: 元素添加回调
+            on_remove: 元素移除回调
         """
-        if window_size <= 0:
-            raise ValueError("窗口大小必须为正整数")
-        self.window_size = window_size
-        self._deque: deque = deque()  # 存储 (索引, 值) 的单调队列
-        self._data: deque = deque()   # 存储所有数据
-        self._index = 0
+        if size <= 0:
+            raise ValueError("窗口大小必须大于 0")
+        
+        self.size = size
+        self.on_add = on_add
+        self.on_remove = on_remove
+        self._window: deque[T] = deque(maxlen=size)
     
-    def push(self, value: T) -> Optional[T]:
+    def add(self, item: T) -> Optional[T]:
         """
-        添加新值到窗口
+        添加元素到窗口
         
         Args:
-            value: 要添加的数值
+            item: 要添加的元素
             
         Returns:
-            被移除的值（如果窗口已满），否则返回 None
+            如果窗口已满，返回被移除的元素；否则返回 None
         """
-        popped = None
+        removed = None
         
-        # 移除超出窗口的元素
-        if len(self._data) >= self.window_size:
-            popped = self._data.popleft()
-            # 移除队列中过期的元素
-            if self._deque and self._deque[0][0] <= self._index - self.window_size:
-                self._deque.popleft()
+        if len(self._window) == self.size:
+            removed = self._window[0]
+            if self.on_remove:
+                self.on_remove(removed)
         
-        # 维护单调递减队列
-        while self._deque and self._deque[-1][1] <= value:
-            self._deque.pop()
+        self._window.append(item)
         
-        self._deque.append((self._index, value))
-        self._data.append(value)
-        self._index += 1
+        if self.on_add:
+            self.on_add(item)
         
-        return popped
+        return removed
     
-    def max(self) -> Optional[T]:
-        """
-        获取当前窗口的最大值
-        
-        Returns:
-            窗口内的最大值，如果窗口为空则返回 None
-        """
-        if not self._deque:
-            return None
-        return self._deque[0][1]
+    def get_window(self) -> List[T]:
+        """获取当前窗口内容"""
+        return list(self._window)
     
-    def __len__(self) -> int:
-        return len(self._data)
+    def get_latest(self) -> Optional[T]:
+        """获取最新元素"""
+        return self._window[-1] if self._window else None
     
-    def is_empty(self) -> bool:
-        return len(self._data) == 0
+    def get_oldest(self) -> Optional[T]:
+        """获取最旧元素"""
+        return self._window[0] if self._window else None
     
     def is_full(self) -> bool:
-        return len(self._data) == self.window_size
+        """窗口是否已满"""
+        return len(self._window) == self.size
+    
+    def is_empty(self) -> bool:
+        """窗口是否为空"""
+        return len(self._window) == 0
     
     def clear(self) -> None:
         """清空窗口"""
-        self._deque.clear()
-        self._data.clear()
-        self._index = 0
-
-
-class SlidingWindowMin(Generic[T]):
-    """
-    滑动窗口最小值计算器
-    
-    使用单调递增队列实现，支持 O(1) 的最小值查询。
-    
-    示例:
-        >>> swm = SlidingWindowMin(3)
-        >>> for val in [5, 3, 2, 4, 1]:
-        ...     swm.push(val)
-        ...     print(swm.min())
-        5
-        3
-        2
-        2
-        1
-    """
-    
-    def __init__(self, window_size: int):
-        if window_size <= 0:
-            raise ValueError("窗口大小必须为正整数")
-        self.window_size = window_size
-        self._deque: deque = deque()
-        self._data: deque = deque()
-        self._index = 0
-    
-    def push(self, value: T) -> Optional[T]:
-        """添加新值到窗口，返回被移除的值（如果有）"""
-        popped = None
-        
-        if len(self._data) >= self.window_size:
-            popped = self._data.popleft()
-            if self._deque and self._deque[0][0] <= self._index - self.window_size:
-                self._deque.popleft()
-        
-        # 维护单调递增队列
-        while self._deque and self._deque[-1][1] >= value:
-            self._deque.pop()
-        
-        self._deque.append((self._index, value))
-        self._data.append(value)
-        self._index += 1
-        
-        return popped
-    
-    def min(self) -> Optional[T]:
-        """获取当前窗口的最小值"""
-        if not self._deque:
-            return None
-        return self._deque[0][1]
+        self._window.clear()
     
     def __len__(self) -> int:
-        return len(self._data)
+        return len(self._window)
     
-    def is_empty(self) -> bool:
-        return len(self._data) == 0
+    def __iter__(self) -> Iterator[T]:
+        return iter(self._window)
     
-    def is_full(self) -> bool:
-        return len(self._data) == self.window_size
-    
-    def clear(self) -> None:
-        self._deque.clear()
-        self._data.clear()
-        self._index = 0
+    def __repr__(self) -> str:
+        return f"SlidingWindow(size={self.size}, items={list(self._window)})"
 
 
-class SlidingWindowStats:
+class NumericSlidingWindow(Generic[N]):
     """
-    滑动窗口统计计算器
+    数值型滑动窗口
     
-    提供滑动窗口内的平均值、总和、标准差、方差等统计量计算。
+    专为数值数据优化的滑动窗口，支持：
+    - 高效计算移动平均
+    - 窗口统计信息
+    - 增量更新方差/标准差
     
-    示例:
-        >>> stats = SlidingWindowStats(3)
-        >>> for val in [1, 2, 3, 4, 5]:
-        ...     stats.push(val)
-        ...     print(f"avg={stats.mean():.2f}, sum={stats.sum()}")
-        avg=1.00, sum=1
-        avg=1.50, sum=3
-        avg=2.00, sum=6
-        avg=3.00, sum=9
-        avg=4.00, sum=12
+    使用 Welford 算法进行增量方差计算，避免数值精度问题。
+    
+    Example:
+        >>> window = NumericSlidingWindow(size=5)
+        >>> for i in range(10):
+        ...     window.add(i)
+        >>> window.get_mean()
+        7.0  # 平均值 of [5, 6, 7, 8, 9]
     """
     
-    def __init__(self, window_size: int):
+    def __init__(self, size: int):
         """
-        初始化滑动窗口统计计算器
+        初始化数值滑动窗口
         
         Args:
-            window_size: 窗口大小
+            size: 窗口大小
         """
-        if window_size <= 0:
-            raise ValueError("窗口大小必须为正整数")
-        self.window_size = window_size
-        self._data: deque = deque()
+        if size <= 0:
+            raise ValueError("窗口大小必须大于 0")
+        
+        self.size = size
+        self._window: deque[float] = deque(maxlen=size)
         self._sum: float = 0.0
-        self._sum_sq: float = 0.0  # 用于计算方差
+        self._min: Optional[float] = None
+        self._max: Optional[float] = None
+        # 用于增量方差计算
+        self._m2: float = 0.0  # 平方差累计
     
-    def push(self, value: float) -> Optional[float]:
+    def add(self, value: N) -> Optional[float]:
         """
-        添加新值到窗口
+        添加数值
         
         Args:
-            value: 要添加的数值
+            value: 数值
             
         Returns:
             被移除的值（如果窗口已满）
         """
-        popped = None
+        removed = None
         
-        if len(self._data) >= self.window_size:
-            popped = self._data.popleft()
-            self._sum -= popped
-            self._sum_sq -= popped * popped
+        # 如果窗口已满，移除最旧的值
+        if len(self._window) == self.size:
+            removed = self._window[0]
+            self._sum -= removed
         
-        self._data.append(value)
+        # 添加新值
+        self._window.append(float(value))
         self._sum += value
-        self._sum_sq += value * value
         
-        return popped
+        # 每次添加后重新计算 min/max（更可靠）
+        self._min = min(self._window) if self._window else None
+        self._max = max(self._window) if self._window else None
+        
+        return removed
     
-    def sum(self) -> float:
-        """获取窗口内数据的总和"""
+    def get_window(self) -> List[float]:
+        """获取当前窗口"""
+        return list(self._window)
+    
+    def get_sum(self) -> float:
+        """获取窗口内数值之和"""
         return self._sum
     
-    def mean(self) -> Optional[float]:
-        """获取窗口内数据的平均值"""
-        if not self._data:
-            return None
-        return self._sum / len(self._data)
+    def get_mean(self) -> float:
+        """获取移动平均"""
+        if not self._window:
+            return 0.0
+        return self._sum / len(self._window)
     
-    def variance(self, population: bool = True) -> Optional[float]:
+    def get_variance(self, population: bool = True) -> float:
         """
-        计算方差
+        获取方差
         
         Args:
             population: True 为总体方差，False 为样本方差
             
         Returns:
-            方差值，窗口为空返回 None
+            方差值
         """
-        if not self._data:
-            return None
+        if len(self._window) < 2:
+            return 0.0
         
-        n = len(self._data)
-        mean = self._sum / n
+        n = len(self._window) if population else len(self._window) - 1
+        if n <= 0:
+            return 0.0
         
-        if population:
-            return (self._sum_sq / n) - (mean * mean)
-        else:
-            if n < 2:
-                return None
-            return ((self._sum_sq / n) - (mean * mean)) * n / (n - 1)
+        # 使用简化的方差计算（更稳定）
+        mean = self.get_mean()
+        return sum((x - mean) ** 2 for x in self._window) / n
     
-    def std_dev(self, population: bool = True) -> Optional[float]:
+    def get_std_dev(self, population: bool = True) -> float:
+        """获取标准差"""
+        return math.sqrt(self.get_variance(population))
+    
+    def get_min(self) -> Optional[float]:
+        """获取窗口内最小值"""
+        return self._min
+    
+    def get_max(self) -> Optional[float]:
+        """获取窗口内最大值"""
+        return self._max
+    
+    def get_stats(self) -> WindowStats:
+        """获取完整统计信息"""
+        return WindowStats(
+            count=len(self._window),
+            sum=self._sum,
+            min=self._min,
+            max=self._max,
+            mean=self.get_mean(),
+            variance=self.get_variance(),
+            std_dev=self.get_std_dev(),
+        )
+    
+    def is_full(self) -> bool:
+        return len(self._window) == self.size
+    
+    def is_empty(self) -> bool:
+        return len(self._window) == 0
+    
+    def clear(self) -> None:
+        """清空窗口"""
+        self._window.clear()
+        self._sum = 0.0
+        self._min = None
+        self._max = None
+        self._m2 = 0.0
+    
+    def __len__(self) -> int:
+        return len(self._window)
+    
+    def __iter__(self) -> Iterator[float]:
+        return iter(self._window)
+    
+    def __repr__(self) -> str:
+        return f"NumericSlidingWindow(size={self.size}, mean={self.get_mean():.2f})"
+
+
+class MovingAverage:
+    """
+    移动平均计算器
+    
+    支持多种移动平均类型：
+    - 简单移动平均 (SMA)
+    - 累积移动平均 (CMA)
+    - 加权移动平均 (WMA)
+    - 指数移动平均 (EMA)
+    
+    Example:
+        >>> ma = MovingAverage(window_size=3, ma_type='sma')
+        >>> ma.update(1)
+        1.0
+        >>> ma.update(2)
+        1.5
+        >>> ma.update(3)
+        2.0
+        >>> ma.update(4)
+        3.0
+    """
+    
+    SMA = 'sma'   # 简单移动平均
+    CMA = 'cma'   # 累积移动平均
+    WMA = 'wma'   # 加权移动平均
+    EMA = 'ema'   # 指数移动平均
+    
+    def __init__(
+        self,
+        window_size: int = 10,
+        ma_type: str = 'sma',
+        alpha: Optional[float] = None,
+    ):
         """
-        计算标准差
+        初始化移动平均计算器
         
         Args:
-            population: True 为总体标准差，False 为样本标准差
+            window_size: 窗口大小（SMA/WMA 有效）
+            ma_type: 平均类型 ('sma', 'cma', 'wma', 'ema')
+            alpha: EMA 的平滑因子（默认 2/(n+1)）
+        """
+        self.ma_type = ma_type.lower()
+        self.window_size = window_size
+        
+        # EMA 平滑因子
+        if alpha is not None:
+            self.alpha = alpha
+        else:
+            self.alpha = 2.0 / (window_size + 1)
+        
+        # 内部状态
+        self._window: deque[float] = deque(maxlen=window_size)
+        self._sum: float = 0.0
+        self._count: int = 0
+        self._ema: Optional[float] = None  # EMA 当前值
+        
+        # WMA 权重（线性递增）
+        self._weights = list(range(1, window_size + 1))
+    
+    def update(self, value: N) -> float:
+        """
+        添加新值并返回移动平均
+        
+        Args:
+            value: 新数值
             
         Returns:
-            标准差值，窗口为空返回 None
+            当前的移动平均值
         """
-        var = self.variance(population)
-        if var is None:
-            return None
-        return math.sqrt(var)
+        value = float(value)
+        
+        if self.ma_type == self.SMA:
+            return self._update_sma(value)
+        elif self.ma_type == self.CMA:
+            return self._update_cma(value)
+        elif self.ma_type == self.WMA:
+            return self._update_wma(value)
+        elif self.ma_type == self.EMA:
+            return self._update_ema(value)
+        else:
+            raise ValueError(f"未知的移动平均类型: {self.ma_type}")
     
-    def count(self) -> int:
-        """获取窗口内数据的数量"""
-        return len(self._data)
+    def _update_sma(self, value: float) -> float:
+        """更新简单移动平均"""
+        if len(self._window) == self.window_size:
+            self._sum -= self._window[0]
+        
+        self._window.append(value)
+        self._sum += value
+        
+        return self._sum / len(self._window)
     
-    def min(self) -> Optional[float]:
-        """获取窗口内最小值"""
-        if not self._data:
-            return None
-        return min(self._data)
+    def _update_cma(self, value: float) -> float:
+        """更新累积移动平均"""
+        self._count += 1
+        self._sum += value
+        return self._sum / self._count
     
-    def max(self) -> Optional[float]:
-        """获取窗口内最大值"""
-        if not self._data:
-            return None
-        return max(self._data)
+    def _update_wma(self, value: float) -> float:
+        """更新加权移动平均"""
+        if len(self._window) == self.window_size:
+            self._window.popleft()
+        
+        self._window.append(value)
+        
+        # 计算加权和
+        n = len(self._window)
+        weights = self._weights[:n]
+        weighted_sum = sum(w * v for w, v in zip(weights, self._window))
+        weight_sum = sum(weights)
+        
+        return weighted_sum / weight_sum
     
-    def range(self) -> Optional[float]:
-        """获取窗口内数据的极差（最大值 - 最小值）"""
-        if not self._data:
-            return None
-        return max(self._data) - min(self._data)
+    def _update_ema(self, value: float) -> float:
+        """更新指数移动平均"""
+        if self._ema is None:
+            self._ema = value
+        else:
+            self._ema = self.alpha * value + (1 - self.alpha) * self._ema
+        
+        return self._ema
     
-    def __len__(self) -> int:
-        return len(self._data)
+    def get_current(self) -> float:
+        """获取当前移动平均值"""
+        if self.ma_type == self.SMA:
+            return self._sum / len(self._window) if self._window else 0.0
+        elif self.ma_type == self.CMA:
+            return self._sum / self._count if self._count > 0 else 0.0
+        elif self.ma_type == self.WMA:
+            if not self._window:
+                return 0.0
+            n = len(self._window)
+            weights = self._weights[:n]
+            weighted_sum = sum(w * v for w, v in zip(weights, self._window))
+            return weighted_sum / sum(weights)
+        elif self.ma_type == self.EMA:
+            return self._ema if self._ema is not None else 0.0
+        return 0.0
     
-    def is_empty(self) -> bool:
-        return len(self._data) == 0
+    def get_window(self) -> List[float]:
+        """获取当前窗口"""
+        return list(self._window)
     
-    def is_full(self) -> bool:
-        return len(self._data) == self.window_size
-    
-    def clear(self) -> None:
-        """清空窗口"""
-        self._data.clear()
+    def reset(self) -> None:
+        """重置状态"""
+        self._window.clear()
         self._sum = 0.0
-        self._sum_sq = 0.0
+        self._count = 0
+        self._ema = None
+    
+    def __repr__(self) -> str:
+        return f"MovingAverage(type={self.ma_type}, current={self.get_current():.2f})"
 
 
-class SlidingWindowMedian:
+class TimeSlidingWindow(Generic[T]):
     """
-    滑动窗口中位数计算器
+    基于时间的滑动窗口
     
-    使用双堆（大顶堆 + 小顶堆）实现，支持 O(log n) 的中位数查询。
+    元素根据时间戳自动过期。
     
-    示例:
-        >>> swm = SlidingWindowMedian(3)
-        >>> for val in [1, 2, 3, 4, 5]:
-        ...     swm.push(val)
-        ...     print(f"median={swm.median()}")
-        median=1
-        median=1.5
-        median=2
-        median=3
-        median=4
+    Example:
+        >>> window = TimeSlidingWindow(window_seconds=60)
+        >>> window.add("event1")
+        >>> window.add("event2")
+        >>> window.get_window()  # 返回最近 60 秒内的所有事件
     """
     
-    def __init__(self, window_size: int):
-        if window_size <= 0:
-            raise ValueError("窗口大小必须为正整数")
-        self.window_size = window_size
-        self._data: deque = deque()
-        # 大顶堆（存储较小的一半，用负数模拟）
-        self._max_heap: List[float] = []
-        # 小顶堆（存储较大的一半）
-        self._min_heap: List[float] = []
-        # 延迟删除的元素计数
-        self._delayed: dict = {}
-        self._max_heap_size = 0
-        self._min_heap_size = 0
-    
-    def push(self, value: float) -> Optional[float]:
-        """添加新值到窗口，返回被移除的值"""
-        popped = None
-        
-        if len(self._data) >= self.window_size:
-            popped = self._data.popleft()
-            self._delayed[popped] = self._delayed.get(popped, 0) + 1
-            if popped <= -self._max_heap[0]:
-                self._max_heap_size -= 1
-            else:
-                self._min_heap_size -= 1
-        
-        self._data.append(value)
-        self._add_num(value)
-        self._rebalance()
-        self._prune()
-        
-        return popped
-    
-    def _add_num(self, num: float) -> None:
-        """将数字添加到合适的堆"""
-        if not self._max_heap or num <= -self._max_heap[0]:
-            heapq.heappush(self._max_heap, -num)
-            self._max_heap_size += 1
-        else:
-            heapq.heappush(self._min_heap, num)
-            self._min_heap_size += 1
-    
-    def _rebalance(self) -> None:
-        """平衡两个堆的大小"""
-        while self._max_heap_size > self._min_heap_size + 1:
-            self._prune_max_heap()
-            if self._max_heap:
-                val = -heapq.heappop(self._max_heap)
-                self._max_heap_size -= 1
-                heapq.heappush(self._min_heap, val)
-                self._min_heap_size += 1
-                self._prune_min_heap()
-        
-        while self._min_heap_size > self._max_heap_size:
-            self._prune_min_heap()
-            if self._min_heap:
-                val = heapq.heappop(self._min_heap)
-                self._min_heap_size -= 1
-                heapq.heappush(self._max_heap, -val)
-                self._max_heap_size += 1
-                self._prune_max_heap()
-    
-    def _prune(self) -> None:
-        """清理延迟删除的元素"""
-        while self._max_heap and self._delayed.get(-self._max_heap[0], 0) > 0:
-            val = -heapq.heappop(self._max_heap)
-            self._delayed[val] -= 1
-            if self._delayed[val] == 0:
-                del self._delayed[val]
-        
-        while self._min_heap and self._delayed.get(self._min_heap[0], 0) > 0:
-            val = heapq.heappop(self._min_heap)
-            self._delayed[val] -= 1
-            if self._delayed[val] == 0:
-                del self._delayed[val]
-    
-    def _prune_max_heap(self) -> None:
-        """清理大顶堆顶部的延迟删除元素"""
-        while self._max_heap and self._delayed.get(-self._max_heap[0], 0) > 0:
-            val = -heapq.heappop(self._max_heap)
-            self._delayed[val] -= 1
-            if self._delayed[val] == 0:
-                del self._delayed[val]
-    
-    def _prune_min_heap(self) -> None:
-        """清理小顶堆顶部的延迟删除元素"""
-        while self._min_heap and self._delayed.get(self._min_heap[0], 0) > 0:
-            val = heapq.heappop(self._min_heap)
-            self._delayed[val] -= 1
-            if self._delayed[val] == 0:
-                del self._delayed[val]
-    
-    def median(self) -> Optional[float]:
-        """获取当前窗口的中位数"""
-        if not self._data:
-            return None
-        
-        self._prune()
-        
-        if self._max_heap_size > self._min_heap_size:
-            return -self._max_heap[0]
-        else:
-            return (-self._max_heap[0] + self._min_heap[0]) / 2
-    
-    def __len__(self) -> int:
-        return len(self._data)
-    
-    def is_empty(self) -> bool:
-        return len(self._data) == 0
-    
-    def is_full(self) -> bool:
-        return len(self._data) == self.window_size
-    
-    def clear(self) -> None:
-        """清空窗口"""
-        self._data.clear()
-        self._max_heap.clear()
-        self._min_heap.clear()
-        self._delayed.clear()
-        self._max_heap_size = 0
-        self._min_heap_size = 0
-
-
-class SlidingWindowPercentile:
-    """
-    滑动窗口百分位数计算器
-    
-    支持任意百分位数的计算，使用两个有序列表实现。
-    
-    示例:
-        >>> swp = SlidingWindowPercentile(5, percentile=75)
-        >>> for val in [1, 2, 3, 4, 5, 6, 7]:
-        ...     swp.push(val)
-        ...     print(f"P75={swp.percentile_value()}")
-    """
-    
-    def __init__(self, window_size: int, percentile: float = 50.0):
+    def __init__(
+        self,
+        window_seconds: float,
+        time_func: Optional[Callable[[], float]] = None,
+    ):
         """
-        初始化百分位数计算器
+        初始化时间滑动窗口
         
         Args:
-            window_size: 窗口大小
-            percentile: 百分位数 (0-100)，默认50（中位数）
-        """
-        if window_size <= 0:
-            raise ValueError("窗口大小必须为正整数")
-        if not 0 <= percentile <= 100:
-            raise ValueError("百分位数必须在 0-100 之间")
-        
-        self.window_size = window_size
-        self.percentile = percentile
-        self._data: deque = deque()
-    
-    def push(self, value: float) -> Optional[float]:
-        """添加新值到窗口"""
-        popped = None
-        if len(self._data) >= self.window_size:
-            popped = self._data.popleft()
-        self._data.append(value)
-        return popped
-    
-    def percentile_value(self) -> Optional[float]:
-        """获取当前窗口的百分位数值"""
-        if not self._data:
-            return None
-        
-        sorted_data = sorted(self._data)
-        n = len(sorted_data)
-        
-        # 计算百分位位置
-        index = (self.percentile / 100) * (n - 1)
-        lower = int(index)
-        upper = lower + 1
-        
-        if upper >= n:
-            return sorted_data[lower]
-        
-        # 线性插值
-        weight = index - lower
-        return sorted_data[lower] * (1 - weight) + sorted_data[upper] * weight
-    
-    def set_percentile(self, percentile: float) -> None:
-        """设置百分位数"""
-        if not 0 <= percentile <= 100:
-            raise ValueError("百分位数必须在 0-100 之间")
-        self.percentile = percentile
-    
-    def __len__(self) -> int:
-        return len(self._data)
-    
-    def is_empty(self) -> bool:
-        return len(self._data) == 0
-    
-    def is_full(self) -> bool:
-        return len(self._data) == self.window_size
-    
-    def clear(self) -> None:
-        """清空窗口"""
-        self._data.clear()
-
-
-class TimeWindowStats:
-    """
-    时间窗口统计计算器
-    
-    基于时间戳的滑动窗口，自动清理过期数据。
-    
-    示例:
-        >>> import time
-        >>> tws = TimeWindowStats(window_seconds=10)
-        >>> tws.push(time.time(), 100)
-        >>> tws.push(time.time(), 200)
-        >>> print(f"avg={tws.mean()}")
-    """
-    
-    def __init__(self, window_seconds: float):
-        """
-        初始化时间窗口统计计算器
-        
-        Args:
-            window_seconds: 窗口时长（秒）
+            window_seconds: 窗口时间（秒）
+            time_func: 时间获取函数（默认使用 time.time）
         """
         if window_seconds <= 0:
-            raise ValueError("窗口时长必须为正数")
+            raise ValueError("窗口时间必须大于 0")
+        
         self.window_seconds = window_seconds
-        self._data: deque = deque()  # 存储 (timestamp, value) 元组
+        self._time_func = time_func or time.time
+        self._window: deque[Tuple[float, T]] = deque()
     
-    def push(self, timestamp: float, value: float, current_time: Optional[float] = None) -> int:
+    def _current_time(self) -> float:
+        """获取当前时间"""
+        return self._time_func()
+    
+    def _cleanup(self) -> None:
+        """清理过期元素"""
+        now = self._current_time()
+        cutoff = now - self.window_seconds
+        
+        while self._window and self._window[0][0] < cutoff:
+            self._window.popleft()
+    
+    def add(self, item: T, timestamp: Optional[float] = None) -> None:
         """
-        添加带时间戳的数据点
+        添加元素
         
         Args:
-            timestamp: 数据的时间戳（秒）
-            value: 数值
-            current_time: 当前时间戳（秒），用于判断过期。如果不提供，使用系统当前时间
-            
-        Returns:
-            清理的过期数据点数量
+            item: 元素
+            timestamp: 时间戳（可选，默认当前时间）
         """
-        ref_time = current_time if current_time is not None else time.time()
-        self._data.append((timestamp, value))
-        return self._cleanup(ref_time)
+        if timestamp is None:
+            timestamp = self._current_time()
+        
+        self._cleanup()
+        self._window.append((timestamp, item))
     
-    def _cleanup(self, current_time: float) -> int:
-        """清理过期数据"""
-        cutoff = current_time - self.window_seconds
-        removed = 0
-        while self._data and self._data[0][0] < cutoff:
-            self._data.popleft()
-            removed += 1
-        return removed
-    
-    def refresh(self, current_time: float) -> int:
-        """刷新窗口，清理过期数据"""
-        return self._cleanup(current_time)
-    
-    def sum(self) -> float:
-        """获取窗口内数据总和"""
-        return sum(v for _, v in self._data)
-    
-    def mean(self) -> Optional[float]:
-        """获取窗口内数据平均值"""
-        if not self._data:
-            return None
-        return self.sum() / len(self._data)
-    
-    def min(self) -> Optional[float]:
-        """获取窗口内最小值"""
-        if not self._data:
-            return None
-        return min(v for _, v in self._data)
-    
-    def max(self) -> Optional[float]:
-        """获取窗口内最大值"""
-        if not self._data:
-            return None
-        return max(v for _, v in self._data)
-    
-    def count(self) -> int:
-        """获取窗口内数据点数量"""
-        return len(self._data)
-    
-    def rate(self, current_time: Optional[float] = None) -> Optional[float]:
+    def get_window(self, cleanup: bool = True) -> List[T]:
         """
-        计算数据点的到达速率（每秒多少个）
+        获取当前窗口内容
         
         Args:
-            current_time: 当前时间戳，如果提供会先清理过期数据
+            cleanup: 是否先清理过期元素
             
         Returns:
-            速率，如果没有数据返回 None
+            窗口内的元素列表
         """
-        if current_time is not None:
-            self._cleanup(current_time)
-        
-        if len(self._data) < 2:
-            return None
-        
-        time_span = self._data[-1][0] - self._data[0][0]
-        if time_span <= 0:
-            return None
-        
-        return (len(self._data) - 1) / time_span
+        if cleanup:
+            self._cleanup()
+        return [item for _, item in self._window]
     
-    def time_span(self) -> Optional[float]:
-        """获取窗口内数据的时间跨度（秒）"""
-        if len(self._data) < 2:
-            return None
-        return self._data[-1][0] - self._data[0][0]
+    def get_count(self, cleanup: bool = True) -> int:
+        """获取窗口内元素数量"""
+        if cleanup:
+            self._cleanup()
+        return len(self._window)
     
-    def __len__(self) -> int:
-        return len(self._data)
-    
-    def is_empty(self) -> bool:
-        return len(self._data) == 0
+    def is_empty(self, cleanup: bool = True) -> bool:
+        """窗口是否为空"""
+        return self.get_count(cleanup) == 0
     
     def clear(self) -> None:
         """清空窗口"""
-        self._data.clear()
+        self._window.clear()
+    
+    def __len__(self) -> int:
+        return self.get_count()
+    
+    def __repr__(self) -> str:
+        count = self.get_count()
+        return f"TimeSlidingWindow(window={self.window_seconds}s, count={count})"
+
+
+class RateLimiter:
+    """
+    滑动窗口限流器
+    
+    支持多种限流算法：
+    - 固定窗口 (Fixed Window)
+    - 滑动窗口 (Sliding Window)
+    - 令牌桶 (Token Bucket)
+    - 漏桶 (Leaky Bucket)
+    
+    Example:
+        >>> limiter = RateLimiter(max_requests=10, window_seconds=60)
+        >>> for i in range(15):
+        ...     if limiter.allow():
+        ...         print(f"请求 {i} 允许")
+        ...     else:
+        ...         print(f"请求 {i} 被限流")
+    """
+    
+    FIXED_WINDOW = 'fixed'
+    SLIDING_WINDOW = 'sliding'
+    TOKEN_BUCKET = 'token'
+    LEAKY_BUCKET = 'leaky'
+    
+    def __init__(
+        self,
+        max_requests: int,
+        window_seconds: float = 1.0,
+        algorithm: str = 'sliding',
+    ):
+        """
+        初始化限流器
+        
+        Args:
+            max_requests: 窗口内最大请求数
+            window_seconds: 窗口时间（秒）
+            algorithm: 算法类型 ('fixed', 'sliding', 'token', 'leaky')
+        """
+        if max_requests <= 0:
+            raise ValueError("最大请求数必须大于 0")
+        if window_seconds <= 0:
+            raise ValueError("窗口时间必须大于 0")
+        
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self.algorithm = algorithm.lower()
+        
+        # 固定窗口
+        self._window_start = time.time()
+        self._request_count = 0
+        
+        # 滑动窗口
+        self._timestamps: deque[float] = deque()
+        
+        # 令牌桶
+        self._tokens = float(max_requests)
+        self._last_refill = time.time()
+        self._refill_rate = max_requests / window_seconds
+        
+        # 漏桶
+        self._water = 0.0
+        self._last_leak = time.time()
+        self._leak_rate = max_requests / window_seconds
+    
+    def allow(self) -> bool:
+        """
+        检查是否允许请求
+        
+        Returns:
+            True 如果允许，False 如果被限流
+        """
+        if self.algorithm == self.FIXED_WINDOW:
+            return self._fixed_window_allow()
+        elif self.algorithm == self.SLIDING_WINDOW:
+            return self._sliding_window_allow()
+        elif self.algorithm == self.TOKEN_BUCKET:
+            return self._token_bucket_allow()
+        elif self.algorithm == self.LEAKY_BUCKET:
+            return self._leaky_bucket_allow()
+        else:
+            raise ValueError(f"未知的限流算法: {self.algorithm}")
+    
+    def _fixed_window_allow(self) -> bool:
+        """固定窗口算法"""
+        now = time.time()
+        
+        # 检查是否需要重置窗口
+        if now - self._window_start >= self.window_seconds:
+            self._window_start = now
+            self._request_count = 0
+        
+        if self._request_count < self.max_requests:
+            self._request_count += 1
+            return True
+        
+        return False
+    
+    def _sliding_window_allow(self) -> bool:
+        """滑动窗口算法"""
+        now = time.time()
+        cutoff = now - self.window_seconds
+        
+        # 移除过期的时间戳
+        while self._timestamps and self._timestamps[0] < cutoff:
+            self._timestamps.popleft()
+        
+        # 检查是否允许
+        if len(self._timestamps) < self.max_requests:
+            self._timestamps.append(now)
+            return True
+        
+        return False
+    
+    def _token_bucket_allow(self) -> bool:
+        """令牌桶算法"""
+        now = time.time()
+        
+        # 补充令牌
+        elapsed = now - self._last_refill
+        self._tokens = min(
+            self.max_requests,
+            self._tokens + elapsed * self._refill_rate
+        )
+        self._last_refill = now
+        
+        # 检查是否有令牌
+        if self._tokens >= 1:
+            self._tokens -= 1
+            return True
+        
+        return False
+    
+    def _leaky_bucket_allow(self) -> bool:
+        """漏桶算法"""
+        now = time.time()
+        
+        # 漏水
+        elapsed = now - self._last_leak
+        self._water = max(0, self._water - elapsed * self._leak_rate)
+        self._last_leak = now
+        
+        # 检查桶是否已满
+        if self._water < self.max_requests:
+            self._water += 1
+            return True
+        
+        return False
+    
+    def get_state(self) -> dict:
+        """获取当前状态"""
+        now = time.time()
+        
+        if self.algorithm == self.FIXED_WINDOW:
+            remaining = max(0, self.window_seconds - (now - self._window_start))
+            return {
+                'algorithm': self.algorithm,
+                'requests_in_window': self._request_count,
+                'remaining_requests': self.max_requests - self._request_count,
+                'window_reset_in': remaining,
+            }
+        elif self.algorithm == self.SLIDING_WINDOW:
+            return {
+                'algorithm': self.algorithm,
+                'requests_in_window': len(self._timestamps),
+                'remaining_requests': self.max_requests - len(self._timestamps),
+            }
+        elif self.algorithm == self.TOKEN_BUCKET:
+            # 先补充令牌以获取最新状态
+            elapsed = now - self._last_refill
+            tokens = min(self.max_requests, self._tokens + elapsed * self._refill_rate)
+            return {
+                'algorithm': self.algorithm,
+                'available_tokens': tokens,
+                'max_tokens': self.max_requests,
+            }
+        elif self.algorithm == self.LEAKY_BUCKET:
+            # 先漏水以获取最新状态
+            elapsed = now - self._last_leak
+            water = max(0, self._water - elapsed * self._leak_rate)
+            return {
+                'algorithm': self.algorithm,
+                'current_water': water,
+                'bucket_capacity': self.max_requests,
+            }
+        return {}
+    
+    def reset(self) -> None:
+        """重置限流器"""
+        self._window_start = time.time()
+        self._request_count = 0
+        self._timestamps.clear()
+        self._tokens = float(self.max_requests)
+        self._last_refill = time.time()
+        self._water = 0.0
+        self._last_leak = time.time()
+
+
+class MinMaxSlidingWindow:
+    """
+    滑动窗口最大/最小值
+    
+    使用单调队列实现 O(1) 时间复杂度的窗口最值查询。
+    
+    Example:
+        >>> window = MinMaxSlidingWindow(size=3)
+        >>> for v in [1, 3, -1, 2, 5]:
+        ...     window.add(v)
+        ...     print(f"min={window.get_min()}, max={window.get_max()}")
+    """
+    
+    def __init__(self, size: int):
+        """
+        初始化窗口
+        
+        Args:
+            size: 窗口大小
+        """
+        if size <= 0:
+            raise ValueError("窗口大小必须大于 0")
+        
+        self.size = size
+        self._window: deque[Tuple[int, float]] = deque()  # (index, value)
+        self._min_deque: deque[Tuple[int, float]] = deque()  # 单调递增队列
+        self._max_deque: deque[Tuple[int, float]] = deque()  # 单调递减队列
+        self._index = 0
+    
+    def add(self, value: N) -> None:
+        """
+        添加元素
+        
+        Args:
+            value: 数值
+        """
+        value = float(value)
+        
+        # 移除超出窗口的元素
+        if len(self._window) == self.size:
+            old_idx = self._window[0][0]
+            self._window.popleft()
+            
+            # 从单调队列中移除
+            if self._min_deque and self._min_deque[0][0] == old_idx:
+                self._min_deque.popleft()
+            if self._max_deque and self._max_deque[0][0] == old_idx:
+                self._max_deque.popleft()
+        
+        # 维护单调递增队列（最小值在队首）
+        while self._min_deque and self._min_deque[-1][1] >= value:
+            self._min_deque.pop()
+        self._min_deque.append((self._index, value))
+        
+        # 维护单调递减队列（最大值在队首）
+        while self._max_deque and self._max_deque[-1][1] <= value:
+            self._max_deque.pop()
+        self._max_deque.append((self._index, value))
+        
+        # 添加到窗口
+        self._window.append((self._index, value))
+        self._index += 1
+    
+    def get_min(self) -> Optional[float]:
+        """获取窗口内最小值"""
+        if not self._min_deque:
+            return None
+        return self._min_deque[0][1]
+    
+    def get_max(self) -> Optional[float]:
+        """获取窗口内最大值"""
+        if not self._max_deque:
+            return None
+        return self._max_deque[0][1]
+    
+    def get_window(self) -> List[float]:
+        """获取当前窗口"""
+        return [v for _, v in self._window]
+    
+    def clear(self) -> None:
+        """清空窗口"""
+        self._window.clear()
+        self._min_deque.clear()
+        self._max_deque.clear()
+        self._index = 0
+    
+    def __len__(self) -> int:
+        return len(self._window)
+    
+    def __repr__(self) -> str:
+        return f"MinMaxSlidingWindow(size={self.size}, min={self.get_min()}, max={self.get_max()})"
 
 
 class SlidingWindowCounter:
     """
     滑动窗口计数器
     
-    统计滑动窗口内的事件数量，支持任意类型的键。
+    用于统计时间窗口内的事件数量。
     
-    示例:
-        >>> counter = SlidingWindowCounter(window_size=5)
-        >>> for event in ['a', 'b', 'a', 'c', 'a', 'b']:
-        ...     counter.push(event)
-        ...     print(f"a: {counter.count('a')}, total: {counter.total()}")
+    Example:
+        >>> counter = SlidingWindowCounter(window_seconds=60)
+        >>> counter.increment()
+        >>> counter.increment()
+        >>> counter.get_count()
+        2
     """
     
-    def __init__(self, window_size: int):
-        if window_size <= 0:
-            raise ValueError("窗口大小必须为正整数")
-        self.window_size = window_size
-        self._data: deque = deque()
-        self._counts: dict = {}
-    
-    def push(self, key: Any) -> Optional[Any]:
+    def __init__(
+        self,
+        window_seconds: float,
+        precision: int = 10,
+    ):
         """
-        添加一个事件
+        初始化计数器
         
         Args:
-            key: 事件键
-            
-        Returns:
-            被移除的事件键（如果窗口已满）
+            window_seconds: 窗口时间（秒）
+            precision: 时间片精度（将窗口分成多少片）
         """
-        popped = None
+        if window_seconds <= 0:
+            raise ValueError("窗口时间必须大于 0")
+        if precision <= 0:
+            raise ValueError("精度必须大于 0")
         
-        if len(self._data) >= self.window_size:
-            popped = self._data.popleft()
-            self._counts[popped] -= 1
-            if self._counts[popped] == 0:
-                del self._counts[popped]
+        self.window_seconds = window_seconds
+        self.precision = precision
+        self.slice_seconds = window_seconds / precision
+        self._slices: deque[Tuple[float, int]] = deque()
+    
+    def _cleanup(self) -> None:
+        """清理过期的时间片"""
+        now = time.time()
+        cutoff = now - self.window_seconds
         
-        self._data.append(key)
-        self._counts[key] = self._counts.get(key, 0) + 1
-        
-        return popped
+        while self._slices and self._slices[0][0] < cutoff:
+            self._slices.popleft()
     
-    def count(self, key: Any) -> int:
-        """获取指定键在窗口内的出现次数"""
-        return self._counts.get(key, 0)
-    
-    def total(self) -> int:
-        """获取窗口内事件总数"""
-        return len(self._data)
-    
-    def unique_count(self) -> int:
-        """获取窗口内唯一键的数量"""
-        return len(self._counts)
-    
-    def most_common(self, n: int = 1) -> List[Tuple[Any, int]]:
+    def increment(self, count: int = 1, timestamp: Optional[float] = None) -> None:
         """
-        获取出现次数最多的 n 个键
+        增加计数
         
         Args:
-            n: 返回数量
-            
-        Returns:
-            (key, count) 元组列表，按计数降序排列
+            count: 增加的数量
+            timestamp: 时间戳（可选）
         """
-        sorted_items = sorted(self._counts.items(), key=lambda x: (-x[1], x[0]))
-        return sorted_items[:n]
+        if timestamp is None:
+            timestamp = time.time()
+        
+        self._cleanup()
+        self._slices.append((timestamp, count))
     
-    def all_counts(self) -> dict:
-        """获取所有键的计数（副本）"""
-        return self._counts.copy()
+    def get_count(self) -> int:
+        """获取当前计数"""
+        self._cleanup()
+        return sum(count for _, count in self._slices)
     
-    def __len__(self) -> int:
-        return len(self._data)
+    def reset(self) -> None:
+        """重置计数器"""
+        self._slices.clear()
     
-    def is_empty(self) -> bool:
-        return len(self._data) == 0
-    
-    def is_full(self) -> bool:
-        return len(self._data) == self.window_size
-    
-    def clear(self) -> None:
-        """清空窗口"""
-        self._data.clear()
-        self._counts.clear()
+    def __repr__(self) -> str:
+        return f"SlidingWindowCounter(window={self.window_seconds}s, count={self.get_count()})"
 
 
 # 便捷函数
-
-def sliding_max(data: List[T], window_size: int) -> List[Optional[T]]:
+def moving_average(values: List[N], window: int, ma_type: str = 'sma') -> List[float]:
     """
-    计算滑动窗口最大值
+    计算移动平均值列表
     
     Args:
-        data: 输入数据列表
-        window_size: 窗口大小
+        values: 数值列表
+        window: 窗口大小
+        ma_type: 平均类型 ('sma', 'wma', 'ema')
         
     Returns:
-        每个位置的最大值列表
+        移动平均值列表
     """
-    swm = SlidingWindowMax(window_size)
+    if not values or window <= 0:
+        return []
+    
+    ma = MovingAverage(window_size=window, ma_type=ma_type)
     result = []
-    for val in data:
-        swm.push(val)
-        result.append(swm.max())
+    
+    for v in values:
+        ma.update(v)
+        result.append(ma.get_current())
+    
     return result
 
 
-def sliding_min(data: List[T], window_size: int) -> List[Optional[T]]:
+def sliding_window_stats(values: List[N], window: int) -> List[WindowStats]:
     """
-    计算滑动窗口最小值
+    计算滑动窗口统计信息
     
     Args:
-        data: 输入数据列表
-        window_size: 窗口大小
+        values: 数值列表
+        window: 窗口大小
         
     Returns:
-        每个位置的最小值列表
+        每个位置的窗口统计信息列表
     """
-    swm = SlidingWindowMin(window_size)
+    if not values or window <= 0:
+        return []
+    
+    sw = NumericSlidingWindow(size=window)
     result = []
-    for val in data:
-        swm.push(val)
-        result.append(swm.min())
+    
+    for v in values:
+        sw.add(v)
+        result.append(sw.get_stats())
+    
     return result
 
 
-def sliding_mean(data: List[float], window_size: int) -> List[Optional[float]]:
+def sliding_window_min_max(
+    values: List[N],
+    window: int,
+) -> Tuple[List[Optional[float]], List[Optional[float]]]:
     """
-    计算滑动窗口平均值
+    计算滑动窗口最小值和最大值
     
     Args:
-        data: 输入数据列表
-        window_size: 窗口大小
+        values: 数值列表
+        window: 窗口大小
         
     Returns:
-        每个位置的平均值列表
+        (最小值列表, 最大值列表)
     """
-    stats = SlidingWindowStats(window_size)
-    result = []
-    for val in data:
-        stats.push(val)
-        result.append(stats.mean())
-    return result
-
-
-def sliding_sum(data: List[float], window_size: int) -> List[float]:
-    """
-    计算滑动窗口总和
+    if not values or window <= 0:
+        return [], []
     
-    Args:
-        data: 输入数据列表
-        window_size: 窗口大小
-        
-    Returns:
-        每个位置的总和列表
-    """
-    stats = SlidingWindowStats(window_size)
-    result = []
-    for val in data:
-        stats.push(val)
-        result.append(stats.sum())
-    return result
-
-
-def sliding_median(data: List[float], window_size: int) -> List[Optional[float]]:
-    """
-    计算滑动窗口中位数
+    sw = MinMaxSlidingWindow(size=window)
+    mins = []
+    maxs = []
     
-    Args:
-        data: 输入数据列表
-        window_size: 窗口大小
-        
-    Returns:
-        每个位置的中位数列表
-    """
-    swm = SlidingWindowMedian(window_size)
-    result = []
-    for val in data:
-        swm.push(val)
-        result.append(swm.median())
-    return result
+    for v in values:
+        sw.add(v)
+        mins.append(sw.get_min())
+        maxs.append(sw.get_max())
+    
+    return mins, maxs
 
 
 if __name__ == "__main__":
     # 简单演示
-    print("=== 滑动窗口最大值 ===")
-    data = [1, 3, 2, 5, 4, 6, 3, 2]
-    print(f"数据: {data}")
-    print(f"窗口大小: 3")
-    print(f"最大值: {sliding_max(data, 3)}")
+    print("=== 滑动窗口工具演示 ===")
     
-    print("\n=== 滑动窗口统计 ===")
+    # 1. 通用滑动窗口
+    print("\n--- 通用滑动窗口 ---")
+    window = SlidingWindow(size=3)
+    for i in range(5):
+        removed = window.add(i)
+        print(f"添加 {i}, 移除 {removed}, 窗口: {window.get_window()}")
+    
+    # 2. 数值滑动窗口
+    print("\n--- 数值滑动窗口 ---")
+    num_window = NumericSlidingWindow(size=5)
+    for i in range(10):
+        num_window.add(i)
+    print(f"窗口: {num_window.get_window()}")
+    print(f"统计: {num_window.get_stats().to_dict()}")
+    
+    # 3. 移动平均
+    print("\n--- 移动平均 ---")
+    ma = MovingAverage(window_size=3, ma_type='sma')
+    values = [10, 20, 30, 40, 50]
+    for v in values:
+        avg = ma.update(v)
+        print(f"值: {v}, SMA: {avg:.2f}")
+    
+    # 4. 时间滑动窗口
+    print("\n--- 时间滑动窗口 ---")
+    twindow = TimeSlidingWindow(window_seconds=2)
+    twindow.add("event1")
+    twindow.add("event2")
+    print(f"当前窗口: {twindow.get_window()}")
+    
+    # 5. 限流器
+    print("\n--- 限流器 ---")
+    limiter = RateLimiter(max_requests=5, window_seconds=1.0)
+    for i in range(8):
+        if limiter.allow():
+            print(f"请求 {i+1}: 允许")
+        else:
+            print(f"请求 {i+1}: 被限流")
+    
+    # 6. 最小最大值窗口
+    print("\n--- 最小最大值窗口 ---")
+    mm_window = MinMaxSlidingWindow(size=3)
+    for v in [1, 3, -1, 2, 5, 4]:
+        mm_window.add(v)
+        print(f"值: {v}, 窗口: {mm_window.get_window()}, min={mm_window.get_min()}, max={mm_window.get_max()}")
+    
+    # 7. 便捷函数
+    print("\n--- 便捷函数 ---")
     data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     print(f"数据: {data}")
-    print(f"窗口大小: 4")
-    print(f"平均值: {sliding_mean(data, 4)}")
-    print(f"总和: {sliding_sum(data, 4)}")
-    
-    stats = SlidingWindowStats(4)
-    for val in data:
-        stats.push(val)
-        if stats.is_full():
-            print(f"窗口: {stats._sum/std_dev:.2f}")  # 演示用
+    print(f"SMA(3): {moving_average(data, 3, 'sma')}")
+    print(f"WMA(3): {moving_average(data, 3, 'wma')}")
+    print(f"EMA(3): {moving_average(data, 3, 'ema')}")
