@@ -978,12 +978,12 @@ class YakuDetector:
                 return "chinitsu"
             return ""  # 字一色
         
-        # 混一色
-        if len(types) == 2:
-            honors_present = TileType.WIND in types or TileType.DRAGON in types
-            numbered = [t for t in types if t in [TileType.MAN, TileType.PIN, TileType.SOU]]
-            if honors_present and len(numbered) == 1:
-                return "honitsu"
+        # 混一色：只有一种数牌 + 字牌
+        numbered_types = [t for t in types if t in [TileType.MAN, TileType.PIN, TileType.SOU]]
+        honor_types = [t for t in types if t in [TileType.WIND, TileType.DRAGON]]
+        
+        if len(numbered_types) == 1 and len(honor_types) > 0:
+            return "honitsu"
         
         return ""
     
