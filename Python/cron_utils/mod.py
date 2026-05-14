@@ -1,618 +1,485 @@
 """
-AllToolkit - Python Cron Utilities
+Cron Utils - Cron 表达式解析器和运行时间计算器
 
-A zero-dependency cron expression parser and scheduler utility module.
-Supports standard cron syntax, validation, next execution time calculation,
-and simple in-memory task scheduling.
+功能：
+- 解析标准 cron 表达式（5字段：分 时 日 月 周）
+- 支持扩展格式（6字段：秒 分 时 日 月 周）
+- 计算下次运行时间
+- 验证 cron 表达式有效性
+- 支持特殊表达式：@yearly, @monthly, @weekly, @daily, @hourly
+- 零外部依赖，纯 Python 标准库实现
 
-Author: AllToolkit
-License: MIT
+示例表达式：
+- "*/5 * * * *" - 每5分钟
+- "0 9 * * 1-5" - 周一到周五早上9点
+- "0 0 1 1 *" - 每年1月1日午夜
+- "@hourly" - 每小时
 """
 
-import time
-import threading
-from typing import Optional, List, Set, Callable, Dict, Any, Tuple
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
 import re
-
-
-class CronField(Enum):
-    """Cron field types with their valid ranges."""
-    MINUTE = (0, 59)
-    HOUR = (0, 23)
-    DAY_OF_MONTH = (1, 31)
-    MONTH = (1, 12)
-    DAY_OF_WEEK = (0, 6)  # 0 = Sunday
-    
-    def __init__(self, min_val: int, max_val: int):
-        self.min = min_val
-        self.max = max_val
-
-
-@dataclass
-class CronExpression:
-    """Parsed cron expression with field sets."""
-    minutes: Set[int]
-    hours: Set[int]
-    days_of_month: Set[int]
-    months: Set[int]
-    days_of_week: Set[int]
-    original: str
-    
-    def __str__(self) -> str:
-        return self.original
-
-
-@dataclass
-class CronSchedule:
-    """Represents a parsed cron schedule."""
-    expression: CronExpression
-    next_execution: Optional[datetime] = None
-    last_execution: Optional[datetime] = None
-    is_active: bool = True
-
-
-@dataclass
-class ScheduledTask:
-    """Represents a scheduled task."""
-    id: str
-    name: str
-    cron_expr: str
-    callback: Callable[[], Any]
-    schedule: CronSchedule
-    created_at: datetime = field(default_factory=datetime.now)
-    run_count: int = 0
-    last_error: Optional[str] = None
-    is_active: bool = True
+from datetime import datetime, timedelta
+from typing import List, Optional, Tuple, Set
 
 
 class CronParseError(Exception):
-    """Exception raised when cron expression parsing fails."""
+    """Cron 表达式解析错误"""
     pass
 
 
-class CronParser:
-    """
-    Parse and validate cron expressions.
+class CronExpression:
+    """Cron 表达式解析器"""
     
-    Supports standard 5-field cron syntax:
-    ┌───────────── minute (0 - 59)
-    │ ┌───────────── hour (0 - 23)
-    │ │ ┌───────────── day of month (1 - 31)
-    │ │ │ ┌───────────── month (1 - 12)
-    │ │ │ │ ┌───────────── day of week (0 - 6) (Sunday = 0)
-    │ │ │ │ │
-    * * * * *
+    # 特殊表达式映射
+    SPECIAL_EXPRESSIONS = {
+        '@yearly': '0 0 1 1 *',
+        '@annually': '0 0 1 1 *',
+        '@monthly': '0 0 1 * *',
+        '@weekly': '0 0 * * 0',
+        '@daily': '0 0 * * *',
+        '@midnight': '0 0 * * *',
+        '@hourly': '0 * * * *',
+        '@every_minute': '* * * * *',
+        '@every_second': '* * * * * *',
+    }
     
-    Special characters:
-    - * : any value
-    - , : value list separator
-    - - : range
-    - / : step values
-    """
+    # 字段范围定义
+    FIELD_RANGES = {
+        'second': (0, 59),
+        'minute': (0, 59),
+        'hour': (0, 23),
+        'day': (1, 31),
+        'month': (1, 12),
+        'weekday': (0, 6),  # 0=Sunday, 6=Saturday
+    }
     
-    # Month and day-of-week name mappings
+    # 月份名称映射
     MONTH_NAMES = {
-        'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
-        'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12
+        'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4,
+        'may': 5, 'jun': 6, 'jul': 7, 'aug': 8,
+        'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
     }
     
-    DOW_NAMES = {
-        'sun': 0, 'mon': 1, 'tue': 2, 'wed': 3, 'thu': 4, 'fri': 5, 'sat': 6
+    # 星期名称映射
+    WEEKDAY_NAMES = {
+        'sun': 0, 'mon': 1, 'tue': 2, 'wed': 3,
+        'thu': 4, 'fri': 5, 'sat': 6,
     }
     
-    def __init__(self):
-        self._cache: Dict[str, CronExpression] = {}
-    
-    def parse(self, expression: str) -> CronExpression:
+    def __init__(self, expression: str):
         """
-        Parse a cron expression string into a CronExpression object.
+        初始化 Cron 表达式解析器
         
         Args:
-            expression: A 5-field cron expression string
-            
-        Returns:
-            CronExpression object with parsed field sets
-            
-        Raises:
-            CronParseError: If the expression is invalid
+            expression: Cron 表达式字符串
         """
-        # Check cache
-        if expression in self._cache:
-            return self._cache[expression]
+        self.original = expression
+        self.fields: dict[str, Set[int]] = {}
+        self.has_seconds = False
+        self._parse(expression)
+    
+    def _parse(self, expression: str) -> None:
+        """解析 cron 表达式"""
+        # 处理特殊表达式
+        expr = expression.lower().strip()
+        if expr.startswith('@'):
+            if expr in self.SPECIAL_EXPRESSIONS:
+                expr = self.SPECIAL_EXPRESSIONS[expr]
+            else:
+                raise CronParseError(f"未知的特殊表达式: {expression}")
         
-        # Normalize whitespace
-        expr = ' '.join(expression.split())
+        # 分割字段
+        parts = expr.split()
         
-        # Split into fields
-        fields = expr.split()
-        if len(fields) != 5:
+        if len(parts) == 5:
+            # 标准5字段格式: 分 时 日 月 周
+            self.has_seconds = False
+            field_order = ['minute', 'hour', 'day', 'month', 'weekday']
+        elif len(parts) == 6:
+            # 扩展6字段格式: 秒 分 时 日 月 周
+            self.has_seconds = True
+            field_order = ['second', 'minute', 'hour', 'day', 'month', 'weekday']
+        else:
             raise CronParseError(
-                f"Invalid cron expression: expected 5 fields, got {len(fields)}"
+                f"Cron 表达式必须有5或6个字段，当前有 {len(parts)} 个: {expression}"
             )
         
-        try:
-            minutes = self._parse_field(fields[0], CronField.MINUTE)
-            hours = self._parse_field(fields[1], CronField.HOUR)
-            days_of_month = self._parse_field(fields[2], CronField.DAY_OF_MONTH)
-            months = self._parse_field(fields[3], CronField.MONTH)
-            days_of_week = self._parse_field(fields[4], CronField.DAY_OF_WEEK)
-        except ValueError as e:
-            raise CronParseError(f"Invalid cron expression: {e}")
-        
-        cron_expr = CronExpression(
-            minutes=minutes,
-            hours=hours,
-            days_of_month=days_of_month,
-            months=months,
-            days_of_week=days_of_week,
-            original=expr
-        )
-        
-        self._cache[expr] = cron_expr
-        return cron_expr
+        # 解析每个字段
+        for i, field_name in enumerate(field_order):
+            self.fields[field_name] = self._parse_field(
+                parts[i], field_name
+            )
     
-    def _parse_field(self, field: str, field_type: CronField) -> Set[int]:
+    def _parse_field(self, value: str, field_name: str) -> Set[int]:
         """
-        Parse a single cron field into a set of valid values.
+        解析单个字段
         
-        Args:
-            field: The field string (e.g., "*/5", "1-5", "1,3,5")
-            field_type: The type of field being parsed
+        支持格式：
+        - * : 所有值
+        - 1,2,3 : 列表
+        - 1-5 : 范围
+        - */2 : 步长
+        - 1-5/2 : 范围+步长
+        - jan,feb : 名称（仅月份和星期）
+        """
+        min_val, max_val = self.FIELD_RANGES[field_name]
+        result: Set[int] = set()
+        
+        # 处理逗号分隔的多个值
+        for part in value.split(','):
+            part = part.strip()
+            if not part:
+                continue
             
-        Returns:
-            Set of valid integer values for this field
-        """
-        values: Set[int] = set()
+            # 解析单个部分
+            values = self._parse_part(part, field_name, min_val, max_val)
+            result.update(values)
         
-        # Handle list (comma-separated)
-        for part in field.split(','):
-            values.update(self._parse_part(part.strip(), field_type))
-        
-        if not values:
-            raise ValueError(f"Empty field: {field}")
-        
-        return values
+        return result
     
-    def _parse_part(self, part: str, field_type: CronField) -> Set[int]:
-        """
-        Parse a single part of a cron field (handles *, ranges, steps).
+    def _parse_part(self, part: str, field_name: str, 
+                    min_val: int, max_val: int) -> List[int]:
+        """解析字段的一部分"""
+        # 处理名称替换
+        if field_name == 'month':
+            for name, num in self.MONTH_NAMES.items():
+                part = re.sub(rf'\b{name}\b', str(num), part, flags=re.IGNORECASE)
+        elif field_name == 'weekday':
+            for name, num in self.WEEKDAY_NAMES.items():
+                part = re.sub(rf'\b{name}\b', str(num), part, flags=re.IGNORECASE)
+            # 支持 7 = Sunday（某些系统用7表示周日）
+            part = part.replace('7', '0')
         
-        Args:
-            part: The part string (e.g., "*/5", "1-5", "5")
-            field_type: The type of field being parsed
-            
-        Returns:
-            Set of valid integer values
-        """
-        values: Set[int] = set()
-        min_val, max_val = field_type.min, field_type.max
-        
-        # Handle step values
+        # 解析步长 /n
         step = 1
         if '/' in part:
-            range_part, step_str = part.split('/', 1)
+            part, step_str = part.split('/', 1)
             try:
                 step = int(step_str)
+                if step <= 0:
+                    raise CronParseError(f"步长必须为正整数: {step_str}")
             except ValueError:
-                raise ValueError(f"Invalid step value: {step_str}")
-            if step <= 0:
-                raise ValueError(f"Step must be positive: {step}")
-            part = range_part
+                raise CronParseError(f"无效的步长: {step_str}")
         
-        # Handle wildcard
+        # 解析范围或单个值
         if part == '*':
-            for i in range(min_val, max_val + 1, step):
-                values.add(i)
-            return values
+            start, end = min_val, max_val
+        elif '-' in part:
+            range_match = re.match(r'^(\d+)-(\d+)$', part)
+            if not range_match:
+                raise CronParseError(f"无效的范围表达式: {part}")
+            start, end = int(range_match.group(1)), int(range_match.group(2))
+        else:
+            try:
+                start = end = int(part)
+            except ValueError:
+                raise CronParseError(f"无效的字段值: {part}")
         
-        # Handle range
-        if '-' in part:
-            range_parts = part.split('-', 1)
-            start = self._parse_value(range_parts[0], field_type)
-            end = self._parse_value(range_parts[1], field_type)
-            
-            if start > end:
-                raise ValueError(f"Invalid range: {start}-{end}")
-            
-            for i in range(start, end + 1, step):
-                values.add(i)
-            return values
-        
-        # Handle single value
-        value = self._parse_value(part, field_type)
-        values.add(value)
-        return values
-    
-    def _parse_value(self, value: str, field_type: CronField) -> int:
-        """
-        Parse a single value (number or name).
-        
-        Args:
-            value: The value string
-            field_type: The type of field
-            
-        Returns:
-            Integer value
-        """
-        value = value.lower()
-        
-        # Check for month names
-        if field_type == CronField.MONTH and value in self.MONTH_NAMES:
-            return self.MONTH_NAMES[value]
-        
-        # Check for day-of-week names
-        if field_type == CronField.DAY_OF_WEEK and value in self.DOW_NAMES:
-            return self.DOW_NAMES[value]
-        
-        # Parse as integer
-        try:
-            num = int(value)
-        except ValueError:
-            raise ValueError(f"Invalid value: {value}")
-        
-        min_val, max_val = field_type.min, field_type.max
-        if num < min_val or num > max_val:
-            raise ValueError(
-                f"Value {num} out of range [{min_val}-{max_val}] for {field_type.name}"
+        # 验证范围
+        if start < min_val or end > max_val or start > end:
+            raise CronParseError(
+                f"{field_name} 字段值超出范围 [{min_val}-{max_val}]: {part}"
             )
         
-        return num
+        # 生成值列表
+        return list(range(start, end + 1, step))
     
-    def validate(self, expression: str) -> bool:
+    def get_next_run(self, after: Optional[datetime] = None, 
+                     max_iterations: int = 366 * 24 * 60) -> Optional[datetime]:
         """
-        Validate a cron expression without raising exceptions.
+        计算下次运行时间
         
         Args:
-            expression: The cron expression to validate
+            after: 起始时间，默认为当前时间
+            max_iterations: 最大迭代次数，防止无限循环
             
         Returns:
-            True if valid, False otherwise
+            下次运行的 datetime，如果无法找到则返回 None
         """
-        try:
-            self.parse(expression)
-            return True
-        except CronParseError:
-            return False
-    
-    def clear_cache(self) -> None:
-        """Clear the expression cache."""
-        self._cache.clear()
-
-
-class CronMatcher:
-    """
-    Match datetime objects against cron expressions.
-    """
-    
-    def __init__(self, parser: Optional[CronParser] = None):
-        self.parser = parser or CronParser()
-    
-    def matches(self, expression: str, dt: datetime) -> bool:
-        """
-        Check if a datetime matches a cron expression.
+        if after is None:
+            after = datetime.now()
         
-        Args:
-            expression: The cron expression
-            dt: The datetime to check
-            
-        Returns:
-            True if the datetime matches the expression
-        """
-        cron = self.parser.parse(expression)
-        return self._matches_parsed(cron, dt)
-    
-    def _matches_parsed(self, cron: CronExpression, dt: datetime) -> bool:
-        """Check if datetime matches parsed cron expression."""
-        if dt.minute not in cron.minutes:
-            return False
-        if dt.hour not in cron.hours:
-            return False
-        if dt.day not in cron.days_of_month:
-            return False
-        if dt.month not in cron.months:
-            return False
-        if dt.weekday() not in self._convert_weekday(cron.days_of_week):
-            return False
-        return True
-    
-    def _convert_weekday(self, cron_dow: Set[int]) -> Set[int]:
-        """
-        Convert cron day-of-week (0=Sunday) to Python weekday (0=Monday).
-        
-        Args:
-            cron_dow: Set of cron day-of-week values
-            
-        Returns:
-            Set of Python weekday values
-        """
-        # Cron: 0=Sunday, 1=Monday, ..., 6=Saturday
-        # Python: 0=Monday, 1=Tuesday, ..., 6=Sunday
-        python_dow = set()
-        for cron_day in cron_dow:
-            if cron_day == 0:  # Sunday
-                python_dow.add(6)
-            else:
-                python_dow.add(cron_day - 1)
-        return python_dow
-    
-    def next_run(self, expression: str, after: Optional[datetime] = None,
-                 max_iterations: int = 525600) -> Optional[datetime]:
-        """
-        Calculate the next execution time for a cron expression.
-        
-        Args:
-            expression: The cron expression
-            after: Start searching after this time (default: now)
-            max_iterations: Maximum iterations to prevent infinite loops
-                           (default: 525600 = 1 year of minutes)
-            
-        Returns:
-            The next datetime when the cron should run, or None if not found
-        """
-        cron = self.parser.parse(expression)
-        start = after or datetime.now()
-        
-        # Start from the next minute
-        dt = start.replace(second=0, microsecond=0) + timedelta(minutes=1)
+        # 从下一秒/下一分钟开始检查
+        current = after.replace(microsecond=0)
+        if self.has_seconds:
+            current = current + timedelta(seconds=1)
+        else:
+            current = current + timedelta(minutes=1)
+            current = current.replace(second=0)
         
         for _ in range(max_iterations):
-            if self._matches_parsed(cron, dt):
-                return dt
-            dt += timedelta(minutes=1)
+            if self._matches(current):
+                return current
+            
+            # 根据精度增加时间
+            if self.has_seconds:
+                current += timedelta(seconds=1)
+            else:
+                current += timedelta(minutes=1)
         
         return None
     
-    def next_runs(self, expression: str, count: int = 5,
-                  after: Optional[datetime] = None) -> List[datetime]:
+    def get_next_runs(self, count: int = 5, 
+                      after: Optional[datetime] = None) -> List[datetime]:
         """
-        Calculate the next N execution times for a cron expression.
+        计算接下来多次运行时间
         
         Args:
-            expression: The cron expression
-            count: Number of execution times to calculate
-            after: Start searching after this time (default: now)
+            count: 需要计算的次数
+            after: 起始时间
             
         Returns:
-            List of upcoming execution datetimes
+            运行时间列表
         """
         runs: List[datetime] = []
         current = after
         
         for _ in range(count):
-            next_run = self.next_run(expression, after=current)
+            next_run = self.get_next_run(current)
             if next_run is None:
                 break
             runs.append(next_run)
             current = next_run
         
         return runs
-
-
-class CronScheduler:
-    """
-    In-memory cron-based task scheduler.
     
-    Note: This is a simple in-memory scheduler. For production use,
-    consider using a more robust solution with persistence.
-    """
+    def _matches(self, dt: datetime) -> bool:
+        """检查时间是否匹配 cron 表达式"""
+        # 检查各字段
+        if self.has_seconds and dt.second not in self.fields['second']:
+            return False
+        if dt.minute not in self.fields['minute']:
+            return False
+        if dt.hour not in self.fields['hour']:
+            return False
+        if dt.day not in self.fields['day']:
+            return False
+        if dt.month not in self.fields['month']:
+            return False
+        
+        # 星期检查：0=Sunday, 需要转换 Python 的 weekday
+        # Python: Monday=0, Sunday=6
+        # Cron: Sunday=0, Saturday=6
+        cron_weekday = (dt.weekday() + 1) % 7
+        if cron_weekday not in self.fields['weekday']:
+            return False
+        
+        # 处理 "日" 和 "周" 同时指定的特殊情况
+        # 当两者都被限制时，只需满足其一
+        day_restricted = self.fields['day'] != set(range(1, 32))
+        weekday_restricted = self.fields['weekday'] != set(range(0, 7))
+        
+        if day_restricted and weekday_restricted:
+            # 日和周都有限制，满足其一即可
+            day_ok = dt.day in self.fields['day']
+            weekday_ok = cron_weekday in self.fields['weekday']
+            return day_ok or weekday_restricted
+        
+        return True
     
-    def __init__(self, parser: Optional[CronParser] = None):
-        self.parser = parser or CronParser()
-        self.matcher = CronMatcher(self.parser)
-        self._tasks: Dict[str, ScheduledTask] = {}
-        self._lock = threading.RLock()
-        self._running = False
-        self._thread: Optional[threading.Thread] = None
-        self._check_interval = 10.0  # Check every 10 seconds
-    
-    def add_task(self, task_id: str, name: str, cron_expr: str,
-                 callback: Callable[[], Any]) -> ScheduledTask:
+    def to_description(self, lang: str = 'zh') -> str:
         """
-        Add a scheduled task.
+        生成人类可读的描述
         
         Args:
-            task_id: Unique identifier for the task
-            name: Human-readable name
-            cron_expr: Cron expression for scheduling
-            callback: Function to call when task runs
-            
-        Returns:
-            The created ScheduledTask object
-            
-        Raises:
-            CronParseError: If the cron expression is invalid
-            ValueError: If task_id already exists
+            lang: 语言 ('zh' 中文, 'en' 英文)
         """
-        with self._lock:
-            if task_id in self._tasks:
-                raise ValueError(f"Task {task_id} already exists")
-            
-            # Validate and parse the expression
-            schedule = CronSchedule(
-                expression=self.parser.parse(cron_expr),
-                next_execution=self.matcher.next_run(cron_expr)
-            )
-            
-            task = ScheduledTask(
-                id=task_id,
-                name=name,
-                cron_expr=cron_expr,
-                callback=callback,
-                schedule=schedule
-            )
-            
-            self._tasks[task_id] = task
-            return task
-    
-    def remove_task(self, task_id: str) -> bool:
-        """
-        Remove a scheduled task.
+        descriptions = {
+            'zh': {
+                'every': '每',
+                'minute': '分钟',
+                'hour': '小时',
+                'day': '天',
+                'month': '月',
+                'weekday': '周',
+                'at': '在',
+                'every_minute': '每分钟',
+                'every_hour': '每小时',
+                'every_day': '每天',
+                'every_month': '每月',
+                'every_year': '每年',
+            },
+            'en': {
+                'every': 'every',
+                'minute': 'minute',
+                'hour': 'hour',
+                'day': 'day',
+                'month': 'month',
+                'weekday': 'weekday',
+                'at': 'at',
+                'every_minute': 'every minute',
+                'every_hour': 'every hour',
+                'every_day': 'every day',
+                'every_month': 'every month',
+                'every_year': 'every year',
+            }
+        }
         
-        Args:
-            task_id: The task identifier
-            
-        Returns:
-            True if task was removed, False if not found
-        """
-        with self._lock:
-            if task_id in self._tasks:
-                del self._tasks[task_id]
-                return True
-            return False
-    
-    def get_task(self, task_id: str) -> Optional[ScheduledTask]:
-        """Get a task by ID."""
-        with self._lock:
-            return self._tasks.get(task_id)
-    
-    def list_tasks(self) -> List[ScheduledTask]:
-        """List all scheduled tasks."""
-        with self._lock:
-            return list(self._tasks.values())
-    
-    def enable_task(self, task_id: str) -> bool:
-        """Enable a task."""
-        with self._lock:
-            task = self._tasks.get(task_id)
-            if task:
-                task.is_active = True
-                task.schedule.is_active = True
-                return True
-            return False
-    
-    def disable_task(self, task_id: str) -> bool:
-        """Disable a task."""
-        with self._lock:
-            task = self._tasks.get(task_id)
-            if task:
-                task.is_active = False
-                task.schedule.is_active = False
-                return True
-            return False
-    
-    def start(self, check_interval: float = 10.0) -> None:
-        """
-        Start the scheduler background thread.
+        d = descriptions.get(lang, descriptions['en'])
         
-        Args:
-            check_interval: How often to check for tasks to run (seconds)
-        """
-        with self._lock:
-            if self._running:
-                return
-            
-            self._running = True
-            self._check_interval = check_interval
-            self._thread = threading.Thread(target=self._run_loop, daemon=True)
-            self._thread.start()
-    
-    def stop(self) -> None:
-        """Stop the scheduler."""
-        with self._lock:
-            self._running = False
-            if self._thread:
-                self._thread.join(timeout=5.0)
-                self._thread = None
-    
-    def is_running(self) -> bool:
-        """Check if scheduler is running."""
-        return self._running
-    
-    def _run_loop(self) -> None:
-        """Main scheduler loop."""
-        while self._running:
-            try:
-                self._check_and_run()
-            except Exception as e:
-                # Log error but continue running
-                pass
-            time.sleep(self._check_interval)
-    
-    def _check_and_run(self) -> None:
-        """Check all tasks and run those that are due."""
-        now = datetime.now()
+        # 简单描述生成
+        if self.fields['minute'] == set(range(60)):
+            if self.fields['hour'] == set(range(24)):
+                return d['every_minute']
         
-        with self._lock:
-            for task in self._tasks.values():
-                if not task.is_active:
-                    continue
-                
-                next_exec = task.schedule.next_execution
-                if next_exec and now >= next_exec:
-                    self._run_task(task, now)
+        if self.fields['hour'] == set(range(24)):
+            if self.fields['minute'] == {0}:
+                return d['every_hour']
+        
+        parts = []
+        
+        # 分钟
+        if self.fields['minute'] != set(range(60)):
+            mins = sorted(self.fields['minute'])
+            parts.append(f"{d['minute']}: {','.join(map(str, mins))}")
+        
+        # 小时
+        if self.fields['hour'] != set(range(24)):
+            hours = sorted(self.fields['hour'])
+            parts.append(f"{d['hour']}: {','.join(map(str, hours))}")
+        
+        # 日
+        if self.fields['day'] != set(range(1, 32)):
+            days = sorted(self.fields['day'])
+            parts.append(f"{d['day']}: {','.join(map(str, days))}")
+        
+        # 月
+        if self.fields['month'] != set(range(1, 13)):
+            months = sorted(self.fields['month'])
+            parts.append(f"{d['month']}: {','.join(map(str, months))}")
+        
+        # 星期
+        if self.fields['weekday'] != set(range(7)):
+            weekdays = sorted(self.fields['weekday'])
+            parts.append(f"{d['weekday']}: {','.join(map(str, weekdays))}")
+        
+        if parts:
+            return f"{d['every']} {', '.join(parts)}"
+        
+        return d['every_minute']
     
-    def _run_task(self, task: ScheduledTask, run_time: datetime) -> None:
-        """Execute a task and update its schedule."""
-        task.schedule.last_execution = run_time
-        task.run_count += 1
-        
-        try:
-            task.callback()
-        except Exception as e:
-            task.last_error = str(e)
-        
-        # Calculate next execution time
-        task.schedule.next_execution = self.matcher.next_run(
-            task.cron_expr, after=run_time
-        )
+    def __str__(self) -> str:
+        return f"CronExpression({self.original})"
     
-    def run_due_tasks(self) -> List[str]:
-        """
-        Manually check and run all due tasks (for testing).
-        
-        Returns:
-            List of task IDs that were run
-        """
-        now = datetime.now()
-        run_tasks: List[str] = []
-        
-        with self._lock:
-            for task in self._tasks.values():
-                if not task.is_active:
-                    continue
-                
-                next_exec = task.schedule.next_execution
-                if next_exec and now >= next_exec:
-                    self._run_task(task, now)
-                    run_tasks.append(task.id)
-        
-        return run_tasks
-
-
-# Convenience functions
-_default_parser = CronParser()
-_default_matcher = CronMatcher(_default_parser)
+    def __repr__(self) -> str:
+        return self.__str__()
 
 
 def parse(expression: str) -> CronExpression:
-    """Parse a cron expression."""
-    return _default_parser.parse(expression)
+    """
+    解析 cron 表达式
+    
+    Args:
+        expression: Cron 表达式字符串
+        
+    Returns:
+        CronExpression 对象
+    """
+    return CronExpression(expression)
 
 
-def validate(expression: str) -> bool:
-    """Validate a cron expression."""
-    return _default_parser.validate(expression)
+def get_next_run(expression: str, after: Optional[datetime] = None) -> Optional[datetime]:
+    """
+    快捷函数：获取下次运行时间
+    
+    Args:
+        expression: Cron 表达式
+        after: 起始时间
+        
+    Returns:
+        下次运行的 datetime
+    """
+    return parse(expression).get_next_run(after)
 
 
-def matches(expression: str, dt: datetime) -> bool:
-    """Check if a datetime matches a cron expression."""
-    return _default_matcher.matches(expression, dt)
+def get_next_runs(expression: str, count: int = 5, 
+                  after: Optional[datetime] = None) -> List[datetime]:
+    """
+    快捷函数：获取多次运行时间
+    
+    Args:
+        expression: Cron 表达式
+        count: 数量
+        after: 起始时间
+        
+    Returns:
+        运行时间列表
+    """
+    return parse(expression).get_next_runs(count, after)
 
 
-def next_run(expression: str, after: Optional[datetime] = None) -> Optional[datetime]:
-    """Get the next execution time for a cron expression."""
-    return _default_matcher.next_run(expression, after)
+def validate(expression: str) -> Tuple[bool, Optional[str]]:
+    """
+    验证 cron 表达式是否有效
+    
+    Args:
+        expression: Cron 表达式
+        
+    Returns:
+        (是否有效, 错误信息)
+    """
+    try:
+        parse(expression)
+        return True, None
+    except CronParseError as e:
+        return False, str(e)
 
 
-def next_runs(expression: str, count: int = 5,
-              after: Optional[datetime] = None) -> List[datetime]:
-    """Get the next N execution times for a cron expression."""
-    return _default_matcher.next_runs(expression, count, after)
+def to_description(expression: str, lang: str = 'zh') -> str:
+    """
+    生成 cron 表达式的人类可读描述
+    
+    Args:
+        expression: Cron 表达式
+        lang: 语言 ('zh' 或 'en')
+        
+    Returns:
+        描述字符串
+    """
+    try:
+        return parse(expression).to_description(lang)
+    except CronParseError:
+        return f"[无效表达式: {expression}]"
 
 
-def create_scheduler() -> CronScheduler:
-    """Create a new CronScheduler instance."""
-    return CronScheduler()
+# 常用 cron 表达式常量
+EVERY_MINUTE = "* * * * *"
+EVERY_HOUR = "0 * * * *"
+EVERY_DAY = "0 0 * * *"
+EVERY_WEEK = "0 0 * * 0"
+EVERY_MONTH = "0 0 1 * *"
+EVERY_YEAR = "0 0 1 1 *"
+
+# 工作日表达式
+WEEKDAYS_9AM = "0 9 * * 1-5"  # 周一到周五早上9点
+WEEKDAYS_6PM = "0 18 * * 1-5"  # 周一到周五下午6点
+
+# 常用间隔表达式
+EVERY_5_MINUTES = "*/5 * * * *"
+EVERY_15_MINUTES = "*/15 * * * *"
+EVERY_30_MINUTES = "*/30 * * * *"
+EVERY_2_HOURS = "0 */2 * * *"
+EVERY_6_HOURS = "0 */6 * * *"
+EVERY_12_HOURS = "0 */12 * * *"
+
+
+if __name__ == "__main__":
+    # 简单演示
+    expressions = [
+        EVERY_MINUTE,
+        EVERY_HOUR,
+        EVERY_5_MINUTES,
+        WEEKDAYS_9AM,
+        "0 0 1 1 *",  # 每年1月1日
+        "@weekly",
+    ]
+    
+    print("=" * 60)
+    print("Cron Utils - 表达式演示")
+    print("=" * 60)
+    
+    for expr in expressions:
+        cron = parse(expr)
+        print(f"\n表达式: {expr}")
+        print(f"描述: {cron.to_description()}")
+        next_runs = cron.get_next_runs(3)
+        print(f"下次运行: {[r.strftime('%Y-%m-%d %H:%M:%S') for r in next_runs]}")
