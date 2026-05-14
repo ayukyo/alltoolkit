@@ -1,0 +1,9 @@
+.{
+    .name = "text_diff_utils",
+    .version = "0.1.0",
+    .dependencies = .{},
+    .paths = .{
+        "src",
+        "build.zig",
+    },
+}
