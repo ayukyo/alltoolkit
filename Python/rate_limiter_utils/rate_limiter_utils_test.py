@@ -1,482 +1,648 @@
 """
-Rate Limiter Utils 测试
+速率限制器工具库测试
 
-测试所有限流算法和工具类。
+测试覆盖：
+- TokenBucket: 令牌桶算法
+- SlidingWindow: 滑动窗口算法
+- FixedWindow: 固定窗口算法
+- LeakyBucket: 漏桶算法
+- MultiLimiter: 多维度限制器
+- 装饰器和上下文管理器
 """
 
 import time
 import threading
-import unittest
+import pytest
 from mod import (
-    TokenBucket, LeakyBucket, SlidingWindow, FixedWindow,
-    RateLimiter, RateLimitExceeded, MultiRateLimiter,
-    create_rate_limiter, rate_limit
+    TokenBucket,
+    SlidingWindow,
+    FixedWindow,
+    LeakyBucket,
+    MultiLimiter,
+    RateLimiterRegistry,
+    RateLimitResult,
+    RateLimitExceeded,
+    rate_limit,
+    rate_limit_context,
+    create_token_bucket,
+    create_sliding_window,
+    create_fixed_window,
+    create_leaky_bucket,
 )
 
 
-class TestTokenBucket(unittest.TestCase):
-    """令牌桶测试"""
+class TestTokenBucket:
+    """令牌桶算法测试"""
     
-    def test_initial_state(self):
-        """测试初始状态"""
-        tb = TokenBucket(10, 5)
-        self.assertEqual(tb.capacity, 10)
-        self.assertAlmostEqual(tb.available, 10, delta=0.1)
+    def test_initialization(self):
+        """测试初始化"""
+        bucket = TokenBucket(rate=10, capacity=100)
+        assert bucket.rate == 10
+        assert bucket.capacity == 100
+        assert bucket.tokens == 100.0
+    
+    def test_initialization_with_custom_tokens(self):
+        """测试自定义初始令牌数"""
+        bucket = TokenBucket(rate=10, capacity=100, initial_tokens=50)
+        # 允许微小的浮点数误差（refill 会造成极小变化）
+        assert bucket.tokens >= 50.0 and bucket.tokens <= 50.1
+    
+    def test_invalid_parameters(self):
+        """测试无效参数"""
+        with pytest.raises(ValueError):
+            TokenBucket(rate=0, capacity=100)
+        with pytest.raises(ValueError):
+            TokenBucket(rate=-5, capacity=100)
+        with pytest.raises(ValueError):
+            TokenBucket(rate=10, capacity=0)
+        with pytest.raises(ValueError):
+            TokenBucket(rate=10, capacity=-10)
     
     def test_acquire_success(self):
         """测试成功获取令牌"""
-        tb = TokenBucket(10, 5)
-        self.assertTrue(tb.acquire(1))
-        self.assertAlmostEqual(tb.available, 9, delta=0.1)
+        bucket = TokenBucket(rate=10, capacity=100)
+        result = bucket.acquire(1)
+        assert result.allowed is True
+        assert result.remaining == 99
+        assert result.retry_after == 0.0
     
-    def test_acquire_fail(self):
-        """测试获取令牌失败"""
-        tb = TokenBucket(5, 1)
-        # 连续获取直到失败
-        for _ in range(5):
-            self.assertTrue(tb.acquire(1))
-        self.assertFalse(tb.acquire(1))
-    
-    def test_acquire_multiple(self):
-        """测试一次获取多个令牌"""
-        tb = TokenBucket(10, 1)
-        self.assertTrue(tb.acquire(5))
-        self.assertAlmostEqual(tb.available, 5, delta=0.1)
-    
-    def test_refill(self):
-        """测试令牌补充"""
-        tb = TokenBucket(10, 10)  # 每秒补充10个
-        tb.acquire(10)  # 清空桶
-        self.assertAlmostEqual(tb.available, 0, delta=0.1)
-        
-        time.sleep(0.5)  # 等待补充
-        self.assertAlmostEqual(tb.available, 5, delta=1)  # 约5个令牌
-    
-    def test_wait_for_acquire(self):
-        """测试等待获取令牌"""
-        tb = TokenBucket(5, 10)  # 每秒补充10个
-        tb.acquire(5)  # 清空桶
-        
-        start = time.time()
-        self.assertTrue(tb.wait_for_acquire(1, timeout=1))
-        elapsed = time.time() - start
-        self.assertLess(elapsed, 0.5)  # 应该很快
-    
-    def test_wait_for_acquire_timeout(self):
-        """测试等待超时"""
-        tb = TokenBucket(10, 0.1)  # 容量10，每秒补充0.1个
-        # 用完所有令牌
-        tb.acquire(10)
-        
-        # 验证没有令牌
-        self.assertAlmostEqual(tb.available, 0, delta=0.01)
-        
-        # 尝试获取1个令牌，需要等待10秒才能补充1个
-        # 设置一个短超时（1秒），应该超时失败
-        start = time.time()
-        result = tb.wait_for_acquire(1, timeout=1.0)
-        elapsed = time.time() - start
-        
-        # 验证超时失败
-        self.assertFalse(result)
-        # 验证确实等待了（不是立即返回）
-        self.assertGreater(elapsed, 0.1)
-    
-    def test_invalid_capacity(self):
-        """测试无效容量"""
-        with self.assertRaises(ValueError):
-            TokenBucket(0, 1)
-        with self.assertRaises(ValueError):
-            TokenBucket(-1, 1)
-    
-    def test_invalid_rate(self):
-        """测试无效速率"""
-        with self.assertRaises(ValueError):
-            TokenBucket(10, 0)
-        with self.assertRaises(ValueError):
-            TokenBucket(10, -1)
+    def test_acquire_multiple_tokens(self):
+        """测试获取多个令牌"""
+        bucket = TokenBucket(rate=10, capacity=100)
+        result = bucket.acquire(10)
+        assert result.allowed is True
+        assert result.remaining == 90
     
     def test_acquire_exceeds_capacity(self):
         """测试请求超过容量"""
-        tb = TokenBucket(5, 1)
-        with self.assertRaises(ValueError):
-            tb.acquire(10)
-
-
-class TestLeakyBucket(unittest.TestCase):
-    """漏桶测试"""
+        bucket = TokenBucket(rate=10, capacity=100)
+        with pytest.raises(ValueError):
+            bucket.acquire(150)
     
-    def test_initial_state(self):
-        """测试初始状态"""
-        lb = LeakyBucket(10, 5)
-        self.assertEqual(lb.capacity, 10)
-        self.assertAlmostEqual(lb.available, 10, delta=0.1)
+    def test_acquire_empty_bucket(self):
+        """测试空桶获取令牌"""
+        bucket = TokenBucket(rate=10, capacity=10, initial_tokens=0)
+        result = bucket.acquire(1)
+        assert result.allowed is False
+        assert result.retry_after > 0
     
-    def test_acquire_success(self):
-        """测试成功获取"""
-        lb = LeakyBucket(10, 5)
-        self.assertTrue(lb.acquire(1))
-        self.assertAlmostEqual(lb.available, 9, delta=0.1)
-    
-    def test_acquire_fail(self):
-        """测试获取失败"""
-        lb = LeakyBucket(5, 1)
-        for _ in range(5):
-            self.assertTrue(lb.acquire(1))
-        self.assertFalse(lb.acquire(1))
-    
-    def test_leak(self):
-        """测试漏水"""
-        lb = LeakyBucket(10, 5)  # 每秒漏5个
-        lb.acquire(10)  # 填满桶
-        self.assertAlmostEqual(lb.available, 0, delta=0.1)
+    def test_token_refill(self):
+        """测试令牌补充"""
+        bucket = TokenBucket(rate=100, capacity=100, initial_tokens=0)
         
-        time.sleep(0.5)  # 等待漏水
+        # 等待一些令牌生成
+        time.sleep(0.05)  # 生成约 5 个令牌
         
-        # 桶应该有空位了（约漏了2-3个）
-        self.assertGreater(lb.available, 1)
+        # 应该能获取到令牌
+        result = bucket.try_acquire(1)
+        assert result.allowed is True
     
-    def test_wait_for_acquire(self):
-        """测试等待获取"""
-        lb = LeakyBucket(2, 5)  # 容量2，每秒漏5个
-        lb.acquire(2)  # 填满桶
-        
-        # 等待漏水
-        time.sleep(0.25)  # 漏约1个
-        
-        # 现在应该能获取了
-        self.assertTrue(lb.acquire(1))
-
-
-class TestSlidingWindow(unittest.TestCase):
-    """滑动窗口测试"""
+    def test_try_acquire_non_blocking(self):
+        """测试非阻塞获取"""
+        bucket = TokenBucket(rate=10, capacity=10, initial_tokens=0)
+        result = bucket.try_acquire(1)
+        assert result.allowed is False
     
-    def test_initial_state(self):
-        """测试初始状态"""
-        sw = SlidingWindow(10, 1.0)
-        self.assertEqual(sw.max_requests, 10)
-        self.assertAlmostEqual(sw.available, 10, delta=0.1)
-    
-    def test_acquire_success(self):
-        """测试成功获取"""
-        sw = SlidingWindow(10, 1.0)
-        self.assertTrue(sw.acquire(1))
-        self.assertAlmostEqual(sw.available, 9, delta=0.1)
-    
-    def test_acquire_fail(self):
-        """测试获取失败"""
-        sw = SlidingWindow(5, 1.0)
-        for _ in range(5):
-            self.assertTrue(sw.acquire(1))
-        self.assertFalse(sw.acquire(1))
-    
-    def test_window_reset(self):
-        """测试窗口重置"""
-        sw = SlidingWindow(5, 0.5)  # 0.5秒窗口
-        for _ in range(5):
-            self.assertTrue(sw.acquire(1))
-        self.assertFalse(sw.acquire(1))
-        
-        time.sleep(0.6)  # 等待窗口过期
-        self.assertTrue(sw.acquire(1))
-    
-    def test_sliding_behavior(self):
-        """测试滑动行为"""
-        sw = SlidingWindow(5, 1.0)
-        # 快速发送3个请求
-        for _ in range(3):
-            self.assertTrue(sw.acquire(1))
-        
-        time.sleep(0.5)
-        # 窗口内还有3个请求
-        self.assertAlmostEqual(sw.available, 2, delta=0.1)
-    
-    def test_wait_for_acquire(self):
-        """测试等待获取"""
-        sw = SlidingWindow(2, 0.5)
-        sw.acquire(2)  # 用完配额
-        
-        start = time.time()
-        self.assertTrue(sw.wait_for_acquire(1, timeout=1))
-        elapsed = time.time() - start
-        self.assertGreater(elapsed, 0.4)  # 需要等待窗口滑动
-
-
-class TestFixedWindow(unittest.TestCase):
-    """固定窗口测试"""
-    
-    def test_initial_state(self):
-        """测试初始状态"""
-        fw = FixedWindow(10, 1.0)
-        self.assertEqual(fw.max_requests, 10)
-        self.assertAlmostEqual(fw.available, 10, delta=0.1)
-    
-    def test_acquire_success(self):
-        """测试成功获取"""
-        fw = FixedWindow(10, 1.0)
-        self.assertTrue(fw.acquire(1))
-        self.assertAlmostEqual(fw.available, 9, delta=0.1)
-    
-    def test_acquire_fail(self):
-        """测试获取失败"""
-        fw = FixedWindow(5, 1.0)
-        for _ in range(5):
-            self.assertTrue(fw.acquire(1))
-        self.assertFalse(fw.acquire(1))
-    
-    def test_window_reset(self):
-        """测试窗口重置"""
-        fw = FixedWindow(5, 0.5)  # 0.5秒窗口
-        for _ in range(5):
-            self.assertTrue(fw.acquire(1))
-        self.assertFalse(fw.acquire(1))
-        
-        time.sleep(0.6)  # 等待窗口过期
-        self.assertTrue(fw.acquire(1))
-    
-    def test_wait_for_acquire(self):
-        """测试等待获取"""
-        fw = FixedWindow(2, 0.5)
-        fw.acquire(2)  # 用完配额
-        
-        start = time.time()
-        self.assertTrue(fw.wait_for_acquire(1, timeout=1))
-        elapsed = time.time() - start
-        self.assertGreater(elapsed, 0.4)
-
-
-class TestRateLimiter(unittest.TestCase):
-    """通用速率限制器测试"""
-    
-    def test_token_bucket_algorithm(self):
-        """测试令牌桶算法"""
-        rl = RateLimiter(10, 1.0, 'token_bucket')
-        for _ in range(10):
-            self.assertTrue(rl.acquire(1))
-        self.assertFalse(rl.acquire(1))
-    
-    def test_sliding_window_algorithm(self):
-        """测试滑动窗口算法"""
-        rl = RateLimiter(10, 1.0, 'sliding_window')
-        for _ in range(10):
-            self.assertTrue(rl.acquire(1))
-        self.assertFalse(rl.acquire(1))
-    
-    def test_fixed_window_algorithm(self):
-        """测试固定窗口算法"""
-        rl = RateLimiter(10, 1.0, 'fixed_window')
-        for _ in range(10):
-            self.assertTrue(rl.acquire(1))
-        self.assertFalse(rl.acquire(1))
-    
-    def test_leaky_bucket_algorithm(self):
-        """测试漏桶算法"""
-        rl = RateLimiter(10, 1.0, 'leaky_bucket')
-        for _ in range(10):
-            self.assertTrue(rl.acquire(1))
-        self.assertFalse(rl.acquire(1))
-    
-    def test_invalid_algorithm(self):
-        """测试无效算法"""
-        with self.assertRaises(ValueError):
-            RateLimiter(10, 1.0, 'invalid')
-    
-    def test_context_manager(self):
-        """测试上下文管理器"""
-        rl = RateLimiter(2, 10.0)  # 2个请求配额
-        
-        with rl:
-            pass  # 第一个请求
-        
-        with rl:
-            pass  # 第二个请求
-        
-        # 超出配额应该失败
-        self.assertFalse(rl.acquire(1))
-    
-    def test_decorator(self):
-        """测试装饰器模式"""
-        rl = RateLimiter(2, 10.0)
-        
-        @rl
-        def limited_func():
-            return "success"
-        
-        self.assertEqual(limited_func(), "success")
-        self.assertEqual(limited_func(), "success")
-        self.assertFalse(rl.acquire(1))  # 配额用完
-    
-    def test_decorate_with_tokens(self):
-        """测试带参数装饰器"""
-        rl = RateLimiter(10, 10.0)
-        
-        @rl.decorate(tokens=5)
-        def heavy_func():
-            return "heavy"
-        
-        self.assertEqual(heavy_func(), "heavy")
-        self.assertAlmostEqual(rl.available, 5, delta=0.1)
-
-
-class TestMultiRateLimiter(unittest.TestCase):
-    """多键速率限制器测试"""
-    
-    def test_separate_keys(self):
-        """测试独立键"""
-        mrl = MultiRateLimiter(5, 10.0)
-        
-        # user_a 使用配额
-        for _ in range(5):
-            self.assertTrue(mrl.acquire('user_a'))
-        self.assertFalse(mrl.acquire('user_a'))
-        
-        # user_b 仍有配额
-        self.assertTrue(mrl.acquire('user_b'))
-    
-    def test_keys_tracking(self):
-        """测试键追踪"""
-        mrl = MultiRateLimiter(5, 10.0)
-        
-        mrl.acquire('user_a')
-        mrl.acquire('user_b')
-        mrl.acquire('user_c')
-        
-        keys = mrl.keys()
-        self.assertIn('user_a', keys)
-        self.assertIn('user_b', keys)
-        self.assertIn('user_c', keys)
-    
-    def test_clear_key(self):
-        """测试清除单个键"""
-        mrl = MultiRateLimiter(5, 10.0)
-        
-        mrl.acquire('user_a')
-        mrl.acquire('user_b')
-        
-        mrl.clear('user_a')
-        
-        self.assertNotIn('user_a', mrl.keys())
-        self.assertIn('user_b', mrl.keys())
-    
-    def test_clear_all(self):
-        """测试清除所有键"""
-        mrl = MultiRateLimiter(5, 10.0)
-        
-        mrl.acquire('user_a')
-        mrl.acquire('user_b')
-        
-        mrl.clear()
-        
-        self.assertEqual(len(mrl.keys()), 0)
-
-
-class TestConvenienceFunctions(unittest.TestCase):
-    """便捷函数测试"""
-    
-    def test_create_rate_limiter(self):
-        """测试创建速率限制器"""
-        rl = create_rate_limiter(10, 1.0, 'sliding_window')
-        self.assertIsInstance(rl, RateLimiter)
-        
-        for _ in range(10):
-            self.assertTrue(rl.acquire(1))
-        self.assertFalse(rl.acquire(1))
-    
-    def test_rate_limit_decorator(self):
-        """测试速率限制装饰器"""
-        # 使用一个非常低的补充速率，让测试可以验证限流
-        @rate_limit(2, 0.01)  # 每秒0.01个令牌，非常慢
-        def limited_api():
-            return "ok"
-        
-        self.assertEqual(limited_api(), "ok")
-        self.assertEqual(limited_api(), "ok")
-        
-        # 第3次会等待并超时（装饰器内部超时60秒，但补充率极低）
-        # 由于 wait_for_acquire 的行为，它可能会成功获取或超时
-        # 我们只需要验证前两次成功
-        self.assertTrue(True)  # 验证装饰器基本功能
-
-
-class TestThreadSafety(unittest.TestCase):
-    """线程安全测试"""
+    def test_reset(self):
+        """测试重置"""
+        bucket = TokenBucket(rate=10, capacity=100)
+        bucket.acquire(50)
+        bucket.reset()
+        assert bucket.tokens == 100.0
     
     def test_concurrent_access(self):
         """测试并发访问"""
-        tb = TokenBucket(100, 100)
+        bucket = TokenBucket(rate=1000, capacity=1000)
         success_count = [0]
-        fail_count = [0]
+        lock = threading.Lock()
         
         def worker():
-            for _ in range(50):
-                if tb.acquire(1):
+            result = bucket.acquire(1)
+            if result.allowed:
+                with lock:
                     success_count[0] += 1
-                else:
-                    fail_count[0] += 1
         
-        threads = [threading.Thread(target=worker) for _ in range(4)]
+        # 减少线程数量避免资源耗尽
+        threads = [threading.Thread(target=worker) for _ in range(1100)]
         for t in threads:
             t.start()
         for t in threads:
             t.join()
         
-        # 总成功数不应超过容量
-        self.assertLessEqual(success_count[0], 100)
+        # 应该大约有 1000+ 个成功（初始令牌数 + 等待期间生成的令牌）
+        # 因为 rate=1000，在约1秒内会生成额外令牌
+        assert success_count[0] >= 1000 and success_count[0] <= 1200
+
+
+class TestSlidingWindow:
+    """滑动窗口算法测试"""
     
-    def test_concurrent_sliding_window(self):
-        """测试滑动窗口并发安全"""
-        sw = SlidingWindow(50, 10.0)
+    def test_initialization(self):
+        """测试初始化"""
+        window = SlidingWindow(max_requests=100, window_size=1.0)
+        assert window.max_requests == 100
+        assert window.window_size == 1.0
+        assert window.current_count == 0
+    
+    def test_invalid_parameters(self):
+        """测试无效参数"""
+        with pytest.raises(ValueError):
+            SlidingWindow(max_requests=0, window_size=1.0)
+        with pytest.raises(ValueError):
+            SlidingWindow(max_requests=100, window_size=0)
+    
+    def test_acquire_success(self):
+        """测试成功获取许可"""
+        window = SlidingWindow(max_requests=10, window_size=1.0)
+        result = window.acquire(1)
+        assert result.allowed is True
+        assert result.remaining == 9
+        assert result.retry_after == 0.0
+    
+    def test_acquire_multiple(self):
+        """测试获取多个许可"""
+        window = SlidingWindow(max_requests=10, window_size=1.0)
+        result = window.acquire(5)
+        assert result.allowed is True
+        assert result.remaining == 5
+    
+    def test_acquire_exceeds_limit(self):
+        """测试超过限制"""
+        window = SlidingWindow(max_requests=5, window_size=1.0)
+        # 先用 5 个
+        window.acquire(5)
+        # 再请求应该失败
+        result = window.acquire(1)
+        assert result.allowed is False
+        assert result.retry_after > 0
+    
+    def test_window_sliding(self):
+        """测试窗口滑动"""
+        window = SlidingWindow(max_requests=5, window_size=0.2)
+        
+        # 用完所有配额
+        for _ in range(5):
+            result = window.acquire(1)
+            assert result.allowed is True
+        
+        # 现在应该被限制
+        result = window.acquire(1)
+        assert result.allowed is False
+        
+        # 等待窗口过期
+        time.sleep(0.3)
+        
+        # 应该能获取新的许可
+        result = window.acquire(1)
+        assert result.allowed is True
+    
+    def test_reset(self):
+        """测试重置"""
+        window = SlidingWindow(max_requests=10, window_size=1.0)
+        for _ in range(5):
+            window.acquire(1)
+        window.reset()
+        assert window.current_count == 0
+    
+    def test_concurrent_access(self):
+        """测试并发访问"""
+        window = SlidingWindow(max_requests=100, window_size=1.0)
         success_count = [0]
+        lock = threading.Lock()
         
         def worker():
-            for _ in range(30):
-                if sw.acquire(1):
+            result = window.acquire(1)
+            if result.allowed:
+                with lock:
                     success_count[0] += 1
         
-        threads = [threading.Thread(target=worker) for _ in range(4)]
+        threads = [threading.Thread(target=worker) for _ in range(150)]
         for t in threads:
             t.start()
         for t in threads:
             t.join()
         
-        # 成功数不应超过限制
-        self.assertLessEqual(success_count[0], 50)
+        assert success_count[0] == 100
 
 
-class TestEdgeCases(unittest.TestCase):
-    """边界情况测试"""
+class TestFixedWindow:
+    """固定窗口算法测试"""
     
-    def test_zero_tokens(self):
-        """测试零令牌"""
-        tb = TokenBucket(10, 1)
-        with self.assertRaises(ValueError):
-            tb.acquire(0)
+    def test_initialization(self):
+        """测试初始化"""
+        window = FixedWindow(max_requests=100, window_size=1.0)
+        assert window.max_requests == 100
+        assert window.window_size == 1.0
+        assert window.current_count == 0
     
-    def test_negative_tokens(self):
-        """测试负令牌"""
-        tb = TokenBucket(10, 1)
-        with self.assertRaises(ValueError):
-            tb.acquire(-1)
+    def test_invalid_parameters(self):
+        """测试无效参数"""
+        with pytest.raises(ValueError):
+            FixedWindow(max_requests=0, window_size=1.0)
+        with pytest.raises(ValueError):
+            FixedWindow(max_requests=100, window_size=-1)
     
-    def test_exact_capacity(self):
-        """测试恰好等于容量"""
-        tb = TokenBucket(10, 1)
-        self.assertTrue(tb.acquire(10))
-        self.assertAlmostEqual(tb.available, 0, delta=0.1)
+    def test_acquire_success(self):
+        """测试成功获取许可"""
+        window = FixedWindow(max_requests=10, window_size=1.0)
+        result = window.acquire(1)
+        assert result.allowed is True
+        assert result.remaining == 9
     
-    def test_single_capacity(self):
-        """测试容量为1"""
-        tb = TokenBucket(1, 1)
-        self.assertTrue(tb.acquire(1))
-        self.assertFalse(tb.acquire(1))
+    def test_acquire_multiple(self):
+        """测试获取多个许可"""
+        window = FixedWindow(max_requests=10, window_size=1.0)
+        result = window.acquire(3)
+        assert result.allowed is True
+        assert result.remaining == 7
     
-    def test_large_window(self):
-        """测试大窗口"""
-        sw = SlidingWindow(1000, 3600)  # 1小时窗口
-        for _ in range(1000):
-            self.assertTrue(sw.acquire(1))
-        self.assertFalse(sw.acquire(1))
+    def test_acquire_exceeds_limit(self):
+        """测试超过限制"""
+        window = FixedWindow(max_requests=5, window_size=1.0)
+        window.acquire(5)
+        result = window.acquire(1)
+        assert result.allowed is False
+    
+    def test_window_reset(self):
+        """测试窗口重置"""
+        window = FixedWindow(max_requests=5, window_size=0.2)
+        
+        # 用完配额
+        for _ in range(5):
+            result = window.acquire(1)
+            assert result.allowed is True
+        
+        # 应该被限制
+        result = window.acquire(1)
+        assert result.allowed is False
+        
+        # 等待窗口过期
+        time.sleep(0.3)
+        
+        # 应该能获取新的许可
+        result = window.acquire(1)
+        assert result.allowed is True
+    
+    def test_manual_reset(self):
+        """测试手动重置"""
+        window = FixedWindow(max_requests=10, window_size=1.0)
+        for _ in range(5):
+            window.acquire(1)
+        window.reset()
+        assert window.current_count == 0
 
 
-if __name__ == '__main__':
-    unittest.main(verbosity=2)
+class TestLeakyBucket:
+    """漏桶算法测试"""
+    
+    def test_initialization(self):
+        """测试初始化"""
+        bucket = LeakyBucket(rate=10, capacity=100)
+        assert bucket.rate == 10
+        assert bucket.capacity == 100
+        assert bucket.water_level == 0.0
+    
+    def test_invalid_parameters(self):
+        """测试无效参数"""
+        with pytest.raises(ValueError):
+            LeakyBucket(rate=0, capacity=100)
+        with pytest.raises(ValueError):
+            LeakyBucket(rate=10, capacity=0)
+    
+    def test_acquire_success(self):
+        """测试成功获取许可"""
+        bucket = LeakyBucket(rate=10, capacity=100)
+        result = bucket.acquire(1)
+        assert result.allowed is True
+        assert result.remaining >= 0
+    
+    def test_acquire_multiple(self):
+        """测试获取多个许可"""
+        bucket = LeakyBucket(rate=10, capacity=100)
+        result = bucket.acquire(10)
+        assert result.allowed is True
+        # 允许微小的时间误差导致漏水
+        assert bucket.water_level >= 9.0 and bucket.water_level <= 10.1
+    
+    def test_acquire_exceeds_capacity(self):
+        """测试超过容量"""
+        bucket = LeakyBucket(rate=10, capacity=10)
+        # 先填满桶
+        bucket.acquire(10)
+        # 再请求超过容量应该报错
+        with pytest.raises(ValueError):
+            bucket.acquire(20)
+    
+    def test_bucket_full(self):
+        """测试桶满"""
+        bucket = LeakyBucket(rate=10, capacity=5)
+        
+        # 填满桶
+        result = bucket.acquire(5)
+        assert result.allowed is True
+        
+        # 再请求应该失败
+        result = bucket.acquire(1)
+        assert result.allowed is False
+    
+    def test_leak(self):
+        """测试漏水"""
+        bucket = LeakyBucket(rate=100, capacity=100)
+        
+        # 添加水
+        bucket.acquire(50)
+        initial_level = bucket.water_level
+        assert initial_level >= 49.0 and initial_level <= 50.1
+        
+        # 等待漏水
+        time.sleep(0.15)  # 应该漏掉约 15 个
+        
+        # 检查水量减少
+        current_level = bucket.water_level
+        assert current_level < initial_level
+        assert current_level <= 35.1  # 约 50 - 15 = 35
+    
+    def test_reset(self):
+        """测试重置"""
+        bucket = LeakyBucket(rate=10, capacity=100)
+        bucket.acquire(50)
+        bucket.reset()
+        assert bucket.water_level == 0.0
+
+
+class TestMultiLimiter:
+    """多维度限制器测试"""
+    
+    def test_initialization(self):
+        """测试初始化"""
+        config = {
+            "ip": (TokenBucket, {"rate": 10, "capacity": 100}),
+            "user": (SlidingWindow, {"max_requests": 50, "window_size": 60}),
+        }
+        multi = MultiLimiter(config)
+        assert "ip" in multi._limiters
+        assert "user" in multi._limiters
+    
+    def test_acquire_all_dimensions(self):
+        """测试获取所有维度的许可"""
+        config = {
+            "ip": (TokenBucket, {"rate": 10, "capacity": 100}),
+            "user": (SlidingWindow, {"max_requests": 50, "window_size": 60}),
+        }
+        multi = MultiLimiter(config)
+        results = multi.acquire(1)
+        
+        assert "ip" in results
+        assert "user" in results
+        assert results["ip"].allowed is True
+        assert results["user"].allowed is True
+    
+    def test_acquire_specific_dimensions(self):
+        """测试获取指定维度的许可"""
+        config = {
+            "ip": (TokenBucket, {"rate": 10, "capacity": 100}),
+            "user": (SlidingWindow, {"max_requests": 50, "window_size": 60}),
+        }
+        multi = MultiLimiter(config)
+        results = multi.acquire(1, dimensions=["ip"])
+        
+        assert "ip" in results
+        assert "user" not in results
+    
+    def test_is_allowed(self):
+        """测试检查是否允许"""
+        config = {
+            "ip": (TokenBucket, {"rate": 10, "capacity": 100}),
+            "user": (SlidingWindow, {"max_requests": 50, "window_size": 60}),
+        }
+        multi = MultiLimiter(config)
+        assert multi.is_allowed(1) is True
+    
+    def test_is_allowed_partial_block(self):
+        """测试部分维度阻止"""
+        config = {
+            "ip": (TokenBucket, {"rate": 10, "capacity": 1}),
+            "user": (SlidingWindow, {"max_requests": 50, "window_size": 60}),
+        }
+        multi = MultiLimiter(config)
+        
+        # 用完 IP 配额
+        multi.acquire(1)
+        
+        assert multi.is_allowed(1) is False
+    
+    def test_get_retry_after(self):
+        """测试获取重试等待时间"""
+        config = {
+            "ip": (TokenBucket, {"rate": 10, "capacity": 1}),
+        }
+        multi = MultiLimiter(config)
+        
+        # 用完配额
+        multi.acquire(1)
+        
+        retry_after = multi.get_retry_after()
+        assert retry_after > 0
+    
+    def test_reset(self):
+        """测试重置"""
+        config = {
+            "ip": (TokenBucket, {"rate": 10, "capacity": 100}),
+        }
+        multi = MultiLimiter(config)
+        multi.acquire(50)
+        multi.reset()
+        
+        results = multi.try_acquire(1)
+        assert results["ip"].remaining == 99
+
+
+class TestRateLimiterRegistry:
+    """限制器注册表测试"""
+    
+    def test_singleton(self):
+        """测试单例模式"""
+        registry1 = RateLimiterRegistry()
+        registry2 = RateLimiterRegistry()
+        assert registry1 is registry2
+    
+    def test_register_and_get(self):
+        """测试注册和获取"""
+        registry = RateLimiterRegistry()
+        registry.clear()
+        
+        limiter = TokenBucket(rate=10, capacity=100)
+        registry.register("test", limiter)
+        
+        assert registry.get("test") is limiter
+        assert registry.get("nonexistent") is None
+    
+    def test_unregister(self):
+        """测试注销"""
+        registry = RateLimiterRegistry()
+        registry.clear()
+        
+        limiter = TokenBucket(rate=10, capacity=100)
+        registry.register("test", limiter)
+        
+        assert registry.unregister("test") is True
+        assert registry.get("test") is None
+        assert registry.unregister("nonexistent") is False
+    
+    def test_names(self):
+        """测试获取名称列表"""
+        registry = RateLimiterRegistry()
+        registry.clear()
+        
+        registry.register("limiter1", TokenBucket(rate=10, capacity=100))
+        registry.register("limiter2", SlidingWindow(max_requests=10, window_size=1.0))
+        
+        names = registry.names()
+        assert "limiter1" in names
+        assert "limiter2" in names
+
+
+class TestDecorators:
+    """装饰器测试"""
+    
+    def test_rate_limit_decorator_success(self):
+        """测试速率限制装饰器成功"""
+        limiter = TokenBucket(rate=10, capacity=100)
+        
+        @rate_limit(limiter, tokens=1)
+        def api_call():
+            return "success"
+        
+        assert api_call() == "success"
+    
+    def test_rate_limit_decorator_reject(self):
+        """测试速率限制装饰器拒绝"""
+        limiter = TokenBucket(rate=10, capacity=1)
+        
+        @rate_limit(limiter, tokens=1)
+        def api_call():
+            return "success"
+        
+        # 第一次成功
+        assert api_call() == "success"
+        
+        # 第二次应该失败
+        with pytest.raises(RateLimitExceeded):
+            api_call()
+    
+    def test_rate_limit_decorator_with_callback(self):
+        """测试带回调的装饰器"""
+        limiter = TokenBucket(rate=10, capacity=1)
+        callback_called = [False]
+        
+        def on_reject(result):
+            callback_called[0] = True
+            return "rejected"
+        
+        @rate_limit(limiter, tokens=1, on_reject=on_reject)
+        def api_call():
+            return "success"
+        
+        # 第一次成功
+        assert api_call() == "success"
+        
+        # 第二次调用回调
+        assert api_call() == "rejected"
+        assert callback_called[0] is True
+    
+    def test_rate_limit_context_success(self):
+        """测试上下文管理器成功"""
+        limiter = TokenBucket(rate=10, capacity=100)
+        
+        with rate_limit_context(limiter) as result:
+            assert result.allowed is True
+    
+    def test_rate_limit_context_reject(self):
+        """测试上下文管理器拒绝"""
+        limiter = TokenBucket(rate=10, capacity=1)
+        
+        with rate_limit_context(limiter):
+            pass
+        
+        with pytest.raises(RateLimitExceeded):
+            with rate_limit_context(limiter):
+                pass
+
+
+class TestRateLimitResult:
+    """速率限制结果测试"""
+    
+    def test_allowed_true(self):
+        """测试允许结果"""
+        result = RateLimitResult(allowed=True, remaining=10, reset_time=100.0)
+        assert result.allowed is True
+        assert result.remaining == 10
+        assert bool(result) is True
+    
+    def test_allowed_false(self):
+        """测试拒绝结果"""
+        result = RateLimitResult(allowed=False, remaining=0, reset_time=100.0, retry_after=5.0)
+        assert result.allowed is False
+        assert result.remaining == 0
+        assert result.retry_after == 5.0
+        assert bool(result) is False
+
+
+class TestConvenienceFunctions:
+    """便捷函数测试"""
+    
+    def test_create_token_bucket(self):
+        """测试创建令牌桶"""
+        limiter = create_token_bucket(rate=10, capacity=100)
+        assert isinstance(limiter, TokenBucket)
+        assert limiter.rate == 10
+        assert limiter.capacity == 100
+    
+    def test_create_sliding_window(self):
+        """测试创建滑动窗口"""
+        limiter = create_sliding_window(max_requests=100, window_size=60.0)
+        assert isinstance(limiter, SlidingWindow)
+        assert limiter.max_requests == 100
+        assert limiter.window_size == 60.0
+    
+    def test_create_fixed_window(self):
+        """测试创建固定窗口"""
+        limiter = create_fixed_window(max_requests=100, window_size=60.0)
+        assert isinstance(limiter, FixedWindow)
+        assert limiter.max_requests == 100
+        assert limiter.window_size == 60.0
+    
+    def test_create_leaky_bucket(self):
+        """测试创建漏桶"""
+        limiter = create_leaky_bucket(rate=10, capacity=100)
+        assert isinstance(limiter, LeakyBucket)
+        assert limiter.rate == 10
+        assert limiter.capacity == 100
+
+
+class TestWaitForToken:
+    """等待令牌测试"""
+    
+    def test_wait_for_token_success(self):
+        """测试成功等待令牌"""
+        limiter = TokenBucket(rate=100, capacity=100, initial_tokens=0)
+        
+        # 等待令牌生成
+        start = time.time()
+        success = limiter.wait_for_token(1, timeout=0.1)
+        elapsed = time.time() - start
+        
+        assert success is True
+        assert elapsed >= 0.01  # 应该等待了一些时间
+    
+    def test_wait_for_token_timeout(self):
+        """测试等待令牌超时"""
+        limiter = TokenBucket(rate=1, capacity=1, initial_tokens=0)
+        
+        # 立即超时
+        success = limiter.wait_for_token(1, timeout=0.001)
+        assert success is False
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
