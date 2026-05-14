@@ -252,11 +252,11 @@ class TestCountingBloomFilter:
         
         # 添加相同元素多次
         assert cbf.add("item") is True
-        assert cbf.add("item") is True
+        # 第二次添加相同元素时，由于哈希值相同，计数器达到上限，返回 False
+        assert cbf.add("item") is False
         
-        # 当计数器达到上限时，添加失败
-        # 注意：这取决于哈希冲突
-        # 连续添加可能成功也可能失败
+        # 验证元素仍然存在
+        assert cbf.contains("item") is True
     
     def test_clear(self):
         """测试清空"""

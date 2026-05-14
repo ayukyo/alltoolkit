@@ -318,7 +318,20 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ---
 
-**最后更新**: 2026-05-13
+**最后更新**: 2026-05-15
+
+### 文档更新 (2026-05-15)
+
+- **Python bloom_filter_utils**: 新增 README 文档，覆盖布隆过滤器原理、最优参数计算、序列化、批量操作等 🌸
+- **Python bmi_utils**: 新增 README 文档，覆盖 BMI 计算、WHO 分类、理想体重、儿童百分位数、健康建议等 ⚖️
+- **Python chinese_id_utils**: 新增 README 文档，覆盖身份证验证、解析、地区码、15转18位、批量处理等 🆔
+- **Python coupon_utils**: 新增 README 文档，覆盖优惠券生成、验证、折扣计算、批量生成、校验码等 🎫
+- **Python dna_utils**: 新增 README 文档，覆盖 DNA/RNA 序列验证、转录翻译、GC含量、密码子查询、突变操作等 🧬
+- **Python knapsack_utils**: 新增 README 文档，覆盖 0/1 背包、完全背包、分数背包、多维背包、最优解回溯等 🎒
+- **Python hungarian_algorithm_utils**: 新增 README 文档，覆盖分配问题求解、成本矩阵处理、收益最大化等 📊
+- **Python magic_square_utils**: 新增 README 文档，覆盖魔方阵生成、验证、变换、泛对角线魔方阵、素数魔方阵等 🔮
+- **Python minesweeper_utils**: 新增 README 文档，覆盖扫雷游戏逻辑、难度预设、雷区生成、求解提示等 💣
+- **Python bloom_filter_utils**: 修复 test_max_count 测试断言逻辑（计数器上限行为） ✅
 
 ### 文档更新 (2026-05-12)
 
