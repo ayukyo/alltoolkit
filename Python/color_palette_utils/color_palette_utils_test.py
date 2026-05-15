@@ -1,777 +1,537 @@
 """
-颜色调色板工具测试模块
+Color Palette Utils - 测试用例
 
-测试所有颜色调色板功能。
+测试颜色空间转换、调色板生成、对比度计算等功能。
 """
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from color_palette_utils.mod import (
-    # 颜色空间转换
-    hex_to_rgb, rgb_to_hex, rgb_to_hsl, hsl_to_rgb, hex_to_hsl, hsl_to_hex,
-    # 颜色调整
-    adjust_lightness, adjust_saturation, get_complementary,
-    # 调色板生成
-    generate_complementary_palette, generate_analogous_palette,
-    generate_triadic_palette, generate_split_complementary_palette,
-    generate_tetradic_palette, generate_pentadic_palette, generate_square_palette,
-    generate_monochromatic_palette, generate_shades, generate_tints,
-    generate_tones, generate_gradient, generate_multi_gradient,
-    # 随机调色板
-    random_color, random_palette, random_harmonious_palette,
-    random_warm_palette, random_cool_palette, random_pastel_palette,
-    # 导出
-    palette_to_css_variables, palette_to_scss_variables,
-    palette_to_json, palette_to_tailwind_config,
-    # 对比度和可访问性
-    get_luminance, get_contrast_ratio, meets_wcag_aa, meets_wcag_aaa,
-    suggest_accessible_color,
-    # 颜色名称
-    get_color_name, COLOR_NAMES,
-    # 工具函数
-    blend_colors, is_light_color, is_warm_color, color_temperature,
-    get_palette_harmony_type,
-    # 类
-    ColorPalette, create_palette,
+from mod import (
+    Color, RGB, HSL, HSV, CMYK, LAB,
+    ColorPalette, Gradient, ColorUtils,
+    hex_to_rgb, rgb_to_hex, hex_to_hsl, hsl_to_hex,
+    random_color, random_palette, complementary,
+    lighten, darken, contrast_ratio, gradient, palette
 )
 
 
-def test_hex_to_rgb():
-    """测试十六进制转 RGB。"""
-    assert hex_to_rgb('#FF0000') == (255, 0, 0), "红色转换失败"
-    assert hex_to_rgb('#00FF00') == (0, 255, 0), "绿色转换失败"
-    assert hex_to_rgb('#0000FF') == (0, 0, 255), "蓝色转换失败"
-    assert hex_to_rgb('FF0000') == (255, 0, 0), "无#前缀转换失败"
-    assert hex_to_rgb('#F00') == (255, 0, 0), "短格式转换失败"
-    assert hex_to_rgb('#FFFFFF') == (255, 255, 255), "白色转换失败"
-    assert hex_to_rgb('#000000') == (0, 0, 0), "黑色转换失败"
-    print("✓ hex_to_rgb 测试通过")
-
-
-def test_rgb_to_hex():
-    """测试 RGB 转十六进制。"""
-    assert rgb_to_hex(255, 0, 0) == '#FF0000', "红色转换失败"
-    assert rgb_to_hex(0, 255, 0) == '#00FF00', "绿色转换失败"
-    assert rgb_to_hex(0, 0, 255) == '#0000FF', "蓝色转换失败"
-    assert rgb_to_hex(255, 255, 255) == '#FFFFFF', "白色转换失败"
-    assert rgb_to_hex(0, 0, 0) == '#000000', "黑色转换失败"
-    assert rgb_to_hex(255, 0, 0, False) == 'FF0000', "无#前缀转换失败"
-    # 测试边界值
-    assert rgb_to_hex(300, 0, 0) == '#FF0000', "超范围值应被裁剪"
-    assert rgb_to_hex(-10, 0, 0) == '#000000', "负值应被裁剪"
-    print("✓ rgb_to_hex 测试通过")
-
-
-def test_rgb_hsl_roundtrip():
-    """测试 RGB 与 HSL 的往返转换。"""
-    test_colors = [
-        (255, 0, 0),      # 红色
-        (0, 255, 0),      # 绿色
-        (0, 0, 255),      # 蓝色
-        (255, 255, 0),    # 黄色
-        (255, 0, 255),    # 品红
-        (0, 255, 255),    # 青色
-        (128, 128, 128),  # 灰色
-        (255, 255, 255),  # 白色
-        (0, 0, 0),        # 黑色
-    ]
+def test_rgb_creation():
+    """测试 RGB 创建和转换"""
+    print("=== RGB 创建和转换 ===")
     
-    for r, g, b in test_colors:
-        h, s, l = rgb_to_hsl(r, g, b)
-        r2, g2, b2 = hsl_to_rgb(h, s, l)
-        # 允许小的误差
-        assert abs(r - r2) <= 1, f"R 转换误差过大: {r} -> {r2}"
-        assert abs(g - g2) <= 1, f"G 转换误差过大: {g} -> {g2}"
-        assert abs(b - b2) <= 1, f"B 转换误差过大: {b} -> {b2}"
+    rgb = RGB(255, 128, 64)
+    assert rgb.r == 255
+    assert rgb.g == 128
+    assert rgb.b == 64
     
-    print("✓ RGB/HSL 往返转换测试通过")
-
-
-def test_rgb_to_hsl():
-    """测试 RGB 转 HSL。"""
-    # 红色
-    h, s, l = rgb_to_hsl(255, 0, 0)
-    assert h == 0.0, f"红色色相应为 0，实际为 {h}"
-    assert s == 100.0, f"红色饱和度应为 100，实际为 {s}"
-    assert l == 50.0, f"红色亮度应为 50，实际为 {l}"
+    # HEX 转换
+    assert rgb.to_hex() == "#ff8040"
     
-    # 绿色
-    h, s, l = rgb_to_hsl(0, 255, 0)
-    assert h == 120.0, f"绿色色相应为 120，实际为 {h}"
-    assert s == 100.0, f"绿色饱和度应为 100，实际为 {s}"
-    assert l == 50.0, f"绿色亮度应为 50，实际为 {l}"
+    # HSL 转换
+    hsl = rgb.to_hsl()
+    assert 0 <= hsl.h <= 360
+    assert 0 <= hsl.s <= 100
+    assert 0 <= hsl.l <= 100
     
-    # 灰色
-    h, s, l = rgb_to_hsl(128, 128, 128)
-    assert s == 0, f"灰色饱和度应为 0，实际为 {s}"
+    # HSV 转换
+    hsv = rgb.to_hsv()
+    assert 0 <= hsv.h <= 360
+    assert 0 <= hsv.s <= 100
+    assert 0 <= hsv.v <= 100
     
-    print("✓ rgb_to_hsl 测试通过")
-
-
-def test_hex_hsl_conversion():
-    """测试十六进制与 HSL 的转换。"""
-    # 红色
-    h, s, l = hex_to_hsl('#FF0000')
-    assert h == 0.0, f"红色色相错误: {h}"
-    assert s == 100.0, f"红色饱和度错误: {s}"
-    assert l == 50.0, f"红色亮度错误: {l}"
+    # CMYK 转换
+    cmyk = rgb.to_cmyk()
+    assert 0 <= cmyk.c <= 100
+    assert 0 <= cmyk.m <= 100
     
-    # 往返测试
-    hex_color = '#336699'
-    h, s, l = hex_to_hsl(hex_color)
-    result = hsl_to_hex(h, s, l)
-    assert result.upper() == hex_color.upper(), f"往返转换失败: {hex_color} -> {result}"
+    # LAB 转换
+    lab = rgb.to_lab()
+    assert 0 <= lab.L <= 100
     
-    print("✓ hex/hsl 转换测试通过")
-
-
-def test_adjust_lightness():
-    """测试亮度调整。"""
-    # 变亮 - 黑色 (亮度=0) 增加 50 后亮度为 50，对应 #808080 或 #7F7F7F（精度误差）
-    result = adjust_lightness('#000000', 50)
-    r, g, b = hex_to_rgb(result)
-    assert abs(r - 128) <= 1 and abs(g - 128) <= 1 and abs(b - 128) <= 1, f"黑色变亮失败: {result}"
+    # 亮度计算
+    lum = rgb.luminance()
+    assert 0 <= lum <= 1
     
-    # 变暗 - 白色 (亮度=100) 减少 50 后亮度为 50
-    result = adjust_lightness('#FFFFFF', -50)
-    r, g, b = hex_to_rgb(result)
-    assert abs(r - 128) <= 1 and abs(g - 128) <= 1 and abs(b - 128) <= 1, f"白色变暗失败: {result}"
+    print("✓ RGB 创建和转换测试通过")
+
+
+def test_color_creation():
+    """测试 Color 类各种创建方式"""
+    print("\n=== Color 类创建 ===")
     
-    # 边界测试
-    result = adjust_lightness('#FFFFFF', 100)
-    assert result == '#FFFFFF', "亮度不应超过 100%"
+    # 从 RGB 创建
+    c1 = Color.from_rgb(255, 128, 64)
+    assert c1.hex == "#ff8040"
     
-    result = adjust_lightness('#000000', -100)
-    assert result == '#000000', "亮度不应低于 0%"
+    # 从 HEX 创建
+    c2 = Color.from_hex("#ff8040")
+    assert c2.rgb.r == 255
+    assert c2.rgb.g == 128
+    assert c2.rgb.b == 64
     
-    print("✓ adjust_lightness 测试通过")
-
-
-def test_adjust_saturation():
-    """测试饱和度调整。"""
-    # 增加饱和度 - 灰色 (饱和度=0) 增加 50
-    result = adjust_saturation('#808080', 50)
-    h, s, l = hex_to_hsl(result)
-    assert abs(s - 50) < 1, f"饱和度调整失败: {s}"
+    # 从 HEX 创建 (短格式)
+    c3 = Color.from_hex("#f84")
+    assert c3.rgb.r == 255
+    assert c3.rgb.g == 136
+    assert c3.rgb.b == 68
     
-    print("✓ adjust_saturation 测试通过")
-
-
-def test_get_complementary():
-    """测试互补色获取。"""
-    # 红色的互补色是青色
-    result = get_complementary('#FF0000')
-    h, s, l = hex_to_hsl(result)
-    assert abs(h - 180) < 1, f"红色互补色应为青色（色相180），实际色相: {h}"
+    # 从 HSL 创建
+    c4 = Color.from_hsl(180, 50, 50)
+    assert c4.rgb.r == 63  # 色相 180, 饱和度 50, 亮度 50 -> 青色系
+    assert c4.rgb.g == 191
+    assert c4.rgb.b == 191
     
-    # 验证互补色的互补色是原色
-    result2 = get_complementary(result)
-    h2, _, _ = hex_to_hsl(result2)
-    assert abs(h2) < 1 or abs(h2 - 360) < 1, f"互补色的互补色应为原色"
+    # 从 HSV 创建
+    c5 = Color.from_hsv(120, 100, 100)
+    assert c5.rgb.r == 0
+    assert c5.rgb.g == 255
+    assert c5.rgb.b == 0
     
-    print("✓ get_complementary 测试通过")
-
-
-def test_complementary_palette():
-    """测试互补色调色板。"""
-    palette = generate_complementary_palette('#FF0000')
-    assert len(palette) == 2, f"互补色调色板应有 2 个颜色，实际: {len(palette)}"
-    assert palette[0] == '#FF0000', "基础色应为第一个颜色"
+    # 从 CMYK 创建
+    c6 = Color.from_cmyk(0, 100, 100, 0)
+    assert c6.rgb.r == 255
+    assert c6.rgb.g == 0
+    assert c6.rgb.b == 0
     
-    h1, _, _ = hex_to_hsl(palette[0])
-    h2, _, _ = hex_to_hsl(palette[1])
-    diff = abs(h1 - h2)
-    assert abs(diff - 180) < 1, f"互补色应相差 180 度，实际相差: {diff}"
+    print("✓ Color 创建测试通过")
+
+
+def test_color_manipulation():
+    """测试颜色操作"""
+    print("\n=== 颜色操作 ===")
     
-    print("✓ complementary_palette 测试通过")
-
-
-def test_analogous_palette():
-    """测试类似色调色板。"""
-    palette = generate_analogous_palette('#FF0000')
-    assert len(palette) == 3, f"类似色调色板应有 3 个颜色，实际: {len(palette)}"
+    c = Color.from_hex("#ff6b6b")  # 珊瑚红
     
-    # 检查色相差 - 类似色在基础色两侧 30 度
-    # palette[0] 是基础色-30度，palette[1] 是基础色，palette[2] 是基础色+30度
-    h_base = hex_to_hsl(palette[1])[0]  # 基础色是第二个
-    for i, color in enumerate(palette):
-        h = hex_to_hsl(color)[0]
-        diff = abs(h - h_base)
-        # 考虑色相环绕（如 0 和 360）和精度误差
-        diff = min(diff, 360 - diff)
-        assert diff <= 31 or diff >= 329, f"类似色{i}与基础色相差过大: {diff}"
+    # 变亮
+    light = c.lighten(20)
+    assert light.hsl.l > c.hsl.l
     
-    print("✓ analogous_palette 测试通过")
-
-
-def test_triadic_palette():
-    """测试三角色调色板。"""
-    palette = generate_triadic_palette('#FF0000')
-    assert len(palette) == 3, f"三角色调色板应有 3 个颜色，实际: {len(palette)}"
+    # 变暗
+    dark = c.darken(20)
+    assert dark.hsl.l < c.hsl.l
     
-    # 检查色相差（应相差 120 度）
-    hues = [hex_to_hsl(c)[0] for c in palette]
-    expected_diffs = [0, 120, 240]
-    for i, expected in enumerate(expected_diffs):
-        actual_diff = (hues[i] - hues[0]) % 360
-        assert abs(actual_diff - expected) < 1, f"三角角色{i}色相差错误"
+    # 增加饱和度
+    saturated = c.saturate(20)
+    # 如果原饱和度未达上限，应增加；否则保持不变
+    if c.hsl.s < 100:
+        assert saturated.hsl.s > c.hsl.s
+    else:
+        assert saturated.hsl.s == 100
     
-    print("✓ triadic_palette 测试通过")
-
-
-def test_split_complementary_palette():
-    """测试分裂互补色调色板。"""
-    palette = generate_split_complementary_palette('#FF0000')
-    assert len(palette) == 3, f"分裂互补色调色板应有 3 个颜色，实际: {len(palette)}"
+    # 降低饱和度
+    desaturated = c.desaturate(20)
+    assert desaturated.hsl.s < c.hsl.s
     
-    print("✓ split_complementary_palette 测试通过")
-
-
-def test_tetradic_palette():
-    """测试四角色调色板。"""
-    palette = generate_tetradic_palette('#FF0000')
-    assert len(palette) == 4, f"四角色调色板应有 4 个颜色，实际: {len(palette)}"
+    # 灰度
+    gray = c.grayscale()
+    assert gray.hsl.s == 0
     
-    # 检查色相差（应相差 90 度）
-    hues = [hex_to_hsl(c)[0] for c in palette]
-    for i in range(1, 4):
-        diff = (hues[i] - hues[0]) % 360
-        expected = i * 90
-        assert abs(diff - expected) < 1, f"四角角色{i}色相差错误: {diff} vs {expected}"
+    # 反转
+    inverted = c.invert()
+    assert inverted.rgb.r == 255 - c.rgb.r
+    assert inverted.rgb.g == 255 - c.rgb.g
+    assert inverted.rgb.b == 255 - c.rgb.b
     
-    print("✓ tetradic_palette 测试通过")
-
-
-def test_pentadic_palette():
-    """测试五角色调色板。"""
-    palette = generate_pentadic_palette('#FF0000')
-    assert len(palette) == 5, f"五角色调色板应有 5 个颜色，实际: {len(palette)}"
+    # 旋转色相
+    rotated = c.rotate(180)
+    assert abs(rotated.hsl.h - (c.hsl.h + 180) % 360) < 1
     
-    print("✓ pentadic_palette 测试通过")
-
-
-def test_monochromatic_palette():
-    """测试单色调色板。"""
-    palette = generate_monochromatic_palette('#FF0000', 5)
-    assert len(palette) == 5, f"单色调色板应有 5 个颜色，实际: {len(palette)}"
+    # 混合
+    c2 = Color.from_hex("#4ecdc4")  # 青色
+    mixed = c.mix(c2, 0.5)
+    assert 0 <= mixed.rgb.r <= 255
     
-    # 所有颜色应有相同的色相和饱和度
-    h_ref, s_ref, _ = hex_to_hsl(palette[0])
-    for color in palette:
-        h, s, l = hex_to_hsl(color)
-        assert abs(h - h_ref) < 1, "单色调色板色相应相同"
+    print("✓ 颜色操作测试通过")
+
+
+def test_color_harmony():
+    """测试色彩和谐"""
+    print("\n=== 色彩和谐 ===")
     
-    print("✓ monochromatic_palette 测试通过")
-
-
-def test_shades():
-    """测试阴影生成。"""
-    shades = generate_shades('#FF0000', 5)
-    assert len(shades) == 5, f"阴影数量错误: {len(shades)}"
+    c = Color.from_hex("#ff6b6b")  # 珊瑚红
     
-    # 阴影应该越来越暗
-    lightness_values = [hex_to_hsl(s)[2] for s in shades]
-    # 所有阴影应该比原色暗
-    print("✓ shades 测试通过")
-
-
-def test_tints():
-    """测试着色生成。"""
-    tints = generate_tints('#FF0000', 5)
-    assert len(tints) == 5, f"着色数量错误: {len(tints)}"
+    # 互补色
+    comp = c.complementary()
+    assert abs(comp.hsl.h - (c.hsl.h + 180) % 360) < 1
     
-    print("✓ tints 测试通过")
-
-
-def test_tones():
-    """测试色调生成。"""
-    tones = generate_tones('#FF0000', 5)
-    assert len(tones) == 5, f"色调数量错误: {len(tones)}"
+    # 类似色
+    analogous = c.analogous()
+    assert len(analogous) == 3
+    assert analogous[1] == c
     
-    print("✓ tones 测试通过")
+    # 三色
+    triadic = c.triadic()
+    assert len(triadic) == 3
+    assert triadic[0] == c
+    
+    # 四色
+    tetradic = c.tetradic()
+    assert len(tetradic) == 4
+    
+    # 分裂互补
+    split = c.split_complementary()
+    assert len(split) == 3
+    
+    # 双互补
+    double = c.double_complementary()
+    assert len(double) == 4
+    
+    print("✓ 色彩和谐测试通过")
+
+
+def test_contrast_ratio():
+    """测试对比度计算"""
+    print("\n=== 对比度计算 ===")
+    
+    # 黑白对比度应为 21:1
+    black = Color.from_hex("#000000")
+    white = Color.from_hex("#ffffff")
+    ratio = black.contrast_ratio(white)
+    assert ratio == 21.0
+    
+    # 相同颜色对比度应为 1:1
+    red = Color.from_hex("#ff0000")
+    ratio = red.contrast_ratio(red)
+    assert ratio == 1.0
+    
+    # WCAG 等级测试
+    level = black.wcag_level(white)
+    assert level == "AAA"
+    
+    # 文本颜色推荐
+    text_color = Color.from_hex("#ff6b6b").readable_text_color()
+    assert text_color.hex == "#000000" or text_color.hex == "#ffffff"
+    
+    print("✓ 对比度计算测试通过")
+
+
+def test_color_blindness_simulation():
+    """测试色盲模拟"""
+    print("\n=== 色盲模拟 ===")
+    
+    red = Color.from_hex("#ff0000")
+    green = Color.from_hex("#00ff00")
+    blue = Color.from_hex("#0000ff")
+    
+    # 红色盲模拟
+    proto_red = red.simulate_protanopia()
+    assert isinstance(proto_red, Color)
+    
+    # 绿色盲模拟
+    deuter_green = green.simulate_deuteranopia()
+    assert isinstance(deuter_green, Color)
+    
+    # 蓝色盲模拟
+    tritan_blue = blue.simulate_tritanopia()
+    assert isinstance(tritan_blue, Color)
+    
+    print("✓ 色盲模拟测试通过")
+
+
+def test_color_palette():
+    """测试调色板生成"""
+    print("\n=== 调色板生成 ===")
+    
+    # 从基础颜色创建
+    base = "#ff6b6b"
+    
+    # 互补色调色板
+    comp_palette = ColorPalette.from_base_color(base, "complementary")
+    assert len(comp_palette) == 2
+    
+    # 三色调色板
+    triadic_palette = ColorPalette.from_base_color(base, "triadic")
+    assert len(triadic_palette) == 3
+    
+    # 四色调色板
+    tetradic_palette = ColorPalette.from_base_color(base, "tetradic")
+    assert len(tetradic_palette) == 4
+    
+    # 渐变调色板
+    gradient_palette = ColorPalette.gradient("#ff0000", "#0000ff", 5)
+    assert len(gradient_palette) == 5
+    assert gradient_palette[0].hex == "#ff0000"
+    assert gradient_palette[4].hex == "#0000ff"
+    
+    # 彩虹调色板
+    rainbow = ColorPalette.rainbow(12)
+    assert len(rainbow) == 12
+    
+    # 单色调色板
+    mono = ColorPalette.monochromatic(base, 5)
+    assert len(mono) == 5
+    
+    # 色阶
+    shades = ColorPalette.shades(base, 9)
+    assert len(shades) == 9
+    
+    # 温度调色板
+    warm = ColorPalette.from_temperature("warm", 5)
+    assert len(warm) == 5
+    
+    cool = ColorPalette.from_temperature("cool", 5)
+    assert len(cool) == 5
+    
+    print("✓ 调色板生成测试通过")
 
 
 def test_gradient():
-    """测试渐变生成。"""
-    gradient = generate_gradient('#FF0000', '#0000FF', 10)
-    assert len(gradient) == 10, f"渐变数量错误: {len(gradient)}"
-    assert gradient[0] == '#FF0000', "渐变起点错误"
-    assert gradient[-1] == '#0000FF', "渐变终点错误"
+    """测试渐变"""
+    print("\n=== 渐变测试 ===")
     
-    # 检查渐变的总体趋势（从红到蓝）
-    # 不检查相邻颜色差异，因为色相可能经过紫色区域
-    # 而是检查 RGB 值的变化趋势
-    first_r, first_g, first_b = hex_to_rgb(gradient[0])
-    last_r, last_g, last_b = hex_to_rgb(gradient[-1])
-    assert first_r == 255 and first_b == 0, "起点应为红色"
-    assert last_r == 0 and last_b == 255, "终点应为蓝色"
+    # 线性渐变
+    g = Gradient.linear("#ff0000", "#0000ff", 5)
     
-    print("✓ gradient 测试通过")
-
-
-def test_multi_gradient():
-    """测试多色渐变。"""
-    colors = ['#FF0000', '#00FF00', '#0000FF']
-    gradient = generate_multi_gradient(colors, 3)
-    assert gradient[0] == '#FF0000', "多色渐变起点错误"
-    assert gradient[-1] == '#0000FF', "多色渐变终点错误"
+    # 获取特定位置的颜色
+    c0 = g.color_at(0)
+    assert c0.hex == "#ff0000"
     
-    print("✓ multi_gradient 测试通过")
-
-
-def test_random_color():
-    """测试随机颜色生成。"""
-    color = random_color()
-    assert color.startswith('#'), "随机颜色应以 # 开头"
-    assert len(color) == 7, f"随机颜色长度错误: {len(color)}"
+    c1 = g.color_at(1)
+    assert c1.hex == "#0000ff"
     
-    # 验证颜色值有效
-    r, g, b = hex_to_rgb(color)
-    assert 0 <= r <= 255 and 0 <= g <= 255 and 0 <= b <= 255
+    c_mid = g.color_at(0.5)
+    # 中间色应该是紫色
+    assert 100 <= c_mid.rgb.r <= 200
+    assert c_mid.rgb.b == c_mid.rgb.r  # 红蓝相等
     
-    print("✓ random_color 测试通过")
-
-
-def test_random_palette():
-    """测试随机调色板生成。"""
-    palette = random_palette(5)
-    assert len(palette) == 5, f"随机调色板数量错误: {len(palette)}"
+    # 转换为调色板
+    pal = g.to_palette(10)
+    assert len(pal) == 10
     
-    for color in palette:
-        assert color.startswith('#'), f"颜色格式错误: {color}"
+    # 多停止点渐变
+    multi = Gradient.multi_stop(["#ff0000", "#00ff00", "#0000ff"])
+    assert len(multi.stops) == 3
     
-    print("✓ random_palette 测试通过")
+    print("✓ 渐变测试通过")
 
 
-def test_random_harmonious_palette():
-    """测试随机和谐调色板。"""
-    for harmony_type in ['complementary', 'analogous', 'triadic', 
-                          'split_complementary', 'tetradic', 'pentadic']:
-        palette = random_harmonious_palette(harmony_type)
-        assert len(palette) >= 2, f"{harmony_type} 调色板颜色数不足"
+def test_color_utils():
+    """测试工具函数"""
+    print("\n=== 工具函数 ===")
     
-    print("✓ random_harmonious_palette 测试通过")
-
-
-def test_random_warm_palette():
-    """测试暖色调调色板。"""
-    palette = random_warm_palette(5)
-    assert len(palette) == 5
+    # 从名称创建
+    red = ColorUtils.from_name("red")
+    assert red.hex == "#ff0000"
     
-    for color in palette:
-        assert is_warm_color(color), f"暖色调调色板包含冷色: {color}"
+    white = ColorUtils.from_name("white")
+    assert white.hex == "#ffffff"
     
-    print("✓ random_warm_palette 测试通过")
+    # 解析
+    c1 = ColorUtils.parse("#ff6b6b")
+    assert c1.rgb.r == 255
+    
+    c2 = ColorUtils.parse("blue")
+    assert c2.rgb.b == 255
+    
+    c3 = ColorUtils.parse((128, 64, 32))
+    assert c3.rgb.r == 128
+    
+    # 混合
+    blended = ColorUtils.blend(["#ff0000", "#0000ff"])
+    assert blended.rgb.r == 127  # 大约
+    assert blended.rgb.b == 127
+    
+    # 亮/暗判断
+    white = Color.from_hex("#ffffff")
+    assert ColorUtils.is_light(white)
+    black = Color.from_hex("#000000")
+    assert ColorUtils.is_dark(black)
+    
+    # 颜色距离
+    dist = ColorUtils.color_distance(red, Color.from_hex("#ff0100"))
+    assert dist < 5  # 非常接近
+    
+    # 最接近的颜色
+    closest = ColorUtils.closest_color("#ff0001", ["#00ff00", "#ff0000", "#0000ff"])
+    assert closest.hex == "#ff0000"
+    
+    # 排序
+    colors = ["#ff0000", "#00ff00", "#0000ff"]
+    sorted_by_hue = ColorUtils.sort_by_hue(colors)
+    # 应该按红、绿、蓝顺序
+    assert sorted_by_hue[0].hsl.h < sorted_by_hue[1].hsl.h
+    
+    print("✓ 工具函数测试通过")
 
 
-def test_random_cool_palette():
-    """测试冷色调调色板。"""
-    palette = random_cool_palette(5)
-    assert len(palette) == 5
+def test_convenience_functions():
+    """测试便捷函数"""
+    print("\n=== 便捷函数 ===")
     
-    for color in palette:
-        assert not is_warm_color(color), f"冷色调调色板包含暖色: {color}"
+    # HEX <-> RGB
+    rgb = hex_to_rgb("#ff6b6b")
+    assert rgb == (255, 107, 107)
     
-    print("✓ random_cool_palette 测试通过")
-
-
-def test_random_pastel_palette():
-    """测试柔和色调调色板。"""
-    palette = random_pastel_palette(5)
-    assert len(palette) == 5
+    hex_str = rgb_to_hex(255, 107, 107)
+    assert hex_str == "#ff6b6b"
     
-    for color in palette:
-        _, s, l = hex_to_hsl(color)
-        assert s < 60, f"柔和色饱和度过高: {s}"
-        assert l > 60, f"柔和色亮度过低: {l}"
+    # HEX <-> HSL
+    hsl = hex_to_hsl("#ff6b6b")
+    assert len(hsl) == 3
+    assert hsl[0] == 0  # 红色色相为0
     
-    print("✓ random_pastel_palette 测试通过")
-
-
-def test_palette_to_css_variables():
-    """测试 CSS 变量导出。"""
-    palette = ['#FF0000', '#00FF00', '#0000FF']
-    css = palette_to_css_variables(palette)
+    hex_str = hsl_to_hex(0, 100, 50)
+    assert hex_str == "#ff0000"
     
-    assert ':root {' in css, "CSS 变量格式错误"
-    assert '--color-1: #FF0000;' in css, "颜色 1 未正确导出"
-    assert '--color-2: #00FF00;' in css, "颜色 2 未正确导出"
-    assert '--color-3: #0000FF;' in css, "颜色 3 未正确导出"
+    # 随机颜色
+    c = random_color()
+    assert isinstance(c, Color)
     
-    # 测试自定义变量名
-    css = palette_to_css_variables(palette, variable_names=['primary', 'secondary', 'tertiary'])
-    assert '--primary: #FF0000;' in css, "自定义变量名未生效"
+    # 随机调色板
+    p = random_palette(5)
+    assert len(p) == 5
     
-    print("✓ palette_to_css_variables 测试通过")
-
-
-def test_palette_to_scss_variables():
-    """测试 SCSS 变量导出。"""
-    palette = ['#FF0000', '#00FF00']
-    scss = palette_to_scss_variables(palette)
-    
-    assert '$color-1: #FF0000;' in scss, "SCSS 变量格式错误"
-    assert '$color-2: #00FF00;' in scss, "SCSS 变量格式错误"
-    
-    print("✓ palette_to_scss_variables 测试通过")
-
-
-def test_palette_to_json():
-    """测试 JSON 导出。"""
-    palette = ['#FF0000', '#00FF00']
-    json_data = palette_to_json(palette, 'test')
-    
-    assert json_data['name'] == 'test', "JSON 名称错误"
-    assert json_data['count'] == 2, "JSON 数量错误"
-    assert len(json_data['colors']) == 2, "JSON 颜色数量错误"
-    assert json_data['colors'][0]['hex'] == '#FF0000', "JSON 颜色值错误"
-    
-    # 测试包含 RGB
-    json_data = palette_to_json(palette, 'test', include_rgb=True)
-    assert 'rgb' in json_data['colors'][0], "RGB 值未包含"
-    assert json_data['colors'][0]['rgb'] == (255, 0, 0), "RGB 值错误"
-    
-    print("✓ palette_to_json 测试通过")
-
-
-def test_palette_to_tailwind_config():
-    """测试 Tailwind 配置导出。"""
-    palette = ['#FF0000', '#00FF00', '#0000FF']
-    tw = palette_to_tailwind_config(palette, 'custom')
-    
-    assert 'custom:' in tw, "Tailwind 配置名称错误"
-    assert "'50'" in tw or "'500'" in tw, "Tailwind 色阶未生成"
-    
-    print("✓ palette_to_tailwind_config 测试通过")
-
-
-def test_get_luminance():
-    """测试亮度计算。"""
-    # 白色亮度最高
-    assert get_luminance('#FFFFFF') == 1.0, "白色亮度应为 1"
-    
-    # 黑色亮度最低
-    assert get_luminance('#000000') == 0.0, "黑色亮度应为 0"
-    
-    # 灰色亮度约为 0.216（因为人眼对绿色更敏感）
-    # #808080 的相对亮度约为 0.216
-    l = get_luminance('#808080')
-    assert 0.2 < l < 0.22, f"灰色亮度应约为 0.216，实际: {l}"
-    
-    print("✓ get_luminance 测试通过")
-
-
-def test_get_contrast_ratio():
-    """测试对比度计算。"""
-    # 黑白对比度最高 (21:1)
-    ratio = get_contrast_ratio('#FFFFFF', '#000000')
-    assert ratio == 21.0, f"黑白对比度应为 21，实际: {ratio}"
-    
-    # 相同颜色对比度为 1
-    ratio = get_contrast_ratio('#FF0000', '#FF0000')
-    assert ratio == 1.0, f"相同颜色对比度应为 1，实际: {ratio}"
-    
-    print("✓ get_contrast_ratio 测试通过")
-
-
-def test_meets_wcag_aa():
-    """测试 WCAG AA 标准检查。"""
-    # 黑白满足 AA
-    assert meets_wcag_aa('#000000', '#FFFFFF'), "黑白应满足 WCAG AA"
-    
-    # 浅灰在白底上不满足 AA
-    assert not meets_wcag_aa('#CCCCCC', '#FFFFFF'), "浅灰在白底不应满足 WCAG AA"
-    
-    # 大文本标准较低 - 使用对比度约 3.2 的颜色
-    # #767676 与白色对比度约为 4.5，满足大文本 AA
-    assert meets_wcag_aa('#767676', '#FFFFFF', large_text=True), "中等灰在白底应满足大文本 WCAG AA"
-    
-    print("✓ meets_wcag_aa 测试通过")
-
-
-def test_meets_wcag_aaa():
-    """测试 WCAG AAA 标准检查。"""
-    # 黑白满足 AAA
-    assert meets_wcag_aaa('#000000', '#FFFFFF'), "黑白应满足 WCAG AAA"
-    
-    # 深灰在白底可能不满足 AAA
-    assert not meets_wcag_aaa('#666666', '#FFFFFF'), "深灰在白底不应满足 WCAG AAA"
-    
-    print("✓ meets_wcag_aaa 测试通过")
-
-
-def test_suggest_accessible_color():
-    """测试可访问性颜色建议。"""
-    # 在白底上，需要较深的颜色
-    suggested = suggest_accessible_color('#888888', '#FFFFFF', 4.5)
-    ratio = get_contrast_ratio(suggested, '#FFFFFF')
-    assert ratio >= 4.5, f"建议颜色对比度不足: {ratio}"
-    
-    print("✓ suggest_accessible_color 测试通过")
-
-
-def test_get_color_name():
-    """测试颜色名称获取。"""
-    assert get_color_name('#FF0000') == 'Red', "红色名称错误"
-    assert get_color_name('#00FF00') == 'Lime', "绿色名称错误"
-    assert get_color_name('#0000FF') == 'Blue', "蓝色名称错误"
-    assert get_color_name('#FFFFFF') == 'White', "白色名称错误"
-    assert get_color_name('#000000') == 'Black', "黑色名称错误"
-    
-    # 未知颜色返回原值
-    assert get_color_name('#123ABC') == '#123ABC', "未知颜色应返回原值"
-    
-    print("✓ get_color_name 测试通过")
-
-
-def test_blend_colors():
-    """测试颜色混合。"""
-    # 黑白混合应为灰 - 由于精度问题可能是 #808080 或 #7F7F7F
-    result = blend_colors('#000000', '#FFFFFF', 0.5)
-    r, g, b = hex_to_rgb(result)
-    assert abs(r - 128) <= 1 and abs(g - 128) <= 1 and abs(b - 128) <= 1, f"黑白混合应为灰色，实际: {result}"
-    
-    # 极端比例
-    result = blend_colors('#FF0000', '#0000FF', 0)
-    assert result == '#FF0000', "比例 0 应返回第一个颜色"
-    
-    result = blend_colors('#FF0000', '#0000FF', 1)
-    assert result == '#0000FF', "比例 1 应返回第二个颜色"
-    
-    print("✓ blend_colors 测试通过")
-
-
-def test_is_light_color():
-    """测试颜色明暗判断。"""
-    assert is_light_color('#FFFFFF'), "白色应为浅色"
-    assert not is_light_color('#000000'), "黑色不应为浅色"
-    assert is_light_color('#EEEEEE'), "浅灰应为浅色"
-    assert not is_light_color('#333333'), "深灰不应为浅色"
-    
-    print("✓ is_light_color 测试通过")
-
-
-def test_is_warm_color():
-    """测试暖色判断。"""
-    assert is_warm_color('#FF0000'), "红色应为暖色"
-    assert is_warm_color('#FFA500'), "橙色应为暖色"
-    assert is_warm_color('#FFFF00'), "黄色应为暖色"
-    assert not is_warm_color('#0000FF'), "蓝色应为冷色"
-    assert not is_warm_color('#00FF00'), "绿色应为冷色"
-    
-    print("✓ is_warm_color 测试通过")
-
-
-def test_color_temperature():
-    """测试颜色温度。"""
-    assert color_temperature('#FF0000') == 'warm', "红色应为暖色"
-    assert color_temperature('#0000FF') == 'cool', "蓝色应为冷色"
-    assert color_temperature('#808080') == 'neutral', "灰色应为中性"
-    
-    print("✓ color_temperature 测试通过")
-
-
-def test_get_palette_harmony_type():
-    """测试调色板和谐类型识别。"""
     # 互补色
-    palette = generate_complementary_palette('#FF0000')
-    harmony = get_palette_harmony_type(palette)
-    assert harmony == 'complementary', f"互补色识别错误: {harmony}"
+    comp = complementary("#ff6b6b")
+    # 互补色应为青色系，允许小误差
+    assert comp.startswith("#6b")
     
-    # 三角色
-    palette = generate_triadic_palette('#FF0000')
-    harmony = get_palette_harmony_type(palette)
-    assert harmony == 'triadic', f"三角色识别错误: {harmony}"
+    # 变亮/变暗
+    lighter = lighten("#666666", 20)
+    assert Color.from_hex(lighter).hsl.l > Color.from_hex("#666666").hsl.l
     
-    print("✓ get_palette_harmony_type 测试通过")
+    darker = darken("#666666", 20)
+    assert Color.from_hex(darker).hsl.l < Color.from_hex("#666666").hsl.l
+    
+    # 对比度
+    ratio = contrast_ratio("#000000", "#ffffff")
+    assert ratio == 21.0
+    
+    # 渐变
+    grad = gradient("#ff0000", "#0000ff", 5)
+    assert len(grad) == 5
+    
+    # 调色板
+    pal = palette("#ff6b6b", "triadic")
+    assert len(pal) == 3
+    
+    print("✓ 便捷函数测试通过")
 
 
-def test_color_palette_class():
-    """测试 ColorPalette 类。"""
-    # 创建调色板
-    palette = ColorPalette(['#FF0000', '#00FF00', '#0000FF'], 'RGB')
-    assert len(palette) == 3, "调色板长度错误"
-    assert palette.name == 'RGB', "调色板名称错误"
+def test_lab_color_space():
+    """测试 LAB 颜色空间"""
+    print("\n=== LAB 颜色空间 ===")
     
-    # 迭代测试
-    colors = list(palette)
-    assert len(colors) == 3, "迭代失败"
+    # RGB -> LAB -> RGB 往返测试
+    colors = [
+        Color.from_rgb(255, 0, 0),    # 红色
+        Color.from_rgb(0, 255, 0),    # 绿色
+        Color.from_rgb(0, 0, 255),    # 蓝色
+        Color.from_rgb(255, 255, 255), # 白色
+        Color.from_rgb(0, 0, 0),      # 黑色
+    ]
     
-    # 索引访问
-    assert palette[0] == '#FF0000', "索引访问失败"
+    for c in colors:
+        lab = c.lab
+        back_to_rgb = lab.to_rgb()
+        # 允许小误差
+        assert abs(back_to_rgb.r - c.rgb.r) <= 2, f"R mismatch: {back_to_rgb.r} vs {c.rgb.r}"
+        assert abs(back_to_rgb.g - c.rgb.g) <= 2, f"G mismatch: {back_to_rgb.g} vs {c.rgb.g}"
+        assert abs(back_to_rgb.b - c.rgb.b) <= 2, f"B mismatch: {back_to_rgb.b} vs {c.rgb.b}"
     
-    # 添加颜色
-    palette.add_color('#FFFF00')
-    assert len(palette) == 4, "添加颜色失败"
+    # 色差计算
+    red = Color.from_hex("#ff0000")
+    similar_red = Color.from_hex("#fe0000")
+    blue = Color.from_hex("#0000ff")
     
-    # 移除颜色
-    palette.remove_color(0)
-    assert len(palette) == 3, "移除颜色失败"
+    delta_similar = red.lab.delta_e(similar_red.lab)
+    delta_different = red.lab.delta_e(blue.lab)
     
-    print("✓ ColorPalette 类测试通过")
+    assert delta_similar < delta_different
+    
+    print("✓ LAB 颜色空间测试通过")
 
 
-def test_color_palette_from_base_color():
-    """测试从基础颜色创建调色板。"""
-    palette = ColorPalette.from_base_color('#FF0000', 'triadic')
-    assert len(palette) == 3, "三角调色板颜色数错误"
+def test_cmyk_conversion():
+    """测试 CMYK 转换"""
+    print("\n=== CMYK 转换 ===")
     
-    palette = ColorPalette.from_base_color('#FF0000', 'complementary')
-    assert len(palette) == 2, "互补调色板颜色数错误"
+    # 黑色
+    black = Color.from_rgb(0, 0, 0)
+    cmyk = black.cmyk
+    assert cmyk.c == 0
+    assert cmyk.m == 0
+    assert cmyk.y == 0
+    assert cmyk.k == 100
     
-    print("✓ ColorPalette.from_base_color 测试通过")
+    # 纯青色
+    cyan = Color.from_rgb(0, 255, 255)
+    cmyk = cyan.cmyk
+    assert cmyk.c == 100
+    assert cmyk.m == 0
+    assert cmyk.y == 0
+    assert cmyk.k == 0
+    
+    # CMYK -> RGB 往返 (允许较大误差，因为 CMYK 和 RGB 空间不完全对应)
+    original = CMYK(50, 25, 10, 5)
+    rgb = original.to_rgb()
+    back = rgb.to_cmyk()
+    
+    # 允许较大误差范围
+    assert abs(back.c - original.c) <= 10
+    assert abs(back.m - original.m) <= 10
+    assert abs(back.y - original.y) <= 10
+    assert abs(back.k - original.k) <= 10
+    
+    print("✓ CMYK 转换测试通过")
 
 
-def test_color_palette_random():
-    """测试随机调色板创建。"""
-    palette = ColorPalette.random(5)
-    assert len(palette) == 5, "随机调色板颜色数错误"
+def test_edge_cases():
+    """测试边界情况"""
+    print("\n=== 边界情况 ===")
     
-    print("✓ ColorPalette.random 测试通过")
-
-
-def test_color_palette_gradient():
-    """测试渐变调色板创建。"""
-    palette = ColorPalette.gradient('#FF0000', '#0000FF', 10)
-    assert len(palette) == 10, "渐变调色板颜色数错误"
+    # 纯黑纯白
+    black = Color.from_rgb(0, 0, 0)
+    white = Color.from_rgb(255, 255, 255)
     
-    print("✓ ColorPalette.gradient 测试通过")
-
-
-def test_color_palette_export():
-    """测试调色板导出。"""
-    palette = ColorPalette(['#FF0000', '#00FF00'])
+    assert black.luminance == 0.0
+    assert white.luminance == 1.0
     
-    css = palette.to_css()
-    assert ':root {' in css, "CSS 导出失败"
+    # 饱和度为0的灰色
+    gray = Color.from_hsl(0, 0, 50)
+    assert gray.rgb.r == gray.rgb.g == gray.rgb.b
     
-    scss = palette.to_scss()
-    assert '$color-1:' in scss, "SCSS 导出失败"
+    # 高饱和度颜色
+    vivid = Color.from_hsl(180, 100, 50)
+    assert vivid.hsl.s == 100
     
-    json_data = palette.to_json()
-    assert json_data['count'] == 2, "JSON 导出失败"
+    # 透明度
+    transparent = Color.from_rgb(255, 0, 0, 0.5)
+    assert transparent.rgb.a == 0.5
     
-    tw = palette.to_tailwind()
-    assert 'custom:' in tw, "Tailwind 导出失败"
+    # 带 alpha 的 HEX
+    hex_with_alpha = Color.from_hex("#ff000080")
+    assert transparent.rgb.a == 0.5
     
-    print("✓ ColorPalette 导出测试通过")
-
-
-def test_color_palette_with_shades():
-    """测试调色板阴影扩展。"""
-    palette = ColorPalette(['#FF0000'])
-    new_palette = palette.with_shades(2)
-    # 原色 + 2 阴影 = 3 个颜色
-    assert len(new_palette) == 3, f"阴影扩展数量错误: {len(new_palette)}"
-    
-    print("✓ ColorPalette.with_shades 测试通过")
-
-
-def test_color_palette_with_tints():
-    """测试调色板着色扩展。"""
-    palette = ColorPalette(['#FF0000'])
-    new_palette = palette.with_tints(2)
-    assert len(new_palette) == 3, f"着色扩展数量错误: {len(new_palette)}"
-    
-    print("✓ ColorPalette.with_tints 测试通过")
-
-
-def test_create_palette():
-    """测试便捷创建函数。"""
-    palette = create_palette('#FF0000', 'triadic')
-    assert len(palette) == 3, "便捷创建函数失败"
-    
-    print("✓ create_palette 测试通过")
+    print("✓ 边界情况测试通过")
 
 
 def run_all_tests():
-    """运行所有测试。"""
+    """运行所有测试"""
     print("=" * 60)
-    print("颜色调色板工具测试")
+    print("Color Palette Utils - 完整测试")
     print("=" * 60)
     
-    # 颜色空间转换测试
-    print("\n--- 颜色空间转换测试 ---")
-    test_hex_to_rgb()
-    test_rgb_to_hex()
-    test_rgb_hsl_roundtrip()
-    test_rgb_to_hsl()
-    test_hex_hsl_conversion()
-    
-    # 颜色调整测试
-    print("\n--- 颜色调整测试 ---")
-    test_adjust_lightness()
-    test_adjust_saturation()
-    test_get_complementary()
-    
-    # 调色板生成测试
-    print("\n--- 调色板生成测试 ---")
-    test_complementary_palette()
-    test_analogous_palette()
-    test_triadic_palette()
-    test_split_complementary_palette()
-    test_tetradic_palette()
-    test_pentadic_palette()
-    test_monochromatic_palette()
-    test_shades()
-    test_tints()
-    test_tones()
+    test_rgb_creation()
+    test_color_creation()
+    test_color_manipulation()
+    test_color_harmony()
+    test_contrast_ratio()
+    test_color_blindness_simulation()
+    test_color_palette()
     test_gradient()
-    test_multi_gradient()
-    
-    # 随机调色板测试
-    print("\n--- 随机调色板测试 ---")
-    test_random_color()
-    test_random_palette()
-    test_random_harmonious_palette()
-    test_random_warm_palette()
-    test_random_cool_palette()
-    test_random_pastel_palette()
-    
-    # 导出测试
-    print("\n--- 导出测试 ---")
-    test_palette_to_css_variables()
-    test_palette_to_scss_variables()
-    test_palette_to_json()
-    test_palette_to_tailwind_config()
-    
-    # 对比度和可访问性测试
-    print("\n--- 对比度和可访问性测试 ---")
-    test_get_luminance()
-    test_get_contrast_ratio()
-    test_meets_wcag_aa()
-    test_meets_wcag_aaa()
-    test_suggest_accessible_color()
-    
-    # 颜色名称测试
-    print("\n--- 颜色名称测试 ---")
-    test_get_color_name()
-    
-    # 工具函数测试
-    print("\n--- 工具函数测试 ---")
-    test_blend_colors()
-    test_is_light_color()
-    test_is_warm_color()
-    test_color_temperature()
-    test_get_palette_harmony_type()
-    
-    # ColorPalette 类测试
-    print("\n--- ColorPalette 类测试 ---")
-    test_color_palette_class()
-    test_color_palette_from_base_color()
-    test_color_palette_random()
-    test_color_palette_gradient()
-    test_color_palette_export()
-    test_color_palette_with_shades()
-    test_color_palette_with_tints()
-    test_create_palette()
+    test_color_utils()
+    test_convenience_functions()
+    test_lab_color_space()
+    test_cmyk_conversion()
+    test_edge_cases()
     
     print("\n" + "=" * 60)
-    print("✅ 所有测试通过！")
+    print("✓ 所有测试通过!")
     print("=" * 60)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run_all_tests()
