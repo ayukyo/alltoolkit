@@ -1,0 +1,23 @@
+{
+  "name": "morse_utils",
+  "version": "1.0.0",
+  "description": "Comprehensive Morse code encoding, decoding, and signal processing utility module for JavaScript. Zero external dependencies.",
+  "main": "mod.js",
+  "scripts": {
+    "test": "node test.js",
+    "example": "node examples/basic.js"
+  },
+  "keywords": [
+    "morse",
+    "morse-code",
+    "encoding",
+    "decoding",
+    "signal",
+    "audio",
+    "telegraph",
+    "communication",
+    "zero-dependencies"
+  ],
+  "author": "AllToolkit",
+  "license": "MIT"
+}
