@@ -1,5 +1,22 @@
 # AllToolkit 更新日志
 
+## [2026-05-16]
+
+### 新增
+- **Python: syntax_highlight_utils (40+ 单元测试，零依赖语法高亮工具库)** 🎨
+  - 核心功能：highlight（ANSI 彩色终端输出）、highlight_html（HTML 格式输出）
+  - 多语言支持：Python、JavaScript 语法高亮
+  - Token 分析：get_tokens（代码词法分析）
+  - 行号支持：可选显示行号
+  - ANSI 工具：strip_ansi（移除 ANSI 转义序列）
+  - 语法元素：关键字、字符串、数字、注释、运算符、函数、类、装饰器、内置函数、常量
+  - 支持格式：双引号/单引号字符串、三引号字符串、f-string、十六进制/二进制/八进制/科学计数法数字
+  - HTML 主题：Atom One Dark 风格配色
+  - 自定义样式：支持自定义 HTML 输出样式
+  - 零外部依赖，纯 Python 标准库实现
+  - 测试覆盖：40+ 测试全部通过
+  - 应用场景：终端代码显示、代码编辑器、文档生成、博客系统、IDE 插件
+
 ## [2026-05-15]
 
 ### 新增
