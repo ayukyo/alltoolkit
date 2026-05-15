@@ -197,6 +197,9 @@ perl Perl/csv_utils/csv_utils_test.pl
 - **Python rabin_karp_utils**: 54 个测试用例，覆盖 Rabin-Karp 字符串搜索、多模式匹配、滚动哈希、中文文本等 🔍
 - **Python geo_distance_utils**: 132 个测试用例，覆盖 Haversine/Vincenty 距离计算、方位角、中点、目的地、边界框、多边形检测、路径操作、DMS 格式转换、单位转换、批量操作、边界值（极点、日期变更线、零距离、对称性）等 🌍
 - **Python otp_utils**: 新增 35+ 边界值测试，覆盖 TOTP/HOTP 生成、Base32 编解码、URI 构建、恢复码、空数据、极端参数等 🔐
+- **Python cron_expression_utils**: 新增 33 个测试用例，覆盖 Cron 表达式解析、5/6字段格式、范围/步长/列表语法、月份/星期名称、下次运行时间计算、预设表达式等 ⏰
+- **Python loan_calculator_utils**: 新增 65 个测试用例，覆盖等额本息/等额本金/只还利息月供计算、还款计划生成、APR计算、提前还款分析、再融资分析、利息计算（单利/复利）、贷款比较、房贷资格计算等 💰
+- **Python periodic_table_utils**: 新增 64 个测试用例，覆盖118元素查询（原子序数/符号/中英文名称）、周期族分类、分子量计算（H2O/CO2/C6H12O6）、元素比较、相邻元素、常见化合物等 ⚗️
 - **Python fractions_utils**: 143 个测试用例，覆盖分数运算、类型转换、GCD/LCM、序列生成、边界值（零、负数、大数）等 📊
 - **Python env_utils**: 65 个测试用例，覆盖环境变量操作、.env 文件、验证、快照、敏感数据脱敏等 ⚙️
 - **Python memory_profile_utils**: 32 个测试用例，覆盖内存监控、对象分析、泄漏检测、优化建议等 📈
