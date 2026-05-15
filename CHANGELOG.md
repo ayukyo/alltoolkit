@@ -1,5 +1,29 @@
 # AllToolkit 更新日志
 
+## [2026-05-15]
+
+### 新增
+- **JavaScript: morse_utils (62 单元测试，完整摩尔斯电码工具库)** 📻
+  - 编码解码：encode/decode（文本到摩尔斯电码转换）
+  - 多语言支持：拉丁字母、数字、标点、西里尔字母、希腊字母、扩展拉丁字符
+  - 自定义符号：支持自定义点/划符号显示
+  - 专业信号：Prosign 支持（SOS、AR、SK、BT 等专业信号）
+  - 音频生成：generateAudio（生成 Float32Array 音频样本）
+  - 时序模式：generateTimingPattern/generateBinaryPattern（信号时序）
+  - 蜂鸣调度：generateBeepSchedule（LED/蜂鸣器调度）
+  - 速度控制：WPM 设置（每分钟单词数）
+  - 信号解析：MorseSignalParser（从时序数据解析摩尔斯码）
+  - WPM 检测：detectWpm（自动检测信号速度）
+  - 统计分析：getStats（字符统计、点划比例）
+  - 可视化：toVisual（摩尔斯码可视化表示）
+  - 练习生成：generatePractice（随机练习序列生成）
+  - 验证工具：isValidText/isValidMorse（输入验证）
+  - 时间估算：estimateTime（传输时间预估）
+  - 国际标准：遵循 ITU-R M.1677-1 标准
+  - 零外部依赖，纯 JavaScript 实现
+  - 测试覆盖：62 测试全部通过
+  - 应用场景：业余无线电、通信训练、信号处理、教育工具
+
 ## [2026-05-12]
 
 ### 新增
