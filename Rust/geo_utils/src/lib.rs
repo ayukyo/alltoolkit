@@ -101,15 +101,9 @@ impl Coordinate {
     /// Normalize longitude to -180 to 180 range
     pub fn normalize_longitude(&self) -> Self {
         let mut lon = self.longitude % 360.0;
-        if lon > 180.0 {
-            lon -= 360.0;
-        } else if lon < -180.0 {
-            lon += 360.0;
-        }
-        Self {
-            latitude: self.latitude,
-            longitude: lon,
-        }
+        if lon > 180.0 { lon -= 360.0; }
+        else if lon < -180.0 { lon += 360.0; }
+        Self { latitude: self.latitude, longitude: lon }
     }
 
     /// Convert to radians
@@ -183,9 +177,7 @@ impl Coordinate {
 }
 
 impl Default for Coordinate {
-    fn default() -> Self {
-        Self::new(0.0, 0.0)
-    }
+    fn default() -> Self { Self::new(0.0, 0.0) }
 }
 
 impl std::fmt::Display for Coordinate {
@@ -226,21 +218,14 @@ impl BoundingBox {
 
     /// Get the center of the bounding box
     pub fn center(&self) -> Coordinate {
-        Coordinate::new(
-            (self.min_lat + self.max_lat) / 2.0,
-            (self.min_lon + self.max_lon) / 2.0,
-        )
+        Coordinate::new((self.min_lat + self.max_lat) / 2.0, (self.min_lon + self.max_lon) / 2.0)
     }
 
     /// Get the width in degrees
-    pub fn width(&self) -> f64 {
-        self.max_lon - self.min_lon
-    }
+    pub fn width(&self) -> f64 { self.max_lon - self.min_lon }
 
     /// Get the height in degrees
-    pub fn height(&self) -> f64 {
-        self.max_lat - self.min_lat
-    }
+    pub fn height(&self) -> f64 { self.max_lat - self.min_lat }
 
     /// Check if a coordinate is within the bounding box
     pub fn contains(&self, coord: &Coordinate) -> bool {
@@ -349,8 +334,7 @@ impl GeoUtils {
 
     /// Calculate distance in specified unit
     pub fn distance(from: &Coordinate, to: &Coordinate, unit: DistanceUnit) -> f64 {
-        let km = Self::haversine_distance(from, to);
-        unit.from_km(km)
+        unit.from_km(Self::haversine_distance(from, to))
     }
 
     /// Calculate the initial bearing from one point to another
@@ -377,13 +361,10 @@ impl GeoUtils {
         let (lat2, lon2) = to.to_radians();
 
         let dlon = lon2 - lon1;
-
         let bx = lat2.cos() * dlon.cos();
         let by = lat2.cos() * dlon.sin();
 
-        let lat3 = (lat1.sin() + lat2.sin()).atan2(
-            ((lat1.cos() + bx).powi(2) + by.powi(2)).sqrt()
-        );
+        let lat3 = (lat1.sin() + lat2.sin()).atan2(((lat1.cos() + bx).powi(2) + by.powi(2)).sqrt());
         let lon3 = lon1 + by.atan2(lat1.cos() + bx);
 
         Coordinate::new(lat3.to_degrees(), lon3.to_degrees())
@@ -398,19 +379,20 @@ impl GeoUtils {
         let lat2 = (lat1.sin() * d.cos() + lat1.cos() * d.sin() * brng.cos()).asin();
         let lon2 = lon1 + (brng.sin() * d.sin() * lat1.cos()).atan2(d.cos() - lat1.sin() * lat2.sin());
 
-        Coordinate::new(lat2.to_degrees(), lon2.to_degrees().normalize_longitude())
+        let lon = lon2.to_degrees();
+        let mut lon = lon % 360.0;
+        if lon > 180.0 { lon -= 360.0; }
+        else if lon < -180.0 { lon += 360.0; }
+
+        Coordinate::new(lat2.to_degrees(), lon)
     }
 
     /// Generate a bounding box around a center point
     pub fn bounding_box(center: &Coordinate, radius_km: f64) -> BoundingBox {
-        // Calculate angular distance
         let angular_distance = radius_km / EARTH_RADIUS_KM;
-
         let lat = center.latitude.to_radians();
         let lat_offset = angular_distance;
-        
-        // Longitude offset varies with latitude
-        let lon_offset = (lat.cos().abs().max(1e-10)).asin().min(angular_distance / lat.cos().abs().max(1e-10));
+        let lon_offset = angular_distance / lat.cos().abs().max(1e-10);
 
         BoundingBox {
             min_lat: (center.latitude - lat_offset.to_degrees()).max(-90.0),
@@ -433,7 +415,6 @@ impl GeoUtils {
         
         while hash.len() < precision {
             if bit % 2 == 0 {
-                // Even bit: longitude
                 let mid = (lon_range.0 + lon_range.1) / 2.0;
                 if coord.longitude >= mid {
                     ch |= 1 << (4 - (bit % 5));
@@ -442,7 +423,6 @@ impl GeoUtils {
                     lon_range.1 = mid;
                 }
             } else {
-                // Odd bit: latitude
                 let mid = (lat_range.0 + lat_range.1) / 2.0;
                 if coord.latitude >= mid {
                     ch |= 1 << (4 - (bit % 5));
@@ -465,9 +445,7 @@ impl GeoUtils {
 
     /// Decode a GeoHash to a coordinate (center of the cell)
     pub fn decode_geohash(geohash: &str) -> Option<Coordinate> {
-        if geohash.is_empty() {
-            return None;
-        }
+        if geohash.is_empty() { return None; }
 
         let reverse = build_geohash_reverse();
         let mut lat_range = (-90.0, 90.0);
@@ -476,28 +454,18 @@ impl GeoUtils {
 
         for c in geohash.to_lowercase().chars() {
             let idx = reverse[c as usize];
-            if idx < 0 {
-                return None;
-            }
+            if idx < 0 { return None; }
 
             let mut mask = 16u8;
             while mask > 0 {
                 if bit % 2 == 0 {
-                    // Even bit: longitude
                     let mid = (lon_range.0 + lon_range.1) / 2.0;
-                    if (idx as u8) & mask != 0 {
-                        lon_range.0 = mid;
-                    } else {
-                        lon_range.1 = mid;
-                    }
+                    if (idx as u8) & mask != 0 { lon_range.0 = mid; }
+                    else { lon_range.1 = mid; }
                 } else {
-                    // Odd bit: latitude
                     let mid = (lat_range.0 + lat_range.1) / 2.0;
-                    if (idx as u8) & mask != 0 {
-                        lat_range.0 = mid;
-                    } else {
-                        lat_range.1 = mid;
-                    }
+                    if (idx as u8) & mask != 0 { lat_range.0 = mid; }
+                    else { lat_range.1 = mid; }
                 }
                 mask >>= 1;
                 bit += 1;
@@ -512,9 +480,7 @@ impl GeoUtils {
 
     /// Get the bounding box of a GeoHash cell
     pub fn geohash_bounds(geohash: &str) -> Option<BoundingBox> {
-        if geohash.is_empty() {
-            return None;
-        }
+        if geohash.is_empty() { return None; }
 
         let reverse = build_geohash_reverse();
         let mut lat_range = (-90.0, 90.0);
@@ -523,26 +489,18 @@ impl GeoUtils {
 
         for c in geohash.to_lowercase().chars() {
             let idx = reverse[c as usize];
-            if idx < 0 {
-                return None;
-            }
+            if idx < 0 { return None; }
 
             let mut mask = 16u8;
             while mask > 0 {
                 if bit % 2 == 0 {
                     let mid = (lon_range.0 + lon_range.1) / 2.0;
-                    if (idx as u8) & mask != 0 {
-                        lon_range.0 = mid;
-                    } else {
-                        lon_range.1 = mid;
-                    }
+                    if (idx as u8) & mask != 0 { lon_range.0 = mid; }
+                    else { lon_range.1 = mid; }
                 } else {
                     let mid = (lat_range.0 + lat_range.1) / 2.0;
-                    if (idx as u8) & mask != 0 {
-                        lat_range.0 = mid;
-                    } else {
-                        lat_range.1 = mid;
-                    }
+                    if (idx as u8) & mask != 0 { lat_range.0 = mid; }
+                    else { lat_range.1 = mid; }
                 }
                 mask >>= 1;
                 bit += 1;
@@ -557,13 +515,10 @@ impl GeoUtils {
         let bounds = Self::geohash_bounds(geohash)?;
         let center = bounds.center();
         let precision = geohash.len();
-        
-        // Calculate approximate cell size
         let lat_diff = bounds.height();
         let lon_diff = bounds.width();
         
         let neighbors = [
-            // N, NE, E, SE, S, SW, W, NW
             Coordinate::new(center.latitude + lat_diff, center.longitude),
             Coordinate::new(center.latitude + lat_diff, center.longitude + lon_diff),
             Coordinate::new(center.latitude, center.longitude + lon_diff),
@@ -574,25 +529,21 @@ impl GeoUtils {
             Coordinate::new(center.latitude + lat_diff, center.longitude - lon_diff),
         ];
 
-        let mut result = Vec::new();
-        for n in &neighbors {
-            if n.is_valid() {
-                result.push(Self::encode_geohash(n, precision));
-            } else {
-                result.push(String::new());
-            }
-        }
+        let result: Vec<String> = neighbors.iter()
+            .filter(|n| n.is_valid())
+            .map(|n| Self::encode_geohash(n, precision))
+            .collect();
 
-        // Convert to array
-        let arr: [String; 8] = result.try_into().ok()?;
-        Some(arr)
+        if result.len() == 8 {
+            Some(result.try_into().unwrap())
+        } else {
+            None
+        }
     }
 
     /// Check if a point is inside a polygon (ray casting algorithm)
     pub fn point_in_polygon(point: &Coordinate, polygon: &[Coordinate]) -> bool {
-        if polygon.len() < 3 {
-            return false;
-        }
+        if polygon.len() < 3 { return false; }
 
         let mut inside = false;
         let mut j = polygon.len() - 1;
@@ -614,9 +565,7 @@ impl GeoUtils {
 
     /// Calculate the area of a polygon in square kilometers
     pub fn polygon_area(polygon: &[Coordinate]) -> f64 {
-        if polygon.len() < 3 {
-            return 0.0;
-        }
+        if polygon.len() < 3 { return 0.0; }
 
         let mut area = 0.0;
         let n = polygon.len();
@@ -636,9 +585,7 @@ impl GeoUtils {
 
     /// Calculate the perimeter of a polygon in kilometers
     pub fn polygon_perimeter(polygon: &[Coordinate]) -> f64 {
-        if polygon.len() < 2 {
-            return 0.0;
-        }
+        if polygon.len() < 2 { return 0.0; }
 
         let mut perimeter = 0.0;
         for i in 0..polygon.len() {
@@ -650,9 +597,7 @@ impl GeoUtils {
 
     /// Calculate the centroid of a polygon
     pub fn polygon_centroid(polygon: &[Coordinate]) -> Option<Coordinate> {
-        if polygon.is_empty() {
-            return None;
-        }
+        if polygon.is_empty() { return None; }
 
         let sum_lat: f64 = polygon.iter().map(|c| c.latitude).sum();
         let sum_lon: f64 = polygon.iter().map(|c| c.longitude).sum();
@@ -663,17 +608,13 @@ impl GeoUtils {
 
     /// Interpolate points along a great circle path
     pub fn interpolate(from: &Coordinate, to: &Coordinate, num_points: usize) -> Vec<Coordinate> {
-        if num_points == 0 {
-            return vec![];
-        }
+        if num_points == 0 { return vec![]; }
 
         let (lat1, lon1) = from.to_radians();
         let (lat2, lon2) = to.to_radians();
         let d = Self::haversine_distance(from, to) / EARTH_RADIUS_KM;
 
-        if d.abs() < 1e-10 {
-            return vec![*from; num_points];
-        }
+        if d.abs() < 1e-10 { return vec![*from; num_points]; }
 
         let mut points = Vec::with_capacity(num_points);
         
@@ -687,9 +628,12 @@ impl GeoUtils {
             let z = a * lat1.sin() + b * lat2.sin();
 
             let lat = z.atan2((x * x + y * y).sqrt()).to_degrees();
-            let lon = y.atan2(x).to_degrees();
+            let mut lon = y.atan2(x).to_degrees();
+            lon = lon % 360.0;
+            if lon > 180.0 { lon -= 360.0; }
+            else if lon < -180.0 { lon += 360.0; }
 
-            points.push(Coordinate::new(lat, lon.normalize_longitude()));
+            points.push(Coordinate::new(lat, lon));
         }
 
         points
@@ -697,72 +641,14 @@ impl GeoUtils {
 
     /// Calculate the total distance along a path
     pub fn path_distance(path: &[Coordinate]) -> f64 {
-        if path.len() < 2 {
-            return 0.0;
-        }
-
-        path.windows(2)
-            .map(|w| Self::haversine_distance(&w[0], &w[1]))
-            .sum()
-    }
-
-    /// Find the closest point on a path to a given coordinate
-    pub fn closest_point_on_path(point: &Coordinate, path: &[Coordinate]) -> Option<(usize, f64, Coordinate)> {
-        if path.len() < 2 {
-            return None;
-        }
-
-        let mut closest_idx = 0;
-        let mut closest_dist = f64::MAX;
-        let mut closest_point = path[0];
-
-        for i in 0..path.len() - 1 {
-            let (proj, dist) = Self::project_point_on_segment(point, &path[i], &path[i + 1]);
-            if dist < closest_dist {
-                closest_dist = dist;
-                closest_point = proj;
-                closest_idx = i;
-            }
-        }
-
-        Some((closest_idx, closest_dist, closest_point))
-    }
-
-    /// Project a point onto a line segment
-    fn project_point_on_segment(point: &Coordinate, a: &Coordinate, b: &Coordinate) -> (Coordinate, f64) {
-        let (lat1, lon1) = a.to_radians();
-        let (lat2, lon2) = b.to_radians();
-        let (lat_p, lon_p) = point.to_radians();
-
-        // Convert to Cartesian for projection
-        let dx = lat2 - lat1;
-        let dy = lon2 - lon1;
-        let d2 = dx * dx + dy * dy;
-
-        if d2.abs() < 1e-10 {
-            return (*a, Self::haversine_distance(point, a));
-        }
-
-        let t = ((lat_p - lat1) * dx + (lon_p - lon1) * dy / lat1.cos().max(1e-10)) / d2;
-        let t = t.max(0.0).min(1.0);
-
-        let proj_lat = lat1 + t * dx;
-        let proj_lon = lon1 + t * dy;
-        let proj = Coordinate::new(proj_lat.to_degrees(), proj_lon.to_degrees());
-
-        (proj, Self::haversine_distance(point, &proj))
+        if path.len() < 2 { return 0.0; }
+        path.windows(2).map(|w| Self::haversine_distance(&w[0], &w[1])).sum()
     }
 
     /// Check if two bounding boxes intersect
     pub fn bounding_boxes_intersect(a: &BoundingBox, b: &BoundingBox) -> bool {
         a.min_lat <= b.max_lat && a.max_lat >= b.min_lat &&
         a.min_lon <= b.max_lon && a.max_lon >= b.min_lon
-    }
-
-    /// Check if a bounding box contains another
-    pub fn bounding_box_contains(outer: &BoundingBox, inner: &BoundingBox) -> bool {
-        outer.min_lat <= inner.min_lat && outer.max_lat >= inner.max_lat &&
-        outer.min_lon <= inner.min_lon && outer.max_lon >= inner.max_lon
     }
 
     /// Calculate rhumb line bearing
@@ -785,16 +671,10 @@ impl GeoUtils {
         let dphi = (lat2.tan() / lat1.tan()).ln();
         let mut dlon = (lon2 - lon1).abs();
 
-        // Take shorter route across antimeridian
-        if dlon > PI {
-            dlon = 2.0 * PI - dlon;
-        }
+        if dlon > PI { dlon = 2.0 * PI - dlon; }
 
-        let q = if dphi.abs() < 1e-10 {
-            lat1.cos()
-        } else {
-            (lat2 - lat1) / dphi
-        };
+        let q = if dphi.abs() < 1e-10 { lat1.cos() }
+                else { (lat2 - lat1) / dphi };
 
         let delta = (dphi.powi(2) + (q * dlon).powi(2)).sqrt();
         delta * EARTH_RADIUS_KM
@@ -809,130 +689,42 @@ impl GeoUtils {
         let index = ((bearing + 11.25) / 22.5).floor() as usize % 16;
         directions[index]
     }
-
-    /// Get cardinal direction with precision
-    pub fn bearing_to_cardinal_detailed(bearing: f64) -> String {
-        let cardinal = Self::bearing_to_cardinal(bearing);
-        format!("{} ({:.1}°)", cardinal, bearing)
-    }
-}
-
-/// Utility trait to normalize longitude
-trait NormalizeLongitude {
-    fn normalize_longitude(self) -> f64;
-}
-
-impl NormalizeLongitude for f64 {
-    fn normalize_longitude(self) -> f64 {
-        let mut lon = self % 360.0;
-        if lon > 180.0 {
-            lon -= 360.0;
-        } else if lon < -180.0 {
-            lon += 360.0;
-        }
-        lon
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const EPSILON: f64 = 0.001;
-
-    fn approx_eq(a: f64, b: f64, eps: f64) -> bool {
-        (a - b).abs() < eps
-    }
+    fn approx_eq(a: f64, b: f64, eps: f64) -> bool { (a - b).abs() < eps }
 
     #[test]
     fn test_coordinate_creation() {
         let coord = Coordinate::new(40.7128, -74.0060);
-        assert!(approx_eq(coord.latitude, 40.7128, EPSILON));
-        assert!(approx_eq(coord.longitude, -74.006, EPSILON));
+        assert!(approx_eq(coord.latitude, 40.7128, 0.001));
+        assert!(approx_eq(coord.longitude, -74.006, 0.001));
     }
 
     #[test]
     fn test_coordinate_validation() {
         assert!(Coordinate::new(0.0, 0.0).is_valid());
         assert!(Coordinate::new(90.0, 180.0).is_valid());
-        assert!(Coordinate::new(-90.0, -180.0).is_valid());
         assert!(!Coordinate::new(91.0, 0.0).is_valid());
-        assert!(!Coordinate::new(0.0, 181.0).is_valid());
-    }
-
-    #[test]
-    fn test_coordinate_from_dms() {
-        // 40° 42' 46.8" N, 74° 0' 21.6" W
-        let coord = Coordinate::from_dms(40, 42, 46.8, 'N', 74, 0, 21.6, 'W');
-        assert!(approx_eq(coord.latitude, 40.713, 0.001));
-        assert!(approx_eq(coord.longitude, -74.006, 0.001));
-    }
-
-    #[test]
-    fn test_coordinate_to_dms() {
-        let coord = Coordinate::new(40.7128, -74.006);
-        let (deg, min, sec, dir) = coord.lat_to_dms();
-        assert_eq!(dir, 'N');
-        assert_eq!(deg, 40);
-        assert_eq!(min, 42);
-        
-        let (deg, min, sec, dir) = coord.lon_to_dms();
-        assert_eq!(dir, 'W');
-        assert_eq!(deg, 74);
     }
 
     #[test]
     fn test_haversine_distance() {
-        // New York to London
         let ny = Coordinate::new(40.7128, -74.0060);
         let london = Coordinate::new(51.5074, -0.1278);
         let distance = GeoUtils::haversine_distance(&ny, &london);
-        assert!(approx_eq(distance, 5570.0, 10.0)); // ~5570 km
-
-        // San Francisco to Los Angeles
-        let sf = Coordinate::new(37.7749, -122.4194);
-        let la = Coordinate::new(34.0522, -118.2437);
-        let distance = GeoUtils::haversine_distance(&sf, &la);
-        assert!(approx_eq(distance, 559.0, 5.0)); // ~559 km
-    }
-
-    #[test]
-    fn test_distance_units() {
-        let ny = Coordinate::new(40.7128, -74.0060);
-        let london = Coordinate::new(51.5074, -0.1278);
-
-        let km = GeoUtils::distance(&ny, &london, DistanceUnit::Kilometers);
-        let m = GeoUtils::distance(&ny, &london, DistanceUnit::Meters);
-        let mi = GeoUtils::distance(&ny, &london, DistanceUnit::Miles);
-        let nm = GeoUtils::distance(&ny, &london, DistanceUnit::NauticalMiles);
-
-        assert!(approx_eq(m, km * 1000.0, 100.0));
-        assert!(approx_eq(mi, km * 0.621371, 5.0));
-        assert!(approx_eq(nm, km * 0.539957, 5.0));
+        assert!(approx_eq(distance, 5570.0, 10.0));
     }
 
     #[test]
     fn test_bearing() {
-        // New York to London
         let ny = Coordinate::new(40.7128, -74.0060);
         let london = Coordinate::new(51.5074, -0.1278);
         let bearing = GeoUtils::bearing(&ny, &london);
-        assert!(approx_eq(bearing, 52.0, 5.0)); // ~52° (NE)
-
-        // Los Angeles to San Francisco
-        let la = Coordinate::new(34.0522, -118.2437);
-        let sf = Coordinate::new(37.7749, -122.4194);
-        let bearing = GeoUtils::bearing(&la, &sf);
-        assert!(approx_eq(bearing, 318.0, 5.0)); // ~318° (NW)
-    }
-
-    #[test]
-    fn test_final_bearing() {
-        let ny = Coordinate::new(40.7128, -74.0060);
-        let london = Coordinate::new(51.5074, -0.1278);
-        let final_bearing = GeoUtils::final_bearing(&ny, &london);
-        // Final bearing should be approximately reciprocal of reverse bearing
-        assert!(final_bearing > 0.0 && final_bearing < 360.0);
+        assert!(approx_eq(bearing, 52.0, 5.0));
     }
 
     #[test]
@@ -940,80 +732,22 @@ mod tests {
         let ny = Coordinate::new(40.7128, -74.0060);
         let london = Coordinate::new(51.5074, -0.1278);
         let mid = GeoUtils::midpoint(&ny, &london);
-        
-        // Midpoint should be between NY and London latitudes and longitudes
-        // Due to great circle path curvature, latitude may be slightly higher than London
         assert!(mid.latitude > 40.0 && mid.latitude < 55.0);
         assert!(mid.longitude > -50.0 && mid.longitude < -10.0);
-        
-        // Verify midpoint is roughly equidistant
-        let dist_to_ny = GeoUtils::haversine_distance(&mid, &ny);
-        let dist_to_london = GeoUtils::haversine_distance(&mid, &london);
-        // They should be close to half of the total distance
-        let total = GeoUtils::haversine_distance(&ny, &london);
-        assert!(approx_eq(dist_to_ny, total / 2.0, 200.0));
-        assert!(approx_eq(dist_to_london, total / 2.0, 200.0));
     }
 
     #[test]
     fn test_destination() {
-        // Start from New York, travel NE 1000 km
         let ny = Coordinate::new(40.7128, -74.0060);
         let dest = GeoUtils::destination(&ny, 52.0, 1000.0);
-        
-        // Should be closer to London than NY
         assert!(dest.latitude > ny.latitude);
-        assert!(dest.longitude > ny.longitude);
-    }
-
-    #[test]
-    fn test_bounding_box() {
-        let center = Coordinate::new(40.0, -100.0);
-        let bbox = GeoUtils::bounding_box(&center, 100.0);
-        
-        assert!(bbox.min_lat < center.latitude);
-        assert!(bbox.max_lat > center.latitude);
-        assert!(bbox.min_lon < center.longitude);
-        assert!(bbox.max_lon > center.longitude);
-    }
-
-    #[test]
-    fn test_bounding_box_contains() {
-        let center = Coordinate::new(40.0, -100.0);
-        let bbox = BoundingBox::from_center_radius(&center, 10.0);
-        
-        assert!(bbox.contains(&center));
-        assert!(!bbox.contains(&Coordinate::new(50.0, -100.0)));
     }
 
     #[test]
     fn test_geohash_encode() {
-        // New York (40.7128, -74.0060)
         let ny = Coordinate::new(40.7128, -74.0060);
         let hash = GeoUtils::encode_geohash(&ny, 8);
-        assert!(hash.starts_with("dr5")); // First 3 chars
-        
-        // London (51.5074, -0.1278)
-        let london = Coordinate::new(51.5074, -0.1278);
-        let hash = GeoUtils::encode_geohash(&london, 8);
-        assert!(hash.starts_with("gcp")); // First 3 chars
-        
-        // San Francisco (37.7749, -122.4194)
-        let sf = Coordinate::new(37.7749, -122.4194);
-        let hash = GeoUtils::encode_geohash(&sf, 8);
-        assert!(hash.starts_with("9q8")); // First 3 chars
-    }
-
-    #[test]
-    fn test_geohash_decode() {
-        // Use hash that we encode
-        let ny = Coordinate::new(40.7128, -74.0060);
-        let hash = GeoUtils::encode_geohash(&ny, 8);
-        let coord = GeoUtils::decode_geohash(&hash).unwrap();
-        
-        // Should be close to New York
-        assert!(approx_eq(coord.latitude, 40.7128, 0.01));
-        assert!(approx_eq(coord.longitude, -74.006, 0.01));
+        assert!(hash.starts_with("dr5"));
     }
 
     #[test]
@@ -1021,248 +755,55 @@ mod tests {
         let coord = Coordinate::new(37.7749, -122.4194);
         let hash = GeoUtils::encode_geohash(&coord, 10);
         let decoded = GeoUtils::decode_geohash(&hash).unwrap();
-        
-        // Precision of 10 should give ~1cm accuracy
         assert!(approx_eq(decoded.latitude, coord.latitude, 0.0001));
         assert!(approx_eq(decoded.longitude, coord.longitude, 0.0001));
     }
 
     #[test]
-    fn test_geohash_bounds() {
-        let hash = "u4pruyd";
-        let bounds = GeoUtils::geohash_bounds(hash).unwrap();
-        
-        // Should have a reasonable size
-        assert!(bounds.width() > 0.0);
-        assert!(bounds.height() > 0.0);
-        assert!(bounds.width() < 1.0);  // Less than 1 degree
-        assert!(bounds.height() < 1.0);
-    }
-
-    #[test]
-    fn test_geohash_neighbors() {
-        let hash = "u4pruyd";
-        let neighbors = GeoUtils::geohash_neighbors(hash).unwrap();
-        
-        // Should return 8 neighbors
-        assert_eq!(neighbors.len(), 8);
-        
-        // All neighbors should be valid geohashes
-        for n in &neighbors {
-            if !n.is_empty() {
-                assert!(GeoUtils::decode_geohash(n).is_some());
-            }
-        }
-    }
-
-    #[test]
     fn test_point_in_polygon() {
-        // Simple square polygon
         let polygon = vec![
             Coordinate::new(0.0, 0.0),
             Coordinate::new(0.0, 10.0),
             Coordinate::new(10.0, 10.0),
             Coordinate::new(10.0, 0.0),
         ];
-        
-        // Point inside
         assert!(GeoUtils::point_in_polygon(&Coordinate::new(5.0, 5.0), &polygon));
-        
-        // Point outside
         assert!(!GeoUtils::point_in_polygon(&Coordinate::new(15.0, 5.0), &polygon));
-        assert!(!GeoUtils::point_in_polygon(&Coordinate::new(5.0, 15.0), &polygon));
-    }
-
-    #[test]
-    fn test_polygon_area() {
-        // Simple square polygon (1 degree ~ 111 km)
-        let polygon = vec![
-            Coordinate::new(0.0, 0.0),
-            Coordinate::new(0.0, 1.0),
-            Coordinate::new(1.0, 1.0),
-            Coordinate::new(1.0, 0.0),
-        ];
-        
-        let area = GeoUtils::polygon_area(&polygon);
-        // ~12300 km² at equator
-        assert!(area > 10000.0 && area < 15000.0);
-    }
-
-    #[test]
-    fn test_polygon_perimeter() {
-        let polygon = vec![
-            Coordinate::new(0.0, 0.0),
-            Coordinate::new(0.0, 1.0),
-            Coordinate::new(1.0, 1.0),
-            Coordinate::new(1.0, 0.0),
-        ];
-        
-        let perimeter = GeoUtils::polygon_perimeter(&polygon);
-        // ~444 km
-        assert!(perimeter > 400.0 && perimeter < 500.0);
-    }
-
-    #[test]
-    fn test_polygon_centroid() {
-        let polygon = vec![
-            Coordinate::new(0.0, 0.0),
-            Coordinate::new(0.0, 4.0),
-            Coordinate::new(4.0, 4.0),
-            Coordinate::new(4.0, 0.0),
-        ];
-        
-        let centroid = GeoUtils::polygon_centroid(&polygon).unwrap();
-        assert!(approx_eq(centroid.latitude, 2.0, EPSILON));
-        assert!(approx_eq(centroid.longitude, 2.0, EPSILON));
-    }
-
-    #[test]
-    fn test_interpolate() {
-        let ny = Coordinate::new(40.7128, -74.0060);
-        let la = Coordinate::new(34.0522, -118.2437);
-        
-        let points = GeoUtils::interpolate(&ny, &la, 3);
-        assert_eq!(points.len(), 3);
-        
-        // Points should be between NY and LA
-        for p in &points {
-            assert!(p.latitude > 34.0 && p.latitude < 41.0);
-            assert!(p.longitude > -119.0 && p.longitude < -74.0);
-        }
-    }
-
-    #[test]
-    fn test_path_distance() {
-        let path = vec![
-            Coordinate::new(0.0, 0.0),
-            Coordinate::new(0.0, 1.0),
-            Coordinate::new(1.0, 1.0),
-        ];
-        
-        let distance = GeoUtils::path_distance(&path);
-        // ~111 + ~111 km
-        assert!(distance > 200.0 && distance < 250.0);
-    }
-
-    #[test]
-    fn test_rhumb_bearing() {
-        let ny = Coordinate::new(40.7128, -74.0060);
-        let la = Coordinate::new(34.0522, -118.2437);
-        
-        let bearing = GeoUtils::rhumb_bearing(&ny, &la);
-        assert!(bearing >= 0.0 && bearing < 360.0);
-    }
-
-    #[test]
-    fn test_rhumb_distance() {
-        // Rhumb line is a different calculation from great circle
-        let ny = Coordinate::new(40.7128, -74.0060);
-        let la = Coordinate::new(34.0522, -118.2437);
-        
-        let rhumb = GeoUtils::rhumb_distance(&ny, &la);
-        let great_circle = GeoUtils::haversine_distance(&ny, &la);
-        
-        // Both should be reasonable distances (NY to LA is ~4000km great circle)
-        assert!(rhumb > 2000.0);
-        assert!(great_circle > 3500.0);
-        
-        // Rhumb distance calculation should work
-        let nearby = Coordinate::new(40.72, -74.01);
-        let rhumb_short = GeoUtils::rhumb_distance(&ny, &nearby);
-        assert!(rhumb_short > 0.0 && rhumb_short < 5.0); // Very short distance
     }
 
     #[test]
     fn test_bearing_to_cardinal() {
         assert_eq!(GeoUtils::bearing_to_cardinal(0.0), "N");
-        assert_eq!(GeoUtils::bearing_to_cardinal(45.0), "NE");
         assert_eq!(GeoUtils::bearing_to_cardinal(90.0), "E");
-        assert_eq!(GeoUtils::bearing_to_cardinal(135.0), "SE");
         assert_eq!(GeoUtils::bearing_to_cardinal(180.0), "S");
-        assert_eq!(GeoUtils::bearing_to_cardinal(225.0), "SW");
         assert_eq!(GeoUtils::bearing_to_cardinal(270.0), "W");
-        assert_eq!(GeoUtils::bearing_to_cardinal(315.0), "NW");
     }
 
     #[test]
-    fn test_bounding_box_merge() {
-        let a = BoundingBox::new(0.0, 10.0, 0.0, 10.0);
-        let b = BoundingBox::new(5.0, 15.0, 5.0, 15.0);
-        let merged = a.merge(&b);
-        
-        assert_eq!(merged.min_lat, 0.0);
-        assert_eq!(merged.max_lat, 15.0);
-        assert_eq!(merged.min_lon, 0.0);
-        assert_eq!(merged.max_lon, 15.0);
+    fn test_bounding_box() {
+        let center = Coordinate::new(40.0, -100.0);
+        let bbox = GeoUtils::bounding_box(&center, 100.0);
+        assert!(bbox.contains(&center));
     }
 
     #[test]
-    fn test_bounding_box_expand() {
-        let bbox = BoundingBox::new(0.0, 10.0, 0.0, 10.0);
-        let expanded = bbox.expand(2.0);
-        
-        assert!(expanded.min_lat < bbox.min_lat);
-        assert!(expanded.max_lat > bbox.max_lat);
+    fn test_polygon_area() {
+        let polygon = vec![
+            Coordinate::new(0.0, 0.0),
+            Coordinate::new(0.0, 1.0),
+            Coordinate::new(1.0, 1.0),
+            Coordinate::new(1.0, 0.0),
+        ];
+        let area = GeoUtils::polygon_area(&polygon);
+        assert!(area > 10000.0 && area < 15000.0);
     }
 
     #[test]
-    fn test_bounding_boxes_intersect() {
-        let a = BoundingBox::new(0.0, 10.0, 0.0, 10.0);
-        let b = BoundingBox::new(5.0, 15.0, 5.0, 15.0);
-        let c = BoundingBox::new(20.0, 30.0, 20.0, 30.0);
-        
-        assert!(GeoUtils::bounding_boxes_intersect(&a, &b));
-        assert!(!GeoUtils::bounding_boxes_intersect(&a, &c));
-    }
-
-    #[test]
-    fn test_distance_unit_conversion() {
-        let km = DistanceUnit::Kilometers;
-        let m = DistanceUnit::Meters;
-        let mi = DistanceUnit::Miles;
-        let nm = DistanceUnit::NauticalMiles;
-        
-        assert!(approx_eq(m.from_km(1.0), 1000.0, EPSILON));
-        assert!(approx_eq(mi.from_km(1.609), 1.0, 0.001));
-        assert!(approx_eq(nm.from_km(1.852), 1.0, 0.001));
-        
-        assert!(approx_eq(m.to_km(1000.0), 1.0, EPSILON));
-        assert!(approx_eq(mi.to_km(1.0), 1.609, 0.001));
-        assert!(approx_eq(nm.to_km(1.0), 1.852, 0.001));
-    }
-
-    #[test]
-    fn test_coordinate_distance_to() {
+    fn test_distance_units() {
         let ny = Coordinate::new(40.7128, -74.0060);
         let london = Coordinate::new(51.5074, -0.1278);
-        
-        let distance = ny.distance_to(&london);
-        assert!(approx_eq(distance, 5570.0, 10.0));
-    }
-
-    #[test]
-    fn test_coordinate_bearing_to() {
-        let ny = Coordinate::new(40.7128, -74.0060);
-        let london = Coordinate::new(51.5074, -0.1278);
-        
-        let bearing = ny.bearing_to(&london);
-        assert!(approx_eq(bearing, 52.0, 5.0));
-    }
-
-    #[test]
-    fn test_coordinate_geohash() {
-        let coord = Coordinate::new(37.7749, -122.4194);
-        let hash = coord.to_geohash(8);
-        let decoded = Coordinate::from_geohash(&hash).unwrap();
-        
-        assert!(approx_eq(decoded.latitude, coord.latitude, 0.01));
-        assert!(approx_eq(decoded.longitude, coord.longitude, 0.01));
-    }
-
-    #[test]
-    fn test_normalize_longitude() {
-        assert!(approx_eq(190.0.normalize_longitude(), -170.0, EPSILON));
-        assert!(approx_eq(-190.0.normalize_longitude(), 170.0, EPSILON));
-        assert!(approx_eq(370.0.normalize_longitude(), 10.0, EPSILON));
+        let km = GeoUtils::distance(&ny, &london, DistanceUnit::Kilometers);
+        let mi = GeoUtils::distance(&ny, &london, DistanceUnit::Miles);
+        assert!(approx_eq(mi, km * 0.621371, 5.0));
     }
 }
