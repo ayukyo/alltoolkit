@@ -9,6 +9,10 @@ Cron Utils 测试套件
 - 特殊表达式
 """
 
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import unittest
 from datetime import datetime, timedelta
 from mod import (
