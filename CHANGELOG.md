@@ -3,7 +3,26 @@
 ## [2026-05-15]
 
 ### 新增
-- **JavaScript: morse_utils (62 单元测试，完整摩尔斯电码工具库)** 📻
+- **Rust: currency_utils (30 单元测试，完整货币格式化工具库)** 💰
+  - 格式化：format/format_with_options（金额格式化，支持自定义选项）
+  - 解析：parse_money（解析 "$1,234.56"、"¥100,000" 等字符串）
+  - 货币转换：convert/convert_and_format（使用硬编码汇率转换）
+  - Money 结构：Money::usd/eur/cny/jpy/gbp（便捷构造方法）
+  - 货币运算：add/subtract/multiply/divide/percentage（加减乘除、百分比）
+  - 跨货币运算：支持不同货币间的运算（自动转换）
+  - 比较：compare/equal/less_than/greater_than（货币值比较）
+  - 聚合：sum/average/min/max（货币聚合函数）
+  - 取整：round/round_up/round_down（向上、向下、四舍五入）
+  - 符号检查：is_positive/is_negative/is_zero（正负零检查）
+  - 绝对值/取反：abs/negate（绝对值和取反操作）
+  - 文字格式化：format_as_words（金额转英文单词）
+  - 格式选项：FormatOptions（符号、代码、分隔符、负数括号等）
+  - 货币信息：Currency 枚举（code、symbol、name、decimal_places）
+  - 支持 21 种货币：USD、EUR、GBP、JPY、CNY、CAD、CHF、KRW、INR、HKD、SGD 等
+  - 区域格式：尊重本地化格式（EUR 使用逗号作小数分隔符，JPY/KRW 无小数）
+  - 零外部依赖，仅使用 Rust 标准库
+  - 测试覆盖：30 测试全部通过
+  - 应用场景：财务系统、电商应用、国际化支付、账单处理
   - 编码解码：encode/decode（文本到摩尔斯电码转换）
   - 多语言支持：拉丁字母、数字、标点、西里尔字母、希腊字母、扩展拉丁字符
   - 自定义符号：支持自定义点/划符号显示
