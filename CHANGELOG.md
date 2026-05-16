@@ -3,6 +3,23 @@
 ## [2026-05-16]
 
 ### 新增
+- **MATLAB: polynomial_utils (40 单元测试，完整多项式工具库)** 📊
+  - 拟合：polyfit_least_squares（最小二乘拟合）、polyfit_weighted（加权拟合）、polyfit_robust（鲁棒拟合）
+  - 插值：polyfit_interpolation（多项式插值）、spline_interpolation（三次样条）、lagrange_interpolation（拉格朗日插值）
+  - 求值：polyval_safe（Horner 方法）、polyval_multi（批量求值）、polyval_batch（带导数求值）
+  - 求导：polyder_n（n 阶导数）、polyder_all（所有阶导数）、poly_derivative_at（指定点导数）
+  - 积分：polyint_n（n 阶不定积分）、polyint_definite（定积分）、poly_antiderivative（带初值积分）
+  - 求根：polyroots_safe（安全求根）、polyroots_real（实根筛选）、polyroots_bounds（区间内求根）
+  - 运算：polyadd（加法）、polysub（减法）、polymul_safe（乘法）、polydiv_safe（除法）
+  - 工具：polyfrom_roots（从根构造）、polyfrom_points（从点构造）、poly_normalize（归一化）、poly_shift（平移）
+  - 信息：poly_info（多项式信息）、poly_to_string（字符串表示）、poly_stats（统计信息）
+  - 边界条件：natural/clamped/not-a-knot 样条端点条件
+  - 正则化：支持带正则化的最小二乘拟合
+  - 数值稳定性：自动中心化和缩放提高精度
+  - 零外部依赖，纯 MATLAB 实现
+  - 测试覆盖：40 测试全部通过
+  - 应用场景：数据拟合、曲线平滑、信号处理、温度预测、工程计算
+
 - **Zig: math_utils (38 单元测试，完整数学工具库)** 📐
   - 常量：PI、E、PHI（黄金比例）、SQRT2、LN2、LN10
   - 基本运算：abs/absInt、min/max、clamp、sign、approxEquals、isNearZero
