@@ -3,6 +3,22 @@
 ## [2026-05-16]
 
 ### 新增
+- **Zig: math_utils (38 单元测试，完整数学工具库)** 📐
+  - 常量：PI、E、PHI（黄金比例）、SQRT2、LN2、LN10
+  - 基本运算：abs/absInt、min/max、clamp、sign、approxEquals、isNearZero
+  - 舍入函数：floor、ceil、round、trunc、roundTo（指定小数位）
+  - 幂和根：pow/powInt、sqrt（Newton-Raphson）、cbrt、nthRoot、isPerfectSquare、inverseSquare
+  - 三角函数：degToRad/radToDeg、normalizeAngle、sin/cos/tan（Taylor 级数）、arcsin/arccos/arctan/arctan2
+  - 对数指数：ln（Newton-Raphson）、log10/log2/log、expNatural（Taylor 级数）、exp
+  - 数论：isPrime（确定性算法）、gcd（欧几里得）、lcm、factorial/factorialF、fibonacci、binomial、isEven/isOdd、modPositive
+  - 统计：mean、median、variance/stdDev、sampleVariance/sampleStdDev、sum、minVal/maxVal、range
+  - 插值：lerp、inverseLerp、remap/map、smoothstep、smootherstep、hermite、quintic、step
+  - 工具：percentage/percentOf、wrap、pingPong、distance2D/distance3D、between/betweenExclusive、linearToDb/dbToLinear
+  - 算法实现：Newton-Raphson（sqrt、ln）、Taylor 级数（sin、cos、exp）
+  - 零外部依赖，纯 Zig 标准库实现
+  - 测试覆盖：38 测试全部通过
+  - 应用场景：游戏开发、科学计算、数据分析、图形处理、物理模拟
+
 - **Python: syntax_highlight_utils (40+ 单元测试，零依赖语法高亮工具库)** 🎨
   - 核心功能：highlight（ANSI 彩色终端输出）、highlight_html（HTML 格式输出）
   - 多语言支持：Python、JavaScript 语法高亮
