@@ -11,9 +11,10 @@ import math
 from typing import List
 
 # Add parent directory to path for imports
-sys.path.insert(0, '.')
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from cycling_utils.mod import (
+from mod import (
     CyclingUtils,
     CyclingResult,
     GearConfig,
