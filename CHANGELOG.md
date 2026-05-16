@@ -3,6 +3,18 @@
 ## [2026-05-17]
 
 ### 新增
+- **Zig: disjoint_set_utils (13 单元测试，完整并查集数据结构)** 🔗
+  - 核心操作：find（路径压缩）、unionSets（按秩合并）、connected（连通检测）
+  - 初始化：init（从元素数组）、initRange（从索引范围）
+  - 集合信息：size（元素总数）、countSets（集合数量）、getSetSize（集合大小）
+  - 成员查询：getSetMembers（获取集合成员）、getAllSets（获取所有集合）
+  - 高级功能：reset（重置）、findConst（无路径压缩查找）、getValue（获取元素值）
+  - 优化策略：路径压缩 + 按秩合并，O(α(n)) 摊销时间复杂度
+  - 通用实现：支持任意类型（泛型）
+  - 零外部依赖，纯 Zig 标准库实现
+  - 测试覆盖：13 测试全部通过
+  - 应用场景：图算法、Kruskal MST、连通分量检测、网络分析、图像分割
+
 - **Go: lcs_utils (48 单元测试，完整最长公共子序列算法工具库)** 🔗
   - 核心算法：LCS（标准动态规划）、LCSLength（空间优化）、LCSWithIndices（带索引）
   - 多解支持：LCSAll（查找所有可能 LCS）、LCSOfMultiple（多序列 LCS）
