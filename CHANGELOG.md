@@ -1,5 +1,25 @@
 # AllToolkit 更新日志
 
+## [2026-05-17]
+
+### 新增
+- **Go: lcs_utils (48 单元测试，完整最长公共子序列算法工具库)** 🔗
+  - 核心算法：LCS（标准动态规划）、LCSLength（空间优化）、LCSWithIndices（带索引）
+  - 多解支持：LCSAll（查找所有可能 LCS）、LCSOfMultiple（多序列 LCS）
+  - 字符串支持：LCSString（字符级）、LCSStringLines（行级）、LCSBytes（字节级）
+  - 高效算法：LCSHuntSzymanski（Hunt-Szymanski 算法，小匹配数时更高效）
+  - 差异操作：Diff（序列差异）、DiffString（文本差异）、ComputeDiffStats（差异统计）
+  - 序列对齐：Align（基于 LCS 的序列对齐）、AlignString（字符串对齐）
+  - 最短公共超序列：SCS、SCSLength
+  - 编辑距离：EditDistance（基于 LCS 的编辑距离）、EditDistanceString
+  - 相似度度量：SimilarityRatio、SimilarityRatioString、JaccardSimilarity
+  - 工具函数：IsSubsequence、IsSubsequenceString、AllSubsequences、CountCommonSubsequences
+  - 时间复杂度：O(m*n) 标准算法，O(min(m,n)) 空间优化版本
+  - Hunt-Szymanski 复杂度：O((r+n)log n)，r 为匹配数
+  - 零外部依赖，纯 Go 标准库实现
+  - 测试覆盖：48 测试全部通过
+  - 应用场景：版本控制、文本比较、生物信息学、抄袭检测、数据同步
+
 ## [2026-05-16]
 
 ### 新增
