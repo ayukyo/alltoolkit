@@ -1,0 +1,15 @@
+[package]
+name = "diffie_hellman_utils"
+version = "1.0.0"
+edition = "2021"
+description = "Diffie-Hellman key exchange utilities - secure key agreement protocol implementation"
+authors = ["AllToolkit"]
+license = "MIT"
+
+[dependencies]
+
+[dev-dependencies]
+
+[[example]]
+name = "example"
+path = "examples/example.rs"

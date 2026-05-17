@@ -168,6 +168,14 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ### 最近新增测试
 
+- **Python cycling_utils**: 48 个测试用例，覆盖速度/距离/时间计算、功率估算（平路/爬坡/风阻）、卡路里燃烧、齿轮比计算、踏频分析、爬坡指标（VAM/难度评分）、训练指标（NP/TSS/IF/训练区间）等 🚴
+- **Python diffie_hellman_utils**: 31 个测试用例，覆盖密钥生成、密钥交换、共享密钥验证、密钥派生（HKDF）、公钥导入导出、敏感数据清除、ECDH简化实现等 🔐
+- **Python gantt_chart_utils**: 37 个测试用例，覆盖任务管理、里程碑、甘特图渲染（ASCII/紧凑/表格/时间线）、统计（完成率/进度）、关键路径、数据导出等 📊
+- **Python hex_grid_utils**: 69 个测试用例，覆盖六边形坐标（轴向/立方体）、距离计算、区域生成（圆环/螺旋/三角形）、路径查找（A*/BFS）、视野计算、坐标转换（偏移/像素）、可视化等 🔷
+- **Python inventory_utils**: 52 个测试用例，覆盖库存项管理、安全库存计算、再订货点、EOQ优化、ABC分析、库存周转、缺货风险评估、补货建议、持有成本等 📦
+- **Python jet_lag_calculator_utils**: 40 个测试用例，覆盖时差计算、恢复时间估算、睡眠时间建议、光照时机、旅行方向影响、年龄/睡眠类型影响、热门路线分析等 🌍
+- **Python typing_practice_utils**: 45 个测试用例，覆盖文本生成（单词/句子/代码/数字）、速度计算（WPM/CPM）、准确率分析、性能等级、练习会话管理等 ⌨️
+
 - **Python uuidv7_utils**: 30 个测试用例，覆盖 UUIDv7 生成、时间戳提取、单调生成、验证、集合操作、范围查询等 🆔
 - **Python grade_utils**: 30 个测试用例，覆盖 GPA 计算（4.0/5.0制）、成绩转换（百分制/字母/中文）、学分绩点、成绩分析、趋势预测等 📊
 - **Python blood_pressure_utils**: 44 个测试用例，覆盖血压分类（WHO标准）、脉压差、MAP计算、年龄适宜性、儿童血压百分位数、单位转换等 🩺
@@ -240,6 +248,13 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 | 模块 | 语言 | 测试数 | 覆盖率 |
 |------|------|--------|--------|
+| cycling_utils | Python | 48 | ✅ 100% |
+| diffie_hellman_utils | Python | 31 | ✅ 100% |
+| gantt_chart_utils | Python | 37 | ✅ 100% |
+| hex_grid_utils | Python | 69 | ✅ 100% |
+| inventory_utils | Python | 52 | ✅ 100% |
+| jet_lag_calculator_utils | Python | 40 | ✅ 100% |
+| typing_practice_utils | Python | 45 | ✅ 100% |
 | geometry_utils | Python | 237 | ✅ 100% |
 | phone_utils | Python | 164 | ✅ 100% |
 | network_utils | Python | 134 | ✅ 100% |
@@ -317,11 +332,11 @@ perl Perl/csv_utils/csv_utils_test.pl
 | ohm_law_utils | Python | 44 | ✅ 100% |
 | hex_dump_utils | Python | 57 | ✅ 100% |
 
-**总计**: Python 389 模块，395 测试文件，4200+ 测试用例，100% 通过率 ✅
+**总计**: Python 228 模块，402 测试文件，4400+ 测试用例，100% 通过率 ✅
 
 ---
 
-**最后更新**: 2026-05-15
+**最后更新**: 2026-05-18
 
 ### 文档更新 (2026-05-15)
 
