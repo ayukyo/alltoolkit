@@ -1,0 +1,17 @@
+[package]
+name = "snowflake_utils"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "Twitter Snowflake-like distributed unique ID generator with zero external dependencies"
+license = "MIT"
+keywords = ["snowflake", "id-generator", "distributed", "unique-id", "snowflake-id"]
+categories = ["algorithms", "data-structures", "development-tools"]
+
+[dependencies]
+
+[dev-dependencies]
+
+[[example]]
+name = "snowflake_demo"
+path = "examples/snowflake_demo.rs"
