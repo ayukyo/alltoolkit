@@ -1,0 +1,15 @@
+[package]
+name = "cron_expression_utils"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "A comprehensive cron expression parser and scheduler utility for Rust"
+license = "MIT"
+keywords = ["cron", "scheduler", "expression", "parser", "time"]
+categories = ["date-and-time", "parsing"]
+
+[dependencies]
+# No external dependencies - pure Rust standard library
+
+[dev-dependencies]
+# No external dev dependencies
