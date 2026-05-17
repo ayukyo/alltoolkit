@@ -1,948 +1,795 @@
 """
-语义版本工具 (Semantic Versioning Utils)
+语义化版本工具 (SemVer Utils)
 
-提供语义版本号的解析、比较、验证、递增等功能。
-遵循 Semantic Versioning 2.0.0 规范 (https://semver.org/)
+遵循 Semantic Versioning 2.0.0 规范
+https://semver.org/
 
 功能:
-- 版本解析：解析语义版本字符串，提取主版本、次版本、修订版本等
-- 版本比较：支持 >, <, >=, <=, ==, != 等比较操作
-- 版本验证：验证字符串是否符合语义版本规范
-- 版本递增：支持 major, minor, patch 递增
-- 范围匹配：检查版本是否满足版本范围约束
-- 预发布处理：解析和比较预发布版本标识符
-- 构建元数据：解析和处理构建元数据
-
-零依赖，仅使用 Python 标准库
+- 版本解析与验证
+- 版本比较
+- 版本递增（major/minor/patch）
+- 预发布版本处理
+- 版本范围匹配
+- 版本排序
+- 版本约束解析（^、~、>、<、>=、<=、=）
 """
 
 import re
-from dataclasses import dataclass
-from typing import Optional, Tuple, List, Union
+from dataclasses import dataclass, field
+from typing import Optional, List, Tuple, Union, Callable
+from functools import total_ordering
 
 
 @dataclass
-class SemanticVersion:
-    """
-    语义版本数据类
-    
-    属性:
-        major: 主版本号
-        minor: 次版本号
-        patch: 修订版本号
-        prerelease: 预发布标识符列表（如 ['alpha', '1']）
-        build_metadata: 构建元数据字符串
-    """
+@total_ordering
+class SemVer:
+    """语义化版本对象"""
     major: int
     minor: int
     patch: int
-    prerelease: Optional[List[Union[str, int]]] = None
-    build_metadata: Optional[str] = None
+    prerelease: Optional[str] = None
+    build: Optional[str] = None
     
     def __str__(self) -> str:
-        """转换为语义版本字符串"""
+        """转换为版本字符串"""
         version = f"{self.major}.{self.minor}.{self.patch}"
         if self.prerelease:
-            version += "-" + ".".join(str(p) for p in self.prerelease)
-        if self.build_metadata:
-            version += "+" + self.build_metadata
+            version += f"-{self.prerelease}"
+        if self.build:
+            version += f"+{self.build}"
         return version
     
     def __repr__(self) -> str:
-        return f"SemanticVersion({self})"
+        return f"SemVer({self})"
+    
+    def __hash__(self) -> int:
+        # 根据 SemVer 规范，build 元数据不参与比较
+        return hash((self.major, self.minor, self.patch, self.prerelease))
     
     def __eq__(self, other) -> bool:
-        if not isinstance(other, SemanticVersion):
+        if not isinstance(other, SemVer):
             return NotImplemented
-        # 比较时忽略 build_metadata
+        # 根据 SemVer 规范，build 元数据不参与比较
         return (
             self.major == other.major and
             self.minor == other.minor and
             self.patch == other.patch and
-            self.prerelease == other.prerelease
+            self._normalize_prerelease() == other._normalize_prerelease()
         )
     
     def __lt__(self, other) -> bool:
-        if not isinstance(other, SemanticVersion):
+        if not isinstance(other, SemVer):
             return NotImplemented
         return self._compare(other) < 0
     
-    def __le__(self, other) -> bool:
-        if not isinstance(other, SemanticVersion):
-            return NotImplemented
-        return self._compare(other) <= 0
-    
-    def __gt__(self, other) -> bool:
-        if not isinstance(other, SemanticVersion):
-            return NotImplemented
-        return self._compare(other) > 0
-    
-    def __ge__(self, other) -> bool:
-        if not isinstance(other, SemanticVersion):
-            return NotImplemented
-        return self._compare(other) >= 0
-    
-    def __hash__(self) -> int:
-        prerelease_tuple = tuple(self.prerelease) if self.prerelease else None
-        return hash((self.major, self.minor, self.patch, prerelease_tuple))
-    
-    def _compare(self, other: 'SemanticVersion') -> int:
-        """
-        比较两个语义版本
+    def _normalize_prerelease(self) -> Tuple:
+        """将预发布标识规范化为可比较的元组"""
+        if not self.prerelease:
+            return ()  # 无预发布标识 > 有预发布标识
         
-        返回:
-            -1: self < other
-             0: self == other
-             1: self > other
-        """
-        # 比较 major.minor.patch
+        parts = []
+        for part in self.prerelease.split('.'):
+            if part.isdigit():
+                parts.append((0, int(part)))  # 数字标识符
+            else:
+                parts.append((1, part))  # 字母标识符
+        return tuple(parts)
+    
+    def _compare(self, other: 'SemVer') -> int:
+        """比较两个版本，返回 -1, 0, 1"""
+        # 比较 major
         if self.major != other.major:
             return -1 if self.major < other.major else 1
+        
+        # 比较 minor
         if self.minor != other.minor:
             return -1 if self.minor < other.minor else 1
+        
+        # 比较 patch
         if self.patch != other.patch:
             return -1 if self.patch < other.patch else 1
         
-        # 预发布版本比较规则：
-        # 1. 没有预发布标识符的版本 > 有预发布标识符的版本
-        # 2. 预发布标识符从左到右比较
-        if self.prerelease is None and other.prerelease is None:
-            return 0
-        if self.prerelease is None:
-            return 1  # 正式版本 > 预发布版本
-        if other.prerelease is None:
-            return -1  # 预发布版本 < 正式版本
+        # 比较预发布标识
+        # 无预发布 > 有预发布
+        self_pre = self.prerelease
+        other_pre = other.prerelease
         
-        # 比较预发布标识符
-        return self._compare_prerelease(self.prerelease, other.prerelease)
-    
-    @staticmethod
-    def _compare_prerelease(pr1: List[Union[str, int]], pr2: List[Union[str, int]]) -> int:
-        """比较两个预发布标识符列表"""
-        for i in range(max(len(pr1), len(pr2))):
-            if i >= len(pr1):
-                return -1  # pr1 较短，pr1 < pr2
-            if i >= len(pr2):
-                return 1   # pr2 较短，pr1 > pr2
+        if self_pre is None and other_pre is None:
+            return 0
+        if self_pre is None:
+            return 1  # self > other (无预发布更大)
+        if other_pre is None:
+            return -1  # self < other (有预发布更小)
+        
+        # 比较预发布标识部分
+        self_parts = self_pre.split('.')
+        other_parts = other_pre.split('.')
+        
+        for i in range(max(len(self_parts), len(other_parts))):
+            if i >= len(self_parts):
+                return -1  # self 较短，更小
+            if i >= len(other_parts):
+                return 1  # other 较短，self 更大
             
-            id1, id2 = pr1[i], pr2[i]
+            s_part = self_parts[i]
+            o_part = other_parts[i]
             
-            # 数值标识符 < 字符串标识符
-            if isinstance(id1, int) and isinstance(id2, str):
+            s_is_num = s_part.isdigit()
+            o_is_num = o_part.isdigit()
+            
+            if s_is_num and o_is_num:
+                # 两个都是数字
+                if int(s_part) != int(o_part):
+                    return -1 if int(s_part) < int(o_part) else 1
+            elif s_is_num:
+                # 数字 < 字母
                 return -1
-            if isinstance(id1, str) and isinstance(id2, int):
+            elif o_is_num:
+                # 字母 > 数字
                 return 1
-            
-            if id1 < id2:
-                return -1
-            if id1 > id2:
-                return 1
+            else:
+                # 两个都是字母
+                if s_part != o_part:
+                    return -1 if s_part < o_part else 1
         
         return 0
     
-    def to_tuple(self) -> Tuple[int, int, int]:
-        """返回 (major, minor, patch) 元组"""
-        return (self.major, self.minor, self.patch)
+    def bump_major(self, reset_prerelease: bool = True) -> 'SemVer':
+        """递增主版本号"""
+        prerelease = None if reset_prerelease else self.prerelease
+        return SemVer(self.major + 1, 0, 0, prerelease, self.build)
     
+    def bump_minor(self, reset_prerelease: bool = True) -> 'SemVer':
+        """递增次版本号"""
+        prerelease = None if reset_prerelease else self.prerelease
+        return SemVer(self.major, self.minor + 1, 0, prerelease, self.build)
+    
+    def bump_patch(self, reset_prerelease: bool = True) -> 'SemVer':
+        """递增修订版本号"""
+        prerelease = None if reset_prerelease else self.prerelease
+        return SemVer(self.major, self.minor, self.patch + 1, prerelease, self.build)
+    
+    def bump_prerelease(self, identifier: str = "alpha") -> 'SemVer':
+        """
+        递增预发布版本
+        - 如果无预发布，创建 {identifier}.1
+        - 如果有预发布且匹配标识符，递增数字
+        - 如果有预发布但不匹配，创建新的 {identifier}.1
+        """
+        if not self.prerelease:
+            return SemVer(self.major, self.minor, self.patch, f"{identifier}.1", self.build)
+        
+        parts = self.prerelease.split('.')
+        
+        # 检查是否匹配标识符模式
+        if len(parts) >= 2 and parts[0] == identifier and parts[-1].isdigit():
+            # 递增数字
+            num = int(parts[-1])
+            parts[-1] = str(num + 1)
+            return SemVer(self.major, self.minor, self.patch, '.'.join(parts), self.build)
+        
+        # 创建新的预发布版本
+        return SemVer(self.major, self.minor, self.patch, f"{identifier}.1", self.build)
+    
+    def with_prerelease(self, identifier: str) -> 'SemVer':
+        """设置预发布标识"""
+        return SemVer(self.major, self.minor, self.patch, identifier, self.build)
+    
+    def with_build(self, build: str) -> 'SemVer':
+        """设置构建元数据"""
+        return SemVer(self.major, self.minor, self.patch, self.prerelease, build)
+    
+    def release(self) -> 'SemVer':
+        """返回正式版本（移除预发布标识）"""
+        return SemVer(self.major, self.minor, self.patch, None, self.build)
+    
+    @property
     def is_prerelease(self) -> bool:
         """是否为预发布版本"""
-        return self.prerelease is not None and len(self.prerelease) > 0
+        return self.prerelease is not None
     
+    @property
     def is_stable(self) -> bool:
-        """是否为稳定版本（major > 0 且非预发布）"""
-        return self.major > 0 and not self.is_prerelease()
+        """是否为稳定版本（非预发布且主版本号 > 0）"""
+        return not self.is_prerelease and self.major > 0
 
 
-# 语义版本正则表达式（符合 SemVer 2.0.0 规范）
+# 版本字符串正则表达式
 SEMVER_PATTERN = re.compile(
-    r'^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)'
+    r'^(?P<major>0|[1-9]\d*)'
+    r'\.(?P<minor>0|[1-9]\d*)'
+    r'\.(?P<patch>0|[1-9]\d*)'
     r'(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)'
     r'(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?'
-    r'(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$'
+    r'(?:\+(?P<build>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$'
 )
 
 
-def parse(version_string: str) -> SemanticVersion:
+def parse(version: str) -> SemVer:
     """
-    解析语义版本字符串
+    解析版本字符串
     
-    参数:
-        version_string: 版本字符串（如 "1.2.3", "1.0.0-alpha.1", "2.0.0+build.123"）
+    Args:
+        version: 版本字符串，如 "1.2.3", "1.0.0-alpha.1", "2.0.0+build.123"
     
-    返回:
-        SemanticVersion 对象
+    Returns:
+        SemVer 对象
     
-    异常:
-        ValueError: 版本字符串格式无效
-    
-    示例:
-        >>> v = parse("1.2.3")
-        >>> v.major, v.minor, v.patch
-        (1, 2, 3)
-        >>> v = parse("1.0.0-alpha.1+build.123")
-        >>> v.prerelease
-        ['alpha', 1]
-        >>> v.build_metadata
-        'build.123'
+    Raises:
+        ValueError: 无效的版本字符串
     """
-    match = SEMVER_PATTERN.match(version_string.strip())
+    match = SEMVER_PATTERN.match(version.strip())
     if not match:
-        raise ValueError(f"Invalid semantic version: {version_string}")
+        raise ValueError(f"Invalid semantic version: '{version}'")
     
-    major = int(match.group('major'))
-    minor = int(match.group('minor'))
-    patch = int(match.group('patch'))
-    
-    prerelease = None
-    if match.group('prerelease'):
-        prerelease = _parse_prerelease(match.group('prerelease'))
-    
-    build_metadata = match.group('buildmetadata')
-    
-    return SemanticVersion(
-        major=major,
-        minor=minor,
-        patch=patch,
-        prerelease=prerelease,
-        build_metadata=build_metadata
+    return SemVer(
+        major=int(match.group('major')),
+        minor=int(match.group('minor')),
+        patch=int(match.group('patch')),
+        prerelease=match.group('prerelease'),
+        build=match.group('build')
     )
 
 
-def _parse_prerelease(prerelease_str: str) -> List[Union[str, int]]:
-    """解析预发布标识符"""
-    identifiers = []
-    for identifier in prerelease_str.split('.'):
-        # 尝试解析为整数
-        if identifier.isdigit():
-            identifiers.append(int(identifier))
-        else:
-            identifiers.append(identifier)
-    return identifiers
-
-
-def is_valid(version_string: str) -> bool:
+def try_parse(version: str) -> Optional[SemVer]:
     """
-    验证字符串是否为有效的语义版本
+    尝试解析版本字符串，失败返回 None
     
-    参数:
-        version_string: 待验证的字符串
+    Args:
+        version: 版本字符串
     
-    返回:
-        bool: 是否有效
-    
-    示例:
-        >>> is_valid("1.2.3")
-        True
-        >>> is_valid("1.2")
-        False
-        >>> is_valid("1.2.3-alpha.1")
-        True
+    Returns:
+        SemVer 对象或 None
     """
     try:
-        parse(version_string)
-        return True
+        return parse(version)
     except ValueError:
-        return False
+        return None
 
 
-def compare(v1: str, v2: str) -> int:
+def is_valid(version: str) -> bool:
     """
-    比较两个语义版本
+    验证版本字符串是否有效
     
-    参数:
-        v1: 第一个版本字符串
-        v2: 第二个版本字符串
-    
-    返回:
-        -1: v1 < v2
-         0: v1 == v2
-         1: v1 > v2
-    
-    示例:
-        >>> compare("1.0.0", "2.0.0")
-        -1
-        >>> compare("2.0.0", "1.0.0")
-        1
-        >>> compare("1.0.0", "1.0.0")
-        0
-    """
-    return parse(v1)._compare(parse(v2))
-
-
-def gt(v1: str, v2: str) -> bool:
-    """v1 > v2"""
-    return parse(v1) > parse(v2)
-
-
-def gte(v1: str, v2: str) -> bool:
-    """v1 >= v2"""
-    return parse(v1) >= parse(v2)
-
-
-def lt(v1: str, v2: str) -> bool:
-    """v1 < v2"""
-    return parse(v1) < parse(v2)
-
-
-def lte(v1: str, v2: str) -> bool:
-    """v1 <= v2"""
-    return parse(v1) <= parse(v2)
-
-
-def eq(v1: str, v2: str) -> bool:
-    """v1 == v2（忽略构建元数据）"""
-    return parse(v1) == parse(v2)
-
-
-def neq(v1: str, v2: str) -> bool:
-    """v1 != v2"""
-    return not eq(v1, v2)
-
-
-def increment_major(version: str) -> str:
-    """
-    递增主版本号（重置 minor 和 patch 为 0，移除预发布标识）
-    
-    示例:
-        >>> increment_major("1.2.3")
-        '2.0.0'
-        >>> increment_major("1.2.3-alpha")
-        '2.0.0'
-    """
-    v = parse(version)
-    return str(SemanticVersion(v.major + 1, 0, 0))
-
-
-def increment_minor(version: str) -> str:
-    """
-    递增次版本号（重置 patch 为 0，移除预发布标识）
-    
-    示例:
-        >>> increment_minor("1.2.3")
-        '1.3.0'
-    """
-    v = parse(version)
-    return str(SemanticVersion(v.major, v.minor + 1, 0))
-
-
-def increment_patch(version: str) -> str:
-    """
-    递增修订版本号（移除预发布标识）
-    
-    示例:
-        >>> increment_patch("1.2.3")
-        '1.2.4'
-        >>> increment_patch("1.2.3-alpha")
-        '1.2.3'
-    """
-    v = parse(version)
-    return str(SemanticVersion(v.major, v.minor, v.patch + 1))
-
-
-def increment_prerelease(version: str, identifier: str = "rc") -> str:
-    """
-    递增预发布版本
-    
-    如果没有预发布标识，创建新的预发布版本
-    如果已有预发布标识，递增数值部分
-    
-    参数:
+    Args:
         version: 版本字符串
-        identifier: 预发布标识符（默认 "rc"）
     
-    示例:
-        >>> increment_prerelease("1.2.3")
-        '1.2.4-rc.1'
-        >>> increment_prerelease("1.2.3-rc.1")
-        '1.2.3-rc.2'
-        >>> increment_prerelease("1.2.3-alpha.1")
-        '1.2.3-alpha.2'
+    Returns:
+        是否有效
     """
-    v = parse(version)
-    
-    if v.prerelease is None:
-        # 从 patch 递增后开始预发布
-        return str(SemanticVersion(v.major, v.minor, v.patch + 1, [identifier, 1]))
-    
-    # 查找最后一个数字标识符并递增
-    prerelease = list(v.prerelease)
-    for i in range(len(prerelease) - 1, -1, -1):
-        if isinstance(prerelease[i], int):
-            prerelease[i] += 1
-            break
-    else:
-        # 没有数字标识符，追加 .1
-        prerelease.append(1)
-    
-    return str(SemanticVersion(v.major, v.minor, v.patch, prerelease))
+    return try_parse(version) is not None
 
 
-def major(version: str) -> int:
-    """获取主版本号"""
-    return parse(version).major
-
-
-def minor(version: str) -> int:
-    """获取次版本号"""
-    return parse(version).minor
-
-
-def patch(version: str) -> int:
-    """获取修订版本号"""
-    return parse(version).patch
-
-
-def prerelease(version: str) -> Optional[List[Union[str, int]]]:
-    """获取预发布标识符"""
-    return parse(version).prerelease
-
-
-def build_metadata(version: str) -> Optional[str]:
-    """获取构建元数据"""
-    return parse(version).build_metadata
-
-
-def diff(v1: str, v2: str) -> Optional[str]:
+def compare(v1: Union[str, SemVer], v2: Union[str, SemVer]) -> int:
     """
-    获取两个版本之间的差异类型
+    比较两个版本
     
-    返回:
-        "major": 主版本不同
-        "minor": 次版本不同
-        "patch": 修订版本不同
-        "prerelease": 仅预发布标识不同
-        None: 版本相同
+    Args:
+        v1: 版本1
+        v2: 版本2
     
-    示例:
-        >>> diff("1.0.0", "2.0.0")
-        'major'
-        >>> diff("1.0.0", "1.1.0")
-        'minor'
-        >>> diff("1.0.0", "1.0.1")
-        'patch'
+    Returns:
+        -1 if v1 < v2, 0 if v1 == v2, 1 if v1 > v2
     """
-    ver1, ver2 = parse(v1), parse(v2)
-    
-    if ver1.major != ver2.major:
-        return "major"
-    if ver1.minor != ver2.minor:
-        return "minor"
-    if ver1.patch != ver2.patch:
-        return "patch"
-    if ver1.prerelease != ver2.prerelease:
-        return "prerelease"
-    return None
+    if isinstance(v1, str):
+        v1 = parse(v1)
+    if isinstance(v2, str):
+        v2 = parse(v2)
+    return v1._compare(v2)
 
 
-def satisfies(version: str, range_str: str) -> bool:
+def equals(v1: Union[str, SemVer], v2: Union[str, SemVer]) -> bool:
+    """判断两个版本是否相等"""
+    return compare(v1, v2) == 0
+
+
+def greater_than(v1: Union[str, SemVer], v2: Union[str, SemVer]) -> bool:
+    """判断 v1 > v2"""
+    return compare(v1, v2) > 0
+
+
+def less_than(v1: Union[str, SemVer], v2: Union[str, SemVer]) -> bool:
+    """判断 v1 < v2"""
+    return compare(v1, v2) < 0
+
+
+def gte(v1: Union[str, SemVer], v2: Union[str, SemVer]) -> bool:
+    """判断 v1 >= v2"""
+    return compare(v1, v2) >= 0
+
+
+def lte(v1: Union[str, SemVer], v2: Union[str, SemVer]) -> bool:
+    """判断 v1 <= v2"""
+    return compare(v1, v2) <= 0
+
+
+def sort(versions: List[Union[str, SemVer]], reverse: bool = False) -> List[SemVer]:
     """
-    检查版本是否满足版本范围约束
+    排序版本列表
     
-    支持的范围格式:
-        - "1.2.3": 精确匹配
-        - ">1.2.3": 大于
-        - ">=1.2.3": 大于等于
-        - "<1.2.3": 小于
-        - "<=1.2.3": 小于等于
-        - "1.2.3 - 2.0.0": 茆围（>=1.2.3 <=2.0.0）
-        - "~1.2.3": 兼容版本（>=1.2.3 <1.3.0）
-        - "^1.2.3": 主版本兼容（>=1.2.3 <2.0.0）
-        - "1.2.*": 通配符（>=1.2.0 <1.3.0）
-        - "1.x": 通配符（>=1.0.0 <2.0.0）
+    Args:
+        versions: 版本列表
+        reverse: 是否降序
     
-    示例:
-        >>> satisfies("1.2.3", ">=1.0.0")
-        True
-        >>> satisfies("1.2.3", "^1.0.0")
-        True
-        >>> satisfies("2.0.0", "^1.0.0")
-        False
+    Returns:
+        排序后的 SemVer 列表
+    """
+    parsed = [parse(v) if isinstance(v, str) else v for v in versions]
+    return sorted(parsed, reverse=reverse)
+
+
+def rsort(versions: List[Union[str, SemVer]]) -> List[SemVer]:
+    """降序排序版本列表"""
+    return sort(versions, reverse=True)
+
+
+def min_version(versions: List[Union[str, SemVer]]) -> Optional[SemVer]:
+    """获取最小版本"""
+    if not versions:
+        return None
+    return sort(versions)[0]
+
+
+def max_version(versions: List[Union[str, SemVer]]) -> Optional[SemVer]:
+    """获取最大版本"""
+    if not versions:
+        return None
+    return sort(versions, reverse=True)[0]
+
+
+# ============ 版本范围匹配 ============
+
+@dataclass
+class VersionRange:
+    """版本范围"""
+    min_version: Optional[SemVer] = None
+    max_version: Optional[SemVer] = None
+    min_inclusive: bool = True
+    max_inclusive: bool = False
     
-    Note:
-        优化版本：减少重复解析，使用预解析版本对象进行批量条件检查。
+    def contains(self, version: Union[str, SemVer]) -> bool:
+        """检查版本是否在范围内"""
+        if isinstance(version, str):
+            version = parse(version)
+        
+        # 检查最小版本
+        if self.min_version:
+            cmp = version._compare(self.min_version)
+            if self.min_inclusive:
+                if cmp < 0:
+                    return False
+            else:
+                if cmp <= 0:
+                    return False
+        
+        # 检查最大版本
+        if self.max_version:
+            cmp = version._compare(self.max_version)
+            if self.max_inclusive:
+                if cmp > 0:
+                    return False
+            else:
+                if cmp >= 0:
+                    return False
+        
+        return True
+    
+    def __str__(self) -> str:
+        parts = []
+        if self.min_version:
+            op = ">=" if self.min_inclusive else ">"
+            parts.append(f"{op}{self.min_version}")
+        if self.max_version:
+            op = "<=" if self.max_inclusive else "<"
+            parts.append(f"{op}{self.max_version}")
+        return " ".join(parts) if parts else "*"
+
+
+def parse_range(range_str: str) -> VersionRange:
+    """
+    解析版本范围字符串
+    
+    支持格式:
+    - "*" - 所有版本
+    - "1.2.3" - 精确版本
+    - ">=1.2.3" - 大于等于
+    - ">1.2.3" - 大于
+    - "<=1.2.3" - 小于等于
+    - "<1.2.3" - 小于
+    - ">=1.0.0 <2.0.0" - 范围
+    - "^1.2.3" - 兼容版本 (>=1.2.3 <2.0.0)
+    - "~1.2.3" - 补丁版本范围 (>=1.2.3 <1.3.0)
+    - "~1.2" - 次版本范围 (>=1.2.0 <1.3.0)
+    - "1.2.x" 或 "1.2.*" - 通配符范围
+    
+    Args:
+        range_str: 范围字符串
+    
+    Returns:
+        VersionRange 对象
     """
     range_str = range_str.strip()
-    v = parse(version)
     
-    # 通配符匹配需要特殊处理（不使用 parse）
-    if "x" in range_str.lower() or "*" in range_str:
-        return _satisfies_wildcard(v, range_str)
+    # 所有版本
+    if range_str == "*":
+        return VersionRange()
     
-    # 精确匹配 - 直接比较
-    if SEMVER_PATTERN.match(range_str):
-        return v == parse(range_str)
-    
-    # 范围格式 "1.2.3 - 2.0.0" - 检查边界
-    if " - " in range_str:
-        low, high = range_str.split(" - ", 1)
-        return parse(low) <= v <= parse(high)
-    
-    # 复合条件（空格分隔，不含特殊符号）
-    if " " in range_str and not any(range_str.startswith(s) for s in ["~", "^"]):
-        # 解析所有条件一次，避免重复解析
-        parts = range_str.split()
+    # 通配符范围 (1.2.x 或 1.2.*)
+    if 'x' in range_str or '*' in range_str:
+        original_parts = range_str.replace('x', '').replace('*', '').rstrip('.').split('.')
+        original_parts = [p for p in original_parts if p]  # 移除空字符串
         
-        for part in parts:
-            # 先检查通配符
-            if "x" in part.lower() or "*" in part:
-                if not _satisfies_wildcard(v, part):
-                    return False
-                continue
-            
-            op, ver_str = _parse_condition(part)
-            ver = parse(ver_str)
-            if not _check_condition(v, op, ver):
-                return False
-        return True
+        # 构建最小版本
+        min_parts = []
+        for p in original_parts:
+            min_parts.append(int(p) if p.isdigit() else 0)
+        while len(min_parts) < 3:
+            min_parts.append(0)
+        min_v = SemVer(min_parts[0], min_parts[1], min_parts[2])
+        
+        # 计算最大版本（基于原始通配符位置）
+        # "x" 或 "*" -> 所有版本
+        if original_parts[0] == '' or len(original_parts) == 0:
+            return VersionRange()
+        # "1.x" 或 "1.*" -> >=1.0.0 <2.0.0
+        if len(original_parts) == 1:
+            max_v = SemVer(min_v.major + 1, 0, 0)
+        # "1.2.x" 或 "1.2.*" -> >=1.2.0 <1.3.0
+        elif len(original_parts) == 2:
+            max_v = SemVer(min_v.major, min_v.minor + 1, 0)
+        # "1.2.3.x" -> 不常见，但支持 >=1.2.3 <1.2.4
+        else:
+            max_v = SemVer(min_v.major, min_v.minor, min_v.patch + 1)
+        return VersionRange(min_v, max_v, True, False)
     
-    # 单一条件
-    op, ver_str = _parse_condition(range_str)
-    ver = parse(ver_str)
-    return _check_condition(v, op, ver)
+    # 插入符范围 (^1.2.3)
+    if range_str.startswith('^'):
+        version = parse(range_str[1:])
+        min_v = version
+        
+        # ^0.0.3 := >=0.0.3 <0.0.4
+        # ^0.2.3 := >=0.2.3 <0.3.0
+        # ^1.2.3 := >=1.2.3 <2.0.0
+        if version.major == 0:
+            if version.minor == 0:
+                max_v = SemVer(0, 0, version.patch + 1)
+            else:
+                max_v = SemVer(0, version.minor + 1, 0)
+        else:
+            max_v = SemVer(version.major + 1, 0, 0)
+        
+        return VersionRange(min_v, max_v, True, False)
+    
+    # 波浪号范围 (~1.2.3)
+    if range_str.startswith('~'):
+        version_str = range_str[1:]
+        parts = version_str.split('.')
+        
+        if len(parts) == 1:
+            # ~1 := >=1.0.0 <2.0.0
+            min_v = parse(f"{parts[0]}.0.0")
+            max_v = SemVer(min_v.major + 1, 0, 0)
+        elif len(parts) == 2:
+            # ~1.2 := >=1.2.0 <1.3.0
+            min_v = parse(f"{parts[0]}.{parts[1]}.0")
+            max_v = SemVer(min_v.major, min_v.minor + 1, 0)
+        else:
+            # ~1.2.3 := >=1.2.3 <1.3.0
+            min_v = parse(version_str)
+            max_v = SemVer(min_v.major, min_v.minor + 1, 0)
+        
+        return VersionRange(min_v, max_v, True, False)
+    
+    # 精确版本
+    if re.match(r'^\d+\.\d+\.\d+', range_str):
+        version = parse(range_str)
+        return VersionRange(version, version, True, True)
+    
+    # 比较运算符范围
+    # 支持组合: ">=1.0.0 <2.0.0"
+    constraints = range_str.split()
+    
+    result = VersionRange()
+    
+    for constraint in constraints:
+        constraint = constraint.strip()
+        if not constraint:
+            continue
+        
+        # 解析单个约束
+        match = re.match(r'^(>=|<=|>|<|=)?(.+)$', constraint)
+        if not match:
+            raise ValueError(f"Invalid version range: '{range_str}'")
+        
+        op = match.group(1) or '='
+        version_str = match.group(2)
+        version = parse(version_str)
+        
+        if op == '>=':
+            result.min_version = version
+            result.min_inclusive = True
+        elif op == '>':
+            result.min_version = version
+            result.min_inclusive = False
+        elif op == '<=':
+            result.max_version = version
+            result.max_inclusive = True
+        elif op == '<':
+            result.max_version = version
+            result.max_inclusive = False
+        elif op == '=':
+            result.min_version = version
+            result.max_version = version
+            result.min_inclusive = True
+            result.max_inclusive = True
+    
+    return result
 
 
-def _parse_condition(range_str: str) -> Tuple[str, str]:
+def satisfies(version: Union[str, SemVer], range_str: str) -> bool:
     """
-    解析单个条件，返回操作符和版本字符串
+    检查版本是否满足范围约束
     
     Args:
-        range_str: 条件字符串
+        version: 版本
+        range_str: 范围字符串
     
     Returns:
-        (操作符, 版本字符串)
+        是否满足
     """
-    # 通配符
-    if "x" in range_str.lower() or "*" in range_str:
-        return ("wildcard", range_str)
-    
-    # 插入号范围 ^
-    if range_str.startswith("^"):
-        return ("caret", range_str[1:].strip())
-    
-    # 波浪号范围 ~
-    if range_str.startswith("~"):
-        return ("tilde", range_str[1:].strip())
-    
-    # 比较运算符
-    if range_str.startswith(">="):
-        return ("gte", range_str[2:].strip())
-    if range_str.startswith(">"):
-        return ("gt", range_str[1:].strip())
-    if range_str.startswith("<="):
-        return ("lte", range_str[2:].strip())
-    if range_str.startswith("<"):
-        return ("lt", range_str[1:].strip())
-    if range_str.startswith("="):
-        return ("eq", range_str[1:].strip())
-    
-    # 默认精确匹配
-    return ("eq", range_str)
+    return parse_range(range_str).contains(version)
 
 
-def _check_condition(v: SemanticVersion, op: str, ver: SemanticVersion) -> bool:
+def filter_versions(versions: List[Union[str, SemVer]], 
+                   range_str: str) -> List[SemVer]:
     """
-    检查版本是否满足单个条件
+    过滤满足范围的版本
     
     Args:
-        v: 待检查版本
-        op: 操作符
-        ver: 条件版本
+        versions: 版本列表
+        range_str: 范围字符串
     
     Returns:
-        是否满足条件
+        满足条件的版本列表
     """
-    if op == "wildcard":
-        return _satisfies_wildcard(v, ver.__str__())
-    elif op == "caret":
-        return _satisfies_caret(v, ver)
-    elif op == "tilde":
-        return _satisfies_tilde(v, ver)
-    elif op == "gte":
-        return v >= ver
-    elif op == "gt":
-        return v > ver
-    elif op == "lte":
-        return v <= ver
-    elif op == "lt":
-        return v < ver
-    elif op == "eq":
-        return v == ver
-    
-    return False
+    vr = parse_range(range_str)
+    return [parse(v) if isinstance(v, str) else v 
+            for v in versions if vr.contains(v)]
 
 
-def _satisfies_wildcard(v: SemanticVersion, range_str: str) -> bool:
-    """处理通配符匹配"""
-    range_str = range_str.lower().replace("x", "*")
-    parts = range_str.split(".")
-    
-    if len(parts) == 1:
-        # "*" 匹配所有
-        if parts[0] == "*":
-            return True
-        return v.major == int(parts[0])
-    
-    if len(parts) == 2:
-        # "1.*" 或 "1.x"
-        if parts[1] == "*":
-            return v.major == int(parts[0])
-        return v.major == int(parts[0]) and v.minor == int(parts[1])
-    
-    # "1.2.*" 匹配 1.2.0 - 1.2.x
-    if parts[2] == "*":
-        return v.major == int(parts[0]) and v.minor == int(parts[1])
-    
-    return False
-
-
-def _satisfies_caret(v: SemanticVersion, base: SemanticVersion) -> bool:
+def find_best_match(versions: List[Union[str, SemVer]], 
+                   range_str: str,
+                   prefer_prerelease: bool = False) -> Optional[SemVer]:
     """
-    插入号范围 ^
-    ^1.2.3 := >=1.2.3 <2.0.0
-    ^0.2.3 := >=0.2.3 <0.3.0
-    ^0.0.3 := >=0.0.3 <0.0.4
+    在版本列表中查找最佳匹配（最高版本）
     
-    优化：直接使用预解析的版本对象
+    Args:
+        versions: 版本列表
+        range_str: 范围字符串
+        prefer_prerelease: 是否优先选择预发布版本
+    
+    Returns:
+        最佳匹配版本或 None
     """
-    if v < base:
-        return False
-    
-    if base.major != 0:
-        # ^1.2.3 -> <2.0.0
-        return v.major == base.major
-    elif base.minor != 0:
-        # ^0.2.3 -> <0.3.0
-        return v.major == 0 and v.minor == base.minor
-    else:
-        # ^0.0.3 -> <0.0.4
-        return v.major == 0 and v.minor == 0 and v.patch == base.patch
-
-
-def _satisfies_tilde(v: SemanticVersion, base: SemanticVersion) -> bool:
-    """
-    波浪号范围 ~
-    ~1.2.3 := >=1.2.3 <1.3.0
-    
-    优化：直接使用预解析的版本对象
-    """
-    if v < base:
-        return False
-    
-    return v.major == base.major and v.minor == base.minor
-
-
-def max_satisfying(versions: List[str], range_str: str) -> Optional[str]:
-    """
-    在版本列表中找到满足范围的最大版本
-    
-    参数:
-        versions: 版本字符串列表
-        range_str: 版本范围约束
-    
-    返回:
-        满足范围的最大版本字符串，如果没有满足的则返回 None
-    
-    示例:
-        >>> max_satisfying(["1.0.0", "1.2.3", "2.0.0"], "^1.0.0")
-        '1.2.3'
-    """
-    satisfying_versions = [v for v in versions if satisfies(v, range_str)]
-    if not satisfying_versions:
+    matched = filter_versions(versions, range_str)
+    if not matched:
         return None
     
-    # 排序并返回最大版本
-    return max(satisfying_versions, key=lambda v: parse(v))
+    # 默认排除预发布版本
+    if not prefer_prerelease:
+        stable = [v for v in matched if not v.is_prerelease]
+        if stable:
+            matched = stable
+    
+    return max_version(matched)
 
 
-def min_satisfying(versions: List[str], range_str: str) -> Optional[str]:
-    """
-    在版本列表中找到满足范围的最小版本
+# ============ 版本差异分析 ============
+
+@dataclass
+class VersionDiff:
+    """版本差异"""
+    major_diff: int
+    minor_diff: int
+    patch_diff: int
+    prerelease_change: Optional[Tuple[Optional[str], Optional[str]]] = None
+    build_change: Optional[Tuple[Optional[str], Optional[str]]] = None
     
-    参数:
-        versions: 版本字符串列表
-        range_str: 版本范围约束
+    @property
+    def is_upgrade(self) -> bool:
+        """是否为升级"""
+        return (self.major_diff > 0 or 
+                (self.major_diff == 0 and self.minor_diff > 0) or
+                (self.major_diff == 0 and self.minor_diff == 0 and self.patch_diff > 0))
     
-    返回:
-        满足范围的最小版本字符串，如果没有满足的则返回 None
+    @property
+    def is_downgrade(self) -> bool:
+        """是否为降级"""
+        return (self.major_diff < 0 or 
+                (self.major_diff == 0 and self.minor_diff < 0) or
+                (self.major_diff == 0 and self.minor_diff == 0 and self.patch_diff < 0))
     
-    示例:
-        >>> min_satisfying(["1.0.0", "1.2.3", "2.0.0"], ">=1.1.0")
-        '1.2.3'
-    """
-    satisfying_versions = [v for v in versions if satisfies(v, range_str)]
-    if not satisfying_versions:
-        return None
+    @property
+    def is_major_change(self) -> bool:
+        """是否为主版本变更"""
+        return self.major_diff != 0
     
-    return min(satisfying_versions, key=lambda v: parse(v))
+    @property
+    def is_minor_change(self) -> bool:
+        """是否为次版本变更"""
+        return self.minor_diff != 0
+    
+    @property
+    def is_patch_change(self) -> bool:
+        """是否为修订版本变更"""
+        return self.patch_diff != 0
+    
+    def __str__(self) -> str:
+        changes = []
+        if self.major_diff != 0:
+            changes.append(f"major:{self.major_diff:+d}")
+        if self.minor_diff != 0:
+            changes.append(f"minor:{self.minor_diff:+d}")
+        if self.patch_diff != 0:
+            changes.append(f"patch:{self.patch_diff:+d}")
+        if self.prerelease_change:
+            changes.append(f"prerelease:{self.prerelease_change[0]}→{self.prerelease_change[1]}")
+        if self.build_change:
+            changes.append(f"build:{self.build_change[0]}→{self.build_change[1]}")
+        return ", ".join(changes) if changes else "no change"
 
 
-def coerce(version_string: str) -> Optional[SemanticVersion]:
+def diff(v1: Union[str, SemVer], v2: Union[str, SemVer]) -> VersionDiff:
     """
-    尝试将字符串强制转换为语义版本
+    计算两个版本的差异
     
-    从可能不规范版本字符串中提取版本信息
+    Args:
+        v1: 旧版本
+        v2: 新版本
     
-    参数:
-        version_string: 可能包含版本信息的字符串
-    
-    返回:
-        SemanticVersion 对象，如果无法解析则返回 None
-    
-    示例:
-        >>> coerce("v1.2.3")
-        SemanticVersion(1.2.3)
-        >>> coerce("version-2.0.0")
-        SemanticVersion(2.0.0)
-        >>> coerce("1.2")
-        SemanticVersion(1.2.0)
+    Returns:
+        VersionDiff 对象
     """
-    # 移除常见前缀
-    cleaned = re.sub(r'^(v|version|ver|release|r)[\s\-._]*', '', version_string, flags=re.IGNORECASE)
-    cleaned = cleaned.strip()
+    if isinstance(v1, str):
+        v1 = parse(v1)
+    if isinstance(v2, str):
+        v2 = parse(v2)
     
-    # 尝试直接解析
-    try:
-        return parse(cleaned)
-    except ValueError:
-        pass
+    prerelease_change = None
+    if v1.prerelease != v2.prerelease:
+        prerelease_change = (v1.prerelease, v2.prerelease)
     
-    # 尝试提取版本号模式
-    # 模式：major.minor.patch 或 major.minor
-    patterns = [
-        r'(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?:[-+]([^\s]*))?',
-        r'(?P<major>\d+)\.(?P<minor>\d+)',
-        r'(?P<major>\d+)',
+    build_change = None
+    if v1.build != v2.build:
+        build_change = (v1.build, v2.build)
+    
+    return VersionDiff(
+        major_diff=v2.major - v1.major,
+        minor_diff=v2.minor - v1.minor,
+        patch_diff=v2.patch - v1.patch,
+        prerelease_change=prerelease_change,
+        build_change=build_change
+    )
+
+
+# ============ 版本格式化 ============
+
+def format(version: Union[str, SemVer], 
+         include_prerelease: bool = True,
+         include_build: bool = True) -> str:
+    """
+    格式化版本字符串
+    
+    Args:
+        version: 版本
+        include_prerelease: 是否包含预发布标识
+        include_build: 是否包含构建元数据
+    
+    Returns:
+        格式化后的版本字符串
+    """
+    if isinstance(version, str):
+        version = parse(version)
+    
+    result = f"{version.major}.{version.minor}.{version.patch}"
+    
+    if include_prerelease and version.prerelease:
+        result += f"-{version.prerelease}"
+    
+    if include_build and version.build:
+        result += f"+{version.build}"
+    
+    return result
+
+
+def to_tuple(version: Union[str, SemVer]) -> Tuple[int, int, int]:
+    """将版本转换为元组 (major, minor, patch)"""
+    if isinstance(version, str):
+        version = parse(version)
+    return (version.major, version.minor, version.patch)
+
+
+def from_tuple(t: Tuple[int, int, int], 
+              prerelease: Optional[str] = None,
+              build: Optional[str] = None) -> SemVer:
+    """从元组创建版本"""
+    return SemVer(t[0], t[1], t[2], prerelease, build)
+
+
+# ============ 版本集合操作 ============
+
+def unique(versions: List[Union[str, SemVer]]) -> List[SemVer]:
+    """去重版本列表"""
+    seen = set()
+    result = []
+    for v in versions:
+        parsed = parse(v) if isinstance(v, str) else v
+        key = (parsed.major, parsed.minor, parsed.patch, parsed.prerelease)
+        if key not in seen:
+            seen.add(key)
+            result.append(parsed)
+    return result
+
+
+def next_versions(version: Union[str, SemVer], 
+                 include_prerelease: bool = False) -> List[SemVer]:
+    """
+    获取可能的下一个版本列表
+    
+    Args:
+        version: 当前版本
+        include_prerelease: 是否包含预发布版本
+    
+    Returns:
+        下一个版本列表
+    """
+    if isinstance(version, str):
+        version = parse(version)
+    
+    versions = [
+        version.bump_patch(),
+        version.bump_minor(),
+        version.bump_major(),
     ]
     
-    for pattern in patterns:
-        match = re.search(pattern, cleaned)
-        if match:
-            try:
-                major = int(match.group('major'))
-                minor = int(match.group('minor')) if 'minor' in match.groupdict() else 0
-                patch = int(match.group('patch')) if 'patch' in match.groupdict() else 0
-                
-                return SemanticVersion(major, minor, patch)
-            except (ValueError, IndexError):
-                continue
+    if include_prerelease:
+        versions.extend([
+            version.bump_prerelease("alpha"),
+            version.bump_prerelease("beta"),
+            version.bump_prerelease("rc"),
+        ])
     
-    return None
+    return versions
 
 
-def sort_versions(versions: List[str], reverse: bool = False) -> List[str]:
-    """
-    对版本列表排序
-    
-    参数:
-        versions: 版本字符串列表
-        reverse: 是否降序排序
-    
-    返回:
-        排序后的版本列表
-    
-    示例:
-        >>> sort_versions(["2.0.0", "1.0.0", "1.2.3"])
-        ['1.0.0', '1.2.3', '2.0.0']
-        >>> sort_versions(["2.0.0", "1.0.0", "1.2.3"], reverse=True)
-        ['2.0.0', '1.2.3', '1.0.0']
-    """
-    return sorted(versions, key=lambda v: parse(v), reverse=reverse)
+# ============ 常用版本常量 ============
+
+ZERO = SemVer(0, 0, 0)
+ONE = SemVer(1, 0, 0)
 
 
-def get_change_type(from_version: str, to_version: str) -> str:
-    """
-    获取版本变更类型
-    
-    参数:
-        from_version: 起始版本
-        to_version: 目标版本
-    
-    返回:
-        "major": 主版本变更
-        "minor": 次版本变更
-        "patch": 修订版本变更
-        "prerelease": 预发布变更
-        "none": 无变更
-        "downgrade": 版本降级
-    
-    示例:
-        >>> get_change_type("1.0.0", "2.0.0")
-        'major'
-        >>> get_change_type("2.0.0", "1.0.0")
-        'downgrade'
-    """
-    v1, v2 = parse(from_version), parse(to_version)
-    
-    if v1 == v2:
-        return "none"
-    
-    if v1 > v2:
-        return "downgrade"
-    
-    if v1.major != v2.major:
-        return "major"
-    if v1.minor != v2.minor:
-        return "minor"
-    if v1.patch != v2.patch:
-        return "patch"
-    return "prerelease"
+# ============ 便捷函数 ============
+
+def major(version: Union[str, SemVer]) -> int:
+    """获取主版本号"""
+    return parse(version).major if isinstance(version, str) else version.major
 
 
-def create(major: int, minor: int, patch: int,
-           prerelease: Optional[List[Union[str, int]]] = None,
-           build_metadata: Optional[str] = None) -> SemanticVersion:
-    """
-    创建语义版本对象
-    
-    参数:
-        major: 主版本号
-        minor: 次版本号
-        patch: 修订版本号
-        prerelease: 预发布标识符列表
-        build_metadata: 构建元数据
-    
-    返回:
-        SemanticVersion 对象
-    
-    示例:
-        >>> v = create(1, 2, 3)
-        >>> str(v)
-        '1.2.3'
-        >>> v = create(1, 0, 0, ['alpha', 1])
-        >>> str(v)
-        '1.0.0-alpha.1'
-    """
-    return SemanticVersion(major, minor, patch, prerelease, build_metadata)
+def minor(version: Union[str, SemVer]) -> int:
+    """获取次版本号"""
+    return parse(version).minor if isinstance(version, str) else version.minor
 
 
-def validate(version_string: str) -> Tuple[bool, Optional[str]]:
-    """
-    验证语义版本并返回详细结果
-    
-    参数:
-        version_string: 版本字符串
-    
-    返回:
-        (是否有效, 错误信息或None)
-    
-    示例:
-        >>> validate("1.2.3")
-        (True, None)
-        >>> validate("1.2")
-        (False, "Invalid semantic version: missing patch version")
-    """
-    version_string = version_string.strip()
-    
-    if not version_string:
-        return False, "Empty version string"
-    
-    # 检查基本格式
-    parts = version_string.split('+')[0].split('-')[0].split('.')
-    if len(parts) != 3:
-        return False, "Semantic version must have exactly 3 parts (major.minor.patch)"
-    
-    # 检查每个部分是否为数字
-    for i, part in enumerate(parts):
-        names = ['major', 'minor', 'patch']
-        if not part.isdigit():
-            return False, f"Invalid {names[i]} version: {part}"
-        
-        # 检查前导零
-        if len(part) > 1 and part[0] == '0':
-            return False, f"{names[i].capitalize()} version cannot have leading zeros: {part}"
-        
-        value = int(part)
-        if value < 0:
-            return False, f"{names[i].capitalize()} version cannot be negative: {value}"
-    
-    # 使用正则表达式完整验证
-    if not SEMVER_PATTERN.match(version_string):
-        return False, f"Invalid semantic version format: {version_string}"
-    
-    try:
-        parse(version_string)
-        return True, None
-    except ValueError as e:
-        return False, str(e)
+def patch(version: Union[str, SemVer]) -> int:
+    """获取修订版本号"""
+    return parse(version).patch if isinstance(version, str) else version.patch
 
 
-def next_version(version: str, release_type: str = "patch") -> str:
-    """
-    获取下一个版本号
-    
-    参数:
-        version: 当前版本字符串
-        release_type: 发布类型 ("major", "minor", "patch", "prerelease")
-    
-    返回:
-        下一个版本字符串
-    
-    示例:
-        >>> next_version("1.2.3", "major")
-        '2.0.0'
-        >>> next_version("1.2.3", "minor")
-        '1.3.0'
-        >>> next_version("1.2.3", "patch")
-        '1.2.4'
-    """
-    if release_type == "major":
-        return increment_major(version)
-    elif release_type == "minor":
-        return increment_minor(version)
-    elif release_type == "patch":
-        return increment_patch(version)
-    elif release_type == "prerelease":
-        return increment_prerelease(version)
-    else:
-        raise ValueError(f"Invalid release type: {release_type}")
+def prerelease(version: Union[str, SemVer]) -> Optional[str]:
+    """获取预发布标识"""
+    return parse(version).prerelease if isinstance(version, str) else version.prerelease
 
 
-if __name__ == "__main__":
-    # 简单演示
-    print("语义版本工具演示")
-    print("=" * 50)
-    
-    # 解析版本
-    v = parse("1.2.3-alpha.1+build.123")
-    print(f"解析版本: {v}")
-    print(f"  major: {v.major}")
-    print(f"  minor: {v.minor}")
-    print(f"  patch: {v.patch}")
-    print(f"  prerelease: {v.prerelease}")
-    print(f"  build_metadata: {v.build_metadata}")
-    print(f"  is_prerelease: {v.is_prerelease()}")
-    print(f"  is_stable: {v.is_stable()}")
-    
-    print()
-    
-    # 版本比较
-    print("版本比较:")
-    print(f"  compare('1.0.0', '2.0.0') = {compare('1.0.0', '2.0.0')}")
-    print(f"  compare('2.0.0', '1.0.0') = {compare('2.0.0', '1.0.0')}")
-    print(f"  gt('2.0.0', '1.0.0') = {gt('2.0.0', '1.0.0')}")
-    
-    print()
-    
-    # 版本递增
-    print("版本递增:")
-    print(f"  increment_major('1.2.3') = {increment_major('1.2.3')}")
-    print(f"  increment_minor('1.2.3') = {increment_minor('1.2.3')}")
-    print(f"  increment_patch('1.2.3') = {increment_patch('1.2.3')}")
-    print(f"  increment_prerelease('1.2.3') = {increment_prerelease('1.2.3')}")
-    
-    print()
-    
-    # 版本范围
-    print("版本范围:")
-    print(f"  satisfies('1.2.3', '^1.0.0') = {satisfies('1.2.3', '^1.0.0')}")
-    print(f"  satisfies('2.0.0', '^1.0.0') = {satisfies('2.0.0', '^1.0.0')}")
-    print(f"  satisfies('1.2.5', '~1.2.0') = {satisfies('1.2.5', '~1.2.0')}")
-    print(f"  satisfies('1.3.0', '~1.2.0') = {satisfies('1.3.0', '~1.2.0')}")
-    
-    print()
-    
-    # 版本排序
-    versions = ["2.0.0", "1.0.0-alpha", "1.0.0", "1.2.3", "1.0.0-beta"]
-    print(f"排序版本 {versions}:")
-    print(f"  升序: {sort_versions(versions)}")
-    print(f"  降序: {sort_versions(versions, reverse=True)}")
+def build(version: Union[str, SemVer]) -> Optional[str]:
+    """获取构建元数据"""
+    return parse(version).build if isinstance(version, str) else version.build
