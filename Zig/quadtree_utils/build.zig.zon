@@ -1,0 +1,7 @@
+.{
+    .name = "quadtree_utils",
+    .version = "0.1.0",
+    .paths = .{
+        "src/quadtree.zig",
+    },
+}
