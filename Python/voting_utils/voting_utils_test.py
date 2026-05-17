@@ -1,400 +1,637 @@
-"""
-投票工具测试套件
-测试所有投票算法的正确性
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""AllToolkit - Voting Utilities Test Module
+
+Comprehensive tests for voting utilities.
+
+Author: AllToolkit
+License: MIT
 """
 
+import unittest
 import sys
 import os
+
+# Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from voting_utils.mod import (
-    PluralityVoting, RankedChoiceVoting, BordaCount,
-    ApprovalVoting, CondorcetVoting, SingleTransferableVote,
-    ScoreVoting, VotingSimulator,
-    plurality, ranked_choice, borda, approval, condorcet, stv, score
+    VotingMethod, PollStatus, Candidate, Ballot, Poll, VoteCount, ElectionResult,
+    plurality_vote, approval_vote, borda_count, ranked_choice_vote, 
+    condorcet_vote, score_vote, stv_vote, count_votes,
+    create_poll, create_ballot, generate_test_ballots,
+    get_voting_method_info, validate_poll_config, get_supported_methods
 )
 
 
-def test_plurality_voting():
-    """测试简单多数投票"""
-    print("测试简单多数投票...")
+class TestCandidate(unittest.TestCase):
+    """Test Candidate class."""
     
-    # 基本测试
-    ballots = ['Alice', 'Bob', 'Alice', 'Charlie', 'Alice', 'Bob']
-    winner, counts = PluralityVoting.vote(ballots)
-    assert winner == 'Alice', f"期望 Alice 获胜，实际 {winner}"
-    assert counts == {'Alice': 3, 'Bob': 2, 'Charlie': 1}
+    def test_candidate_creation(self):
+        """Test creating a candidate."""
+        c = Candidate(id="c1", name="Option A", description="First option")
+        self.assertEqual(c.id, "c1")
+        self.assertEqual(c.name, "Option A")
+        self.assertEqual(c.description, "First option")
     
-    # 平局测试
-    ballots = ['Alice', 'Bob', 'Alice', 'Bob']
-    winner, counts, ties = PluralityVoting.vote_with_tiebreaker(ballots, 'alphabetical')
-    assert winner == 'Alice'  # 字母顺序
-    assert len(ties) == 2
+    def test_candidate_hash(self):
+        """Test candidate hashing."""
+        c1 = Candidate(id="c1", name="A")
+        c2 = Candidate(id="c1", name="B")
+        c3 = Candidate(id="c2", name="A")
+        
+        # Same ID should hash equal
+        self.assertEqual(hash(c1), hash(c2))
+        # Different ID should hash different
+        self.assertNotEqual(hash(c1), hash(c3))
     
-    # 空选票测试
-    winner, counts = PluralityVoting.vote([])
-    assert winner is None
-    
-    # 包含空票的测试
-    ballots = ['Alice', '', 'Bob', None, 'Alice']
-    winner, counts = PluralityVoting.vote([b for b in ballots if b])
-    assert winner == 'Alice'
-    
-    print("  ✓ 简单多数投票测试通过")
+    def test_candidate_equality(self):
+        """Test candidate equality."""
+        c1 = Candidate(id="c1", name="A")
+        c2 = Candidate(id="c1", name="B")
+        c3 = Candidate(id="c2", name="A")
+        
+        self.assertEqual(c1, c2)
+        self.assertNotEqual(c1, c3)
 
 
-def test_ranked_choice_voting():
-    """测试排序选择投票"""
-    print("测试排序选择投票...")
+class TestBallot(unittest.TestCase):
+    """Test Ballot class."""
     
-    # 简单测试 - Alice 应该在第一轮就过半
-    ballots = [
-        ['Alice', 'Bob', 'Charlie'],
-        ['Alice', 'Charlie', 'Bob'],
-        ['Bob', 'Alice', 'Charlie'],
-        ['Charlie', 'Bob', 'Alice'],
-        ['Alice', 'Bob', 'Charlie'],
-    ]
-    winner, rounds = RankedChoiceVoting.vote(ballots)
-    assert winner == 'Alice', f"期望 Alice 获胜，实际 {winner}"
-    assert len(rounds) == 1  # 第一轮就决出
+    def test_ballot_creation(self):
+        """Test creating a ballot."""
+        b = Ballot(
+            voter_id="v1",
+            poll_id="p1",
+            choices=["c1", "c2"]
+        )
+        self.assertEqual(b.voter_id, "v1")
+        self.assertEqual(b.poll_id, "p1")
+        self.assertEqual(b.choices, ["c1", "c2"])
+        self.assertIsNotNone(b.timestamp)
+        self.assertIsNotNone(b.signature)
     
-    # 需要多轮的测试
-    ballots = [
-        ['Alice', 'Bob', 'Charlie'],
-        ['Bob', 'Alice', 'Charlie'],
-        ['Charlie', 'Alice', 'Bob'],
-        ['Charlie', 'Bob', 'Alice'],
-        ['Alice', 'Charlie', 'Bob'],
-    ]
-    winner, rounds = RankedChoiceVoting.vote(ballots)
-    # Alice: 2, Bob: 1, Charlie: 2 -> Bob 被淘汰 -> Bob 的票转给 Alice
-    assert winner == 'Alice'
-    assert len(rounds) >= 2
+    def test_ballot_validation(self):
+        """Test ballot signature validation."""
+        b = Ballot(
+            voter_id="v1",
+            poll_id="p1",
+            choices=["c1"]
+        )
+        self.assertTrue(b.validate())
+        
+        # Modify and check validation fails
+        b.choices.append("c2")
+        self.assertFalse(b.validate())
     
-    # 空选票测试
-    winner, rounds = RankedChoiceVoting.vote([])
-    assert winner is None
-    
-    print("  ✓ 排序选择投票测试通过")
+    def test_ballot_with_rankings(self):
+        """Test ballot with rankings."""
+        rankings = {"c1": 1, "c2": 2, "c3": 3}
+        b = Ballot(
+            voter_id="v1",
+            poll_id="p1",
+            choices=["c1"],
+            rankings=rankings
+        )
+        self.assertEqual(b.rankings, rankings)
+        self.assertTrue(b.validate())
 
 
-def test_borda_count():
-    """测试波达计数"""
-    print("测试波达计数...")
+class TestPoll(unittest.TestCase):
+    """Test Poll class."""
     
-    ballots = [
-        ['Alice', 'Bob', 'Charlie'],
-        ['Bob', 'Alice', 'Charlie'],
-        ['Charlie', 'Alice', 'Bob'],
-    ]
-    candidates = ['Alice', 'Bob', 'Charlie']
+    def test_poll_creation(self):
+        """Test creating a poll."""
+        candidates = [
+            Candidate(id="c1", name="A"),
+            Candidate(id="c2", name="B"),
+            Candidate(id="c3", name="C")
+        ]
+        
+        poll = Poll(
+            id="poll1",
+            title="Test Poll",
+            candidates=candidates
+        )
+        
+        self.assertEqual(poll.title, "Test Poll")
+        self.assertEqual(len(poll.candidates), 3)
+        self.assertEqual(poll.method, VotingMethod.PLURALITY)
+        self.assertEqual(poll.status, PollStatus.DRAFT)
     
-    # 标准计分: Alice: 2+1+1=4, Bob: 1+2+0=3, Charlie: 0+0+2=2
-    winner, scores, details = BordaCount.vote(ballots, candidates)
-    assert winner == 'Alice', f"期望 Alice 获胜，实际 {winner}"
-    assert scores['Alice'] == 4
-    assert scores['Bob'] == 3
-    assert scores['Charlie'] == 2
+    def test_poll_get_candidate(self):
+        """Test finding candidate by ID."""
+        candidates = [
+            Candidate(id="c1", name="A"),
+            Candidate(id="c2", name="B")
+        ]
+        poll = Poll(id="p1", title="Test", candidates=candidates)
+        
+        c = poll.get_candidate_by_id("c1")
+        self.assertEqual(c.name, "A")
+        
+        c = poll.get_candidate_by_id("c3")
+        self.assertIsNone(c)
     
-    # Dowdall 计分
-    winner, scores, details = BordaCount.vote(ballots, candidates, scoring='dowdall')
-    # Alice: 1 + 0.5 + 0.5 = 2
-    # Bob: 0.5 + 1 + 0 = 1.5
-    # Charlie: 0 + 0 + 1 = 1
-    assert winner == 'Alice'
+    def test_poll_validate_ballot(self):
+        """Test ballot validation."""
+        candidates = [Candidate(id="c1", name="A"), Candidate(id="c2", name="B")]
+        poll = Poll(id="p1", title="Test", candidates=candidates)
+        
+        # Valid ballot
+        b = Ballot(voter_id="v1", poll_id="p1", choices=["c1"])
+        valid, msg = poll.validate_ballot(b)
+        self.assertTrue(valid)
+        
+        # Wrong poll ID
+        b = Ballot(voter_id="v1", poll_id="p2", choices=["c1"])
+        valid, msg = poll.validate_ballot(b)
+        self.assertFalse(valid)
+        
+        # Invalid candidate
+        b = Ballot(voter_id="v1", poll_id="p1", choices=["c3"])
+        valid, msg = poll.validate_ballot(b)
+        self.assertFalse(valid)
     
-    print("  ✓ 波达计数测试通过")
+    def test_poll_auto_id_generation(self):
+        """Test automatic ID generation."""
+        poll = Poll(id="", title="Test", candidates=[Candidate(id="c1", name="A")])
+        self.assertIsNotNone(poll.id)
+        self.assertEqual(len(poll.id), 12)
 
 
-def test_approval_voting():
-    """测试批准投票"""
-    print("测试批准投票...")
+class TestPluralityVoting(unittest.TestCase):
+    """Test plurality voting method."""
     
-    ballots = [
-        ['Alice', 'Bob'],
-        ['Bob', 'Charlie'],
-        ['Alice', 'Charlie'],
-        ['Bob', 'Alice'],
-    ]
-    candidates = ['Alice', 'Bob', 'Charlie', 'David']
+    def test_basic_plurality(self):
+        """Test basic plurality counting."""
+        candidates = [
+            Candidate(id="c1", name="A"),
+            Candidate(id="c2", name="B"),
+            Candidate(id="c3", name="C")
+        ]
+        poll = Poll(id="p1", title="Test", candidates=candidates, method=VotingMethod.PLURALITY)
+        
+        ballots = [
+            Ballot(voter_id="v1", poll_id="p1", choices=["c1"]),
+            Ballot(voter_id="v2", poll_id="p1", choices=["c1"]),
+            Ballot(voter_id="v3", poll_id="p1", choices=["c2"]),
+        ]
+        
+        result = plurality_vote(poll, ballots)
+        
+        self.assertEqual(result.method, VotingMethod.PLURALITY)
+        self.assertEqual(result.total_votes, 3)
+        self.assertEqual(len(result.winners), 1)
+        self.assertEqual(result.winners[0].id, "c1")
+        
+        # Check counts
+        counts = {c.candidate_id: c.votes for c in result.counts}
+        self.assertEqual(counts["c1"], 2)
+        self.assertEqual(counts["c2"], 1)
+        self.assertEqual(counts["c3"], 0)
     
-    # Alice: 3, Bob: 3, Charlie: 2, David: 0
-    winner, approvals = ApprovalVoting.vote(ballots, candidates)
-    assert winner in ['Alice', 'Bob']  # Alice 和 Bob 都是 3 票
-    
-    # 带阈值的批准投票
-    winners, approvals = ApprovalVoting.vote_with_threshold(ballots, 2, candidates)
-    assert 'Alice' in winners
-    assert 'Bob' in winners
-    assert 'Charlie' in winners
-    assert 'David' not in winners
-    
-    print("  ✓ 批准投票测试通过")
+    def test_plurality_tie(self):
+        """Test plurality with tie."""
+        candidates = [
+            Candidate(id="c1", name="A"),
+            Candidate(id="c2", name="B")
+        ]
+        poll = Poll(id="p1", title="Test", candidates=candidates)
+        
+        ballots = [
+            Ballot(voter_id="v1", poll_id="p1", choices=["c1"]),
+            Ballot(voter_id="v2", poll_id="p1", choices=["c2"]),
+        ]
+        
+        result = plurality_vote(poll, ballots)
+        
+        # Winner should be first in sorted list (alphabetically or by ID)
+        self.assertEqual(result.counts[0].votes, 1)
+        self.assertEqual(result.counts[1].votes, 1)
 
 
-def test_condorcet_voting():
-    """测试孔多塞投票"""
-    print("测试孔多塞投票...")
+class TestApprovalVoting(unittest.TestCase):
+    """Test approval voting method."""
     
-    # 创建一个明确的孔多塞赢家场景
-    # Alice 在所有一对一对决中都获胜
-    ballots = [
-        ['Alice', 'Bob', 'Charlie'],
-        ['Alice', 'Charlie', 'Bob'],
-        ['Bob', 'Alice', 'Charlie'],
-        ['Charlie', 'Alice', 'Bob'],
-    ]
+    def test_basic_approval(self):
+        """Test basic approval voting."""
+        candidates = [
+            Candidate(id="c1", name="A"),
+            Candidate(id="c2", name="B"),
+            Candidate(id="c3", name="C")
+        ]
+        poll = Poll(id="p1", title="Test", candidates=candidates, 
+                    method=VotingMethod.APPROVAL, max_choices=3)
+        
+        ballots = [
+            Ballot(voter_id="v1", poll_id="p1", choices=["c1", "c2"]),
+            Ballot(voter_id="v2", poll_id="p1", choices=["c1", "c3"]),
+            Ballot(voter_id="v3", poll_id="p1", choices=["c2"]),
+        ]
+        
+        result = approval_vote(poll, ballots)
+        
+        self.assertEqual(result.method, VotingMethod.APPROVAL)
+        
+        # Check counts (approvals)
+        counts = {c.candidate_id: c.votes for c in result.counts}
+        self.assertEqual(counts["c1"], 2)
+        self.assertEqual(counts["c2"], 2)
+        self.assertEqual(counts["c3"], 1)
     
-    # 孔多塞赢家检查
-    condorcet_winner = CondorcetVoting.find_condorcet_winner(ballots)
-    assert condorcet_winner == 'Alice', f"期望 Alice 是孔多塞赢家，实际 {condorcet_winner}"
-    
-    # Schulze 方法
-    winner, prefs, ranking = CondorcetVoting.vote(ballots)
-    assert winner == 'Alice'
-    assert ranking[0] == 'Alice'
-    
-    # 循环偏好场景（无孔多塞赢家）
-    # A > B > C > A
-    ballots_cycle = [
-        ['Alice', 'Bob', 'Charlie'],
-        ['Bob', 'Charlie', 'Alice'],
-        ['Charlie', 'Alice', 'Bob'],
-    ]
-    
-    condorcet_winner = CondorcetVoting.find_condorcet_winner(ballots_cycle)
-    assert condorcet_winner is None  # 应该没有孔多塞赢家
-    
-    # 但 Schulze 方法仍然能给出排名
-    winner, prefs, ranking = CondorcetVoting.vote(ballots_cycle)
-    assert len(ranking) == 3  # 应该能给出完整排名
-    
-    print("  ✓ 孔多塞投票测试通过")
+    def test_approval_max_choices(self):
+        """Test approval with max choices limit."""
+        candidates = [
+            Candidate(id="c1", name="A"),
+            Candidate(id="c2", name="B"),
+            Candidate(id="c3", name="C")
+        ]
+        poll = Poll(id="p1", title="Test", candidates=candidates, 
+                    method=VotingMethod.APPROVAL, max_choices=2)
+        
+        # Valid ballots within limit
+        ballots = [
+            Ballot(voter_id="v1", poll_id="p1", choices=["c1", "c2"]),
+            Ballot(voter_id="v2", poll_id="p1", choices=["c1"]),
+        ]
+        
+        # Validate should reject ballots over limit
+        b_over = Ballot(voter_id="v3", poll_id="p1", choices=["c1", "c2", "c3"])
+        valid, msg = poll.validate_ballot(b_over)
+        self.assertFalse(valid)
 
 
-def test_single_transferable_vote():
-    """测试STV"""
-    print("测试STV...")
+class TestRankedChoiceVoting(unittest.TestCase):
+    """Test ranked choice (IRV) voting."""
     
-    ballots = [
-        ['Alice', 'Bob', 'Charlie'],
-        ['Alice', 'Charlie', 'Bob'],
-        ['Alice', 'Bob', 'Charlie'],
-        ['Bob', 'Alice', 'Charlie'],
-        ['Bob', 'Charlie', 'Alice'],
-        ['Charlie', 'Alice', 'Bob'],
-        ['Charlie', 'Bob', 'Alice'],
-        ['Charlie', 'Alice', 'Bob'],
-    ]
+    def test_basic_ranked_choice(self):
+        """Test basic ranked choice with clear winner."""
+        candidates = [
+            Candidate(id="c1", name="A"),
+            Candidate(id="c2", name="B"),
+            Candidate(id="c3", name="C")
+        ]
+        poll = Poll(id="p1", title="Test", candidates=candidates, method=VotingMethod.RANKED_CHOICE)
+        
+        # A has majority in first round
+        ballots = [
+            Ballot(voter_id="v1", poll_id="p1", choices=[], rankings={"c1": 1, "c2": 2, "c3": 3}),
+            Ballot(voter_id="v2", poll_id="p1", choices=[], rankings={"c1": 1, "c2": 2, "c3": 3}),
+            Ballot(voter_id="v3", poll_id="p1", choices=[], rankings={"c2": 1, "c1": 2, "c3": 3}),
+            Ballot(voter_id="v4", poll_id="p1", choices=[], rankings={"c3": 1, "c2": 2, "c1": 3}),
+            Ballot(voter_id="v5", poll_id="p1", choices=[], rankings={"c1": 1, "c3": 2, "c2": 3}),
+        ]
+        
+        result = ranked_choice_vote(poll, ballots)
+        
+        self.assertEqual(result.method, VotingMethod.RANKED_CHOICE)
+        self.assertIsNotNone(result.rounds)
+        self.assertEqual(len(result.rounds), 1)  # Should win in first round (majority)
+        self.assertEqual(result.winners[0].id, "c1")
     
-    winners, stats = SingleTransferableVote.vote(ballots, seats=2)
-    # Alice 有 3 票，Charlie 有 3 票，Bob 有 2 票
-    # 配额 = (8 / 3) + 1 = 3（向下取整后加1）
-    assert 'Alice' in winners
-    
-    print("  ✓ STV测试通过")
+    def test_ranked_choice_elimination(self):
+        """Test ranked choice with elimination rounds."""
+        candidates = [
+            Candidate(id="c1", name="A"),
+            Candidate(id="c2", name="B"),
+            Candidate(id="c3", name="C")
+        ]
+        poll = Poll(id="p1", title="Test", candidates=candidates, method=VotingMethod.RANKED_CHOICE)
+        
+        # No majority first round, C eliminated, votes transfer
+        ballots = [
+            Ballot(voter_id="v1", poll_id="p1", choices=[], rankings={"c1": 1, "c2": 2, "c3": 3}),
+            Ballot(voter_id="v2", poll_id="p1", choices=[], rankings={"c2": 1, "c1": 2, "c3": 3}),
+            Ballot(voter_id="v3", poll_id="p1", choices=[], rankings={"c2": 1, "c3": 2, "c1": 3}),
+            Ballot(voter_id="v4", poll_id="p1", choices=[], rankings={"c3": 1, "c1": 2, "c2": 3}),
+        ]
+        
+        result = ranked_choice_vote(poll, ballots)
+        
+        # Should have multiple rounds
+        self.assertGreater(len(result.rounds), 1)
+        
+        # Check that someone won
+        self.assertEqual(len(result.winners), 1)
 
 
-def test_score_voting():
-    """测试评分投票"""
-    print("测试评分投票...")
+class TestBordaCount(unittest.TestCase):
+    """Test Borda count voting."""
     
-    ballots = [
-        {'Alice': 10, 'Bob': 8, 'Charlie': 5},
-        {'Alice': 9, 'Bob': 9, 'Charlie': 6},
-        {'Alice': 7, 'Bob': 10, 'Charlie': 8},
-    ]
-    
-    # 总分: Alice: 26, Bob: 27, Charlie: 19
-    winner, totals, avg = ScoreVoting.vote(ballots)
-    assert winner == 'Bob', f"期望 Bob 获胜，实际 {winner}"
-    assert totals['Alice'] == 26
-    assert totals['Bob'] == 27
-    assert totals['Charlie'] == 19
-    
-    # 平均分: Alice: 8.67, Bob: 9.0, Charlie: 6.33
-    winner_by_avg, avg = ScoreVoting.vote_by_average(ballots)
-    assert winner_by_avg == 'Bob'
-    
-    print("  ✓ 评分投票测试通过")
+    def test_basic_borda(self):
+        """Test basic Borda count."""
+        candidates = [
+            Candidate(id="c1", name="A"),
+            Candidate(id="c2", name="B"),
+            Candidate(id="c3", name="C")
+        ]
+        poll = Poll(id="p1", title="Test", candidates=candidates, method=VotingMethod.BORDA)
+        
+        ballots = [
+            Ballot(voter_id="v1", poll_id="p1", choices=[], rankings={"c1": 1, "c2": 2, "c3": 3}),
+            Ballot(voter_id="v2", poll_id="p1", choices=[], rankings={"c2": 1, "c1": 2, "c3": 3}),
+            Ballot(voter_id="v3", poll_id="p1", choices=[], rankings={"c1": 1, "c3": 2, "c2": 3}),
+        ]
+        
+        result = borda_count(poll, ballots)
+        
+        self.assertEqual(result.method, VotingMethod.BORDA)
+        
+        # Borda scores: n-rank, so 1st gets 2, 2nd gets 1, 3rd gets 0
+        # c1: 2+1+2 = 5
+        # c2: 1+2+0 = 3
+        # c3: 0+0+1 = 1
+        
+        counts = {c.candidate_id: c.votes for c in result.counts}
+        self.assertEqual(counts["c1"], 5)
+        self.assertEqual(counts["c2"], 3)
+        self.assertEqual(counts["c3"], 1)
+        self.assertEqual(result.winners[0].id, "c1")
 
 
-def test_voting_simulator():
-    """测试投票模拟器"""
-    print("测试投票模拟器...")
+class TestCondorcetVoting(unittest.TestCase):
+    """Test Condorcet voting."""
     
-    candidates = ['Alice', 'Bob', 'Charlie', 'David']
+    def test_condorcet_winner(self):
+        """Test with clear Condorcet winner."""
+        candidates = [
+            Candidate(id="c1", name="A"),
+            Candidate(id="c2", name="B"),
+            Candidate(id="c3", name="C")
+        ]
+        poll = Poll(id="p1", title="Test", candidates=candidates, method=VotingMethod.CONDORCET)
+        
+        # A beats everyone pairwise
+        ballots = [
+            Ballot(voter_id="v1", poll_id="p1", choices=[], rankings={"c1": 1, "c2": 2, "c3": 3}),
+            Ballot(voter_id="v2", poll_id="p1", choices=[], rankings={"c1": 1, "c3": 2, "c2": 3}),
+            Ballot(voter_id="v3", poll_id="p1", choices=[], rankings={"c2": 1, "c1": 2, "c3": 3}),
+        ]
+        
+        result = condorcet_vote(poll, ballots)
+        
+        self.assertEqual(result.method, VotingMethod.CONDORCET)
+        self.assertTrue(result.metadata["condorcet_winner_exists"])
+        self.assertEqual(result.winners[0].id, "c1")
     
-    # 生成简单多数选票
-    ballots = VotingSimulator.generate_ballots_plurality(100, candidates, 'uniform', seed=42)
-    assert len(ballots) == 100
-    assert all(b in candidates for b in ballots)
-    
-    # 正态分布
-    ballots = VotingSimulator.generate_ballots_plurality(100, candidates, 'normal', seed=42)
-    assert len(ballots) == 100
-    
-    # 生成排序选票
-    ballots = VotingSimulator.generate_ballots_ranked(50, candidates, 'uniform', seed=42)
-    assert len(ballots) == 50
-    for ballot in ballots:
-        assert len(ballot) == 4
-        assert set(ballot) == set(candidates)
-    
-    # 生成评分选票
-    ballots = VotingSimulator.generate_ballots_score(50, candidates, 10, 'uniform', seed=42)
-    assert len(ballots) == 50
-    for ballot in ballots:
-        assert all(0 <= ballot[c] <= 10 for c in candidates)
-    
-    print("  ✓ 投票模拟器测试通过")
+    def test_condorcet_cycle(self):
+        """Test Condorcet cycle (no clear winner)."""
+        candidates = [
+            Candidate(id="c1", name="A"),
+            Candidate(id="c2", name="B"),
+            Candidate(id="c3", name="C")
+        ]
+        poll = Poll(id="p1", title="Test", candidates=candidates, method=VotingMethod.CONDORCET)
+        
+        # Create a Condorcet cycle: A>B, B>C, C>A (each by 2-1)
+        # Use 9 voters for cleaner numbers
+        ballots = [
+            # 3 voters: A > B > C (A beats B 3-0, A beats C 3-0)
+            Ballot(voter_id="v1", poll_id="p1", choices=[], rankings={"c1": 1, "c2": 2, "c3": 3}),
+            Ballot(voter_id="v2", poll_id="p1", choices=[], rankings={"c1": 1, "c2": 2, "c3": 3}),
+            Ballot(voter_id="v3", poll_id="p1", choices=[], rankings={"c1": 1, "c2": 2, "c3": 3}),
+            # 3 voters: B > C > A (B beats C 3-0, B beats A 3-0)
+            Ballot(voter_id="v4", poll_id="p1", choices=[], rankings={"c2": 1, "c3": 2, "c1": 3}),
+            Ballot(voter_id="v5", poll_id="p1", choices=[], rankings={"c2": 1, "c3": 2, "c1": 3}),
+            Ballot(voter_id="v6", poll_id="p1", choices=[], rankings={"c2": 1, "c3": 2, "c1": 3}),
+            # 3 voters: C > A > B (C beats A 3-0, C beats B 3-0)
+            Ballot(voter_id="v7", poll_id="p1", choices=[], rankings={"c3": 1, "c1": 2, "c2": 3}),
+            Ballot(voter_id="v8", poll_id="p1", choices=[], rankings={"c3": 1, "c1": 2, "c2": 3}),
+            Ballot(voter_id="v9", poll_id="p1", choices=[], rankings={"c3": 1, "c1": 2, "c2": 3}),
+        ]
+        
+        # Pairwise results:
+        # A vs B: 6 voters prefer A (v1-v3, v7-v9), 3 prefer B (v4-v6) -> A wins 6-3
+        # B vs C: 6 voters prefer B (v1-v3, v4-v6), 3 prefer C (v7-v9) -> B wins 6-3
+        # A vs C: 3 voters prefer A (v1-v3), 6 prefer C (v4-v6, v7-v9) -> C wins 6-3
+        # Cycle: A>B, B>C, C>A - no Condorcet winner
+        
+        result = condorcet_vote(poll, ballots)
+        
+        # No Condorcet winner, should use Copeland
+        self.assertFalse(result.metadata["condorcet_winner_exists"])
+        self.assertEqual(result.metadata["resolution_method"], "copeland")
+        
+        # Should still have a winner via Copeland (each wins 1 pairwise, ties resolved by copeland)
+        self.assertEqual(len(result.winners), 1)
 
 
-def test_convenience_functions():
-    """测试便捷函数"""
-    print("测试便捷函数...")
+class TestScoreVoting(unittest.TestCase):
+    """Test score/range voting."""
     
-    # plurality
-    winner = plurality(['Alice', 'Bob', 'Alice', 'Bob', 'Alice'])
-    assert winner == 'Alice'
-    
-    # ranked_choice
-    winner = ranked_choice([
-        ['Alice', 'Bob'],
-        ['Alice', 'Bob'],
-        ['Bob', 'Alice'],
-    ])
-    assert winner == 'Alice'
-    
-    # borda
-    winner = borda([
-        ['Alice', 'Bob', 'Charlie'],
-        ['Bob', 'Alice', 'Charlie'],
-    ], ['Alice', 'Bob', 'Charlie'])
-    assert winner in ['Alice', 'Bob']
-    
-    # approval
-    winner = approval([
-        ['Alice', 'Bob'],
-        ['Bob', 'Charlie'],
-        ['Alice'],
-    ], ['Alice', 'Bob', 'Charlie'])
-    assert winner in ['Alice', 'Bob']
-    
-    # score
-    winner = score([
-        {'Alice': 10, 'Bob': 5},
-        {'Alice': 8, 'Bob': 9},
-    ])
-    assert winner == 'Alice'  # Alice: 18, Bob: 14
-    
-    print("  ✓ 便捷函数测试通过")
+    def test_basic_score(self):
+        """Test basic score voting."""
+        candidates = [
+            Candidate(id="c1", name="A"),
+            Candidate(id="c2", name="B"),
+            Candidate(id="c3", name="C")
+        ]
+        poll = Poll(id="p1", title="Test", candidates=candidates, 
+                    method=VotingMethod.SCORE, min_score=0, max_score=5)
+        
+        ballots = [
+            Ballot(voter_id="v1", poll_id="p1", choices=[], scores={"c1": 5, "c2": 3, "c3": 0}),
+            Ballot(voter_id="v2", poll_id="p1", choices=[], scores={"c1": 4, "c2": 4, "c3": 1}),
+            Ballot(voter_id="v3", poll_id="p1", choices=[], scores={"c1": 5, "c2": 2, "c3": 2}),
+        ]
+        
+        result = score_vote(poll, ballots)
+        
+        self.assertEqual(result.method, VotingMethod.SCORE)
+        
+        # Total scores: c1=14, c2=9, c3=3
+        counts = {c.candidate_id: c.votes for c in result.counts}
+        self.assertEqual(counts["c1"], 14)
+        self.assertEqual(counts["c2"], 9)
+        self.assertEqual(counts["c3"], 3)
+        self.assertEqual(result.winners[0].id, "c1")
 
 
-def test_edge_cases():
-    """测试边界情况"""
-    print("测试边界情况...")
+class TestSTVVoting(unittest.TestCase):
+    """Test Single Transferable Vote."""
     
-    # 单候选人
-    ballots = [['Alice'], ['Alice'], ['Alice']]
-    winner, rounds = RankedChoiceVoting.vote(ballots, ['Alice'])
-    assert winner == 'Alice'
+    def test_basic_stv(self):
+        """Test basic STV for single seat (same as IRV)."""
+        candidates = [
+            Candidate(id="c1", name="A"),
+            Candidate(id="c2", name="B"),
+            Candidate(id="c3", name="C")
+        ]
+        poll = Poll(id="p1", title="Test", candidates=candidates, 
+                    method=VotingMethod.STV, seats=1)
+        
+        ballots = [
+            Ballot(voter_id="v1", poll_id="p1", choices=[], rankings={"c1": 1, "c2": 2, "c3": 3}),
+            Ballot(voter_id="v2", poll_id="p1", choices=[], rankings={"c1": 1, "c2": 2, "c3": 3}),
+            Ballot(voter_id="v3", poll_id="p1", choices=[], rankings={"c2": 1, "c1": 2, "c3": 3}),
+        ]
+        
+        result = stv_vote(poll, ballots)
+        
+        self.assertEqual(result.method, VotingMethod.STV)
+        self.assertEqual(len(result.winners), 1)
+        self.assertEqual(result.metadata["seats"], 1)
     
-    # 所有选票相同
-    ballots = [
-        ['Alice', 'Bob', 'Charlie'],
-        ['Alice', 'Bob', 'Charlie'],
-        ['Alice', 'Bob', 'Charlie'],
-    ]
-    winner, rounds = RankedChoiceVoting.vote(ballots)
-    assert winner == 'Alice'
-    
-    # 波达计数 - 单个候选人
-    winner, scores, _ = BordaCount.vote([['Alice']], ['Alice'])
-    assert winner == 'Alice'
-    assert scores['Alice'] == 0  # n-1 = 0
-    
-    # STV - 席位数等于候选人数
-    ballots = [['Alice', 'Bob'], ['Bob', 'Alice']]
-    winners, _ = SingleTransferableVote.vote(ballots, seats=2)
-    assert len(winners) == 2
-    
-    print("  ✓ 边界情况测试通过")
+    def test_multi_seat_stv(self):
+        """Test STV for multiple seats."""
+        candidates = [
+            Candidate(id="c1", name="A"),
+            Candidate(id="c2", name="B"),
+            Candidate(id="c3", name="C"),
+            Candidate(id="c4", name="D")
+        ]
+        poll = Poll(id="p1", title="Test", candidates=candidates, 
+                    method=VotingMethod.STV, seats=2)
+        
+        ballots = []
+        for i in range(10):
+            rankings = {}
+            shuffled = ["c1", "c2", "c3", "c4"]
+            import random
+            random.shuffle(shuffled)
+            for rank, cid in enumerate(shuffled, 1):
+                rankings[cid] = rank
+            ballots.append(Ballot(voter_id=f"v{i}", poll_id="p1", choices=[], rankings=rankings))
+        
+        result = stv_vote(poll, ballots)
+        
+        self.assertEqual(result.method, VotingMethod.STV)
+        self.assertEqual(len(result.winners), 2)
+        self.assertEqual(result.metadata["seats"], 2)
 
 
-def test_real_world_scenario():
-    """测试真实场景"""
-    print("测试真实选举场景...")
+class TestHelperFunctions(unittest.TestCase):
+    """Test helper functions."""
     
-    # 模拟真实选举：3位候选人，100位选民
-    candidates = ['张三', '李四', '王五']
+    def test_create_poll(self):
+        """Test poll creation helper."""
+        poll = create_poll(
+            "Test Poll",
+            ["Option A", "Option B", "Option C"],
+            method=VotingMethod.APPROVAL
+        )
+        
+        self.assertEqual(poll.title, "Test Poll")
+        self.assertEqual(len(poll.candidates), 3)
+        self.assertEqual(poll.method, VotingMethod.APPROVAL)
+        self.assertIsNotNone(poll.id)
     
-    # 生成选民偏好
-    # 40% 偏好 张三 > 李四 > 王五
-    # 35% 偏好 李四 > 王五 > 张三
-    # 25% 偏好 王五 > 李四 > 张三
+    def test_create_ballot(self):
+        """Test ballot creation helper."""
+        ballot = create_ballot(
+            poll_id="p1",
+            voter_id="v1",
+            choices=["c1", "c2"]
+        )
+        
+        self.assertEqual(ballot.poll_id, "p1")
+        self.assertEqual(ballot.voter_id, "v1")
+        self.assertEqual(ballot.choices, ["c1", "c2"])
     
-    ballots_ranked = (
-        [['张三', '李四', '王五']] * 40 +
-        [['李四', '王五', '张三']] * 35 +
-        [['王五', '李四', '张三']] * 25
-    )
+    def test_generate_test_ballots(self):
+        """Test test ballot generation."""
+        poll = create_poll("Test", ["A", "B", "C"], method=VotingMethod.PLURALITY)
+        ballots = generate_test_ballots(poll, 50)
+        
+        self.assertEqual(len(ballots), 50)
+        for b in ballots:
+            self.assertEqual(b.poll_id, poll.id)
+            self.assertEqual(len(b.choices), 1)
     
-    ballots_plurality = ['张三'] * 40 + ['李四'] * 35 + ['王五'] * 25
+    def test_generate_ranked_ballots(self):
+        """Test generating ranked ballots."""
+        poll = create_poll("Test", ["A", "B", "C"], method=VotingMethod.RANKED_CHOICE)
+        ballots = generate_test_ballots(poll, 10)
+        
+        for b in ballots:
+            self.assertIsNotNone(b.rankings)
+            self.assertEqual(len(b.rankings), 3)
     
-    # 简单多数
-    winner_p, counts = PluralityVoting.vote(ballots_plurality)
-    assert winner_p == '张三'
-    print(f"  简单多数: {winner_p} 获胜，票数 {counts}")
+    def test_get_voting_method_info(self):
+        """Test method info retrieval."""
+        info = get_voting_method_info(VotingMethod.PLURALITY)
+        
+        self.assertIn("name", info)
+        self.assertIn("description", info)
+        self.assertIn("pros", info)
+        self.assertIn("cons", info)
     
-    # 排序选择
-    winner_rc, rounds = RankedChoiceVoting.vote(ballots_ranked)
-    # 第一轮：张三 40，李四 35，王五 25
-    # 王五被淘汰，票转给李四
-    # 第二轮：张三 40，李四 60
-    assert winner_rc == '李四'
-    print(f"  排序选择: {winner_rc} 获胜，经过 {len(rounds)} 轮")
+    def test_validate_poll_config(self):
+        """Test poll config validation."""
+        # Valid poll
+        poll = create_poll("Test", ["A", "B"])
+        valid, issues = validate_poll_config(poll)
+        self.assertTrue(valid)
+        self.assertEqual(len(issues), 0)
+        
+        # Invalid: too few candidates
+        candidates = [Candidate(id="c1", name="A")]
+        poll = Poll(id="p1", title="Test", candidates=candidates)
+        valid, issues = validate_poll_config(poll)
+        self.assertFalse(valid)
+        self.assertIn("At least 2 candidates required", issues)
     
-    # 波达计数 (n=3)
-    # 张三: 2*40 + 0*35 + 0*25 = 80
-    # 李四: 1*40 + 2*35 + 1*25 = 140
-    # 王五: 0*40 + 1*35 + 2*25 = 85
-    winner_b, scores, _ = BordaCount.vote(ballots_ranked)
-    assert winner_b == '李四'
-    print(f"  波达计数: {winner_b} 获胜，分数 {scores}")
-    
-    # 孔多塞
-    winner_c, _, ranking = CondorcetVoting.vote(ballots_ranked)
-    print(f"  孔多塞: {winner_c} 获胜，排名 {ranking}")
-    
-    print("  ✓ 真实选举场景测试通过")
+    def test_get_supported_methods(self):
+        """Test getting supported methods."""
+        methods = get_supported_methods()
+        
+        self.assertIn(VotingMethod.PLURALITY, methods)
+        self.assertIn(VotingMethod.RANKED_CHOICE, methods)
+        self.assertIn(VotingMethod.STV, methods)
 
 
-def run_all_tests():
-    """运行所有测试"""
-    print("=" * 50)
-    print("投票工具测试套件")
-    print("=" * 50)
-    print()
+class TestCountVotes(unittest.TestCase):
+    """Test unified count_votes function."""
     
-    test_plurality_voting()
-    test_ranked_choice_voting()
-    test_borda_count()
-    test_approval_voting()
-    test_condorcet_voting()
-    test_single_transferable_vote()
-    test_score_voting()
-    test_voting_simulator()
-    test_convenience_functions()
-    test_edge_cases()
-    test_real_world_scenario()
+    def test_count_votes_routing(self):
+        """Test count_votes routes to correct method."""
+        poll = create_poll("Test", ["A", "B"], method=VotingMethod.PLURALITY)
+        ballots = generate_test_ballots(poll, 20)
+        
+        result = count_votes(poll, ballots)
+        self.assertEqual(result.method, VotingMethod.PLURALITY)
+        
+        poll.method = VotingMethod.APPROVAL
+        ballots = generate_test_ballots(poll, 20)
+        result = count_votes(poll, ballots)
+        self.assertEqual(result.method, VotingMethod.APPROVAL)
     
-    print()
-    print("=" * 50)
-    print("所有测试通过! ✓")
-    print("=" * 50)
+    def test_count_votes_invalid_ballot(self):
+        """Test count_votes rejects invalid ballots."""
+        poll = create_poll("Test", ["A", "B"])
+        
+        # Ballot with invalid candidate
+        ballot = Ballot(voter_id="v1", poll_id=poll.id, choices=["invalid_id"])
+        
+        with self.assertRaises(ValueError):
+            count_votes(poll, [ballot])
+
+
+class TestElectionResult(unittest.TestCase):
+    """Test ElectionResult class."""
+    
+    def test_result_summary(self):
+        """Test result summary generation."""
+        poll = create_poll("Test", ["A", "B", "C"])
+        ballots = generate_test_ballots(poll, 10)
+        result = count_votes(poll, ballots)
+        
+        summary = result.to_summary()
+        
+        self.assertIn("Test", summary)
+        self.assertIn("plurality", summary)
+        self.assertIn("Total Votes: 10", summary)
+    
+    def test_get_winner(self):
+        """Test getting winner from result."""
+        poll = create_poll("Test", ["A", "B"])
+        ballots = generate_test_ballots(poll, 5)
+        result = count_votes(poll, ballots)
+        
+        winner = result.get_winner()
+        self.assertIsNotNone(winner)
 
 
 if __name__ == '__main__':
-    run_all_tests()
+    unittest.main(verbosity=2)

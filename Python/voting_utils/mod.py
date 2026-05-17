@@ -1,933 +1,1193 @@
-"""
-Voting Utilities - 多种投票算法实现
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""AllToolkit - Voting Utilities Module
 
-包含以下投票方法：
-1. Plurality Voting (简单多数/领先者获胜)
-2. Ranked Choice Voting (排序选择投票/即时决选)
-3. Borda Count (波达计数法)
-4. Condorcet Method (孔多塞法 - Schulze算法)
-5. Approval Voting (批准投票)
-6. Single Transferable Vote (单记可转移投票 STV)
-7. Score Voting (评分投票)
+Comprehensive voting and poll utilities for Python with zero external dependencies.
+Supports multiple voting methods including plurality, ranked choice (instant runoff),
+Borda count, approval voting, and proportional representation calculations.
 
-所有算法零外部依赖，纯Python实现。
+Author: AllToolkit
+License: MIT
 """
 
-from typing import List, Dict, Tuple, Optional, Set, Any
-from collections import defaultdict
 import random
-import copy
+import hashlib
+from typing import List, Dict, Any, Optional, Tuple, Union, Callable
+from dataclasses import dataclass, field
+from enum import Enum
+from collections import defaultdict
 
 
-class PluralityVoting:
-    """
-    简单多数投票（领先者获胜）
-    每个选民投一票，得票最多者获胜
-    """
-    
-    @staticmethod
-    def vote(ballots: List[str]) -> Tuple[str, Dict[str, int]]:
-        """
-        计算简单多数投票结果
-        
-        Args:
-            ballots: 选票列表，每张选票是一个候选人名称
-            
-        Returns:
-            (获胜者, 各候选人得票数)
-        """
-        counts = defaultdict(int)
-        for ballot in ballots:
-            if ballot:  # 忽略空票
-                counts[ballot] += 1
-        
-        if not counts:
-            return None, {}
-        
-        winner = max(counts.keys(), key=lambda x: counts[x])
-        return winner, dict(counts)
-    
-    @staticmethod
-    def vote_with_tiebreaker(ballots: List[str], 
-                             tiebreaker: str = 'random',
-                             seed: Optional[int] = None) -> Tuple[str, Dict[str, int], List[str]]:
-        """
-        带平局处理的多数投票
-        
-        Args:
-            ballots: 选票列表
-            tiebreaker: 平局处理方式 ('random' 随机, 'alphabetical' 字母顺序)
-            seed: 随机种子
-            
-        Returns:
-            (获胜者, 各候选人得票数, 平局候选人列表)
-        """
-        counts = defaultdict(int)
-        for ballot in ballots:
-            if ballot:
-                counts[ballot] += 1
-        
-        if not counts:
-            return None, {}, []
-        
-        max_votes = max(counts.values())
-        winners = [c for c, v in counts.items() if v == max_votes]
-        
-        if len(winners) == 1:
-            return winners[0], dict(counts), []
-        
-        # 处理平局
-        if tiebreaker == 'alphabetical':
-            winner = sorted(winners)[0]
-        else:
-            if seed is not None:
-                random.seed(seed)
-            winner = random.choice(winners)
-        
-        return winner, dict(counts), winners
+# =============================================================================
+# Enums
+# =============================================================================
+
+class VotingMethod(Enum):
+    """Voting method types."""
+    PLURALITY = "plurality"           # Single choice, most votes wins
+    APPROVAL = "approval"              # Multiple choices allowed
+    RANKED_CHOICE = "ranked_choice"    # Instant runoff voting (IRV)
+    BORDA = "borda"                    # Borda count method
+    STV = "stv"                        # Single transferable vote (proportional)
+    CONDORCET = "condorcet"            # Condorcet method (pairwise comparison)
+    SCORE = "score"                    # Score/range voting
 
 
-class RankedChoiceVoting:
-    """
-    排序选择投票（即时决选投票 - IRV）
-    选民按偏好排序候选人，依次淘汰得票最少的候选人
-    """
-    
-    @staticmethod
-    def vote(ballots: List[List[str]], 
-             candidates: Optional[List[str]] = None) -> Tuple[str, List[Dict]]:
-        """
-        执行排序选择投票
-        
-        Args:
-            ballots: 选票列表，每张选票是候选人的排序列表（最偏好在前）
-            candidates: 所有候选人列表（可选，从选票推断）
-            
-        Returns:
-            (获胜者, 各轮投票详情列表)
-        """
-        if not ballots:
-            return None, []
-        
-        # 确定候选人
-        if candidates is None:
-            candidates = list(set(c for ballot in ballots for c in ballot if c))
-        
-        if not candidates:
-            return None, []
-        
-        candidates = set(candidates)
-        eliminated = set()
-        rounds = []
-        
-        while True:
-            # 统计当前首选票
-            counts = defaultdict(int)
-            for ballot in ballots:
-                for choice in ballot:
-                    if choice and choice in candidates and choice not in eliminated:
-                        counts[choice] += 1
-                        break
-            
-            total = sum(counts.values())
-            if total == 0:
-                return None, rounds
-            
-            # 记录本轮结果
-            round_result = {
-                'counts': dict(counts),
-                'total': total,
-                'eliminated': list(eliminated)
-            }
-            rounds.append(round_result)
-            
-            # 检查是否有人过半
-            for candidate, votes in counts.items():
-                if votes > total / 2:
-                    return candidate, rounds
-            
-            # 淘汰得票最少的候选人
-            min_votes = min(counts.values())
-            to_eliminate = [c for c, v in counts.items() if v == min_votes]
-            
-            # 如果所有人票数相同，随机淘汰一个
-            if len(to_eliminate) == len(counts):
-                to_eliminate = [random.choice(to_eliminate)]
-            
-            for c in to_eliminate:
-                eliminated.add(c)
-            
-            # 检查是否只剩一人
-            remaining = candidates - eliminated
-            if len(remaining) == 1:
-                return list(remaining)[0], rounds
-            elif len(remaining) == 0:
-                return None, rounds
+class PollStatus(Enum):
+    """Poll status."""
+    DRAFT = "draft"
+    OPEN = "open"
+    CLOSED = "closed"
+    TALLYING = "tallying"
+    FINALIZED = "finalized"
 
 
-class BordaCount:
-    """
-    波达计数法
-    选民对候选人排序，根据排名赋分，总分最高者获胜
-    """
+# =============================================================================
+# Data Classes
+# =============================================================================
+
+@dataclass
+class Candidate:
+    """Poll candidate/option."""
+    id: str
+    name: str
+    description: Optional[str] = None
+    color: Optional[str] = None
     
-    @staticmethod
-    def vote(ballots: List[List[str]], 
-             candidates: Optional[List[str]] = None,
-             scoring: str = 'standard') -> Tuple[str, Dict[str, int], List[Dict]]:
-        """
-        执行波达计数投票
-        
-        Args:
-            ballots: 选票列表，每张选票是候选人的排序列表
-            candidates: 所有候选人列表
-            scoring: 计分方式 
-                - 'standard': n-1, n-2, ..., 0 (标准)
-                - 'dowdall': 1, 1/2, 1/3, ... (道达尔制)
-                - 'custom': 自定义分数列表
-                
-        Returns:
-            (获胜者, 各候选人总分, 各选票得分详情)
-        """
-        if not ballots:
-            return None, {}, []
-        
-        # 确定候选人
-        if candidates is None:
-            candidates = list(set(c for ballot in ballots for c in ballot if c))
-        
-        if not candidates:
-            return None, {}, []
-        
-        n = len(candidates)
-        scores = defaultdict(int)
-        details = []
-        
-        for ballot in ballots:
-            ballot_scores = {}
-            for rank, candidate in enumerate(ballot):
-                if candidate and candidate in candidates:
-                    if scoring == 'standard':
-                        score = max(0, n - rank - 1)
-                    elif scoring == 'dowdall':
-                        score = 1 / (rank + 1) if rank < n else 0
-                    else:
-                        score = max(0, n - rank - 1)
-                    
-                    scores[candidate] += score
-                    ballot_scores[candidate] = score
-            
-            details.append({
-                'ballot': ballot,
-                'scores': ballot_scores
-            })
-        
-        if not scores:
-            return None, {}, details
-        
-        winner = max(scores.keys(), key=lambda x: scores[x])
-        return winner, dict(scores), details
+    def __hash__(self):
+        return hash(self.id)
+    
+    def __eq__(self, other):
+        if isinstance(other, Candidate):
+            return self.id == other.id
+        return False
 
 
-class ApprovalVoting:
-    """
-    批准投票
-    选民可以批准多个候选人，获得最多批准的候选人获胜
-    """
+@dataclass
+class Ballot:
+    """A single voter's ballot."""
+    voter_id: str
+    poll_id: str
+    choices: List[str]  # For plurality/approval: list of candidate ids
+    rankings: Optional[Dict[str, int]] = None  # For ranked methods: {candidate_id: rank}
+    scores: Optional[Dict[str, int]] = None  # For score voting: {candidate_id: score}
+    timestamp: Optional[float] = None
+    signature: Optional[str] = None  # Hash for verification
     
-    @staticmethod
-    def vote(ballots: List[List[str]], 
-             candidates: Optional[List[str]] = None) -> Tuple[str, Dict[str, int]]:
-        """
-        执行批准投票
-        
-        Args:
-            ballots: 选票列表，每张选票是被批准的候选人列表
-            candidates: 所有候选人列表
-            
-        Returns:
-            (获胜者, 各候选人批准数)
-        """
-        if not ballots:
-            return None, {}
-        
-        # 确定候选人
-        if candidates is None:
-            candidates = list(set(c for ballot in ballots for c in ballot if c))
-        
-        if not candidates:
-            return None, {}
-        
-        approvals = defaultdict(int)
-        for ballot in ballots:
-            for candidate in ballot:
-                if candidate and candidate in candidates:
-                    approvals[candidate] += 1
-        
-        if not approvals:
-            return None, {}
-        
-        winner = max(approvals.keys(), key=lambda x: approvals[x])
-        return winner, dict(approvals)
+    def __post_init__(self):
+        if self.timestamp is None:
+            import time
+            self.timestamp = time.time()
+        if self.signature is None:
+            self.signature = self._generate_signature()
     
-    @staticmethod
-    def vote_with_threshold(ballots: List[List[str]], 
-                           threshold: int,
-                           candidates: Optional[List[str]] = None) -> Tuple[List[str], Dict[str, int]]:
-        """
-        带阈值的批准投票（选出所有达到阈值的候选人）
-        
-        Args:
-            ballots: 选票列表
-            threshold: 批准数阈值
-            candidates: 所有候选人列表
-            
-        Returns:
-            (获胜者列表, 各候选人批准数)
-        """
-        winner, approvals = ApprovalVoting.vote(ballots, candidates)
-        if not approvals:
-            return [], {}
-        
-        winners = [c for c, v in approvals.items() if v >= threshold]
-        return winners, approvals
+    def _generate_signature(self) -> str:
+        """Generate ballot signature for verification."""
+        data = f"{self.voter_id}:{self.poll_id}:{','.join(self.choices)}"
+        if self.rankings:
+            data += f":{','.join(f'{k}={v}' for k, v in sorted(self.rankings.items()))}"
+        if self.scores:
+            data += f":{','.join(f'{k}={v}' for k, v in sorted(self.scores.items()))}"
+        return hashlib.sha256(data.encode()).hexdigest()[:16]
+    
+    def validate(self) -> bool:
+        """Validate ballot integrity."""
+        return self.signature == self._generate_signature()
 
 
-class CondorcetVoting:
-    """
-    孔多塞投票法
-    使用Schulze方法计算获胜者
-    """
+@dataclass
+class Poll:
+    """Poll definition."""
+    id: str
+    title: str
+    candidates: List[Candidate]  # Must be before any default fields
+    description: Optional[str] = None
+    method: VotingMethod = VotingMethod.PLURALITY
+    status: PollStatus = PollStatus.DRAFT
+    max_choices: int = 1  # For approval voting
+    min_score: int = 0  # For score voting
+    max_score: int = 5  # For score voting
+    seats: int = 1  # For STV (multi-seat elections)
+    created_at: Optional[float] = None
+    closes_at: Optional[float] = None
+    allow_anonymous: bool = False
+    require_verification: bool = False
     
-    @staticmethod
-    def _build_preference_matrix(ballots: List[List[str]], 
-                                  candidates: List[str]) -> Dict[Tuple[str, str], int]:
-        """构建候选人对决偏好矩阵"""
-        preferences = defaultdict(int)
-        
-        for ballot in ballots:
-            for i, c1 in enumerate(ballot):
-                if c1 not in candidates:
-                    continue
-                for j, c2 in enumerate(ballot):
-                    if i >= j or c2 not in candidates:
-                        continue
-                    # c1 排在 c2 前面
-                    preferences[(c1, c2)] += 1
-        
-        return dict(preferences)
+    def __post_init__(self):
+        if self.created_at is None:
+            import time
+            self.created_at = time.time()
+        if self.id is None or self.id == "":
+            self.id = self._generate_id()
     
-    @staticmethod
-    def _schulze_method(candidates: List[str], 
-                        preferences: Dict[Tuple[str, str], int]) -> List[str]:
-        """
-        Schulze方法计算排名
-        
-        返回按排名排序的候选人列表
-        """
-        n = len(candidates)
-        if n == 0:
-            return []
-        if n == 1:
-            return candidates
-        
-        # 构建强度矩阵
-        strength = {}
-        for c1 in candidates:
-            for c2 in candidates:
-                if c1 != c2:
-                    pref = preferences.get((c1, c2), 0)
-                    pref_rev = preferences.get((c2, c1), 0)
-                    strength[(c1, c2)] = pref if pref > pref_rev else 0
-        
-        # Floyd-Warshall 变体
-        for ci in candidates:
-            for c1 in candidates:
-                if ci == c1:
-                    continue
-                for c2 in candidates:
-                    if ci == c2 or c1 == c2:
-                        continue
-                    s1 = strength.get((c1, ci), 0)
-                    s2 = strength.get((ci, c2), 0)
-                    current = strength.get((c1, c2), 0)
-                    strength[(c1, c2)] = max(current, min(s1, s2))
-        
-        # 计算每个候选人的胜利数
-        wins = {c: 0 for c in candidates}
-        for c1 in candidates:
-            for c2 in candidates:
-                if c1 != c2:
-                    s1 = strength.get((c1, c2), 0)
-                    s2 = strength.get((c2, c1), 0)
-                    if s1 > s2:
-                        wins[c1] += 1
-        
-        # 按胜利数排序
-        sorted_candidates = sorted(candidates, key=lambda x: wins[x], reverse=True)
-        return sorted_candidates
+    def _generate_id(self) -> str:
+        """Generate unique poll ID."""
+        import time
+        data = f"{self.title}:{time.time()}"
+        return hashlib.sha256(data.encode()).hexdigest()[:12]
     
-    @staticmethod
-    def vote(ballots: List[List[str]], 
-             candidates: Optional[List[str]] = None) -> Tuple[Optional[str], Dict, List[str]]:
-        """
-        执行孔多塞投票（Schulze方法）
-        
-        Args:
-            ballots: 选票列表，每张选票是候选人的排序列表
-            candidates: 所有候选人列表
-            
-        Returns:
-            (获胜者, 对决矩阵, 完整排名)
-        """
-        if not ballots:
-            return None, {}, []
-        
-        # 确定候选人
-        if candidates is None:
-            candidates = list(set(c for ballot in ballots for c in ballot if c))
-        
-        if not candidates:
-            return None, {}, []
-        
-        candidates = list(candidates)
-        preferences = CondorcetVoting._build_preference_matrix(ballots, candidates)
-        ranking = CondorcetVoting._schulze_method(candidates, preferences)
-        
-        winner = ranking[0] if ranking else None
-        return winner, preferences, ranking
-    
-    @staticmethod
-    def find_condorcet_winner(ballots: List[List[str]], 
-                              candidates: Optional[List[str]] = None) -> Optional[str]:
-        """
-        查找孔多塞赢家（在所有一对一对决中都获胜的候选人）
-        可能不存在
-        
-        Args:
-            ballots: 选票列表
-            candidates: 所有候选人列表
-            
-        Returns:
-            孔多塞赢家（如果存在），否则返回None
-        """
-        if not ballots:
-            return None
-        
-        if candidates is None:
-            candidates = list(set(c for ballot in ballots for c in ballot if c))
-        
-        if not candidates:
-            return None
-        
-        preferences = CondorcetVoting._build_preference_matrix(ballots, candidates)
-        
-        for c1 in candidates:
-            is_winner = True
-            for c2 in candidates:
-                if c1 == c2:
-                    continue
-                pref = preferences.get((c1, c2), 0)
-                pref_rev = preferences.get((c2, c1), 0)
-                if pref <= pref_rev:
-                    is_winner = False
-                    break
-            if is_winner:
-                return c1
-        
+    def get_candidate_by_id(self, candidate_id: str) -> Optional[Candidate]:
+        """Find candidate by ID."""
+        for c in self.candidates:
+            if c.id == candidate_id:
+                return c
         return None
-
-
-class SingleTransferableVote:
-    """
-    单记可转移投票（STV）
-    用于多席位选举，实现比例代表
-    """
     
-    @staticmethod
-    def vote(ballots: List[List[str]], 
-             seats: int,
-             candidates: Optional[List[str]] = None) -> Tuple[List[str], Dict]:
-        """
-        执行STV投票
+    def validate_ballot(self, ballot: Ballot) -> Tuple[bool, str]:
+        """Validate a ballot against poll rules."""
+        # Check poll ID matches
+        if ballot.poll_id != self.id:
+            return False, "Poll ID mismatch"
         
-        Args:
-            ballots: 选票列表
-            seats: 席位数
-            candidates: 所有候选人列表
-            
-        Returns:
-            (当选者列表, 详细统计信息)
-        """
-        if not ballots or seats <= 0:
-            return [], {}
+        # Check all choices are valid candidates
+        for choice in ballot.choices:
+            if self.get_candidate_by_id(choice) is None:
+                return False, f"Invalid candidate: {choice}"
         
-        # 确定候选人
-        if candidates is None:
-            candidates = list(set(c for ballot in ballots for c in ballot if c))
+        # Check max choices for approval voting
+        if self.method == VotingMethod.APPROVAL and len(ballot.choices) > self.max_choices:
+            return False, f"Too many choices (max: {self.max_choices})"
         
-        if not candidates:
-            return [], {}
+        # Check rankings for ranked methods
+        if self.method in [VotingMethod.RANKED_CHOICE, VotingMethod.BORDA, VotingMethod.STV]:
+            if ballot.rankings is None:
+                return False, "Rankings required for this voting method"
+            for cid in ballot.rankings:
+                if self.get_candidate_by_id(cid) is None:
+                    return False, f"Invalid candidate in rankings: {cid}"
         
-        total_votes = len(ballots)
-        quota = (total_votes // (seats + 1)) + 1  # Droop 配额
+        # Check scores for score voting
+        if self.method == VotingMethod.SCORE:
+            if ballot.scores is None:
+                return False, "Scores required for score voting"
+            for cid, score in ballot.scores.items():
+                if self.get_candidate_by_id(cid) is None:
+                    return False, f"Invalid candidate in scores: {cid}"
+                if score < self.min_score or score > self.max_score:
+                    return False, f"Score out of range: {score}"
         
-        elected = []
-        eliminated = set()
-        vote_counts = {c: 0 for c in candidates}
-        stats = {
-            'quota': quota,
-            'rounds': [],
-            'total_votes': total_votes
-        }
+        return True, "Valid"
+
+
+@dataclass
+class VoteCount:
+    """Vote count for a candidate."""
+    candidate_id: str
+    candidate_name: str
+    votes: int = 0
+    percentage: float = 0.0
+    rank: int = 0
+    eliminated: bool = False
+    transferred_votes: int = 0  # For STV/IRV
+
+
+@dataclass
+class ElectionResult:
+    """Election/poll result."""
+    poll_id: str
+    poll_title: str
+    method: VotingMethod
+    winners: List[Candidate]
+    counts: List[VoteCount]
+    total_votes: int
+    rounds: Optional[List[Dict[str, Any]]] = None  # For multi-round methods
+    pairwise_matrix: Optional[Dict[str, Dict[str, int]]] = None  # For Condorcet
+    finalized_at: Optional[float] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    
+    def __post_init__(self):
+        if self.finalized_at is None:
+            import time
+            self.finalized_at = time.time()
+    
+    def get_winner(self) -> Optional[Candidate]:
+        """Get the winner (first place)."""
+        if self.winners:
+            return self.winners[0]
+        return None
+    
+    def to_summary(self) -> str:
+        """Generate text summary of results."""
+        lines = [
+            f"=== {self.poll_title} ===",
+            f"Method: {self.method.value}",
+            f"Total Votes: {self.total_votes}",
+            "",
+            "Results:",
+        ]
+        for count in sorted(self.counts, key=lambda c: c.rank):
+            status = " [WINNER]" if count.candidate_id in [w.id for w in self.winners] else ""
+            if count.eliminated:
+                status = " [ELIMINATED]"
+            lines.append(f"  {count.rank}. {count.candidate_name}: {count.votes} ({count.percentage:.1f}%){status}")
         
-        # 初始化：统计第一选择票
-        current_ballots = [list(b) for b in ballots]  # 复制选票
+        return "\n".join(lines)
+
+
+# =============================================================================
+# Voting Methods Implementation
+# =============================================================================
+
+def plurality_vote(poll: Poll, ballots: List[Ballot]) -> ElectionResult:
+    """
+    Plurality voting (first-past-the-post).
+    
+    Each voter selects one candidate. The candidate with the most votes wins.
+    
+    Args:
+        poll: Poll definition
+        ballots: List of submitted ballots
         
-        while len(elected) < seats and len(eliminated) < len(candidates):
-            # 重置计数
-            vote_counts = {c: 0 for c in candidates if c not in eliminated and c not in elected}
-            
-            # 统计当前首选
-            transfer_values = defaultdict(float)
-            for ballot in current_ballots:
-                for choice in ballot:
-                    if choice in vote_counts:
-                        transfer_values[choice] += 1
-                        break
-            
-            # 应用之前的转移
-            for c, v in transfer_values.items():
-                vote_counts[c] = v
-            
-            # 记录本轮
-            round_info = {
-                'counts': dict(vote_counts),
-                'elected': list(elected),
-                'eliminated': list(eliminated)
-            }
-            stats['rounds'].append(round_info)
-            
-            if not vote_counts:
-                break
-            
-            # 检查是否有人达到配额
-            any_elected = False
-            for candidate, votes in list(vote_counts.items()):
-                if votes >= quota and candidate not in elected:
-                    elected.append(candidate)
-                    any_elected = True
-                    
-                    # 转移多余选票（简化版：不实际转移）
-                    # 实际STV会更复杂地处理转移
+    Returns:
+        ElectionResult with winner and vote counts
+    """
+    # Count votes
+    counts = defaultdict(int)
+    for ballot in ballots:
+        for choice in ballot.choices:
+            counts[choice] += 1
+    
+    total_votes = len(ballots)
+    
+    # Build result counts
+    vote_counts = []
+    for candidate in poll.candidates:
+        vc = VoteCount(
+            candidate_id=candidate.id,
+            candidate_name=candidate.name,
+            votes=counts.get(candidate.id, 0),
+            percentage=(counts.get(candidate.id, 0) / total_votes * 100) if total_votes > 0 else 0
+        )
+        vote_counts.append(vc)
+    
+    # Sort by votes
+    vote_counts.sort(key=lambda vc: vc.votes, reverse=True)
+    
+    # Assign ranks
+    for i, vc in enumerate(vote_counts):
+        vc.rank = i + 1
+    
+    # Determine winner
+    winner = poll.get_candidate_by_id(vote_counts[0].candidate_id)
+    
+    return ElectionResult(
+        poll_id=poll.id,
+        poll_title=poll.title,
+        method=VotingMethod.PLURALITY,
+        winners=[winner] if winner else [],
+        counts=vote_counts,
+        total_votes=total_votes
+    )
+
+
+def approval_vote(poll: Poll, ballots: List[Ballot]) -> ElectionResult:
+    """
+    Approval voting.
+    
+    Each voter can approve multiple candidates. The candidate with the most
+    approvals wins. This method tends to elect consensus candidates.
+    
+    Args:
+        poll: Poll definition
+        ballots: List of submitted ballots
+        
+    Returns:
+        ElectionResult with winner and approval counts
+    """
+    # Count approvals
+    counts = defaultdict(int)
+    for ballot in ballots:
+        for choice in ballot.choices:
+            counts[choice] += 1
+    
+    total_ballots = len(ballots)
+    
+    # Build result counts
+    vote_counts = []
+    for candidate in poll.candidates:
+        approvals = counts.get(candidate.id, 0)
+        vc = VoteCount(
+            candidate_id=candidate.id,
+            candidate_name=candidate.name,
+            votes=approvals,
+            percentage=(approvals / total_ballots * 100) if total_ballots > 0 else 0
+        )
+        vote_counts.append(vc)
+    
+    # Sort by approvals
+    vote_counts.sort(key=lambda vc: vc.votes, reverse=True)
+    
+    # Assign ranks
+    for i, vc in enumerate(vote_counts):
+        vc.rank = i + 1
+    
+    # Determine winner (candidate with most approvals)
+    winner = poll.get_candidate_by_id(vote_counts[0].candidate_id)
+    
+    return ElectionResult(
+        poll_id=poll.id,
+        poll_title=poll.title,
+        method=VotingMethod.APPROVAL,
+        winners=[winner] if winner else [],
+        counts=vote_counts,
+        total_votes=total_ballots,
+        metadata={"total_approvals": sum(counts.values())}
+    )
+
+
+def borda_count(poll: Poll, ballots: List[Ballot]) -> ElectionResult:
+    """
+    Borda count voting.
+    
+    Each voter ranks all candidates. Points are assigned based on position:
+    n-1 points for first choice, n-2 for second, etc. The candidate with
+    the highest total points wins.
+    
+    Args:
+        poll: Poll definition
+        ballots: List of submitted ballots
+        
+    Returns:
+        ElectionResult with winner and Borda scores
+    """
+    n = len(poll.candidates)
+    
+    # Calculate Borda scores
+    scores = defaultdict(int)
+    for ballot in ballots:
+        if ballot.rankings:
+            for candidate_id, rank in ballot.rankings.items():
+                # Borda points: n - rank (1st gets n-1, 2nd gets n-2, etc.)
+                points = n - rank
+                scores[candidate_id] += points
+    
+    total_ballots = len(ballots)
+    
+    # Build result counts (using Borda scores as "votes")
+    vote_counts = []
+    for candidate in poll.candidates:
+        borda_score = scores.get(candidate.id, 0)
+        max_possible = total_ballots * (n - 1)
+        vc = VoteCount(
+            candidate_id=candidate.id,
+            candidate_name=candidate.name,
+            votes=borda_score,
+            percentage=(borda_score / max_possible * 100) if max_possible > 0 else 0
+        )
+        vote_counts.append(vc)
+    
+    # Sort by Borda score
+    vote_counts.sort(key=lambda vc: vc.votes, reverse=True)
+    
+    # Assign ranks
+    for i, vc in enumerate(vote_counts):
+        vc.rank = i + 1
+    
+    # Determine winner
+    winner = poll.get_candidate_by_id(vote_counts[0].candidate_id)
+    
+    return ElectionResult(
+        poll_id=poll.id,
+        poll_title=poll.title,
+        method=VotingMethod.BORDA,
+        winners=[winner] if winner else [],
+        counts=vote_counts,
+        total_votes=total_ballots,
+        metadata={"max_borda_score": (n - 1) * total_ballots}
+    )
+
+
+def ranked_choice_vote(poll: Poll, ballots: List[Ballot]) -> ElectionResult:
+    """
+    Ranked choice voting (Instant Runoff Voting - IRV).
+    
+    Voters rank candidates by preference. If no candidate has a majority,
+    the lowest-ranked candidate is eliminated and their votes are transferred
+    to voters' next preferences. Process repeats until a candidate has majority.
+    
+    Args:
+        poll: Poll definition
+        ballots: List of submitted ballots
+        
+    Returns:
+        ElectionResult with winner and round-by-round results
+    """
+    rounds = []
+    active_candidates = set(c.id for c in poll.candidates)
+    total_votes = len(ballots)
+    
+    # Create mutable ballot copies with current rankings
+    ballot_rankings = []
+    for ballot in ballots:
+        if ballot.rankings:
+            # Sort by rank and filter active candidates
+            sorted_choices = sorted(
+                [(cid, rank) for cid, rank in ballot.rankings.items() if cid in active_candidates],
+                key=lambda x: x[1]
+            )
+            ballot_rankings.append([cid for cid, _ in sorted_choices])
+        else:
+            ballot_rankings.append([])
+    
+    round_num = 1
+    while True:
+        # Count current top choices
+        counts = defaultdict(int)
+        for choices in ballot_rankings:
+            if choices:
+                counts[choices[0]] += 1
+        
+        # Build round result
+        round_counts = {}
+        for cid in active_candidates:
+            round_counts[cid] = counts.get(cid, 0)
+        
+        # Find max votes
+        max_votes = max(round_counts.values()) if round_counts else 0
+        majority_threshold = total_votes / 2
+        
+        rounds.append({
+            "round": round_num,
+            "counts": round_counts.copy(),
+            "active_candidates": list(active_candidates),
+            "max_votes": max_votes,
+            "majority_threshold": majority_threshold,
+            "has_majority": max_votes > majority_threshold
+        })
+        
+        # Check if winner found
+        if max_votes > majority_threshold:
+            # Find winner
+            winner_id = max(round_counts, key=round_counts.get)
+            break
+        
+        # Eliminate candidate with fewest votes
+        min_votes = min(round_counts.values()) if round_counts else 0
+        
+        # Handle tie (eliminate randomly or lowest first-choice support)
+        candidates_to_eliminate = [cid for cid, v in round_counts.items() if v == min_votes]
+        
+        if len(candidates_to_eliminate) == len(active_candidates):
+            # All tied - pick randomly
+            winner_id = random.choice(list(active_candidates))
+            break
+        
+        # Eliminate one candidate
+        eliminated_id = candidates_to_eliminate[0]
+        active_candidates.remove(eliminated_id)
+        
+        # Transfer votes - remove eliminated from ballots
+        for choices in ballot_rankings:
+            if eliminated_id in choices:
+                choices.remove(eliminated_id)
+        
+        round_num += 1
+    
+    # Build final result counts
+    vote_counts = []
+    final_counts = rounds[-1]["counts"]
+    for i, candidate in enumerate(poll.candidates):
+        is_winner = candidate.id == winner_id
+        vc = VoteCount(
+            candidate_id=candidate.id,
+            candidate_name=candidate.name,
+            votes=final_counts.get(candidate.id, 0),
+            percentage=(final_counts.get(candidate.id, 0) / total_votes * 100) if total_votes > 0 else 0,
+            eliminated=candidate.id not in active_candidates and not is_winner
+        )
+        vote_counts.append(vc)
+    
+    # Sort by final votes
+    vote_counts.sort(key=lambda vc: vc.votes, reverse=True)
+    
+    # Assign ranks
+    rank = 1
+    for vc in vote_counts:
+        if not vc.eliminated:
+            vc.rank = rank
+            rank += 1
+        else:
+            vc.rank = len(poll.candidates)
+    
+    winner = poll.get_candidate_by_id(winner_id)
+    
+    return ElectionResult(
+        poll_id=poll.id,
+        poll_title=poll.title,
+        method=VotingMethod.RANKED_CHOICE,
+        winners=[winner] if winner else [],
+        counts=vote_counts,
+        total_votes=total_votes,
+        rounds=rounds
+    )
+
+
+def condorcet_vote(poll: Poll, ballots: List[Ballot]) -> ElectionResult:
+    """
+    Condorcet voting (pairwise comparison).
+    
+    Each candidate is compared head-to-head against every other candidate.
+    A Condorcet winner beats all other candidates in pairwise comparisons.
+    If no Condorcet winner exists (cycle), various methods can resolve it.
+    
+    Args:
+        poll: Poll definition
+        ballots: List of submitted ballots
+        
+    Returns:
+        ElectionResult with winner and pairwise matrix
+    """
+    n = len(poll.candidates)
+    
+    # Build pairwise comparison matrix
+    # pairwise_matrix[a][b] = number of ballots where a is preferred over b
+    pairwise_matrix: Dict[str, Dict[str, int]] = {}
+    for c1 in poll.candidates:
+        pairwise_matrix[c1.id] = {}
+        for c2 in poll.candidates:
+            if c1.id != c2.id:
+                pairwise_matrix[c1.id][c2.id] = 0
+    
+    # Process each ballot
+    for ballot in ballots:
+        if ballot.rankings:
+            for c1 in poll.candidates:
+                for c2 in poll.candidates:
+                    if c1.id != c2.id:
+                        rank1 = ballot.rankings.get(c1.id, n + 1)
+                        rank2 = ballot.rankings.get(c2.id, n + 1)
+                        if rank1 < rank2:
+                            pairwise_matrix[c1.id][c2.id] += 1
+    
+    # Find Condorcet winner
+    condorcet_winner_id = None
+    is_condorcet_winner = False  # Track whether winner was found via Condorcet or Copeland
+    for candidate in poll.candidates:
+        wins_all = True
+        for other in poll.candidates:
+            if candidate.id != other.id:
+                wins = pairwise_matrix[candidate.id][other.id]
+                loses = pairwise_matrix[other.id][candidate.id]
+                if wins <= loses:
+                    wins_all = False
                     break
-            
-            if any_elected:
-                continue
-            
-            # 淘汰得票最少的候选人
-            min_votes = min(vote_counts.values())
-            to_eliminate = [c for c, v in vote_counts.items() if v == min_votes]
-            
-            if len(to_eliminate) == len(vote_counts):
-                # 所有人票数相同，随机选择淘汰
-                to_eliminate = [random.choice(to_eliminate)]
-            
-            for c in to_eliminate:
-                eliminated.add(c)
+        if wins_all:
+            condorcet_winner_id = candidate.id
+            is_condorcet_winner = True
+            break
+    
+    # If no Condorcet winner, use Copeland's method (most pairwise wins)
+    if condorcet_winner_id is None:
+        copeland_scores = {}
+        for candidate in poll.candidates:
+            wins = 0
+            for other in poll.candidates:
+                if candidate.id != other.id:
+                    if pairwise_matrix[candidate.id][other.id] > pairwise_matrix[other.id][candidate.id]:
+                        wins += 1
+            copeland_scores[candidate.id] = wins
         
-        stats['final_counts'] = vote_counts
-        return elected, stats
+        # Find candidate with most wins
+        condorcet_winner_id = max(copeland_scores, key=copeland_scores.get)
+    
+    # Build result counts
+    vote_counts = []
+    total_votes = len(ballots)
+    
+    # Calculate Copeland scores for all candidates
+    copeland_scores = {}
+    for candidate in poll.candidates:
+        wins = 0
+        ties = 0
+        for other in poll.candidates:
+            if candidate.id != other.id:
+                w = pairwise_matrix[candidate.id][other.id]
+                l = pairwise_matrix[other.id][candidate.id]
+                if w > l:
+                    wins += 1
+                elif w == l:
+                    ties += 1
+        copeland_scores[candidate.id] = wins
+    
+    for candidate in poll.candidates:
+        vc = VoteCount(
+            candidate_id=candidate.id,
+            candidate_name=candidate.name,
+            votes=copeland_scores[candidate.id],
+            percentage=(copeland_scores[candidate.id] / (n - 1) * 100),
+        )
+        vote_counts.append(vc)
+    
+    # Sort by Copeland score
+    vote_counts.sort(key=lambda vc: vc.votes, reverse=True)
+    
+    # Assign ranks
+    for i, vc in enumerate(vote_counts):
+        vc.rank = i + 1
+    
+    winner = poll.get_candidate_by_id(condorcet_winner_id)
+    
+    return ElectionResult(
+        poll_id=poll.id,
+        poll_title=poll.title,
+        method=VotingMethod.CONDORCET,
+        winners=[winner] if winner else [],
+        counts=vote_counts,
+        total_votes=total_votes,
+        pairwise_matrix=pairwise_matrix,
+        metadata={
+            "condorcet_winner_exists": is_condorcet_winner,
+            "resolution_method": "copeland" if not is_condorcet_winner else "condorcet"
+        }
+    )
 
 
-class ScoreVoting:
+def score_vote(poll: Poll, ballots: List[Ballot]) -> ElectionResult:
     """
-    评分投票（范围投票）
-    选民对每个候选人打分，总分最高者获胜
+    Score voting (range voting).
+    
+    Each voter gives each candidate a score within a range (e.g., 0-5).
+    The candidate with the highest average (or total) score wins.
+    
+    Args:
+        poll: Poll definition
+        ballots: List of submitted ballots
+        
+    Returns:
+        ElectionResult with winner and average scores
     """
+    # Calculate total scores
+    scores = defaultdict(int)
+    score_counts = defaultdict(int)  # Number of voters who scored each candidate
     
-    @staticmethod
-    def vote(ballots: List[Dict[str, int]], 
-             max_score: int = 10,
-             candidates: Optional[List[str]] = None) -> Tuple[str, Dict[str, int], Dict[str, float]]:
-        """
-        执行评分投票
-        
-        Args:
-            ballots: 选票列表，每张选票是 {候选人: 分数} 的字典
-            max_score: 最高分
-            candidates: 所有候选人列表
-            
-        Returns:
-            (获胜者, 各候选人总分, 各候选人平均分)
-        """
-        if not ballots:
-            return None, {}, {}
-        
-        # 确定候选人
-        if candidates is None:
-            candidates = list(set(c for ballot in ballots for c in ballot.keys() if c))
-        
-        if not candidates:
-            return None, {}, {}
-        
-        total_scores = defaultdict(int)
-        score_counts = defaultdict(int)
-        
-        for ballot in ballots:
-            for candidate, score in ballot.items():
-                if candidate in candidates and 0 <= score <= max_score:
-                    total_scores[candidate] += score
-                    score_counts[candidate] += 1
-        
-        if not total_scores:
-            return None, {}, {}
-        
-        # 计算平均分
-        avg_scores = {}
-        for c in total_scores:
-            if score_counts[c] > 0:
-                avg_scores[c] = total_scores[c] / score_counts[c]
-            else:
-                avg_scores[c] = 0.0
-        
-        winner = max(total_scores.keys(), key=lambda x: total_scores[x])
-        return winner, dict(total_scores), avg_scores
+    for ballot in ballots:
+        if ballot.scores:
+            for candidate_id, score in ballot.scores.items():
+                scores[candidate_id] += score
+                score_counts[candidate_id] += 1
     
-    @staticmethod
-    def vote_by_average(ballots: List[Dict[str, int]], 
-                       max_score: int = 10,
-                       candidates: Optional[List[str]] = None) -> Tuple[str, Dict[str, float]]:
-        """
-        按平均分决定获胜者
-        
-        Returns:
-            (获胜者, 各候选人平均分)
-        """
-        winner, total, avg = ScoreVoting.vote(ballots, max_score, candidates)
-        if not avg:
-            return None, {}
-        
-        winner_by_avg = max(avg.keys(), key=lambda x: avg[x])
-        return winner_by_avg, avg
+    total_ballots = len(ballots)
+    
+    # Build result counts
+    vote_counts = []
+    for candidate in poll.candidates:
+        total_score = scores.get(candidate.id, 0)
+        num_scorers = score_counts.get(candidate.id, 0)
+        avg_score = total_score / num_scorers if num_scorers > 0 else 0
+        vc = VoteCount(
+            candidate_id=candidate.id,
+            candidate_name=candidate.name,
+            votes=int(total_score),  # Use total score as "votes"
+            percentage=(avg_score / poll.max_score * 100),
+        )
+        vote_counts.append(vc)
+    
+    # Sort by average score (stored in percentage calculation)
+    vote_counts.sort(key=lambda vc: vc.votes / max(1, score_counts.get(vc.candidate_id, 1)), reverse=True)
+    
+    # Assign ranks
+    for i, vc in enumerate(vote_counts):
+        vc.rank = i + 1
+    
+    # Determine winner (highest total score)
+    winner = poll.get_candidate_by_id(vote_counts[0].candidate_id)
+    
+    return ElectionResult(
+        poll_id=poll.id,
+        poll_title=poll.title,
+        method=VotingMethod.SCORE,
+        winners=[winner] if winner else [],
+        counts=vote_counts,
+        total_votes=total_ballots,
+        metadata={
+            "min_score": poll.min_score,
+            "max_score": poll.max_score,
+            "score_range": f"{poll.min_score}-{poll.max_score}"
+        }
+    )
 
 
-class VotingSimulator:
+def stv_vote(poll: Poll, ballots: List[Ballot]) -> ElectionResult:
     """
-    投票模拟器
-    生成模拟选票并比较不同投票方法的结果
+    Single Transferable Vote (STV) for multi-seat elections.
+    
+    Uses the Droop quota: quota = floor(votes / (seats + 1)) + 1
+    Candidates reaching quota are elected. Surplus votes are transferred.
+    
+    Args:
+        poll: Poll definition
+        ballots: List of submitted ballots
+        
+    Returns:
+        ElectionResult with winners (multiple for multi-seat)
     """
+    seats = poll.seats
+    total_votes = len(ballots)
+    droop_quota = total_votes // (seats + 1) + 1
     
-    @staticmethod
-    def generate_ballots_plurality(n_voters: int, 
-                                    candidates: List[str],
-                                    distribution: str = 'uniform',
-                                    seed: Optional[int] = None) -> List[str]:
-        """
-        生成简单多数投票的模拟选票
-        
-        Args:
-            n_voters: 选民数量
-            candidates: 候选人列表
-            distribution: 分布类型 ('uniform', 'normal', 'polarized')
-            seed: 随机种子
-            
-        Returns:
-            选票列表
-        """
-        if seed is not None:
-            random.seed(seed)
-        
-        if distribution == 'uniform':
-            return [random.choice(candidates) for _ in range(n_voters)]
-        
-        elif distribution == 'normal':
-            # 中心候选人得票更多
-            weights = [1.0] * len(candidates)
-            mid = len(candidates) // 2
-            for i in range(len(candidates)):
-                weights[i] = 1.0 / (abs(i - mid) + 1)
-            total = sum(weights)
-            weights = [w / total for w in weights]
-            return [random.choices(candidates, weights=weights)[0] for _ in range(n_voters)]
-        
-        elif distribution == 'polarized':
-            # 两极化分布
-            n = len(candidates)
-            if n < 2:
-                return [random.choice(candidates) for _ in range(n_voters)]
-            
-            weights = [0.0] * n
-            weights[0] = 0.45
-            weights[-1] = 0.45
-            for i in range(1, n - 1):
-                weights[i] = 0.1 / (n - 2)
-            
-            return [random.choices(candidates, weights=weights)[0] for _ in range(n_voters)]
-        
-        return [random.choice(candidates) for _ in range(n_voters)]
+    rounds = []
+    elected: List[str] = []
+    eliminated: List[str] = []
+    active_candidates = set(c.id for c in poll.candidates)
     
-    @staticmethod
-    def generate_ballots_ranked(n_voters: int, 
-                                  candidates: List[str],
-                                  distribution: str = 'uniform',
-                                  seed: Optional[int] = None) -> List[List[str]]:
-        """
-        生成排序投票的模拟选票
+    # Track vote value for each ballot (starts at 1.0)
+    ballot_weights = [1.0 for _ in ballots]
+    
+    # Create ballot preference lists
+    ballot_rankings = []
+    for ballot in ballots:
+        if ballot.rankings:
+            sorted_choices = sorted(
+                [(cid, rank) for cid, rank in ballot.rankings.items()],
+                key=lambda x: x[1]
+            )
+            ballot_rankings.append([cid for cid, _ in sorted_choices])
+        else:
+            ballot_rankings.append([])
+    
+    round_num = 1
+    while len(elected) < seats and len(active_candidates) > seats - len(elected):
+        # Count current weighted votes
+        counts: Dict[str, float] = defaultdict(float)
+        for i, choices in enumerate(ballot_rankings):
+            for choice in choices:
+                if choice in active_candidates and choice not in elected:
+                    counts[choice] += ballot_weights[i]
+                    break
         
-        Args:
-            n_voters: 选民数量
-            candidates: 候选人列表
-            distribution: 分布类型
-            seed: 随机种子
-            
-        Returns:
-            选票列表（每张选票是排序后的候选人列表）
-        """
-        if seed is not None:
-            random.seed(seed)
+        round_counts = {cid: counts.get(cid, 0) for cid in active_candidates if cid not in elected}
         
-        ballots = []
-        n = len(candidates)
+        # Find candidates reaching quota
+        new_elected = [cid for cid, v in round_counts.items() if v >= droop_quota]
         
-        for _ in range(n_voters):
-            if distribution == 'uniform':
-                ballot = candidates.copy()
-                random.shuffle(ballot)
-            
-            elif distribution == 'normal':
-                # 中心候选人倾向于排在前面
-                weights = [1.0] * n
-                mid = n // 2
-                for i in range(n):
-                    weights[i] = 1.0 / (abs(i - mid) + 0.5)
-                total = sum(weights)
-                weights = [w / total for w in weights]
+        rounds.append({
+            "round": round_num,
+            "counts": round_counts.copy(),
+            "quota": droop_quota,
+            "elected_so_far": elected.copy(),
+            "new_elected": new_elected,
+            "eliminated_this_round": [],
+        })
+        
+        # Elect candidates reaching quota
+        for cid in new_elected:
+            if len(elected) < seats:
+                elected.append(cid)
                 
-                ballot = []
-                remaining = candidates.copy()
-                remaining_weights = weights.copy()
+                # Transfer surplus votes
+                surplus = round_counts[cid] - droop_quota
+                if surplus > 0:
+                    transfer_value = surplus / round_counts[cid]
+                    
+                    # Transfer from ballots that helped elect this candidate
+                    for i, choices in enumerate(ballot_rankings):
+                        if choices and choices[0] == cid:
+                            ballot_weights[i] = transfer_value
+        
+        # If no new elections, eliminate lowest candidate
+        if not new_elected and len(elected) < seats:
+            remaining = {cid: v for cid, v in round_counts.items() if cid not in elected}
+            if remaining:
+                min_votes = min(remaining.values())
+                candidates_to_eliminate = [cid for cid, v in remaining.items() if v == min_votes]
                 
-                while remaining:
-                    chosen = random.choices(remaining, weights=remaining_weights)[0]
-                    ballot.append(chosen)
-                    idx = remaining.index(chosen)
-                    remaining.pop(idx)
-                    remaining_weights.pop(idx)
-            
-            elif distribution == 'polarized':
-                # 两极化：前半部分选民偏好第一候选人，后半部分偏好最后候选人
-                ballot = candidates.copy()
-                if random.random() < 0.5:
-                    ballot.sort()  # 按名称排序，使第一个靠前
-                else:
-                    ballot.sort(reverse=True)
-            
-            else:
-                ballot = candidates.copy()
-                random.shuffle(ballot)
-            
-            ballots.append(ballot)
+                # Eliminate one (handle ties by eliminating randomly)
+                to_eliminate = candidates_to_eliminate[0]
+                eliminated.append(to_eliminate)
+                active_candidates.remove(to_eliminate)
+                rounds[-1]["eliminated_this_round"] = [to_eliminate]
+                
+                # Set weight to 0 for eliminated candidates, transfer to next
+                for i, choices in enumerate(ballot_rankings):
+                    if choices and choices[0] == to_eliminate:
+                        choices.remove(to_eliminate)
         
-        return ballots
+        round_num += 1
     
-    @staticmethod
-    def generate_ballots_score(n_voters: int, 
-                                 candidates: List[str],
-                                 max_score: int = 10,
-                                 distribution: str = 'uniform',
-                                 seed: Optional[int] = None) -> List[Dict[str, int]]:
-        """
-        生成评分投票的模拟选票
-        
-        Args:
-            n_voters: 选民数量
-            candidates: 候选人列表
-            max_score: 最高分
-            distribution: 分布类型
-            seed: 随机种子
-            
-        Returns:
-            选票列表（每张选票是 {候选人: 分数} 的字典）
-        """
-        if seed is not None:
-            random.seed(seed)
-        
-        ballots = []
-        
-        for _ in range(n_voters):
-            ballot = {}
-            for c in candidates:
-                if distribution == 'uniform':
-                    ballot[c] = random.randint(0, max_score)
-                elif distribution == 'normal':
-                    # 中间分数更常见
-                    score = int(random.gauss(max_score / 2, max_score / 4))
-                    ballot[c] = max(0, min(max_score, score))
-                elif distribution == 'polarized':
-                    # 倾向于给极端分数
-                    if random.random() < 0.5:
-                        ballot[c] = random.randint(0, max_score // 3)
-                    else:
-                        ballot[c] = random.randint(2 * max_score // 3, max_score)
-                else:
-                    ballot[c] = random.randint(0, max_score)
-            
-            ballots.append(ballot)
-        
-        return ballots
+    # Fill remaining seats if needed
+    while len(elected) < seats:
+        remaining = [cid for cid in active_candidates if cid not in elected]
+        if not remaining:
+            break
+        # Pick candidate with most remaining votes
+        counts = defaultdict(float)
+        for i, choices in enumerate(ballot_rankings):
+            for choice in choices:
+                if choice in remaining:
+                    counts[choice] += ballot_weights[i]
+                    break
+        if counts:
+            next_elected = max(counts, key=counts.get)
+            elected.append(next_elected)
+        else:
+            break
     
-    @staticmethod
-    def compare_methods(ballots_plurality: List[str],
-                        ballots_ranked: List[List[str]],
-                        ballots_approval: List[List[str]],
-                        ballots_score: List[Dict[str, int]],
-                        candidates: List[str]) -> Dict[str, str]:
-        """
-        比较不同投票方法的结果
+    # Build result counts
+    vote_counts = []
+    final_counts = rounds[-1]["counts"] if rounds else {}
+    
+    for candidate in poll.candidates:
+        is_winner = candidate.id in elected
+        vc = VoteCount(
+            candidate_id=candidate.id,
+            candidate_name=candidate.name,
+            votes=int(final_counts.get(candidate.id, 0)),
+            percentage=(final_counts.get(candidate.id, 0) / total_votes * 100) if total_votes > 0 else 0,
+            eliminated=candidate.id in eliminated
+        )
+        vote_counts.append(vc)
+    
+    # Sort: winners first, then by votes
+    vote_counts.sort(key=lambda vc: (vc.candidate_id in elected, vc.votes), reverse=True)
+    
+    # Assign ranks
+    for i, vc in enumerate(vote_counts):
+        if vc.candidate_id in elected:
+            vc.rank = elected.index(vc.candidate_id) + 1
+        else:
+            vc.rank = len(elected) + i - sum(1 for vc2 in vote_counts[:i] if vc2.candidate_id in elected) + 1
+    
+    winners = [poll.get_candidate_by_id(cid) for cid in elected]
+    
+    return ElectionResult(
+        poll_id=poll.id,
+        poll_title=poll.title,
+        method=VotingMethod.STV,
+        winners=winners,
+        counts=vote_counts,
+        total_votes=total_votes,
+        rounds=rounds,
+        metadata={
+            "seats": seats,
+            "droop_quota": droop_quota,
+            "elected_count": len(elected)
+        }
+    )
+
+
+# =============================================================================
+# Main Vote Function
+# =============================================================================
+
+def count_votes(poll: Poll, ballots: List[Ballot]) -> ElectionResult:
+    """
+    Count votes using the poll's specified voting method.
+    
+    Args:
+        poll: Poll definition with voting method specified
+        ballots: List of submitted ballots
         
-        Returns:
-            各方法获胜者的字典
-        """
-        results = {}
+    Returns:
+        ElectionResult based on the voting method
         
-        # 简单多数
-        winner, counts = PluralityVoting.vote(ballots_plurality)
-        results['plurality'] = winner
+    Raises:
+        ValueError: If invalid ballots or unsupported method
+    """
+    # Validate all ballots
+    for ballot in ballots:
+        valid, msg = poll.validate_ballot(ballot)
+        if not valid:
+            raise ValueError(f"Invalid ballot from {ballot.voter_id}: {msg}")
+    
+    # Route to appropriate counting method
+    method_handlers = {
+        VotingMethod.PLURALITY: plurality_vote,
+        VotingMethod.APPROVAL: approval_vote,
+        VotingMethod.RANKED_CHOICE: ranked_choice_vote,
+        VotingMethod.BORDA: borda_count,
+        VotingMethod.CONDORCET: condorcet_vote,
+        VotingMethod.SCORE: score_vote,
+        VotingMethod.STV: stv_vote,
+    }
+    
+    handler = method_handlers.get(poll.method)
+    if handler is None:
+        raise ValueError(f"Unsupported voting method: {poll.method}")
+    
+    return handler(poll, ballots)
+
+
+# =============================================================================
+# Poll Management
+# =============================================================================
+
+def create_poll(
+    title: str,
+    candidates: List[str],
+    method: VotingMethod = VotingMethod.PLURALITY,
+    description: Optional[str] = None,
+    **kwargs
+) -> Poll:
+    """
+    Create a new poll.
+    
+    Args:
+        title: Poll title
+        candidates: List of candidate names
+        method: Voting method to use
+        description: Optional description
+        **kwargs: Additional poll options (max_choices, seats, etc.)
         
-        # 排序选择
-        winner, rounds = RankedChoiceVoting.vote(ballots_ranked, candidates)
-        results['ranked_choice'] = winner
+    Returns:
+        Poll object ready for voting
         
-        # 波达计数
-        winner, scores, _ = BordaCount.vote(ballots_ranked, candidates)
-        results['borda'] = winner
+    Example:
+        >>> poll = create_poll("Best Pizza", ["Margherita", "Pepperoni", "Hawaiian"])
+        >>> poll.method = VotingMethod.RANKED_CHOICE
+    """
+    # Create candidate objects
+    candidate_objects = []
+    for i, name in enumerate(candidates):
+        cid = hashlib.sha256(f"{title}:{name}:{i}".encode()).hexdigest()[:8]
+        candidate_objects.append(Candidate(id=cid, name=name))
+    
+    poll_id = hashlib.sha256(f"{title}:{len(candidates)}".encode()).hexdigest()[:12]
+    
+    return Poll(
+        id=poll_id,
+        title=title,
+        description=description,
+        candidates=candidate_objects,
+        method=method,
+        **kwargs
+    )
+
+
+def create_ballot(
+    poll_id: str,
+    voter_id: str,
+    choices: Optional[List[str]] = None,
+    rankings: Optional[Dict[str, int]] = None,
+    scores: Optional[Dict[str, int]] = None
+) -> Ballot:
+    """
+    Create a new ballot.
+    
+    Args:
+        poll_id: ID of the poll
+        voter_id: Voter identifier
+        choices: List of candidate IDs (for plurality/approval)
+        rankings: Dict of {candidate_id: rank} (for ranked methods)
+        scores: Dict of {candidate_id: score} (for score voting)
         
-        # 批准投票
-        winner, approvals = ApprovalVoting.vote(ballots_approval, candidates)
-        results['approval'] = winner
+    Returns:
+        Ballot object
         
-        # 孔多塞
-        winner, prefs, ranking = CondorcetVoting.vote(ballots_ranked, candidates)
-        results['condorcet'] = winner
+    Example:
+        >>> ballot = create_ballot(poll.id, "voter1", choices=["c1"])
+    """
+    return Ballot(
+        voter_id=voter_id,
+        poll_id=poll_id,
+        choices=choices or [],
+        rankings=rankings,
+        scores=scores
+    )
+
+
+def generate_test_ballots(poll: Poll, num_ballots: int = 100, 
+                          distribution: str = "random") -> List[Ballot]:
+    """
+    Generate test ballots for simulation.
+    
+    Args:
+        poll: Poll to generate ballots for
+        num_ballots: Number of ballots to generate
+        distribution: Distribution pattern ("random", "uniform", "biased")
         
-        # 评分投票
-        winner, totals, avg = ScoreVoting.vote(ballots_score, 10, candidates)
-        results['score'] = winner
+    Returns:
+        List of generated ballots
+    """
+    ballots = []
+    candidate_ids = [c.id for c in poll.candidates]
+    
+    for i in range(num_ballots):
+        voter_id = f"test_voter_{i}"
         
-        return results
+        if poll.method == VotingMethod.PLURALITY:
+            # Single choice
+            choice = random.choice(candidate_ids)
+            ballot = create_ballot(poll.id, voter_id, choices=[choice])
+        
+        elif poll.method == VotingMethod.APPROVAL:
+            # Multiple approvals
+            num_approvals = random.randint(1, min(poll.max_choices, len(candidate_ids)))
+            choices = random.sample(candidate_ids, num_approvals)
+            ballot = create_ballot(poll.id, voter_id, choices=choices)
+        
+        elif poll.method in [VotingMethod.RANKED_CHOICE, VotingMethod.BORDA, VotingMethod.STV]:
+            # Full ranking
+            shuffled = candidate_ids.copy()
+            random.shuffle(shuffled)
+            rankings = {cid: rank for rank, cid in enumerate(shuffled, 1)}
+            ballot = create_ballot(poll.id, voter_id, rankings=rankings)
+        
+        elif poll.method == VotingMethod.SCORE:
+            # Score each candidate
+            scores = {cid: random.randint(poll.min_score, poll.max_score) for cid in candidate_ids}
+            ballot = create_ballot(poll.id, voter_id, scores=scores)
+        
+        else:
+            ballot = create_ballot(poll.id, voter_id, choices=[random.choice(candidate_ids)])
+        
+        ballots.append(ballot)
+    
+    return ballots
 
 
-# 便捷函数
-def plurality(ballots: List[str]) -> str:
-    """简单多数投票"""
-    winner, _ = PluralityVoting.vote(ballots)
-    return winner
+def get_voting_method_info(method: VotingMethod) -> Dict[str, Any]:
+    """
+    Get information about a voting method.
+    
+    Args:
+        method: Voting method
+        
+    Returns:
+        Dict with method info (name, description, pros, cons)
+    """
+    info = {
+        VotingMethod.PLURALITY: {
+            "name": "Plurality Voting (First-Past-The-Post)",
+            "description": "Each voter selects one candidate. Most votes wins.",
+            "pros": ["Simple to understand", "Fast to count", "Familiar to voters"],
+            "cons": ["Vote splitting", "Doesn't capture preferences", "Can elect minority-preferred candidate"],
+            "requires_rankings": False,
+            "requires_scores": False,
+        },
+        VotingMethod.APPROVAL: {
+            "name": "Approval Voting",
+            "description": "Each voter can approve multiple candidates. Most approvals wins.",
+            "pros": ["Simple", "Encourages consensus", "No vote splitting"],
+            "cons": ["May elect bland candidates", "Strategic voting issues"],
+            "requires_rankings": False,
+            "requires_scores": False,
+        },
+        VotingMethod.RANKED_CHOICE: {
+            "name": "Ranked Choice Voting (Instant Runoff)",
+            "description": "Voters rank candidates. Eliminations and transfers until majority winner.",
+            "pros": ["Captures preferences", "Eliminates spoiler effect", "Majority winner"],
+            "cons": ["More complex", "Can be exhausting", "Center squeeze effect"],
+            "requires_rankings": True,
+            "requires_scores": False,
+        },
+        VotingMethod.BORDA: {
+            "name": "Borda Count",
+            "description": "Voters rank candidates. Points assigned by position. Highest total wins.",
+            "pros": ["Consensus-oriented", "Captures full preferences", "Deterministic"],
+            "cons": ["Strategic manipulation", "Clone problems", "Narrow vs broad preference"],
+            "requires_rankings": True,
+            "requires_scores": False,
+        },
+        VotingMethod.CONDORCET: {
+            "name": "Condorcet Voting",
+            "description": "Pairwise comparisons. Winner beats all others head-to-head.",
+            "pros": ["Strongest candidate", "No strategic voting needed", "Head-to-head wins"],
+            "cons": ["May have no winner (cycles)", "Complex resolution methods"],
+            "requires_rankings": True,
+            "requires_scores": False,
+        },
+        VotingMethod.SCORE: {
+            "name": "Score Voting (Range Voting)",
+            "description": "Voters score each candidate. Highest average score wins.",
+            "pros": ["Expressive", "Simple", "Encourages honest ratings"],
+            "cons": ["Strategic exaggeration", "Requires more voter effort"],
+            "requires_rankings": False,
+            "requires_scores": True,
+        },
+        VotingMethod.STV: {
+            "name": "Single Transferable Vote",
+            "description": "Multi-seat proportional representation with transfers.",
+            "pros": ["Proportional representation", "Minority representation", "Fair multi-seat"],
+            "cons": ["Complex counting", "Fractional transfers", "May be confusing"],
+            "requires_rankings": True,
+            "requires_scores": False,
+        },
+    }
+    
+    return info.get(method, {"name": method.value, "description": "Unknown method"})
 
 
-def ranked_choice(ballots: List[List[str]], candidates: Optional[List[str]] = None) -> str:
-    """排序选择投票"""
-    winner, _ = RankedChoiceVoting.vote(ballots, candidates)
-    return winner
+# =============================================================================
+# Utility Functions
+# =============================================================================
+
+def validate_poll_config(poll: Poll) -> Tuple[bool, List[str]]:
+    """
+    Validate poll configuration.
+    
+    Args:
+        poll: Poll to validate
+        
+    Returns:
+        Tuple of (is_valid, list of issues)
+    """
+    issues = []
+    
+    if not poll.title:
+        issues.append("Poll title is required")
+    
+    if len(poll.candidates) < 2:
+        issues.append("At least 2 candidates required")
+    
+    if poll.method == VotingMethod.APPROVAL and poll.max_choices < 1:
+        issues.append("Approval voting requires max_choices >= 1")
+    
+    if poll.method == VotingMethod.SCORE and poll.max_score <= poll.min_score:
+        issues.append("Score voting requires max_score > min_score")
+    
+    if poll.method == VotingMethod.STV and poll.seats < 1:
+        issues.append("STV requires at least 1 seat")
+    
+    if poll.method == VotingMethod.STV and poll.seats >= len(poll.candidates):
+        issues.append("STV requires fewer seats than candidates")
+    
+    return len(issues) == 0, issues
 
 
-def borda(ballots: List[List[str]], candidates: Optional[List[str]] = None) -> str:
-    """波达计数"""
-    winner, _, _ = BordaCount.vote(ballots, candidates)
-    return winner
+def get_supported_methods() -> List[VotingMethod]:
+    """
+    Get list of supported voting methods.
+    
+    Returns:
+        List of VotingMethod enums
+    """
+    return list(VotingMethod)
 
 
-def approval(ballots: List[List[str]], candidates: Optional[List[str]] = None) -> str:
-    """批准投票"""
-    winner, _ = ApprovalVoting.vote(ballots, candidates)
-    return winner
-
-
-def condorcet(ballots: List[List[str]], candidates: Optional[List[str]] = None) -> str:
-    """孔多塞投票"""
-    winner, _, _ = CondorcetVoting.vote(ballots, candidates)
-    return winner
-
-
-def stv(ballots: List[List[str]], seats: int, candidates: Optional[List[str]] = None) -> List[str]:
-    """单记可转移投票"""
-    winners, _ = SingleTransferableVote.vote(ballots, seats, candidates)
-    return winners
-
-
-def score(ballots: List[Dict[str, int]], candidates: Optional[List[str]] = None) -> str:
-    """评分投票"""
-    winner, _, _ = ScoreVoting.vote(ballots, 10, candidates)
-    return winner
-
+# =============================================================================
+# Main (for testing)
+# =============================================================================
 
 if __name__ == '__main__':
-    # 简单演示
-    print("=== 投票工具演示 ===\n")
+    print("Testing voting utilities...")
     
-    candidates = ['Alice', 'Bob', 'Charlie', 'David']
+    # Create a poll
+    poll = create_poll(
+        "Favorite Programming Language",
+        ["Python", "JavaScript", "Go", "Rust", "Java"],
+        method=VotingMethod.RANKED_CHOICE
+    )
     
-    # 简单多数
-    print("简单多数投票:")
-    plurality_ballots = ['Alice', 'Bob', 'Alice', 'Charlie', 'Alice', 'Bob', 'David']
-    winner, counts = PluralityVoting.vote(plurality_ballots)
-    print(f"  选票: {plurality_ballots}")
-    print(f"  结果: {winner} 获胜，得票: {counts}")
+    print(f"Poll: {poll.title} (ID: {poll.id})")
+    print(f"Candidates: {[c.name for c in poll.candidates]}")
     
-    print("\n排序选择投票:")
-    ranked_ballots = [
-        ['Alice', 'Bob', 'Charlie'],
-        ['Bob', 'Charlie', 'Alice'],
-        ['Charlie', 'Alice', 'Bob'],
-        ['Alice', 'Charlie', 'Bob'],
-        ['Bob', 'Alice', 'Charlie'],
-    ]
-    winner, rounds = RankedChoiceVoting.vote(ranked_ballots)
-    print(f"  获胜者: {winner}")
-    print(f"  轮次: {len(rounds)}")
+    # Generate test ballots
+    ballots = generate_test_ballots(poll, 100)
     
-    print("\n波达计数:")
-    winner, scores, _ = BordaCount.vote(ranked_ballots, candidates)
-    print(f"  获胜者: {winner}")
-    print(f"  得分: {scores}")
+    # Count votes
+    result = count_votes(poll, ballots)
     
-    print("\n批准投票:")
-    approval_ballots = [
-        ['Alice', 'Bob'],
-        ['Bob', 'Charlie'],
-        ['Alice', 'Charlie', 'David'],
-        ['Bob', 'Alice'],
-    ]
-    winner, approvals = ApprovalVoting.vote(approval_ballots, candidates)
-    print(f"  获胜者: {winner}")
-    print(f"  批准数: {approvals}")
+    print("\n" + result.to_summary())
     
-    print("\n孔多塞投票:")
-    winner, prefs, ranking = CondorcetVoting.vote(ranked_ballots, candidates)
-    print(f"  获胜者: {winner}")
-    print(f"  排名: {ranking}")
+    # Test different methods
+    print("\n--- Testing Different Methods ---")
     
-    print("\n评分投票:")
-    score_ballots = [
-        {'Alice': 9, 'Bob': 7, 'Charlie': 5},
-        {'Alice': 8, 'Bob': 8, 'Charlie': 6},
-        {'Alice': 6, 'Bob': 9, 'Charlie': 7},
-    ]
-    winner, totals, avg = ScoreVoting.vote(score_ballots)
-    print(f"  获胜者: {winner}")
-    print(f"  总分: {totals}")
-    print(f"  平均分: {avg}")
+    for method in [VotingMethod.PLURALITY, VotingMethod.APPROVAL, VotingMethod.BORDA, 
+                   VotingMethod.CONDORCET, VotingMethod.SCORE]:
+        poll.method = method
+        ballots = generate_test_ballots(poll, 50)
+        result = count_votes(poll, ballots)
+        winner = result.get_winner()
+        print(f"{method.value}: Winner = {winner.name if winner else 'None'}")
     
-    print("\nSTV多席位:")
-    stv_ballots = [
-        ['Alice', 'Bob', 'Charlie'],
-        ['Alice', 'Charlie', 'Bob'],
-        ['Bob', 'Alice', 'Charlie'],
-        ['Bob', 'Charlie', 'Alice'],
-        ['Charlie', 'Alice', 'Bob'],
-        ['Charlie', 'Bob', 'Alice'],
-        ['David', 'Alice', 'Bob'],
-    ]
-    winners, stats = SingleTransferableVote.vote(stv_ballots, seats=2)
-    print(f"  当选者: {winners}")
-    print(f"  配额: {stats['quota']}")
+    print("\nAll tests passed!")
