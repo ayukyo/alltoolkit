@@ -1,143 +1,235 @@
-# LRU Cache Utils
+# LRU Cache Utils - Versatile Least Recently Used Cache Implementations
 
-一个零外部依赖的 LRU (Least Recently Used) 缓存实现，提供高效的 O(1) 操作。
+A comprehensive Python LRU cache library with advanced features, zero external dependencies.
 
-## 功能特性
+## Features
 
-- **O(1) 时间复杂度** - 使用双向链表 + 哈希表实现
-- **可配置容量** - 支持动态调整缓存大小
-- **TTL 支持** - 可选的自动过期时间
-- **线程安全** - 可选的线程安全模式
-- **统计信息** - 命中率、淘汰次数等统计数据
-- **批量操作** - 支持批量存取
-- **装饰器** - 便捷的函数结果缓存
-- **回调支持** - 淘汰时的自定义回调
+- 🔄 **Thread-safe Operations** - All caches support concurrent access
+- ⏱️ **TTL Support** - Time-to-live expiration for entries
+- 📊 **Weight-based Eviction** - Evict by custom weight criteria
+- 📈 **Statistics & Monitoring** - Track hits, misses, evictions
+- 🎯 **Decorator Interface** - Easy function result caching
+- 🏗️ **Multi-level Cache** - L1/L2 tiered caching
+- 💾 **Memory-bounded Cache** - Size estimation and memory limits
+- 🔧 **Background Refresh** - Automatic stale data refresh
 
-## 快速开始
+## Installation
 
-```python
-from lru_cache_utils.mod import LRUCache
-
-# 创建容量为 3 的缓存
-cache = LRUCache[str, int](capacity=3)
-
-# 添加项目
-cache.put('a', 1)
-cache.put('b', 2)
-cache.put('c', 3)
-
-# 访问项目（更新 LRU 顺序）
-cache.get('a')
-
-# 添加新项目，'b' 将被淘汰
-cache.put('d', 4)
-
-# 检查项目
-print(cache.get('a'))  # 1
-print(cache.get('b'))  # None (已淘汰)
-```
-
-## TTL 过期
+No external dependencies required. Just import:
 
 ```python
-from lru_cache_utils.mod import LRUCache
-import time
-
-# 创建带 TTL 的缓存
-cache = LRUCache[str, str](capacity=100, ttl=2.0)  # 2秒过期
-
-cache.put('session', 'user123')
-print(cache.get('session'))  # 'user123'
-
-time.sleep(2.5)
-print(cache.get('session'))  # None (已过期)
+from lru_cache_utils import LRUCache, TTLCache, lru_cache
 ```
 
-## 函数装饰器
+## Quick Start
+
+### Basic LRU Cache
 
 ```python
-from lru_cache_utils.mod import lru_cache
+from lru_cache_utils import LRUCache
 
-@lru_cache(capacity=100)
-def fibonacci(n):
-    if n < 2:
-        return n
-    return fibonacci(n-1) + fibonacci(n-2)
+cache = LRUCache(max_size=100)
 
-print(fibonacci(50))  # 快速计算
+# Set and get
+cache.set('user_1', {'name': 'Alice'})
+user = cache.get('user_1')
 
-# 查看缓存统计
-print(fibonacci.cache_stats())
+# Delete and check
+cache.delete('user_1')
+cache.contains('user_1')  # False
 ```
 
-## 线程安全
+### With TTL (Time-to-Live)
 
 ```python
-from lru_cache_utils.mod import LRUCache
+# Default 5-minute TTL
+cache = LRUCache(max_size=100, ttl=300)
 
-# 创建线程安全缓存
-cache = LRUCache[str, int](capacity=100, thread_safe=True)
-
-# 多线程安全访问
-# ...
+# Per-entry TTL
+cache.set('temp_data', 'value', ttl=60)  # 1 minute
+cache.set('permanent', 'value', ttl=None)  # No expiration
 ```
 
-## 淘汰回调
+### Function Caching Decorator
 
 ```python
-from lru_cache_utils.mod import LRUCache
+from lru_cache_utils import lru_cache
 
-def on_evict(key, value):
-    print(f"淘汰: {key} = {value}")
+@lru_cache(maxsize=128, ttl=60)
+def expensive_computation(n):
+    # ... complex computation ...
+    return result
 
-cache = LRUCache[str, int](capacity=3, on_evict=on_evict)
+# First call computes, subsequent calls cached
+result1 = expensive_computation(100)  # Computes
+result2 = expensive_computation(100)  # Cached
+
+# Clear cache
+expensive_computation.cache_clear()
 ```
 
-## API 参考
+## Cache Types
 
 ### LRUCache
 
-| 方法 | 描述 |
-|------|------|
-| `put(key, value, ttl=None)` | 存入键值对 |
-| `get(key, default=None)` | 获取值 |
-| `delete(key)` | 删除键 |
-| `contains(key)` | 检查键是否存在 |
-| `clear()` | 清空缓存 |
-| `size()` | 当前大小 |
-| `keys()` | 所有键（LRU 顺序） |
-| `values()` | 所有值（LRU 顺序） |
-| `items()` | 所有键值对 |
-| `stats()` | 统计信息 |
-| `get_or_set(key, factory)` | 获取或计算 |
-| `peek(key)` | 查看不更新顺序 |
-| `touch(key)` | 更新到最近使用 |
-| `put_all(items)` | 批量存入 |
-| `get_all(keys)` | 批量获取 |
+Full-featured LRU cache with TTL and weight support:
 
-### 装饰器
+```python
+cache = LRUCache(
+    max_size=1000,          # Maximum entries
+    ttl=300,                # Default TTL (seconds)
+    max_weight=5000,        # Maximum total weight
+    on_evict=lambda k, v: print(f"Evicted: {k}")
+)
 
-- `@lru_cache(capacity, ttl=None)` - LRU 缓存装饰器
-- `@memoize` - 简单记忆化装饰器
+# Weight-based entries
+cache.set('large_data', data, weight=100)
+```
 
 ### TTLCache
 
-仅 TTL 过期缓存（无 LRU 淘汰）：
+Optimized for TTL-based scenarios:
 
 ```python
-from lru_cache_utils.mod import TTLCache
+cache = TTLCache(
+    default_ttl=60,         # 1 minute default
+    max_size=10000,
+    cleanup_interval=30     # Auto cleanup every 30s
+)
 
-cache = TTLCache[str, str](ttl=60.0)  # 60秒过期
+# Get remaining TTL
+remaining = cache.get_ttl('key')
+
+# Extend TTL
+cache.extend_ttl('key', 30)
 ```
 
-## 运行测试
+### BoundedLRUCache
 
-```bash
-python lru_cache_utils_test.py
+Memory-aware cache with size estimation:
+
+```python
+cache = BoundedLRUCache(max_memory_mb=50)  # 50 MB limit
+
+cache.set('large_object', data)
+print(f"Memory usage: {cache.memory_usage_mb()} MB")
 ```
 
-## 运行示例
+### MultiLevelCache
 
-```bash
-python examples/usage_examples.py
+Tiered caching (fast L1 + slow L2):
+
+```python
+l1 = LRUCache(max_size=100)    # Fast, small
+l2 = LRUCache(max_size=10000)  # Slow, large
+cache = MultiLevelCache([l1, l2])
+
+# Writes to all levels
+cache.set('key', 'value')
+
+# Reads from fastest available, promotes if found in slower level
+value = cache.get('key')
 ```
+
+### CachedFunction
+
+Function wrapper with background refresh:
+
+```python
+def fetch_user(user_id):
+    return database.query(user_id)
+
+cached_fetch = CachedFunction(
+    fetch_user,
+    ttl=300,                     # 5-minute cache
+    refresh_before_expiry=0.8,   # Refresh at 80% TTL
+    background_refresh=True      # Non-blocking refresh
+)
+
+user = cached_fetch(123)  # Cached or fresh
+```
+
+## Advanced Usage
+
+### Statistics Monitoring
+
+```python
+stats = cache.get_stats()
+print(f"Hit rate: {stats.hit_rate:.2%}")
+print(f"Total requests: {stats.total_requests}")
+print(f"Evictions: {stats.evictions}")
+print(f"Expired: {stats.expired}")
+
+# Reset statistics
+cache.reset_stats()
+```
+
+### Get-or-Set Pattern
+
+```python
+# Compute only if not cached
+value = cache.get_or_set('key', lambda: expensive_operation())
+```
+
+### Entry Metadata
+
+```python
+entry = cache.get_entry('key')
+print(f"Age: {entry.age} seconds")
+print(f"Access count: {entry.access_count}")
+print(f"Idle time: {entry.idle_time}")
+```
+
+### Manual Cleanup
+
+```python
+# Remove expired entries
+expired_count = cache.prune_expired()
+```
+
+### Dict-like Interface
+
+```python
+cache['key'] = 'value'
+value = cache['key']
+del cache['key']
+'key' in cache
+len(cache)
+```
+
+## Thread Safety
+
+All caches are thread-safe by default using RLock:
+
+```python
+from threading import Thread
+
+def worker(cache, key):
+    cache.set(key, compute_value())
+
+threads = [
+    Thread(target=worker, args=(cache, f'key_{i}'))
+    for i in range(100)
+]
+for t in threads:
+    t.start()
+```
+
+## Performance
+
+| Operation | Time Complexity |
+|-----------|-----------------|
+| Get | O(1) |
+| Set | O(1) |
+| Delete | O(1) |
+| Contains | O(1) |
+
+Eviction: O(k) where k is number of evicted entries.
+
+## License
+
+MIT License - Part of AllToolkit
+
+## Author
+
+AllToolkit - 2026-05-18
