@@ -18,7 +18,7 @@
 版本: 1.0.0
 """
 
-from typing import List, Optional, TypeVar, Generic, Callable, Any, Iterator, Tuple
+from typing import List, Optional, TypeVar, Generic, Callable, Any, Iterator, Tuple, Set
 from functools import total_ordering
 
 T = TypeVar('T')
@@ -399,13 +399,18 @@ class MinMaxHeap(Generic[T]):
     
     同时支持O(log n)时间获取最小和最大元素。
     适用于需要同时访问最小和最大元素的场景。
+    
+    使用懒惰删除优化：pop操作时只标记删除，不立即重建整个堆，
+    仅在堆顶元素已被删除时才执行清理，平均复杂度从O(n)降低到O(log n)。
     """
     
     def __init__(self, items: Optional[List[T]] = None):
         """初始化双端堆"""
-        self._min_heap: List[T] = []
-        self._max_heap: List[Tuple[float, int, T]] = []  # (neg_key, index, value)
-        self._index = 0
+        self._min_heap: List[Tuple[int, T]] = []  # (id, value)
+        self._max_heap: List[Tuple[float, int, T]] = []  # (neg_key, id, value)
+        self._id_counter = 0
+        self._deleted_ids: Set[int] = set()  # 懒惰删除标记
+        self._size = 0
         
         if items:
             for item in items:
@@ -413,12 +418,13 @@ class MinMaxHeap(Generic[T]):
     
     def push(self, item: T):
         """添加元素"""
+        item_id = self._id_counter
+        self._id_counter += 1
         key = self._get_key(item)
-        self._min_heap.append(item)
         
-        # 使用索引保证相同优先级元素的稳定性
-        self._max_heap.append((-key, self._index, item))
-        self._index += 1
+        self._min_heap.append((item_id, item))
+        self._max_heap.append((-key, item_id, item))
+        self._size += 1
         
         self._sift_up_min(len(self._min_heap) - 1)
         self._sift_up_max(len(self._max_heap) - 1)
@@ -428,14 +434,14 @@ class MinMaxHeap(Generic[T]):
         if isinstance(item, HeapItem):
             return item.priority
         if isinstance(item, (int, float)):
-            return item
-        return hash(item)
+            return float(item)
+        return float(hash(item))
     
     def _sift_up_min(self, i: int):
         """最小堆向上调整"""
         while i > 0:
             parent = (i - 1) // 2
-            if self._get_key(self._min_heap[i]) < self._get_key(self._min_heap[parent]):
+            if self._get_key(self._min_heap[i][1]) < self._get_key(self._min_heap[parent][1]):
                 self._min_heap[i], self._min_heap[parent] = self._min_heap[parent], self._min_heap[i]
                 i = parent
             else:
@@ -459,9 +465,9 @@ class MinMaxHeap(Generic[T]):
             left = 2 * i + 1
             right = 2 * i + 2
             
-            if left < size and self._get_key(self._min_heap[left]) < self._get_key(self._min_heap[smallest]):
+            if left < size and self._get_key(self._min_heap[left][1]) < self._get_key(self._min_heap[smallest][1]):
                 smallest = left
-            if right < size and self._get_key(self._min_heap[right]) < self._get_key(self._min_heap[smallest]):
+            if right < size and self._get_key(self._min_heap[right][1]) < self._get_key(self._min_heap[smallest][1]):
                 smallest = right
             
             if smallest != i:
@@ -489,70 +495,107 @@ class MinMaxHeap(Generic[T]):
             else:
                 break
     
+    def _clean_min_heap(self):
+        """清理最小堆顶部的已删除元素"""
+        while self._min_heap:
+            if self._min_heap[0][0] in self._deleted_ids:
+                # 移除堆顶已删除元素
+                item_id, item = self._min_heap[0]
+                last_id, last_item = self._min_heap.pop()
+                if self._min_heap:
+                    self._min_heap[0] = (last_id, last_item)
+                    self._sift_down_min(0)
+            else:
+                break
+    
+    def _clean_max_heap(self):
+        """清理最大堆顶部的已删除元素"""
+        while self._max_heap:
+            if self._max_heap[0][1] in self._deleted_ids:
+                # 移除堆顶已删除元素
+                neg_key, item_id, item = self._max_heap[0]
+                last = self._max_heap.pop()
+                if self._max_heap:
+                    self._max_heap[0] = last
+                    self._sift_down_max(0)
+            else:
+                break
+    
     def get_min(self) -> T:
         """获取最小元素"""
+        if self._size == 0:
+            raise IndexError("get_min from empty heap")
+        self._clean_min_heap()
         if not self._min_heap:
             raise IndexError("get_min from empty heap")
-        return self._min_heap[0]
+        return self._min_heap[0][1]
     
     def get_max(self) -> T:
         """获取最大元素"""
+        if self._size == 0:
+            raise IndexError("get_max from empty heap")
+        self._clean_max_heap()
         if not self._max_heap:
             raise IndexError("get_max from empty heap")
         return self._max_heap[0][2]
     
     def pop_min(self) -> T:
-        """弹出最小元素"""
+        """弹出最小元素（懒惰删除优化）"""
+        if self._size == 0:
+            raise IndexError("pop_min from empty heap")
+        
+        self._clean_min_heap()
         if not self._min_heap:
             raise IndexError("pop_min from empty heap")
         
-        result = self._min_heap[0]
-        last = self._min_heap.pop()
+        # 取堆顶元素
+        item_id, result = self._min_heap[0]
+        self._deleted_ids.add(item_id)
+        self._size -= 1
         
-        if self._min_heap:
-            self._min_heap[0] = last
+        # 移除堆顶：把最后一个元素移到堆顶，然后 sift_down
+        if len(self._min_heap) > 1:
+            last_id, last_item = self._min_heap.pop()
+            self._min_heap[0] = (last_id, last_item)
             self._sift_down_min(0)
+        else:
+            self._min_heap.pop()
         
-        # 从最大堆中移除对应元素（简化处理：重建）
-        self._rebuild_max_heap()
         return result
     
     def pop_max(self) -> T:
-        """弹出最大元素"""
+        """弹出最大元素（懒惰删除优化）"""
+        if self._size == 0:
+            raise IndexError("pop_max from empty heap")
+        
+        self._clean_max_heap()
         if not self._max_heap:
             raise IndexError("pop_max from empty heap")
         
-        result = self._max_heap[0][2]
-        last = self._max_heap.pop()
+        # 取堆顶元素
+        neg_key, item_id, result = self._max_heap[0]
+        self._deleted_ids.add(item_id)
+        self._size -= 1
         
-        if self._max_heap:
+        # 移除堆顶：把最后一个元素移到堆顶，然后 sift_down
+        if len(self._max_heap) > 1:
+            last = self._max_heap.pop()
             self._max_heap[0] = last
             self._sift_down_max(0)
+        else:
+            self._max_heap.pop()
         
-        # 从最小堆中移除对应元素（简化处理：重建）
-        self._rebuild_min_heap()
         return result
     
-    def _rebuild_max_heap(self):
-        """重建最大堆"""
-        self._max_heap = [(-self._get_key(x), i, x) for i, x in enumerate(self._min_heap)]
-        for i in range(len(self._max_heap) // 2 - 1, -1, -1):
-            self._sift_down_max(i)
-    
-    def _rebuild_min_heap(self):
-        """重建最小堆"""
-        self._min_heap = [x[2] for x in self._max_heap]
-        for i in range(len(self._min_heap) // 2 - 1, -1, -1):
-            self._sift_down_min(i)
-    
     def __len__(self) -> int:
-        return len(self._min_heap)
+        return self._size
     
     def __bool__(self) -> bool:
-        return bool(self._min_heap)
+        return self._size > 0
     
     def __repr__(self) -> str:
-        return f"MinMaxHeap({self._min_heap})"
+        valid_items = [item[1] for item in self._min_heap if item[0] not in self._deleted_ids]
+        return f"MinMaxHeap({valid_items})"
 
 
 class PriorityQueue(Generic[T]):

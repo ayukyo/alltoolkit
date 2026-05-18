@@ -312,6 +312,25 @@ ALL_PAPER_SIZES.update(ENVELOPE_SIZES)
 # 工具函数
 # =============================================================================
 
+# 预计算的查找映射（避免重复字符串操作）
+_NORMALIZED_PAPER_LOOKUP: Dict[str, PaperSize] = {}
+
+def _init_normalized_lookup():
+    """初始化标准化查找映射"""
+    global _NORMALIZED_PAPER_LOOKUP
+    if _NORMALIZED_PAPER_LOOKUP:
+        return
+    
+    for name, paper in ALL_PAPER_SIZES.items():
+        # 标准化名称（去除空格、统一大小写）
+        normalized = name.strip().upper()
+        _NORMALIZED_PAPER_LOOKUP[normalized] = paper
+        # 添加无空格版本
+        no_space = normalized.replace(" ", "")
+        if no_space != normalized:
+            _NORMALIZED_PAPER_LOOKUP[no_space] = paper
+
+
 def get_paper_size(name: str) -> Optional[PaperSize]:
     """
     获取纸张尺寸信息。
@@ -326,25 +345,17 @@ def get_paper_size(name: str) -> Optional[PaperSize]:
         >>> paper = get_paper_size("A4")
         >>> print(f"{paper.width_mm}×{paper.height_mm}mm")
         210×297mm
+    
+    Note:
+        使用预计算的查找映射，避免重复字符串标准化操作
     """
-    # 标准化名称（去除空格、统一大小写）
-    normalized = name.strip().upper()
+    # 初始化查找映射（仅首次调用时执行）
+    _init_normalized_lookup()
     
-    # 直接查找
-    if normalized in ALL_PAPER_SIZES:
-        return ALL_PAPER_SIZES[normalized]
+    # 标准化输入并直接查找
+    normalized = name.strip().upper().replace(" ", "")
     
-    # 尝试小写查找
-    if name.strip() in ALL_PAPER_SIZES:
-        return ALL_PAPER_SIZES[name.strip()]
-    
-    # 特殊处理：JIS B 系列
-    if normalized.startswith("B") and len(normalized) == 2:
-        # 优先返回 ISO B 系列
-        if normalized in ISO_B_SERIES:
-            return ISO_B_SERIES[normalized]
-    
-    return None
+    return _NORMALIZED_PAPER_LOOKUP.get(normalized)
 
 
 def get_all_paper_sizes() -> Dict[str, PaperSize]:

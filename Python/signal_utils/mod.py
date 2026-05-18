@@ -329,32 +329,37 @@ def moving_average_filter(
     
     Example:
         >>> filtered = moving_average_filter([1, 2, 3, 4, 5], 3)
-        >>> # 结果：[1, 1.5, 2, 3, 4]
+        >>> # 结果：[1.0, 1.5, 2.0, 3.0, 4.0]
+    
+    Note:
+        边界处理：前几个点使用部分窗口的平均值，而非直接返回原值
     """
     if window_size < 1:
         raise ValueError("窗口大小必须 >= 1")
     
     n = len(signal)
-    result = []
+    if n == 0:
+        return []
     
-    # 使用滑动窗口计算
-    window = deque(signal[:window_size], maxlen=window_size)
-    current_sum = sum(window)
+    if window_size == 1:
+        return signal.copy()
+    
+    result = []
+    current_sum = 0.0
     
     for i in range(n):
-        if i < window_size - 1:
-            # 前几个点，窗口不完整
-            result.append(signal[i])
-        elif i == window_size - 1:
-            # 窗口刚填满
-            result.append(current_sum / window_size)
-        else:
-            # 滑动窗口
-            old_val = window[0] if len(window) == window_size else 0
-            new_val = signal[i]
-            window.append(new_val)
-            current_sum = current_sum - old_val + new_val
-            result.append(current_sum / window_size)
+        # 添加新值到窗口
+        current_sum += signal[i]
+        
+        # 确定当前窗口大小（边界处理）
+        current_window = min(i + 1, window_size)
+        
+        # 如果窗口超出大小，移除最旧的值
+        if i >= window_size:
+            current_sum -= signal[i - window_size]
+        
+        # 计算平均值
+        result.append(current_sum / current_window)
     
     return result
 

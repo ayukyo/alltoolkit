@@ -501,16 +501,41 @@ def knapsack_fractional(
         >>> value, weight, selected = knapsack_fractional(items, 50)
         >>> value
         240.0  # 取完A和B
+    
+    Note:
+        边界处理优化：
+        - 空物品列表直接返回 (0, 0, [])
+        - 零容量返回 (sum of zero-weight items value, 0, those items)
+        - 处理 weight=0 且 value>0 的特殊物品（无限价值）
     """
-    _validate_items(items)
     _validate_capacity(capacity)
     
-    # 按价值密度降序排序
-    sorted_items = sorted(items, key=lambda x: x.ratio, reverse=True)
+    # 边界处理：空物品列表
+    if not items:
+        return (0.0, 0.0, [])
     
-    total_value = 0.0
+    # 边界处理：零容量 - 只能取重量为0的物品
+    if capacity == 0:
+        zero_weight_items = [(item, 1.0) for item in items if item.weight == 0]
+        total_value = sum(item.value for item, _ in zero_weight_items)
+        return (total_value, 0.0, zero_weight_items)
+    
+    # 分离零重量物品（它们可以全部选取）
+    zero_weight_items = [(item, 1.0) for item in items if item.weight == 0 and item.value > 0]
+    zero_weight_value = sum(item.value for item, _ in zero_weight_items)
+    
+    # 过滤出有正重量且有正价值的物品，按价值密度降序排序
+    valid_items = [item for item in items if item.weight > 0 and item.value > 0]
+    
+    if not valid_items:
+        return (zero_weight_value, 0.0, zero_weight_items)
+    
+    # 按价值密度降序排序（使用稳定的排序避免浮点精度问题）
+    sorted_items = sorted(valid_items, key=lambda x: (-x.ratio, x.weight))
+    
+    total_value = zero_weight_value
     total_weight = 0.0
-    selected: List[Tuple[Item, float]] = []
+    selected: List[Tuple[Item, float]] = zero_weight_items.copy()
     remaining = capacity
     
     for item in sorted_items:
@@ -530,8 +555,9 @@ def knapsack_fractional(
             total_value += item.value * fraction
             total_weight += remaining
             remaining = 0
+            break  # 背包已满
     
-    return total_value, total_weight, selected
+    return (total_value, total_weight, selected)
 
 
 def knapsack_multi_dim(

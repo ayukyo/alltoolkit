@@ -272,25 +272,38 @@ def levenshtein_distance(s1: str, s2: str) -> int:
         
     Returns:
         编辑距离
+    
+    Note:
+        使用滚动数组优化，O(min(m,n)) 内存复杂度
     """
+    # 确保 s2 是较短的字符串，减少内存使用
     if len(s1) < len(s2):
-        return levenshtein_distance(s2, s1)
+        s1, s2 = s2, s1
     
-    if len(s2) == 0:
-        return len(s1)
+    len1, len2 = len(s1), len(s2)
     
-    previous_row = range(len(s2) + 1)
+    if len2 == 0:
+        return len1
     
-    for i, c1 in enumerate(s1):
-        current_row = [i + 1]
-        for j, c2 in enumerate(s2):
-            insertions = previous_row[j + 1] + 1
-            deletions = current_row[j] + 1
-            substitutions = previous_row[j] + (c1 != c2)
-            current_row.append(min(insertions, deletions, substitutions))
-        previous_row = current_row
+    # 只使用两行，滚动更新
+    prev_row = list(range(len2 + 1))
+    curr_row = [0] * (len2 + 1)
     
-    return previous_row[-1]
+    for i in range(1, len1 + 1):
+        curr_row[0] = i
+        c1 = s1[i - 1]
+        
+        for j in range(1, len2 + 1):
+            # 插入、删除、替换的最小值
+            insert_cost = curr_row[j - 1] + 1
+            delete_cost = prev_row[j] + 1
+            replace_cost = prev_row[j - 1] + (c1 != s2[j - 1])
+            curr_row[j] = min(insert_cost, delete_cost, replace_cost)
+        
+        # 交换行引用（避免内存分配）
+        prev_row, curr_row = curr_row, prev_row
+    
+    return prev_row[len2]
 
 
 def levenshtein_similarity(s1: str, s2: str) -> float:
