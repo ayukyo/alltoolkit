@@ -1,418 +1,442 @@
 """
-考拉兹猜想工具模块测试
+AllToolkit - Python Collatz Utilities Tests
+
+Comprehensive test suite for collatz_utils module.
 """
 
 import unittest
-from mod import (
+import sys
+import os
+
+# Add parent directory to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from collatz_utils.mod import (
     collatz_step,
-    generate_sequence,
-    get_steps_to_one,
-    get_max_value,
-    get_max_value_position,
-    analyze,
-    find_longest_sequence,
-    find_highest_value,
-    verify_conjecture,
-    batch_analyze,
-    get_odd_even_ratio,
-    get_convergence_tree,
-    get_stopping_time,
-    is_in_4_2_1_cycle,
-    get_total_stopping_time,
-    get_eta,
-    format_sequence,
-    get_statistics,
-    CollatzSequence,
+    collatz_sequence,
+    collatz_generator,
+    collatz_length,
+    collatz_length_cached,
+    collatz_max_value,
+    collatz_even_odd_ratio,
+    collatz_rise_and_fall,
+    total_stopping_time,
+    stopping_time_to_value,
+    longest_sequence_in_range,
+    highest_value_in_range,
+    collatz_statistics,
+    find_numbers_reaching_value,
+    find_numbers_with_length,
+    find_numbers_with_max_value,
+    generalized_collatz_sequence,
+    lazy_caterer_sequence,
+    collatz_tree_path,
+    collatz_waterfall,
+    collatz_summary,
+    is_collatz_number,
+    first_n_collatz_values,
+    collatz_predecessors,
+    collatz_inverse_tree,
+    InvalidInputError,
+    MaxIterationsError,
 )
 
 
 class TestCollatzStep(unittest.TestCase):
-    """测试单步考拉兹变换"""
+    """Test the basic Collatz step function."""
     
     def test_even_number(self):
-        """测试偶数"""
+        """Test that even numbers are divided by 2."""
         self.assertEqual(collatz_step(6), 3)
-        self.assertEqual(collatz_step(10), 5)
-        self.assertEqual(collatz_step(2), 1)
         self.assertEqual(collatz_step(4), 2)
+        self.assertEqual(collatz_step(100), 50)
+        self.assertEqual(collatz_step(2), 1)
     
     def test_odd_number(self):
-        """测试奇数"""
+        """Test that odd numbers follow 3n+1."""
         self.assertEqual(collatz_step(3), 10)
         self.assertEqual(collatz_step(5), 16)
         self.assertEqual(collatz_step(7), 22)
+        self.assertEqual(collatz_step(9), 28)
+    
+    def test_one(self):
+        """Test that 1 follows 3n+1 (gives 4)."""
         self.assertEqual(collatz_step(1), 4)
     
     def test_invalid_input(self):
-        """测试无效输入"""
-        with self.assertRaises(ValueError):
+        """Test that invalid inputs raise errors."""
+        with self.assertRaises(InvalidInputError):
             collatz_step(0)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(InvalidInputError):
             collatz_step(-1)
+        with self.assertRaises(InvalidInputError):
+            collatz_step(3.5)
+        with self.assertRaises(InvalidInputError):
+            collatz_step("6")
 
 
-class TestGenerateSequence(unittest.TestCase):
-    """测试序列生成"""
+class TestCollatzSequence(unittest.TestCase):
+    """Test Collatz sequence generation."""
     
-    def test_simple_sequences(self):
-        """测试简单序列"""
-        # n=1 默认不包含循环
-        self.assertEqual(generate_sequence(1), [1])
-        # n=1 包含循环
-        self.assertEqual(generate_sequence(1, include_cycle=True), [1, 4, 2, 1])
-        self.assertEqual(generate_sequence(2), [2, 1])
-        self.assertEqual(generate_sequence(4), [4, 2, 1])
+    def test_sequence_for_one(self):
+        """Test sequence for 1."""
+        self.assertEqual(collatz_sequence(1), [1])
     
-    def test_medium_sequences(self):
-        """测试中等长度序列"""
-        self.assertEqual(
-            generate_sequence(6),
-            [6, 3, 10, 5, 16, 8, 4, 2, 1]
-        )
-        self.assertEqual(
-            generate_sequence(3),
-            [3, 10, 5, 16, 8, 4, 2, 1]
-        )
+    def test_sequence_for_six(self):
+        """Test the classic example: 6 -> 3 -> 10 -> 5 -> 16 -> 8 -> 4 -> 2 -> 1."""
+        self.assertEqual(collatz_sequence(6), [6, 3, 10, 5, 16, 8, 4, 2, 1])
     
-    def test_long_sequence(self):
-        """测试较长序列 (27是著名的例子)"""
-        seq = generate_sequence(27)
+    def test_sequence_for_seven(self):
+        """Test sequence for 7."""
+        expected = [7, 22, 11, 34, 17, 52, 26, 13, 40, 20, 10, 5, 16, 8, 4, 2, 1]
+        self.assertEqual(collatz_sequence(7), expected)
+    
+    def test_sequence_for_twenty_seven(self):
+        """Test the famous long sequence for 27."""
+        seq = collatz_sequence(27)
         self.assertEqual(seq[0], 27)
         self.assertEqual(seq[-1], 1)
-        self.assertEqual(len(seq), 112)  # 27的序列有112个元素
+        self.assertEqual(len(seq), 112)  # Known length for 27
+        self.assertEqual(max(seq), 9232)  # Known max for 27
+    
+    def test_sequence_ends_with_one(self):
+        """Test that all sequences end with 1."""
+        for n in [1, 2, 3, 4, 5, 10, 20, 50, 100]:
+            seq = collatz_sequence(n)
+            self.assertEqual(seq[-1], 1)
     
     def test_invalid_input(self):
-        """测试无效输入"""
-        with self.assertRaises(ValueError):
-            generate_sequence(0)
-        with self.assertRaises(ValueError):
-            generate_sequence(-5)
+        """Test invalid inputs."""
+        with self.assertRaises(InvalidInputError):
+            collatz_sequence(0)
+        with self.assertRaises(InvalidInputError):
+            collatz_sequence(-5)
 
 
-class TestGetStepsToOne(unittest.TestCase):
-    """测试步数计算"""
+class TestCollatzGenerator(unittest.TestCase):
+    """Test the generator version of Collatz sequence."""
     
-    def test_simple_cases(self):
-        """测试简单情况"""
-        self.assertEqual(get_steps_to_one(1), 0)
-        self.assertEqual(get_steps_to_one(2), 1)
-        self.assertEqual(get_steps_to_one(4), 2)
+    def test_generator_basic(self):
+        """Test that generator produces correct sequence."""
+        result = list(collatz_generator(6))
+        self.assertEqual(result, [6, 3, 10, 5, 16, 8, 4, 2, 1])
     
-    def test_known_cases(self):
-        """测试已知值"""
-        # 数字6: [6, 3, 10, 5, 16, 8, 4, 2, 1] - 8步变换
-        self.assertEqual(get_steps_to_one(6), 8)
-        # 数字27: 111步（著名例子）
-        self.assertEqual(get_steps_to_one(27), 111)
+    def test_generator_one(self):
+        """Test generator for 1."""
+        result = list(collatz_generator(1))
+        self.assertEqual(result, [1])
     
-    def test_cached_results(self):
-        """测试缓存功能"""
-        # 多次调用应该返回相同结果
-        for _ in range(5):
-            self.assertEqual(get_steps_to_one(100), get_steps_to_one(100))
+    def test_generator_efficiency(self):
+        """Test that generator is memory efficient."""
+        gen = collatz_generator(1000)
+        first_five = [next(gen) for _ in range(5)]
+        self.assertEqual(first_five[:3], [1000, 500, 250])
 
 
-class TestGetMaxValue(unittest.TestCase):
-    """测试最大值获取"""
+class TestCollatzLength(unittest.TestCase):
+    """Test sequence length calculations."""
     
-    def test_simple_cases(self):
-        """测试简单情况"""
-        # n=1 不包含循环时最大值是1
-        self.assertEqual(get_max_value(1), 1)
-        self.assertEqual(get_max_value(2), 2)
-        self.assertEqual(get_max_value(4), 4)
+    def test_length_for_one(self):
+        """Test length for 1."""
+        self.assertEqual(collatz_length(1), 1)
     
-    def test_known_cases(self):
-        """测试已知值"""
-        self.assertEqual(get_max_value(6), 16)
-        self.assertEqual(get_max_value(27), 9232)
-
-
-class TestGetMaxValuePosition(unittest.TestCase):
-    """测试最大值位置"""
+    def test_length_for_six(self):
+        """Test length for 6."""
+        self.assertEqual(collatz_length(6), 9)
     
-    def test_position(self):
-        """测试位置计算"""
-        val, pos = get_max_value_position(6)
-        self.assertEqual(val, 16)
-        self.assertEqual(pos, 4)
+    def test_length_for_twenty_seven(self):
+        """Test known length for 27."""
+        self.assertEqual(collatz_length(27), 112)
+    
+    def test_cached_version(self):
+        """Test cached length function."""
+        self.assertEqual(collatz_length_cached(6), 9)
+        self.assertEqual(collatz_length_cached(27), 112)
         
-        val, pos = get_max_value_position(27)
-        self.assertEqual(val, 9232)
-        # 27的序列有112个元素，最大值9232在位置77（索引从0开始）
-        self.assertEqual(pos, 77)
+        # Test cache effectiveness by clearing and calling again
+        collatz_length_cached.cache_clear()
+        self.assertEqual(collatz_length_cached(10), 7)
 
 
-class TestAnalyze(unittest.TestCase):
-    """测试全面分析"""
+class TestCollatzMaxValue(unittest.TestCase):
+    """Test maximum value calculations."""
     
-    def test_analyze_6(self):
-        """测试数字6的分析"""
-        result = analyze(6)
-        self.assertEqual(result['start_value'], 6)
-        # 步数 = 序列长度 - 1 = 9 - 1 = 8
-        self.assertEqual(result['steps'], 8)
-        self.assertEqual(result['max_value'], 16)
-        self.assertEqual(result['sequence_length'], 9)
-        # 序列 [6, 3, 10, 5, 16, 8, 4, 2, 1]
-        # 奇数: 3, 5, 1 (不包括起始值) - 实际包括所有
-        # 奇数: 6,3,10,5,16,8,4,2,1 中奇数有 3,5,1 = 3个
-        # 但分析中的计数是基于整个序列
-        self.assertEqual(result['odd_count'], 3)  # 3, 5, 1
-        self.assertEqual(result['even_count'], 6)  # 6, 10, 16, 8, 4, 2
+    def test_max_for_one(self):
+        """Test max for 1."""
+        self.assertEqual(collatz_max_value(1), 1)
     
-    def test_analyze_1(self):
-        """测试数字1的分析"""
-        result = analyze(1)
-        self.assertEqual(result['start_value'], 1)
-        self.assertEqual(result['steps'], 0)
-        # n=1 不包含循环，最大值是1
-        self.assertEqual(result['max_value'], 1)
-
-
-class TestFindLongestSequence(unittest.TestCase):
-    """测试查找最长序列"""
+    def test_max_for_six(self):
+        """Test max for 6 (should be 16)."""
+        self.assertEqual(collatz_max_value(6), 16)
     
-    def test_small_range(self):
-        """测试小范围"""
-        n, steps = find_longest_sequence(10)
-        self.assertEqual(n, 9)
-        self.assertEqual(steps, 19)
+    def test_max_for_seven(self):
+        """Test max for 7 (should be 52)."""
+        self.assertEqual(collatz_max_value(7), 52)
     
-    def test_medium_range(self):
-        """测试中等范围"""
-        n, steps = find_longest_sequence(100)
-        self.assertEqual(n, 97)
-        self.assertEqual(steps, 118)
+    def test_max_for_twenty_seven(self):
+        """Test known max for 27."""
+        self.assertEqual(collatz_max_value(27), 9232)
 
 
-class TestFindHighestValue(unittest.TestCase):
-    """测试查找最高值"""
+class TestCollatzEvenOddRatio(unittest.TestCase):
+    """Test even/odd counting."""
     
-    def test_small_range(self):
-        """测试小范围"""
-        n, val = find_highest_value(10)
-        # 数字9产生最大值52，但数字7产生最大值22的序列有更高的峰值
-        # 让我们检查实际值
-        # 7 -> 22 -> 11 -> 34 -> 17 -> 52 -> ...
-        # 实际上数字7的序列峰值是9232(通过27的路径)? 不对，让我们重新计算
-        # 7的序列: [7, 22, 11, 34, 17, 52, 26, 13, 40, 20, 10, 5, 16, 8, 4, 2, 1]
-        # 峰值是52
-        # 9的序列: [9, 28, 14, 7, 22, 11, 34, 17, 52, 26, 13, 40, 20, 10, 5, 16, 8, 4, 2, 1]
-        # 峰值也是52
-        self.assertEqual(val, 52)
-
-
-class TestVerifyConjecture(unittest.TestCase):
-    """测试猜想验证"""
+    def test_ratio_for_one(self):
+        """Test ratio for 1."""
+        self.assertEqual(collatz_even_odd_ratio(1), (1, 0))
     
-    def test_verification(self):
-        """测试验证功能"""
-        verified, count = verify_conjecture(100)
-        self.assertTrue(verified)
-        self.assertEqual(count, 100)
-        
-        verified, count = verify_conjecture(1000)
-        self.assertTrue(verified)
-
-
-class TestBatchAnalyze(unittest.TestCase):
-    """测试批量分析"""
+    def test_ratio_for_six(self):
+        """Test ratio for 6."""
+        even, odd = collatz_even_odd_ratio(6)
+        # Sequence: 6, 3, 10, 5, 16, 8, 4, 2, 1
+        # Even: 6, 10, 16, 8, 4, 2, 1 = 7 (wait, 1 is also odd)
+        # Let me recalculate: 6(e), 3(o), 10(e), 5(o), 16(e), 8(e), 4(e), 2(e), 1(o)
+        # Even: 6, 10, 16, 8, 4, 2 = 6
+        # Odd: 3, 5, 1 = 3
+        self.assertEqual(even, 6)
+        self.assertEqual(odd, 3)
     
-    def test_batch(self):
-        """测试批量分析"""
-        results = batch_analyze([1, 2, 3, 4, 5])
-        self.assertEqual(len(results), 5)
-        self.assertEqual(results[0]['start_value'], 1)
-        self.assertEqual(results[4]['start_value'], 5)
+    def test_ratio_for_seven(self):
+        """Test ratio for 7."""
+        even, odd = collatz_even_odd_ratio(7)
+        self.assertEqual(even + odd, 17)  # Total length
 
 
-class TestGetOddEvenRatio(unittest.TestCase):
-    """测试奇偶比例"""
+class TestCollatzRiseAndFall(unittest.TestCase):
+    """Test rise and fall counting."""
     
-    def test_ratio(self):
-        """测试比例计算"""
-        # 序列 [6, 3, 10, 5, 16, 8, 4, 2, 1]
-        # 奇数: 3, 5, 1 = 3个
-        # 偶数: 6, 10, 16, 8, 4, 2 = 6个
-        ratio = get_odd_even_ratio(6)
-        self.assertAlmostEqual(ratio, 0.5)  # 3/6 = 0.5
-        
-        # n=1: [1], 奇数1个，偶数0个，比例为无穷大
-        # 但我们的实现会返回特殊值
-
-
-class TestGetConvergenceTree(unittest.TestCase):
-    """测试收敛树"""
+    def test_rise_fall_for_six(self):
+        """Test rises and falls for 6."""
+        # 6->3(f), 3->10(r), 10->5(f), 5->16(r), 16->8(f), 8->4(f), 4->2(f), 2->1(f)
+        rises, falls = collatz_rise_and_fall(6)
+        self.assertEqual(rises, 2)  # 3->10, 5->16
+        self.assertEqual(falls, 6)  # 6->3, 10->5, 16->8, 8->4, 4->2, 2->1
     
-    def test_tree_structure(self):
-        """测试树结构"""
-        tree = get_convergence_tree(1, max_depth=2)
-        self.assertEqual(tree['value'], 1)
-        self.assertTrue(len(tree['children']) > 0)
-    
-    def test_tree_contains_2(self):
-        """测试树包含2"""
-        tree = get_convergence_tree(1, max_depth=2)
-        values = [child['value'] for child in tree['children']]
-        self.assertIn(2, values)
+    def test_rise_fall_for_one(self):
+        """Test rises and falls for 1."""
+        self.assertEqual(collatz_rise_and_fall(1), (0, 0))
 
 
-class TestGetStoppingTime(unittest.TestCase):
-    """测试停止时间"""
-    
-    def test_stopping_time(self):
-        """测试停止时间"""
-        # 数字6: 第一步就降到起始值以下 (6->3)
-        self.assertEqual(get_stopping_time(6), 1)
-        # 数字7: 序列需要多少步才能降到7以下？
-        # [7, 22, 11, 34, 17, 52, 26, 13, 40, 20, 10, 5, ...]
-        # 第11步到达5 (< 7)
-        self.assertEqual(get_stopping_time(7), 11)
-    
-    def test_stopping_time_one(self):
-        """测试1的停止时间"""
-        self.assertEqual(get_stopping_time(1), 0)
-
-
-class TestIsIn421Cycle(unittest.TestCase):
-    """测试4-2-1循环检测"""
-    
-    def test_in_cycle(self):
-        """测试在循环中的数字"""
-        self.assertTrue(is_in_4_2_1_cycle(1))
-        self.assertTrue(is_in_4_2_1_cycle(2))
-        self.assertTrue(is_in_4_2_1_cycle(4))
-    
-    def test_not_in_cycle(self):
-        """测试不在循环中的数字"""
-        self.assertFalse(is_in_4_2_1_cycle(3))
-        self.assertFalse(is_in_4_2_1_cycle(6))
-        self.assertFalse(is_in_4_2_1_cycle(27))
-
-
-class TestGetTotalStoppingTime(unittest.TestCase):
-    """测试总停止时间"""
+class TestStoppingTime(unittest.TestCase):
+    """Test stopping time calculations."""
     
     def test_total_stopping_time(self):
-        """测试总停止时间"""
-        self.assertEqual(get_total_stopping_time(27), 111)
-        self.assertEqual(get_total_stopping_time(1), 0)
+        """Test total stopping time."""
+        self.assertEqual(total_stopping_time(1), 0)
+        self.assertEqual(total_stopping_time(6), 8)
+        self.assertEqual(total_stopping_time(27), 111)
+    
+    def test_stopping_time_to_value(self):
+        """Test stopping time to reach specific value."""
+        self.assertEqual(stopping_time_to_value(6, 10), 2)
+        self.assertEqual(stopping_time_to_value(6, 5), 3)
+        self.assertEqual(stopping_time_to_value(6, 1), 8)
+        self.assertIsNone(stopping_time_to_value(6, 100))
 
 
-class TestGetEta(unittest.TestCase):
-    """测试Eta函数"""
+class TestRangeAnalysis(unittest.TestCase):
+    """Test range analysis functions."""
     
-    def test_eta(self):
-        """测试Eta值"""
-        # 27的序列：最大值9232在索引77
-        self.assertEqual(get_eta(27), 77)
-        # 6的序列：[6, 3, 10, 5, 16, 8, 4, 2, 1]
-        # 最大值16在索引4
-        self.assertEqual(get_eta(6), 4)
+    def test_longest_sequence_in_range(self):
+        """Test finding longest sequence in range."""
+        num, length, seq = longest_sequence_in_range(1, 10)
+        self.assertEqual(num, 9)
+        self.assertEqual(length, 20)
+    
+    def test_highest_value_in_range(self):
+        """Test finding highest value in range."""
+        num, max_val, step = highest_value_in_range(1, 10)
+        # Both 7 and 9 reach 52 as max value
+        self.assertIn(num, [7, 9])
+        self.assertEqual(max_val, 52)
+    
+    def test_collatz_statistics(self):
+        """Test statistics calculation."""
+        stats = collatz_statistics(1, 10)
+        self.assertEqual(stats['count'], 10)
+        self.assertEqual(stats['min_length'], 1)  # 1 has length 1
+        self.assertEqual(stats['max_length'], 20)  # 9 has length 20
+        self.assertEqual(stats['max_length_number'], 9)
+        self.assertGreater(stats['even_ratio'], 0.5)  # Most numbers are even
 
 
-class TestFormatSequence(unittest.TestCase):
-    """测试序列格式化"""
+class TestPatternDetection(unittest.TestCase):
+    """Test pattern detection functions."""
     
-    def test_format(self):
-        """测试格式化输出"""
-        self.assertEqual(
-            format_sequence(6),
-            "6 → 3 → 10 → 5 → 16 → 8 → 4 → 2 → 1"
-        )
-        # n=1 默认不包含循环
-        self.assertEqual(
-            format_sequence(1),
-            "1"
-        )
+    def test_find_numbers_reaching_value(self):
+        """Test finding numbers that reach a specific value."""
+        result = find_numbers_reaching_value(16, 20)
+        self.assertIn(5, result)
+        self.assertIn(10, result)
+        self.assertIn(16, result)
     
-    def test_custom_separator(self):
-        """测试自定义分隔符"""
-        result = format_sequence(6, separator=", ")
-        self.assertEqual(result, "6, 3, 10, 5, 16, 8, 4, 2, 1")
+    def test_find_numbers_with_length(self):
+        """Test finding numbers with specific length."""
+        result = find_numbers_with_length(9, 20)
+        self.assertEqual(result, [6])
+    
+    def test_find_numbers_with_max_value(self):
+        """Test finding numbers with specific max value."""
+        result = find_numbers_with_max_value(16, 20)
+        self.assertIn(6, result)
 
 
-class TestGetStatistics(unittest.TestCase):
-    """测试统计信息"""
+class TestGeneralizedCollatz(unittest.TestCase):
+    """Test generalized Collatz variants."""
     
-    def test_statistics(self):
-        """测试统计功能"""
-        stats = get_statistics(10)
-        self.assertEqual(stats['total_numbers'], 10)
-        self.assertGreater(stats['average_steps'], 0)
-        self.assertEqual(stats['max_steps_number'], 9)
-        self.assertEqual(stats['max_steps'], 19)
+    def test_standard_parameters(self):
+        """Test with standard parameters."""
+        seq = generalized_collatz_sequence(6, a=3, b=1, c=2)
+        self.assertEqual(seq, collatz_sequence(6))
+    
+    def test_five_n_plus_one(self):
+        """Test 5n+1 variant."""
+        # 5n+1 may not converge to 1 quickly, just check first few values
+        try:
+            seq = generalized_collatz_sequence(7, a=5, b=1, c=2, max_iterations=100)
+            # Should produce: 7, 36, 18, 9, 46, 23, 116, ...
+            self.assertEqual(seq[0], 7)
+            self.assertEqual(seq[1], 36)
+            self.assertEqual(seq[2], 18)
+        except MaxIterationsError:
+            # This is expected - 5n+1 variant may not converge
+            pass
+    
+    def test_lazy_caterer(self):
+        """Test lazy caterer sequence."""
+        try:
+            seq = lazy_caterer_sequence(7, max_iterations=100)
+            self.assertEqual(seq[0], 7)
+        except MaxIterationsError:
+            # This is expected - 5n+1 variant may not converge
+            pass
 
 
-class TestCollatzSequenceClass(unittest.TestCase):
-    """测试 CollatzSequence 类"""
+class TestVisualizationHelpers(unittest.TestCase):
+    """Test visualization helper functions."""
     
-    def test_iteration(self):
-        """测试迭代"""
-        seq = CollatzSequence(6)
-        self.assertEqual(list(seq), [6, 3, 10, 5, 16, 8, 4, 2, 1])
+    def test_collatz_tree_path(self):
+        """Test tree path generation."""
+        path = collatz_tree_path(6)
+        self.assertEqual(path[0], (6, 'start'))
+        self.assertEqual(path[-1], (1, '/2'))
     
-    def test_length(self):
-        """测试长度"""
-        seq = CollatzSequence(6)
-        self.assertEqual(len(seq), 9)
+    def test_collatz_waterfall(self):
+        """Test waterfall visualization."""
+        wf = collatz_waterfall(7)
+        self.assertIn('7', wf)
+        self.assertIn('1', wf)
     
-    def test_indexing(self):
-        """测试索引"""
-        seq = CollatzSequence(6)
-        self.assertEqual(seq[0], 6)
-        self.assertEqual(seq[-1], 1)
-        self.assertEqual(seq[4], 16)
+    def test_collatz_summary(self):
+        """Test summary generation."""
+        summary = collatz_summary(27)
+        self.assertEqual(summary['number'], 27)
+        self.assertEqual(summary['length'], 112)
+        self.assertEqual(summary['max_value'], 9232)
+        self.assertEqual(summary['total_stopping_time'], 111)
+
+
+class TestUtilityFunctions(unittest.TestCase):
+    """Test utility functions."""
     
-    def test_properties(self):
-        """测试属性"""
-        seq = CollatzSequence(6)
-        self.assertEqual(seq.start, 6)
-        # 步数 = 序列长度 - 1 = 9 - 1 = 8
-        self.assertEqual(seq.steps, 8)
-        self.assertEqual(seq.max_value, 16)
-        # 序列 [6, 3, 10, 5, 16, 8, 4, 2, 1]
-        # 奇数: 3, 5, 1 = 3个
-        self.assertEqual(seq.odd_count, 3)
-        self.assertEqual(seq.even_count, 6)
+    def test_is_collatz_number(self):
+        """Test Collatz number verification."""
+        self.assertTrue(is_collatz_number(1))
+        self.assertTrue(is_collatz_number(100))
+        self.assertTrue(is_collatz_number(1000))
     
-    def test_repr(self):
-        """测试字符串表示"""
-        seq = CollatzSequence(6)
-        self.assertEqual(repr(seq), "CollatzSequence(6)")
-        self.assertEqual(str(seq), "6 → 3 → 10 → 5 → 16 → 8 → 4 → 2 → 1")
+    def test_first_n_collatz_values(self):
+        """Test first N values."""
+        values = first_n_collatz_values(10)
+        for i in range(1, 11):
+            self.assertIn(i, values)
     
-    def test_invalid_input(self):
-        """测试无效输入"""
-        with self.assertRaises(ValueError):
-            CollatzSequence(0)
-        with self.assertRaises(ValueError):
-            CollatzSequence(-1)
+    def test_collatz_predecessors(self):
+        """Test predecessor finding."""
+        preds = collatz_predecessors(5)
+        self.assertEqual(preds, {10})
+        
+        preds = collatz_predecessors(4)
+        self.assertIn(8, preds)
+        # Note: 1 is not included as predecessor because we filter out 1
+        # (since 1 -> 4 via 3*1+1, but 1 is a special case)
+    
+    def test_collatz_inverse_tree(self):
+        """Test inverse tree generation."""
+        tree = collatz_inverse_tree(1, depth=3)
+        self.assertIn(1, tree)
+        self.assertIn(2, tree)
+        self.assertIn(4, tree)
 
 
 class TestEdgeCases(unittest.TestCase):
-    """测试边界情况"""
+    """Test edge cases and special values."""
     
     def test_power_of_two(self):
-        """测试2的幂次"""
-        for i in range(1, 10):
-            n = 2 ** i
-            # 2^i 的步数应该是 i（直接除以2到底）
-            self.assertEqual(get_steps_to_one(n), i)
+        """Test powers of 2."""
+        for n in [2, 4, 8, 16, 32, 64]:
+            seq = collatz_sequence(n)
+            # Should be simple halving sequence ending in 1
+            expected = [n]
+            while expected[-1] > 1:
+                expected.append(expected[-1] // 2)
+            self.assertEqual(seq, expected)
     
-    def test_sequence_always_ends_at_one(self):
-        """测试序列总是以1结束"""
-        for n in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 27, 100, 1000]:
-            seq = generate_sequence(n)
-            self.assertEqual(seq[-1], 1, f"序列 {n} 应该以 1 结束")
+    def test_large_numbers(self):
+        """Test with reasonably large numbers."""
+        seq = collatz_sequence(10000)
+        self.assertEqual(seq[-1], 1)
+        self.assertGreater(len(seq), 10)
     
-    def test_sequence_contains_start(self):
-        """测试序列包含起始值"""
-        for n in [1, 2, 3, 6, 27, 100]:
-            seq = generate_sequence(n)
-            self.assertEqual(seq[0], n)
+    def test_max_iterations_error(self):
+        """Test max iterations error handling."""
+        # This should not raise for normal numbers
+        collatz_sequence(1000000, max_iterations=100000)
+        
+        # But should raise with very low max_iterations
+        with self.assertRaises(MaxIterationsError):
+            collatz_sequence(1000000, max_iterations=10)
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
+class TestPerformance(unittest.TestCase):
+    """Test performance characteristics."""
+    
+    def test_cached_vs_uncached(self):
+        """Compare cached and uncached versions."""
+        # First call should populate cache
+        import time
+        
+        start = time.time()
+        for n in range(1, 1000):
+            collatz_length_cached(n)
+        cached_time = time.time() - start
+        
+        # Clear cache and test again
+        collatz_length_cached.cache_clear()
+        start = time.time()
+        for n in range(1, 1000):
+            collatz_length_cached(n)
+        uncached_time = time.time() - start
+        
+        # Cached should be faster for repeated calls
+        start = time.time()
+        for n in range(1, 1000):
+            collatz_length_cached(n)
+        second_cached_time = time.time() - start
+        
+        # Second cached should be very fast
+        self.assertLess(second_cached_time, uncached_time)
+
+
+def run_tests():
+    """Run all tests."""
+    loader = unittest.TestLoader()
+    suite = loader.loadTestsFromModule(sys.modules[__name__])
+    runner = unittest.TextTestRunner(verbosity=2)
+    result = runner.run(suite)
+    return result.wasSuccessful()
+
+
+if __name__ == '__main__':
+    success = run_tests()
+    sys.exit(0 if success else 1)

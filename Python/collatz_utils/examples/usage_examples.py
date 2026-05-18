@@ -1,260 +1,287 @@
 """
-考拉兹猜想工具模块使用示例
+AllToolkit - Python Collatz Utilities Usage Examples
 
-考拉兹猜想（3n+1问题）是数学中最著名的未解问题之一。
-本示例展示如何使用 collatz_utils 工具模块探索这个有趣的数学现象。
+This file demonstrates various use cases for the collatz_utils module.
 """
 
-import os
 import sys
-# 添加父目录到路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from mod import (
-    collatz_step,
-    generate_sequence,
-    get_steps_to_one,
-    get_max_value,
-    analyze,
-    find_longest_sequence,
-    find_highest_value,
-    verify_conjecture,
-    format_sequence,
-    get_statistics,
-    CollatzSequence,
-    get_stopping_time,
-    get_eta,
+import os
+
+# Add parent directory to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from collatz_utils.mod import (
+    collatz_sequence,
+    collatz_length,
+    collatz_max_value,
+    collatz_even_odd_ratio,
+    collatz_rise_and_fall,
+    total_stopping_time,
+    collatz_statistics,
+    longest_sequence_in_range,
+    highest_value_in_range,
+    collatz_summary,
+    collatz_waterfall,
+    collatz_tree_path,
+    generalized_collatz_sequence,
+    collatz_predecessors,
+    collatz_inverse_tree,
+    find_numbers_reaching_value,
+    find_numbers_with_length,
 )
 
 
-def example_basic_operations():
-    """示例1：基本操作"""
-    print("\n" + "=" * 60)
-    print("示例1：基本考拉兹变换")
+def example_basic_sequence():
+    """Example: Generate a basic Collatz sequence."""
+    print("=" * 60)
+    print("Example 1: Basic Collatz Sequence")
     print("=" * 60)
     
-    # 单步变换
-    print("\n单步考拉兹变换:")
-    numbers = [1, 2, 3, 5, 7, 10, 20]
+    # The famous sequence for 27
+    print("\nCollatz sequence for 27:")
+    seq = collatz_sequence(27)
+    print(f"Length: {len(seq)}")
+    print(f"Maximum value: {max(seq)}")
+    print(f"First 10 values: {seq[:10]}")
+    print(f"Last 10 values: {seq[-10:]}")
+    
+    # Simple sequence for 6
+    print("\nCollatz sequence for 6:")
+    print(collatz_sequence(6))
+
+
+def example_sequence_properties():
+    """Example: Analyze sequence properties."""
+    print("\n" + "=" * 60)
+    print("Example 2: Sequence Properties Analysis")
+    print("=" * 60)
+    
+    numbers = [6, 7, 27, 100, 1000]
+    
     for n in numbers:
-        result = collatz_step(n)
-        parity = "偶数" if n % 2 == 0 else "奇数"
-        operation = "n/2" if n % 2 == 0 else "3n+1"
-        print(f"  {n} ({parity}) → {result} ({operation})")
-    
-    # 生成完整序列
-    print("\n生成完整序列:")
-    for n in [6, 7, 10]:
-        seq = generate_sequence(n)
-        print(f"  从 {n} 开始: {len(seq)} 步 → {format_sequence(n)}")
+        length = collatz_length(n)
+        max_val = collatz_max_value(n)
+        even, odd = collatz_even_odd_ratio(n)
+        rises, falls = collatz_rise_and_fall(n)
+        
+        print(f"\nNumber: {n}")
+        print(f"  Sequence length: {length}")
+        print(f"  Maximum value: {max_val}")
+        print(f"  Even/Odd ratio: {even}/{odd}")
+        print(f"  Rises/Falls: {rises}/{falls}")
 
 
-def example_famous_number_27():
-    """示例2：著名的数字27"""
+def example_range_statistics():
+    """Example: Calculate statistics for a range of numbers."""
     print("\n" + "=" * 60)
-    print("示例2：著名的数字27（最长序列之一）")
+    print("Example 3: Range Statistics")
     print("=" * 60)
     
-    # 数字27是考拉兹研究中的著名例子
-    result = analyze(27)
+    # Statistics for 1-100
+    stats = collatz_statistics(1, 100)
     
-    print(f"\n数字 27 的考拉兹序列分析:")
-    print(f"  • 起始值: {result['start_value']}")
-    print(f"  • 到达1的步数: {result['steps']} 步")
-    print(f"  • 序列长度: {result['sequence_length']} 个数字")
-    print(f"  • 最大值: {result['max_value']}")
-    print(f"  • 最大值出现位置: 第 {result['max_value_step']} 步")
-    print(f"  • 奇数操作次数: {result['odd_count']}")
-    print(f"  • 偶数操作次数: {result['even_count']}")
-    
-    print(f"\n  序列前20个数字: {result['sequence'][:20]}...")
-    print(f"  序列最后10个数字: ...{result['sequence'][-10:]}")
+    print("\nStatistics for numbers 1-100:")
+    print(f"  Count: {stats['count']}")
+    print(f"  Average length: {stats['avg_length']:.2f}")
+    print(f"  Min length: {stats['min_length']}")
+    print(f"  Max length: {stats['max_length']}")
+    print(f"  Number with max length: {stats['max_length_number']}")
+    print(f"  Highest max value: {stats['highest_max_value']}")
+    print(f"  Number with highest max: {stats['highest_max_number']}")
+    print(f"  Even ratio: {stats['even_ratio']:.2%}")
 
 
-def example_sequence_comparison():
-    """示例3：序列比较"""
+def example_find_longest_sequences():
+    """Example: Find numbers with longest sequences."""
     print("\n" + "=" * 60)
-    print("示例3：不同数字的序列比较")
+    print("Example 4: Finding Longest Sequences")
     print("=" * 60)
     
-    print("\n比较 1-20 范围内的考拉兹序列:")
-    print(f"{'数字':<6} {'步数':<6} {'最大值':<10} {'序列长度':<10}")
+    # Find longest sequence in 1-1000
+    num, length, seq = longest_sequence_in_range(1, 1000)
+    
+    print(f"\nIn range 1-1000:")
+    print(f"  Number with longest sequence: {num}")
+    print(f"  Sequence length: {length}")
+    print(f"  Maximum value in sequence: {max(seq)}")
+
+
+def example_find_highest_values():
+    """Example: Find numbers that reach highest values."""
+    print("\n" + "=" * 60)
+    print("Example 5: Finding Highest Values")
+    print("=" * 60)
+    
+    # Find highest max value in 1-1000
+    num, max_val, step = highest_value_in_range(1, 1000)
+    
+    print(f"\nIn range 1-1000:")
+    print(f"  Number that reaches highest value: {num}")
+    print(f"  Highest value reached: {max_val}")
+    print(f"  Step at which max occurs: {step}")
+
+
+def example_pattern_detection():
+    """Example: Find patterns in Collatz sequences."""
+    print("\n" + "=" * 60)
+    print("Example 6: Pattern Detection")
+    print("=" * 60)
+    
+    # Find numbers that reach a specific value
+    print("\nNumbers 1-100 that reach 16:")
+    result = find_numbers_reaching_value(16, 100)
+    print(f"  Found: {result}")
+    
+    # Find numbers with specific length
+    print("\nNumbers 1-100 with sequence length 9:")
+    result = find_numbers_with_length(9, 100)
+    print(f"  Found: {result}")
+
+
+def example_visualization():
+    """Example: Generate visualization helpers."""
+    print("\n" + "=" * 60)
+    print("Example 7: Visualization Helpers")
+    print("=" * 60)
+    
+    # Waterfall visualization
+    print("\nWaterfall visualization for 7:")
+    print(collatz_waterfall(7))
+    
+    # Tree path with operations
+    print("\nTree path for 6:")
+    path = collatz_tree_path(6)
+    for value, op in path:
+        print(f"  {value} ({op})")
+
+
+def example_comprehensive_summary():
+    """Example: Generate a comprehensive summary."""
+    print("\n" + "=" * 60)
+    print("Example 8: Comprehensive Summary")
+    print("=" * 60)
+    
+    summary = collatz_summary(27)
+    
+    print(f"\nSummary for 27:")
+    print(f"  Number: {summary['number']}")
+    print(f"  Sequence length: {summary['length']}")
+    print(f"  Total stopping time: {summary['total_stopping_time']}")
+    print(f"  Maximum value: {summary['max_value']}")
+    print(f"  Max value at step: {summary['max_value_step']}")
+    print(f"  Even count: {summary['even_count']}")
+    print(f"  Odd count: {summary['odd_count']}")
+    print(f"  Rise count: {summary['rise_count']}")
+    print(f"  Fall count: {summary['fall_count']}")
+    print(f"  Average step size: {summary['average_step_size']:.2f}")
+
+
+def example_generalized_collatz():
+    """Example: Generalized Collatz sequences."""
+    print("\n" + "=" * 60)
+    print("Example 9: Generalized Collatz Sequences")
+    print("=" * 60)
+    
+    # 5n+1 variant (known to potentially diverge)
+    print("\n5n+1 variant for 7:")
+    seq = generalized_collatz_sequence(7, a=5, b=1, c=2, max_iterations=50)
+    print(f"  First 10 values: {seq[:10]}")
+    print(f"  Length: {len(seq)}")
+    
+    # Custom parameters
+    print("\nCustom (7n+1, divide by 3) for 10:")
+    seq = generalized_collatz_sequence(10, a=7, b=1, c=3, max_iterations=30)
+    print(f"  Sequence: {seq}")
+
+
+def example_inverse_tree():
+    """Example: Build an inverse Collatz tree."""
+    print("\n" + "=" * 60)
+    print("Example 10: Inverse Collatz Tree")
+    print("=" * 60)
+    
+    # Build tree from 1 going backwards
+    print("\nInverse tree from 1 (2 levels):")
+    tree = collatz_inverse_tree(1, depth=2)
+    for node, predecessors in sorted(tree.items()):
+        print(f"  {node} -> {predecessors}")
+    
+    # Find predecessors of specific values
+    print("\nDirect predecessors of 5:")
+    preds = collatz_predecessors(5)
+    print(f"  {preds}")
+    
+    print("\nDirect predecessors of 4:")
+    preds = collatz_predecessors(4)
+    print(f"  {preds}")
+
+
+def example_stopping_times():
+    """Example: Calculate stopping times."""
+    print("\n" + "=" * 60)
+    print("Example 11: Stopping Time Analysis")
+    print("=" * 60)
+    
+    numbers = [1, 2, 3, 4, 5, 6, 7, 10, 27, 100]
+    
+    print("\nTotal stopping times:")
+    print(f"{'Number':<10} {'Stopping Time':<15} {'Sequence Length':<15}")
     print("-" * 40)
     
-    for n in range(1, 21):
-        steps = get_steps_to_one(n)
-        max_val = get_max_value(n)
-        seq_len = len(generate_sequence(n))
-        print(f"{n:<6} {steps:<6} {max_val:<10} {seq_len:<10}")
+    for n in numbers:
+        stopping = total_stopping_time(n)
+        length = collatz_length(n)
+        print(f"{n:<10} {stopping:<15} {length:<15}")
 
 
-def example_find_records():
-    """示例4：寻找记录"""
+def example_famous_numbers():
+    """Example: Analyze famous Collatz numbers."""
     print("\n" + "=" * 60)
-    print("示例4：寻找考拉兹记录")
+    print("Example 12: Famous Collatz Numbers")
     print("=" * 60)
     
-    # 找最长序列
-    limit = 1000
-    n, steps = find_longest_sequence(limit)
-    print(f"\n在 1-{limit} 范围内:")
-    print(f"  • 最长序列起始数: {n}")
-    print(f"  • 所需步数: {steps} 步")
+    famous_numbers = {
+        27: "The famous long sequence",
+        703: "Reaches 250504 at step 148",
+        9663: "Reaches 27114424 at step 158",
+        27: "Smallest number reaching 9232",
+    }
     
-    # 找最高值
-    n, val = find_highest_value(limit)
-    print(f"\n  • 产生最高值的起始数: {n}")
-    print(f"  • 达到的最高值: {val}")
-    
-    # 扩大范围
-    limit = 10000
-    n, steps = find_longest_sequence(limit)
-    print(f"\n在 1-{limit} 范围内:")
-    print(f"  • 最长序列起始数: {n}")
-    print(f"  • 所需步数: {steps} 步")
-
-
-def example_verify_conjecture():
-    """示例5：验证猜想"""
-    print("\n" + "=" * 60)
-    print("示例5：验证考拉兹猜想")
-    print("=" * 60)
-    
-    print("\n考拉兹猜想：对于任意正整数 n，")
-    print("经过有限步考拉兹变换后，最终都会到达 1。")
-    
-    # 验证不同范围
-    for limit in [100, 1000, 10000, 100000]:
-        verified, count = verify_conjecture(limit)
-        status = "✓ 通过" if verified else "✗ 发现反例！"
-        print(f"\n验证 1-{limit} 范围: {status} ({count} 个数)")
-
-
-def example_statistics():
-    """示例6：统计分析"""
-    print("\n" + "=" * 60)
-    print("示例6：考拉兹序列统计")
-    print("=" * 60)
-    
-    # 获取统计信息
-    stats = get_statistics(100)
-    print(f"\n1-100 范围内的考拉兹序列统计:")
-    print(f"  • 总数字数: {stats['total_numbers']}")
-    print(f"  • 平均步数: {stats['average_steps']:.2f}")
-    print(f"  • 最大步数: {stats['max_steps']} (数字 {stats['max_steps_number']})")
-    print(f"  • 最大峰值: {stats['max_value']} (数字 {stats['max_value_number']})")
-    print(f"  • 奇数操作总次数: {stats['total_odd_operations']}")
-    print(f"  • 偶数操作总次数: {stats['total_even_operations']}")
-    print(f"  • 奇偶操作比例: {stats['odd_even_ratio']:.4f}")
-
-
-def example_class_interface():
-    """示例7：使用类接口"""
-    print("\n" + "=" * 60)
-    print("示例7：使用 CollatzSequence 类")
-    print("=" * 60)
-    
-    print("\nCollatzSequence 提供更优雅的接口:")
-    
-    # 创建序列对象
-    seq = CollatzSequence(27)
-    
-    print(f"\n  创建序列: seq = CollatzSequence(27)")
-    print(f"  • 起始值: seq.start = {seq.start}")
-    print(f"  • 步数: seq.steps = {seq.steps}")
-    print(f"  • 最大值: seq.max_value = {seq.max_value}")
-    print(f"  • 序列长度: len(seq) = {len(seq)}")
-    
-    print(f"\n  迭代访问:")
-    print(f"  • 前5个: {list(seq[:5])}")
-    print(f"  • 最后3个: {list(seq[-3:])}")
-    
-    print(f"\n  字符串表示:")
-    print(f"  • repr(seq) = {repr(seq)}")
-    print(f"  • str(seq) = {str(seq)[:50]}...")
-
-
-def example_special_measures():
-    """示例8：特殊度量"""
-    print("\n" + "=" * 60)
-    print("示例8：考拉兹特殊度量")
-    print("=" * 60)
-    
-    print("\n停止时间 (Stopping Time):")
-    print("定义：首次降到起始值以下所需的步数")
-    
-    for n in [6, 7, 15, 27]:
-        st = get_stopping_time(n)
-        print(f"  数字 {n} 的停止时间: {st}")
-    
-    print("\nEta (扩充时间):")
-    print("定义：序列达到最大值所需的步数")
-    
-    for n in [6, 27, 100]:
-        eta = get_eta(n)
-        max_val = get_max_value(n)
-        print(f"  数字 {n}: Eta = {eta}, 最大值 = {max_val}")
-
-
-def example_visual_pattern():
-    """示例9：视觉模式"""
-    print("\n" + "=" * 60)
-    print("示例9：考拉兹序列的视觉模式")
-    print("=" * 60)
-    
-    print("\n序列上升和下降的模式:")
-    
-    for n in [6, 27, 100]:
-        seq = generate_sequence(n)
+    print("\nAnalysis of famous Collatz numbers:")
+    for n, description in famous_numbers.items():
+        length = collatz_length(n)
+        max_val = collatz_max_value(n)
+        stopping = total_stopping_time(n)
         
-        # 分析上升和下降段落
-        rising_count = 0
-        falling_count = 0
-        
-        for i in range(1, len(seq)):
-            if seq[i] > seq[i-1]:
-                rising_count += 1
-            else:
-                falling_count += 1
-        
-        print(f"\n  数字 {n}:")
-        print(f"    • 序列: {format_sequence(n)[:50]}...")
-        print(f"    • 上升次数: {rising_count}")
-        print(f"    • 下降次数: {falling_count}")
-        print(f"    • 上升/下降比例: {rising_count/falling_count:.2f}")
+        print(f"\n{n} - {description}:")
+        print(f"  Sequence length: {length}")
+        print(f"  Total stopping time: {stopping}")
+        print(f"  Maximum value: {max_val}")
 
 
-def example_power_of_two():
-    """示例10：2的幂次"""
-    print("\n" + "=" * 60)
-    print("示例10：2的幂次的特殊性质")
-    print("=" * 60)
+def run_all_examples():
+    """Run all examples."""
+    print("\n" + "#" * 60)
+    print("# AllToolkit Collatz Utilities - Usage Examples")
+    print("#" * 60)
     
-    print("\n2的幂次有最短的考拉兹序列（直接除以2到底）:")
+    example_basic_sequence()
+    example_sequence_properties()
+    example_range_statistics()
+    example_find_longest_sequences()
+    example_find_highest_values()
+    example_pattern_detection()
+    example_visualization()
+    example_comprehensive_summary()
+    example_generalized_collatz()
+    example_inverse_tree()
+    example_stopping_times()
+    example_famous_numbers()
     
-    for i in range(1, 11):
-        n = 2 ** i
-        seq = generate_sequence(n)
-        steps = get_steps_to_one(n)
-        
-        print(f"  2^{i} = {n:>4}: {steps} 步 → {format_sequence(n)}")
+    print("\n" + "#" * 60)
+    print("# Examples Complete!")
+    print("#" * 60)
 
 
-if __name__ == "__main__":
-    print("考拉兹猜想工具模块使用示例")
-    print("=" * 60)
-    
-    # 运行所有示例
-    example_basic_operations()
-    example_famous_number_27()
-    example_sequence_comparison()
-    example_find_records()
-    example_verify_conjecture()
-    example_statistics()
-    example_class_interface()
-    example_special_measures()
-    example_visual_pattern()
-    example_power_of_two()
-    
-    print("\n" + "=" * 60)
-    print("示例结束")
-    print("=" * 60)
+if __name__ == '__main__':
+    run_all_examples()
