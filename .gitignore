@@ -49,6 +49,10 @@ build/
 *.so
 *.dylib
 
+# Fortran
+*.mod
+*.o
+
 # IDE
 .idea/
 .vscode/
