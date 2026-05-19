@@ -1,0 +1,6 @@
+.{
+    .name = "luhn_utils",
+    .version = "0.1.0",
+    .paths = .{""},
+    .dependencies = .{},
+}
