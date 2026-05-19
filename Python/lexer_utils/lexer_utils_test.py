@@ -1,741 +1,438 @@
 """
-词法分析器工具测试 (Lexer Utils Test)
-===================================
-
-完整的单元测试套件，覆盖所有功能。
-
-运行: python lexer_utils_test.py
+Tests for lexer_utils module.
 """
 
 import unittest
-from lexer_utils import (
-    TokenCategory,
-    TokenType,
-    Token,
-    LexerError,
-    LexerState,
-    Lexer,
-    LexerBuilder,
-    TokenStream,
-    create_lexer,
-    tokenize,
-    simple_tokenize,
-    tokenize_code,
-    tokenize_json,
-    tokenize_math,
-    count_tokens,
-    filter_tokens,
-    tokens_to_dict,
-    dict_to_tokens,
+from mod import (
+    Lexer, LexerConfig, Token, TokenType, LexerError,
+    tokenize, tokenize_keywords, extract_identifiers, extract_strings,
+    extract_numbers, find_token, find_all_tokens, SimpleLexer, StreamingLexer
 )
 
 
-class TestTokenType(unittest.TestCase):
-    """TokenType 测试"""
-    
-    def test_create_token_type(self):
-        """测试创建 token 类型"""
-        tt = TokenType("NUMBER", r"\d+", TokenCategory.LITERAL)
-        self.assertEqual(tt.name, "NUMBER")
-        self.assertEqual(tt.pattern, r"\d+")
-        self.assertEqual(tt.category, TokenCategory.LITERAL)
-        self.assertEqual(tt.priority, 0)
-        self.assertFalse(tt.ignore)
-    
-    def test_token_type_hash(self):
-        """测试 token 类型哈希"""
-        tt1 = TokenType("NUMBER", r"\d+")
-        tt2 = TokenType("NUMBER", r"\d+")
-        self.assertEqual(hash(tt1), hash(tt2))
-    
-    def test_token_type_equality(self):
-        """测试 token 类型相等性"""
-        tt1 = TokenType("NUMBER", r"\d+")
-        tt2 = TokenType("NUMBER", r"\d*")
-        tt3 = TokenType("STRING", r"\d+")
-        self.assertEqual(tt1, tt2)  # 相同名称
-        self.assertNotEqual(tt1, tt3)  # 不同名称
-
-
 class TestToken(unittest.TestCase):
-    """Token 测试"""
+    """Test Token class."""
     
-    def test_create_token(self):
-        """测试创建 token"""
-        tt = TokenType("NUMBER", r"\d+")
-        token = Token(type=tt, value="123", line=1, column=1, start=0, end=3)
-        self.assertEqual(token.type, tt)
-        self.assertEqual(token.value, "123")
+    def test_token_creation(self):
+        """Test creating a token."""
+        token = Token(TokenType.INTEGER, "42", 1, 5, 4, 6)
+        self.assertEqual(token.type, TokenType.INTEGER)
+        self.assertEqual(token.value, "42")
         self.assertEqual(token.line, 1)
-        self.assertEqual(token.column, 1)
+        self.assertEqual(token.column, 5)
     
     def test_token_repr(self):
-        """测试 token 字符串表示"""
-        tt = TokenType("NUMBER", r"\d+")
-        token = Token(type=tt, value=123, line=2, column=5)
-        self.assertIn("NUMBER", repr(token))
-        self.assertIn("123", repr(token))
-        self.assertIn("L2:C5", repr(token))
+        """Test token string representation."""
+        token = Token(TokenType.STRING, "hello", 2, 10, 9, 14)
+        self.assertIn("STRING", repr(token))
+        self.assertIn("hello", repr(token))
+        self.assertIn("L2", repr(token))
     
     def test_token_equality(self):
-        """测试 token 相等性"""
-        tt = TokenType("NUMBER", r"\d+")
-        t1 = Token(type=tt, value="123", line=1, column=1)
-        t2 = Token(type=tt, value="123", line=1, column=1)
-        t3 = Token(type=tt, value="456", line=1, column=1)
-        self.assertEqual(t1, t2)
-        self.assertNotEqual(t1, t3)
+        """Test token equality."""
+        t1 = Token(TokenType.INTEGER, "42", 1, 1, 0, 2)
+        t2 = Token(TokenType.INTEGER, "42", 2, 5, 10, 12)
+        t3 = Token(TokenType.INTEGER, "43", 1, 1, 0, 2)
+        self.assertEqual(t1, t2)  # Same type and value
+        self.assertNotEqual(t1, t3)  # Different value
 
 
-class TestLexerError(unittest.TestCase):
-    """LexerError 测试"""
+class TestLexerConfig(unittest.TestCase):
+    """Test LexerConfig class."""
     
-    def test_create_error(self):
-        """测试创建错误"""
-        error = LexerError(
-            message="Unexpected character",
-            line=10,
-            column=5,
-            position=100,
-            context="abc @ def",
+    def test_default_config(self):
+        """Test default configuration."""
+        config = LexerConfig()
+        self.assertIn("if", config.keywords)  # Default empty set
+        self.assertEqual(len(config.keywords), 0)
+        self.assertTrue(config.skip_whitespace)
+        self.assertTrue(config.skip_comments)
+    
+    def test_custom_config(self):
+        """Test custom configuration."""
+        config = LexerConfig(
+            keywords={"if", "else", "for"},
+            skip_whitespace=False,
+            allow_hex=False
         )
-        self.assertEqual(error.message, "Unexpected character")
-        self.assertEqual(error.line, 10)
-        self.assertEqual(error.column, 5)
-    
-    def test_error_to_dict(self):
-        """测试错误转字典"""
-        error = LexerError(
-            message="Test error",
-            line=1,
-            column=1,
-            position=0,
-        )
-        d = error.to_dict()
-        self.assertEqual(d["message"], "Test error")
-        self.assertEqual(d["line"], 1)
-        self.assertEqual(d["column"], 1)
-
-
-class TestLexerState(unittest.TestCase):
-    """LexerState 测试"""
-    
-    def test_state_initialization(self):
-        """测试状态初始化"""
-        state = LexerState("hello")
-        self.assertEqual(state.position, 0)
-        self.assertEqual(state.line, 1)
-        self.assertEqual(state.column, 1)
-        self.assertEqual(state.current_char, "h")
-    
-    def test_state_advance(self):
-        """测试状态前进"""
-        state = LexerState("hello")
-        result = state.advance(2)
-        self.assertEqual(result, "he")
-        self.assertEqual(state.position, 2)
-        self.assertEqual(state.column, 3)
-    
-    def test_state_advance_newline(self):
-        """测试换行处理"""
-        state = LexerState("a\nb")
-        state.advance(2)  # a\n
-        self.assertEqual(state.line, 2)
-        self.assertEqual(state.column, 1)
-    
-    def test_state_peek(self):
-        """测试查看"""
-        state = LexerState("hello")
-        self.assertEqual(state.peek(0), "h")
-        self.assertEqual(state.peek(1), "e")
-        self.assertEqual(state.peek(4), "o")
-        self.assertIsNone(state.peek(5))
-    
-    def test_state_remaining(self):
-        """测试剩余文本"""
-        state = LexerState("hello")
-        state.advance(2)
-        self.assertEqual(state.remaining_text, "llo")
-    
-    def test_state_get_context(self):
-        """测试获取上下文"""
-        state = LexerState("abcdefghijklmnopqrstuvwxyz")
-        state.advance(10)
-        context = state.get_context(5)
-        # 验证上下文长度合理
-        self.assertGreater(len(context), 0)
-        # 验证当前位置在上下文范围内
-        self.assertIn("f", context)
+        self.assertEqual(len(config.keywords), 3)
+        self.assertFalse(config.skip_whitespace)
+        self.assertFalse(config.allow_hex)
 
 
 class TestLexer(unittest.TestCase):
-    """Lexer 测试"""
+    """Test Lexer class."""
     
-    def test_add_type(self):
-        """测试添加类型"""
-        lexer = Lexer()
-        tt = TokenType("NUMBER", r"\d+")
-        lexer.add_type(tt)
-        self.assertIn(tt, lexer.token_types)
+    def test_empty_input(self):
+        """Test tokenizing empty input."""
+        lexer = Lexer("")
+        tokens = lexer.tokenize_all()
+        self.assertEqual(len(tokens), 1)
+        self.assertEqual(tokens[0].type, TokenType.EOF)
     
-    def test_add_type_duplicate(self):
-        """测试添加重复类型"""
-        lexer = Lexer()
-        lexer.add_type(TokenType("NUMBER", r"\d+"))
-        with self.assertRaises(ValueError):
-            lexer.add_type(TokenType("NUMBER", r"\d*"))
+    def test_whitespace_only(self):
+        """Test tokenizing whitespace only."""
+        lexer = Lexer("   \t\t  ")
+        tokens = lexer.tokenize_all()
+        self.assertEqual(len(tokens), 1)
+        self.assertEqual(tokens[0].type, TokenType.EOF)
     
-    def test_add_keyword(self):
-        """测试添加关键字"""
-        lexer = Lexer()
-        lexer.add_keyword("IF", "if")
-        tokens = lexer.tokenize("if")
-        self.assertEqual(len(tokens), 2)  # IF + EOF
-        self.assertEqual(tokens[0].type.name, "IF")
+    def test_integers(self):
+        """Test integer tokenization."""
+        lexer = Lexer("42 0 123456")
+        tokens = lexer.tokenize_all()
+        int_tokens = [t for t in tokens if t.type == TokenType.INTEGER]
+        self.assertEqual(len(int_tokens), 3)
+        self.assertEqual(int_tokens[0].value, "42")
+        self.assertEqual(int_tokens[1].value, "0")
+        self.assertEqual(int_tokens[2].value, "123456")
     
-    def test_tokenize_simple(self):
-        """测试简单分词"""
-        lexer = Lexer()
-        lexer.add_type(TokenType("NUMBER", r"\d+"))
-        tokens = lexer.tokenize("123")
-        self.assertEqual(len(tokens), 2)  # NUMBER + EOF
-        self.assertEqual(tokens[0].value, "123")
+    def test_floats(self):
+        """Test float tokenization."""
+        lexer = Lexer("3.14 0.5 100.0")
+        tokens = lexer.tokenize_all()
+        float_tokens = [t for t in tokens if t.type == TokenType.FLOAT]
+        self.assertEqual(len(float_tokens), 3)
+        self.assertEqual(float_tokens[0].value, "3.14")
+        self.assertEqual(float_tokens[1].value, "0.5")
+        self.assertEqual(float_tokens[2].value, "100.0")
     
-    def test_tokenize_multiple(self):
-        """测试多个 token"""
-        lexer = Lexer()
-        lexer.add_type(TokenType("NUMBER", r"\d+"))
-        lexer.add_type(TokenType("PLUS", r"\+"))
-        tokens = lexer.tokenize("123+456")
-        self.assertEqual(len(tokens), 4)  # NUMBER PLUS NUMBER EOF
-        self.assertEqual(tokens[0].value, "123")
-        self.assertEqual(tokens[1].value, "+")
-        self.assertEqual(tokens[2].value, "456")
+    def test_scientific_notation(self):
+        """Test scientific notation."""
+        lexer = Lexer("1e10 2.5e-3 1E+5")
+        tokens = lexer.tokenize_all()
+        float_tokens = [t for t in tokens if t.type == TokenType.FLOAT]
+        self.assertEqual(len(float_tokens), 3)
+        self.assertEqual(float_tokens[0].value, "1e10")
+        self.assertEqual(float_tokens[1].value, "2.5e-3")
+        self.assertEqual(float_tokens[2].value, "1E+5")
     
-    def test_tokenize_with_whitespace(self):
-        """测试空白处理"""
-        lexer = Lexer()
-        lexer.add_type(TokenType("NUMBER", r"\d+"))
-        lexer.add_type(TokenType("WHITESPACE", r"\s+", ignore=True))
-        tokens = lexer.tokenize("123  456")
-        self.assertEqual(len(tokens), 3)  # NUMBER NUMBER EOF
-        self.assertEqual(tokens[0].value, "123")
-        self.assertEqual(tokens[1].value, "456")
+    def test_hex_numbers(self):
+        """Test hexadecimal numbers."""
+        lexer = Lexer("0xFF 0x1234 0xabcdef")
+        tokens = lexer.tokenize_all()
+        int_tokens = [t for t in tokens if t.type == TokenType.INTEGER]
+        self.assertEqual(len(int_tokens), 3)
+        self.assertEqual(int_tokens[0].value, "0xFF")
+        self.assertEqual(int_tokens[1].value, "0x1234")
     
-    def test_tokenize_with_callback(self):
-        """测试回调函数"""
-        lexer = Lexer()
-        lexer.add_type(TokenType(
-            "NUMBER",
-            r"\d+",
-            callback=lambda x: int(x),
-        ))
-        tokens = lexer.tokenize("123")
-        self.assertEqual(tokens[0].value, 123)
-        self.assertIsInstance(tokens[0].value, int)
+    def test_binary_numbers(self):
+        """Test binary numbers."""
+        lexer = Lexer("0b1010 0b1111 0b0")
+        tokens = lexer.tokenize_all()
+        int_tokens = [t for t in tokens if t.type == TokenType.INTEGER]
+        self.assertEqual(len(int_tokens), 3)
+        self.assertEqual(int_tokens[0].value, "0b1010")
+        self.assertEqual(int_tokens[1].value, "0b1111")
     
-    def test_tokenize_position(self):
-        """测试位置跟踪"""
-        lexer = Lexer()
-        lexer.add_type(TokenType("WORD", r"[a-z]+"))
-        tokens = lexer.tokenize("hello world")
-        self.assertEqual(tokens[0].line, 1)
-        self.assertEqual(tokens[0].column, 1)
-        self.assertEqual(tokens[1].line, 1)
-        self.assertEqual(tokens[1].column, 7)
+    def test_octal_numbers(self):
+        """Test octal numbers."""
+        lexer = Lexer("0o77 0o123 0o0")
+        tokens = lexer.tokenize_all()
+        int_tokens = [t for t in tokens if t.type == TokenType.INTEGER]
+        self.assertEqual(len(int_tokens), 3)
+        self.assertEqual(int_tokens[0].value, "0o77")
     
-    def test_tokenize_multiline(self):
-        """测试多行"""
-        lexer = Lexer()
-        lexer.add_type(TokenType("WORD", r"[a-z]+"))
-        lexer.add_type(TokenType("WHITESPACE", r"\s+", ignore=True))
-        tokens = lexer.tokenize("hello\nworld")
-        self.assertEqual(tokens[0].line, 1)
-        self.assertEqual(tokens[1].line, 2)
+    def test_strings(self):
+        """Test string literals."""
+        lexer = Lexer('"hello" \'world\' `template`')
+        tokens = lexer.tokenize_all()
+        str_tokens = [t for t in tokens if t.type == TokenType.STRING]
+        self.assertEqual(len(str_tokens), 3)
+        self.assertEqual(str_tokens[0].value, "hello")
+        self.assertEqual(str_tokens[1].value, "world")
+        self.assertEqual(str_tokens[2].value, "template")
     
-    def test_tokenize_error(self):
-        """测试错误处理"""
-        lexer = Lexer()
-        lexer.add_type(TokenType("NUMBER", r"\d+"))
-        tokens = lexer.tokenize("123abc")
-        # 应该能匹配 NUMBER，然后遇到错误
-        self.assertEqual(tokens[0].value, "123")
-        # 后面的 abc 无法匹配，产生错误
+    def test_string_escapes(self):
+        """Test string escape sequences."""
+        lexer = Lexer(r'"hello\nworld" "tab\there" "quote: \"test\""')
+        tokens = lexer.tokenize_all()
+        str_tokens = [t for t in tokens if t.type == TokenType.STRING]
+        self.assertEqual(len(str_tokens), 3)
+        self.assertIn("\n", str_tokens[0].value)
+        self.assertIn("\t", str_tokens[1].value)
+        self.assertIn('"', str_tokens[2].value)
     
-    def test_tokenize_iter(self):
-        """测试迭代器分词"""
-        lexer = Lexer()
-        lexer.add_type(TokenType("NUMBER", r"\d+"))
-        tokens = list(lexer.tokenize_iter("123 456"))
-        self.assertEqual(len(tokens), 3)  # NUMBER NUMBER EOF
-    
-    def test_eof_token(self):
-        """测试 EOF token"""
-        lexer = Lexer()
-        lexer.add_type(TokenType("NUMBER", r"\d+"))
-        tokens = lexer.tokenize("123", include_eof=True)
-        self.assertEqual(tokens[-1].type.name, "EOF")
-        self.assertIsNone(tokens[-1].value)
-
-
-class TestLexerBuilder(unittest.TestCase):
-    """LexerBuilder 测试"""
-    
-    def test_define(self):
-        """测试定义"""
-        lexer = (LexerBuilder()
-            .define("NUMBER", r"\d+", TokenCategory.LITERAL)
-            .build())
-        tokens = lexer.tokenize("123")
-        self.assertEqual(tokens[0].type.name, "NUMBER")
-    
-    def test_keyword(self):
-        """测试关键字"""
-        lexer = (LexerBuilder()
-            .keyword("if")
-            .keyword("else")
-            .build())
-        tokens = lexer.tokenize("if else")
-        self.assertEqual(tokens[0].type.name, "IF")
-        self.assertEqual(tokens[1].type.name, "ELSE")
+    def test_identifiers(self):
+        """Test identifier tokenization."""
+        lexer = Lexer("foo bar_baz _private")
+        tokens = lexer.tokenize_all()
+        id_tokens = [t for t in tokens if t.type == TokenType.IDENTIFIER]
+        self.assertEqual(len(id_tokens), 3)
+        self.assertEqual(id_tokens[0].value, "foo")
+        self.assertEqual(id_tokens[1].value, "bar_baz")
+        self.assertEqual(id_tokens[2].value, "_private")
     
     def test_keywords(self):
-        """测试多个关键字"""
-        lexer = (LexerBuilder()
-            .keywords("if", "else", "while")
-            .build())
-        tokens = lexer.tokenize("if while")
-        self.assertEqual(tokens[0].type.name, "IF")
-        self.assertEqual(tokens[1].type.name, "WHILE")
-    
-    def test_operator(self):
-        """测试操作符"""
-        lexer = (LexerBuilder()
-            .operator("+")
-            .operator("-")
-            .build())
-        tokens = lexer.tokenize("+-")
-        self.assertEqual(tokens[0].type.name, "PLUS")
-        self.assertEqual(tokens[1].type.name, "MINUS")
-    
-    def test_punctuation(self):
-        """测试标点"""
-        lexer = (LexerBuilder()
-            .punctuation("(")
-            .punctuation(")")
-            .build())
-        tokens = lexer.tokenize("()")
-        self.assertEqual(tokens[0].type.name, "LPAREN")
-        self.assertEqual(tokens[1].type.name, "RPAREN")
-    
-    def test_whitespace(self):
-        """测试空白"""
-        lexer = (LexerBuilder()
-            .define("WORD", r"[a-z]+")
-            .whitespace()
-            .build())
-        tokens = lexer.tokenize("hello world")
-        self.assertEqual(len(tokens), 3)  # WORD WORD EOF
-    
-    def test_build_complete(self):
-        """测试完整构建"""
-        lexer = (LexerBuilder()
-            .keywords("if", "else", "while")
-            .operators("+", "-", "*", "/")
-            .punctuations("(", ")", "{", "}")
-            .define("NUMBER", r"\d+")
-            .define("IDENTIFIER", r"[a-zA-Z_][a-zA-Z0-9_]*")
-            .whitespace()
-            .build())
+        """Test keyword detection."""
+        config = LexerConfig(keywords={"if", "else", "for"})
+        lexer = Lexer("if condition else", config)
+        tokens = lexer.tokenize_all()
         
-        tokens = lexer.tokenize("if (x + 1) { y = y * 2; }")
-        self.assertGreater(len(tokens), 5)
-
-
-class TestTokenStream(unittest.TestCase):
-    """TokenStream 测试"""
+        kw_tokens = [t for t in tokens if t.type == TokenType.KEYWORD]
+        self.assertEqual(len(kw_tokens), 2)
+        self.assertEqual(kw_tokens[0].value, "if")
+        self.assertEqual(kw_tokens[1].value, "else")
+        
+        # "condition" should be an identifier
+        id_tokens = [t for t in tokens if t.type == TokenType.IDENTIFIER]
+        self.assertEqual(len(id_tokens), 1)
     
-    def setUp(self):
-        lexer = (LexerBuilder()
-            .define("NUMBER", r"\d+")
-            .define("PLUS", r"\+")
-            .whitespace()
-            .build())
-        self.tokens = lexer.tokenize("1 + 2 + 3")
+    def test_operators(self):
+        """Test operator tokenization."""
+        lexer = Lexer("+ - * / == != <= >= && ||")
+        tokens = lexer.tokenize_all()
+        op_tokens = [t for t in tokens if t.type == TokenType.OPERATOR]
+        self.assertEqual(len(op_tokens), 9)
+        self.assertEqual(op_tokens[0].value, "+")
+        self.assertEqual(op_tokens[3].value, "==")
     
-    def test_current(self):
-        """测试当前 token"""
-        stream = TokenStream(self.tokens)
-        self.assertEqual(stream.current.value, "1")
+    def test_multi_char_operators(self):
+        """Test multi-character operators."""
+        lexer = Lexer("+= -= *= /= **= //=")
+        tokens = lexer.tokenize_all()
+        op_tokens = [t for t in tokens if t.type == TokenType.OPERATOR]
+        self.assertEqual(len(op_tokens), 5)
+        self.assertEqual(op_tokens[0].value, "+=")
+        self.assertEqual(op_tokens[4].value, "//=")
     
-    def test_advance(self):
-        """测试前进"""
-        stream = TokenStream(self.tokens)
-        t = stream.advance()
-        self.assertEqual(t.value, "1")
-        self.assertEqual(stream.current.value, "+")
+    def test_structure_tokens(self):
+        """Test structure tokens (brackets, etc.)."""
+        lexer = Lexer("() [] {} , . : ;")
+        tokens = lexer.tokenize_all()
+        
+        types = [t.type for t in tokens]
+        self.assertIn(TokenType.LPAREN, types)
+        self.assertIn(TokenType.RPAREN, types)
+        self.assertIn(TokenType.LBRACKET, types)
+        self.assertIn(TokenType.RBRACKET, types)
+        self.assertIn(TokenType.LBRACE, types)
+        self.assertIn(TokenType.RBRACE, types)
+        self.assertIn(TokenType.COMMA, types)
+        self.assertIn(TokenType.DOT, types)
+        self.assertIn(TokenType.COLON, types)
+        self.assertIn(TokenType.SEMICOLON, types)
     
-    def test_peek(self):
-        """测试查看"""
-        stream = TokenStream(self.tokens)
-        self.assertEqual(stream.peek(0).value, "1")
-        self.assertEqual(stream.peek(1).value, "+")
-        self.assertEqual(stream.peek(2).value, "2")
+    def test_comments_skip(self):
+        """Test skipping comments."""
+        lexer = Lexer("x = 1 # comment\ny = 2")
+        tokens = lexer.tokenize_all()
+        comment_tokens = [t for t in tokens if t.type == TokenType.COMMENT]
+        self.assertEqual(len(comment_tokens), 0)  # Comments should be skipped
     
-    def test_expect(self):
-        """测试期望"""
-        stream = TokenStream(self.tokens)
-        t = stream.expect("NUMBER")
-        self.assertEqual(t.value, "1")
+    def test_comments_preserve(self):
+        """Test preserving comments."""
+        config = LexerConfig(skip_comments=False)
+        lexer = Lexer("x = 1 # comment", config)
+        tokens = lexer.tokenize_all()
+        comment_tokens = [t for t in tokens if t.type == TokenType.COMMENT]
+        self.assertEqual(len(comment_tokens), 1)
     
-    def test_expect_fail(self):
-        """测试期望失败"""
-        stream = TokenStream(self.tokens)
-        with self.assertRaises(ValueError):
-            stream.expect("PLUS")  # 当前是 NUMBER
+    def test_multi_line_comment(self):
+        """Test multi-line comments."""
+        config = LexerConfig(skip_comments=True)
+        lexer = Lexer("a /* comment */ b", config)
+        tokens = lexer.tokenize_all()
+        id_tokens = [t for t in tokens if t.type == TokenType.IDENTIFIER]
+        self.assertEqual(len(id_tokens), 2)
+        self.assertEqual(id_tokens[0].value, "a")
+        self.assertEqual(id_tokens[1].value, "b")
     
-    def test_accept(self):
-        """测试接受"""
-        stream = TokenStream(self.tokens)
-        t = stream.accept("NUMBER")
-        self.assertEqual(t.value, "1")
-        self.assertIsNone(stream.accept("NUMBER"))  # 当前是 PLUS
-    
-    def test_skip_until(self):
-        """测试跳过直到"""
-        stream = TokenStream(self.tokens)
-        # 跳过直到遇到 PLUS
-        skipped = stream.skip_until("PLUS")
-        # 应该跳过了第一个 NUMBER
-        self.assertGreaterEqual(len(skipped), 1)
-        # 现在应该是 PLUS 或之后的位置
-        stream.advance()
-        # 下一个应该是 NUMBER（2）
-        self.assertEqual(stream.current.value, "2")
-    
-    def test_match_sequence(self):
-        """测试序列匹配"""
-        stream = TokenStream(self.tokens)
-        self.assertTrue(stream.match_sequence("NUMBER", "PLUS", "NUMBER"))
-        stream.advance()
-        self.assertFalse(stream.match_sequence("NUMBER", "NUMBER"))
-    
-    def test_find(self):
-        """测试查找"""
-        stream = TokenStream(self.tokens)
-        pos = stream.find("NUMBER")
-        self.assertEqual(pos, 0)
+    def test_position_tracking(self):
+        """Test line and column tracking."""
+        lexer = Lexer("ab\ncd")
+        tokens = lexer.tokenize_all()
+        
+        ab_token = find_token(tokens, "ab")
+        self.assertIsNotNone(ab_token)
+        self.assertEqual(ab_token.line, 1)
+        self.assertEqual(ab_token.column, 1)
+        
+        cd_token = find_token(tokens, "cd")
+        self.assertIsNotNone(cd_token)
+        self.assertEqual(cd_token.line, 2)
+        self.assertEqual(cd_token.column, 1)
     
     def test_reset(self):
-        """测试重置"""
-        stream = TokenStream(self.tokens)
-        stream.advance()
-        stream.advance()
-        stream.reset()
-        self.assertEqual(stream.current.value, "1")
+        """Test lexer reset."""
+        lexer = Lexer("abc")
+        list(lexer.tokenize())  # Consume all tokens
+        self.assertEqual(lexer.pos, 3)
+        
+        lexer.reset()
+        self.assertEqual(lexer.pos, 0)
+        self.assertEqual(lexer.line, 1)
+        self.assertEqual(lexer.column, 1)
 
 
 class TestConvenienceFunctions(unittest.TestCase):
-    """便捷函数测试"""
-    
-    def test_create_lexer(self):
-        """测试快速创建"""
-        lexer = create_lexer(
-            keywords=["if", "else"],
-            operators=["+", "-"],
-            punctuations=["(", ")"],
-        )
-        tokens = lexer.tokenize("if (a + b)")
-        self.assertGreater(len(tokens), 2)
+    """Test convenience functions."""
     
     def test_tokenize(self):
-        """测试快速分词"""
-        tokens = tokenize("123 abc", rules={"NUMBER": r"\d+", "WORD": r"[a-z]+"})
-        self.assertEqual(len(tokens), 3)  # NUMBER WORD EOF
+        """Test tokenize function."""
+        tokens = tokenize("x = 42")
+        self.assertTrue(len(tokens) > 0)
     
-    def test_simple_tokenize(self):
-        """测试简单分词"""
-        tokens = simple_tokenize("hello 123 + 456")
-        types = [t.type.name for t in tokens]
-        self.assertIn("WORD", types)
-        self.assertIn("NUMBER", types)
+    def test_tokenize_keywords(self):
+        """Test tokenize_keywords function."""
+        tokens = tokenize_keywords("if else while", {"if", "else"})
+        kw_tokens = [t for t in tokens if t.type == TokenType.KEYWORD]
+        self.assertEqual(len(kw_tokens), 2)
     
-    def test_tokenize_code(self):
-        """测试代码分词"""
-        tokens = tokenize_code("function test() { return 42; }")
-        types = [t.type.name for t in tokens]
-        self.assertIn("FUNCTION", types)
-        self.assertIn("IDENTIFIER", types)
-        self.assertIn("NUMBER", types)
+    def test_extract_identifiers(self):
+        """Test extract_identifiers function."""
+        tokens = tokenize("foo bar 123")
+        ids = extract_identifiers(tokens)
+        self.assertEqual(ids, ["foo", "bar"])
     
-    def test_tokenize_json(self):
-        """测试 JSON 分词"""
-        tokens = tokenize_json('{"name": "test", "value": 123}')
-        types = [t.type.name for t in tokens]
-        self.assertIn("STRING", types)
-        self.assertIn("NUMBER", types)
-        # 验证 JSON 字符串解析
-        string_tokens = [t for t in tokens if t.type.name == "STRING"]
-        self.assertEqual(string_tokens[0].value, "name")
+    def test_extract_strings(self):
+        """Test extract_strings function."""
+        tokens = tokenize('"a" "b" "c"')
+        strings = extract_strings(tokens)
+        self.assertEqual(strings, ["a", "b", "c"])
     
-    def test_tokenize_math(self):
-        """测试数学表达式分词"""
-        tokens = tokenize_math("2 + 3 * 4")
-        values = [t.value for t in tokens if t.type.name != "EOF"]
-        self.assertIn(2, values)
-        self.assertIn(3, values)
-        self.assertIn(4, values)
+    def test_extract_numbers(self):
+        """Test extract_numbers function."""
+        tokens = tokenize("1 2.5 3 4.0")
+        numbers = extract_numbers(tokens)
+        self.assertEqual(numbers, ["1", "2.5", "3", "4.0"])
     
-    def test_count_tokens(self):
-        """测试统计 token"""
-        lexer = Lexer()
-        lexer.add_type(TokenType("NUMBER", r"\d+"))
-        lexer.add_type(TokenType("PLUS", r"\+"))
-        tokens = lexer.tokenize("1 + 2 + 3")
-        counts = count_tokens(tokens)
-        self.assertEqual(counts["NUMBER"], 3)
-        self.assertEqual(counts["PLUS"], 2)
+    def test_find_token(self):
+        """Test find_token function."""
+        tokens = tokenize("foo bar baz")
+        token = find_token(tokens, "bar")
+        self.assertIsNotNone(token)
+        self.assertEqual(token.value, "bar")
+        
+        self.assertIsNone(find_token(tokens, "qux"))
     
-    def test_filter_tokens_by_type(self):
-        """测试按类型过滤"""
-        lexer = Lexer()
-        lexer.add_type(TokenType("NUMBER", r"\d+"))
-        lexer.add_type(TokenType("WORD", r"[a-z]+"))
-        tokens = lexer.tokenize("123 abc 456")
-        filtered = filter_tokens(tokens, types=["NUMBER"])
-        self.assertEqual(len(filtered), 2)
-    
-    def test_filter_tokens_by_category(self):
-        """测试按类别过滤"""
-        lexer = Lexer()
-        lexer.add_type(TokenType("NUMBER", r"\d+", category=TokenCategory.LITERAL))
-        lexer.add_type(TokenType("PLUS", r"\+", category=TokenCategory.OPERATOR))
-        tokens = lexer.tokenize("1 + 2")
-        filtered = filter_tokens(tokens, categories=[TokenCategory.LITERAL])
-        self.assertEqual(len(filtered), 2)  # 两个数字
-    
-    def test_tokens_to_dict(self):
-        """测试 token 转字典"""
-        tt = TokenType("NUMBER", r"\d+")
-        tokens = [Token(type=tt, value=123, line=1, column=1, start=0, end=3)]
-        d = tokens_to_dict(tokens)
-        self.assertEqual(d[0]["type"], "NUMBER")
-        self.assertEqual(d[0]["value"], 123)
-    
-    def test_dict_to_tokens(self):
-        """测试字典转 token"""
-        data = [{"type": "NUMBER", "value": 123, "line": 1, "column": 1}]
-        tokens = dict_to_tokens(data)
-        self.assertEqual(tokens[0].type.name, "NUMBER")
-        self.assertEqual(tokens[0].value, 123)
+    def test_find_all_tokens(self):
+        """Test find_all_tokens function."""
+        tokens = tokenize("foo bar foo baz foo")
+        foos = find_all_tokens(tokens, "foo")
+        self.assertEqual(len(foos), 3)
 
 
-class TestEdgeCases(unittest.TestCase):
-    """边界情况测试"""
+class TestSimpleLexer(unittest.TestCase):
+    """Test SimpleLexer class."""
+    
+    def test_basic_tokenize(self):
+        """Test basic tokenization."""
+        lexer = SimpleLexer("hello world")
+        tokens = lexer.tokenize()
+        self.assertEqual(tokens, ["hello", "world"])
+    
+    def test_custom_delimiters(self):
+        """Test custom delimiters."""
+        lexer = SimpleLexer("a,b,c", delimiters=",")
+        tokens = lexer.tokenize()
+        self.assertEqual(tokens, ["a", "b", "c"])
+    
+    def test_iteration(self):
+        """Test iterator interface."""
+        lexer = SimpleLexer("one two three")
+        results = []
+        for token, start, end in lexer:
+            results.append((token, start, end))
+        self.assertEqual(len(results), 3)
+        self.assertEqual(results[0], ("one", 0, 3))
     
     def test_empty_input(self):
-        """测试空输入"""
-        lexer = Lexer()
-        lexer.add_type(TokenType("NUMBER", r"\d+"))
-        tokens = lexer.tokenize("")
-        self.assertEqual(len(tokens), 1)  # 只有 EOF
-        self.assertEqual(tokens[0].type.name, "EOF")
-    
-    def test_whitespace_only(self):
-        """测试只有空白"""
-        lexer = Lexer()
-        lexer.add_type(TokenType("NUMBER", r"\d+"))
-        lexer.add_type(TokenType("WHITESPACE", r"\s+", ignore=True))
-        tokens = lexer.tokenize("   \n\t  ")
-        self.assertEqual(len(tokens), 1)  # 只有 EOF
-    
-    def test_unicode(self):
-        """测试 Unicode"""
-        lexer = Lexer()
-        lexer.add_type(TokenType("WORD", r"\w+"))
-        tokens = lexer.tokenize("hello世界")
-        self.assertEqual(tokens[0].value, "hello世界")
-    
-    def test_priority(self):
-        """测试优先级"""
-        lexer = Lexer()
-        # 较长匹配应该优先
-        lexer.add_type(TokenType("AND", r"&&", priority=10))
-        lexer.add_type(TokenType("AMP", r"&", priority=1))
-        tokens = lexer.tokenize("&&")
-        self.assertEqual(tokens[0].type.name, "AND")
-    
-    def test_longest_match(self):
-        """测试最长匹配"""
-        lexer = Lexer()
-        lexer.add_type(TokenType("NUMBER", r"\d+"))
-        lexer.add_type(TokenType("FLOAT", r"\d+\.\d+"))
-        tokens = lexer.tokenize("123.45")
-        # 正则引擎会自动选择最长匹配
-        self.assertIn(tokens[0].value, ["123.45", "123"])
-    
-    def test_special_chars(self):
-        """测试特殊字符"""
-        lexer = Lexer()
-        lexer.add_type(TokenType("DOT", r"\."))
-        lexer.add_type(TokenType("STAR", r"\*"))
-        lexer.add_type(TokenType("PLUS", r"\+"))
-        tokens = lexer.tokenize(".*+")
-        self.assertEqual(tokens[0].type.name, "DOT")
-        self.assertEqual(tokens[1].type.name, "STAR")
-        self.assertEqual(tokens[2].type.name, "PLUS")
-    
-    def test_multiline_string(self):
-        """测试多行文本"""
-        lexer = Lexer()
-        lexer.add_type(TokenType("LINE", r"[^\n]+"))
-        tokens = lexer.tokenize("line1\nline2")
-        self.assertEqual(len(tokens), 3)  # LINE LINE EOF
-        self.assertEqual(tokens[0].value, "line1")
-        self.assertEqual(tokens[1].value, "line2")
-    
-    def test_very_long_input(self):
-        """测试超长输入"""
-        lexer = Lexer()
-        lexer.add_type(TokenType("NUMBER", r"\d+"))
-        lexer.add_type(TokenType("WHITESPACE", r"\s+", ignore=True))
-        text = " ".join(["123"] * 1000)
-        tokens = lexer.tokenize(text)
-        # 不包含 EOF
-        number_count = sum(1 for t in tokens if t.type.name == "NUMBER")
-        self.assertEqual(number_count, 1000)
-    
-    def test_nested_groups(self):
-        """测试嵌套结构"""
-        lexer = Lexer()
-        lexer.add_punctuation("LPAREN", "(")
-        lexer.add_punctuation("RPAREN", ")")
-        tokens = lexer.tokenize("((()))")
-        parens = [t for t in tokens if t.type.name != "EOF"]
-        self.assertEqual(len(parens), 6)
+        """Test empty input."""
+        lexer = SimpleLexer("")
+        tokens = lexer.tokenize()
+        self.assertEqual(tokens, [])
 
 
-class TestJSONTokenizer(unittest.TestCase):
-    """JSON 分词器专项测试"""
+class TestStreamingLexer(unittest.TestCase):
+    """Test StreamingLexer class."""
     
-    def test_simple_object(self):
-        """测试简单对象"""
-        tokens = tokenize_json('{"key": "value"}')
-        types = [t.type.name for t in tokens]
-        self.assertIn("LBRACE", types)
-        self.assertIn("RBRACE", types)
-        self.assertIn("STRING", types)
+    def test_single_feed(self):
+        """Test feeding all at once."""
+        lexer = StreamingLexer()
+        tokens = lexer.feed("x = 42")
+        self.assertTrue(len(tokens) > 0)
     
-    def test_array(self):
-        """测试数组"""
-        tokens = tokenize_json('[1, 2, 3]')
-        types = [t.type.name for t in tokens]
-        self.assertIn("LBRACKET", types)
-        self.assertIn("RBRACKET", types)
-        self.assertIn("NUMBER", types)
+    def test_multiple_feeds(self):
+        """Test feeding in chunks."""
+        lexer = StreamingLexer()
+        tokens = lexer.feed("x = ")
+        self.assertEqual(len(tokens), 1)  # Just 'x'
+        
+        tokens = lexer.feed("42")
+        self.assertTrue(len(tokens) >= 2)  # '=', '42'
     
-    def test_nested(self):
-        """测试嵌套结构"""
-        tokens = tokenize_json('{"arr": [1, {"x": 2}]}')
-        types = [t.type.name for t in tokens]
-        self.assertIn("LBRACE", types)
-        self.assertIn("LBRACKET", types)
+    def test_flush(self):
+        """Test flushing remaining buffer."""
+        lexer = StreamingLexer()
+        lexer.feed("x")  # Incomplete token without space
+        tokens = lexer.flush()
+        self.assertTrue(len(tokens) > 0)
     
-    def test_numbers(self):
-        """测试数字"""
-        tokens = tokenize_json('[123, 45.67, -89, 1e5]')
-        numbers = [t for t in tokens if t.type.name == "NUMBER"]
-        self.assertEqual(len(numbers), 4)
-        self.assertEqual(numbers[0].value, 123)
-        self.assertEqual(numbers[1].value, 45.67)
-        self.assertEqual(numbers[2].value, -89)
-    
-    def test_booleans_and_null(self):
-        """测试布尔值和 null"""
-        tokens = tokenize_json('[true, false, null]')
-        types = [t.type.name for t in tokens]
-        self.assertIn("TRUE", types)
-        self.assertIn("FALSE", types)
-        self.assertIn("NULL", types)
+    def test_preserve_newlines(self):
+        """Test preserving newlines."""
+        config = LexerConfig(preserve_newlines=True, skip_whitespace=False)
+        lexer = StreamingLexer(config)
+        tokens = lexer.feed("x\ny")
+        newlines = [t for t in tokens if t.type == TokenType.NEWLINE]
+        self.assertEqual(len(newlines), 1)
 
 
-class TestCodeTokenizer(unittest.TestCase):
-    """代码分词器专项测试"""
+class TestComplexCode(unittest.TestCase):
+    """Test tokenizing complex code."""
     
-    def test_function_def(self):
-        """测试函数定义"""
-        tokens = tokenize_code("function foo(x, y) { return x + y; }")
-        types = [t.type.name for t in tokens]
-        self.assertIn("FUNCTION", types)
-        self.assertIn("IDENTIFIER", types)
-        self.assertIn("RETURN", types)
+    def test_python_like_code(self):
+        """Test Python-like code."""
+        code = '''
+def calculate(x, y):
+    """Calculate sum."""
+    result = x + y * 2
+    return result
+'''
+        config = LexerConfig(
+            keywords={"def", "return", "if", "else", "for", "while", "class"}
+        )
+        lexer = Lexer(code, config)
+        tokens = lexer.tokenize_all()
+        
+        # Check keywords
+        def_token = find_token(tokens, "def")
+        self.assertIsNotNone(def_token)
+        self.assertEqual(def_token.type, TokenType.KEYWORD)
+        
+        return_token = find_token(tokens, "return")
+        self.assertIsNotNone(return_token)
+        self.assertEqual(return_token.type, TokenType.KEYWORD)
+        
+        # Check identifiers
+        calc_token = find_token(tokens, "calculate")
+        self.assertIsNotNone(calc_token)
+        self.assertEqual(calc_token.type, TokenType.IDENTIFIER)
     
-    def test_class_def(self):
-        """测试类定义"""
-        tokens = tokenize_code("class MyClass { }")
-        types = [t.type.name for t in tokens]
-        self.assertIn("CLASS", types)
-        self.assertIn("IDENTIFIER", types)
+    def test_json_like(self):
+        """Test JSON-like content."""
+        code = '{"name": "John", "age": 30, "active": true}'
+        lexer = Lexer(code)
+        tokens = lexer.tokenize_all()
+        
+        strings = extract_strings(tokens)
+        self.assertIn("name", strings)
+        self.assertIn("John", strings)
+        
+        numbers = extract_numbers(tokens)
+        self.assertIn("30", numbers)
     
-    def test_comments(self):
-        """测试注释"""
-        tokens = tokenize_code("// this is a comment\nx = 1")
-        # 注释应该被忽略
-        comments = [t for t in tokens if t.type.category == TokenCategory.COMMENT]
-        self.assertEqual(len(comments), 0)
-    
-    def test_block_comments(self):
-        """测试块注释"""
-        tokens = tokenize_code("/* block comment */ x = 1")
-        comments = [t for t in tokens if t.type.category == TokenCategory.COMMENT]
-        self.assertEqual(len(comments), 0)  # 被忽略
-    
-    def test_strings(self):
-        """测试字符串"""
-        tokens = tokenize_code('"hello" + \'world\'')
-        strings = [t for t in tokens if t.type.name == "STRING"]
-        self.assertEqual(len(strings), 2)
-    
-    def test_template_strings(self):
-        """测试模板字符串"""
-        tokens = tokenize_code("`template ${x}`")
-        strings = [t for t in tokens if t.type.name == "STRING"]
-        self.assertGreater(len(strings), 0)
-
-
-class TestMathTokenizer(unittest.TestCase):
-    """数学表达式分词器专项测试"""
-    
-    def test_simple_expression(self):
-        """测试简单表达式"""
-        tokens = tokenize_math("1 + 2")
-        values = [t.value for t in tokens if t.type.name != "EOF"]
-        self.assertEqual(values, [1, "+", 2])
-    
-    def test_complex_expression(self):
-        """测试复杂表达式"""
-        tokens = tokenize_math("((3 + 4) * 5) / 2 - 1")
-        numbers = [t for t in tokens if t.type.name == "NUMBER"]
-        # 3, 4, 5, 2, 1 五个数字
-        self.assertEqual(len(numbers), 5)
-    
-    def test_floats(self):
-        """测试浮点数"""
-        tokens = tokenize_math("3.14 * 2.5")
-        numbers = [t for t in tokens if t.type.name == "NUMBER"]
-        self.assertEqual(numbers[0].value, 3.14)
-        self.assertEqual(numbers[1].value, 2.5)
-    
-    def test_functions(self):
-        """测试函数调用"""
-        tokens = tokenize_math("sin(x) + cos(y)")
-        identifiers = [t for t in tokens if t.type.name == "IDENTIFIER"]
-        names = [t.value for t in identifiers]
-        self.assertIn("sin", names)
-        self.assertIn("cos", names)
-        self.assertIn("x", names)
-        self.assertIn("y", names)
+    def test_expression(self):
+        """Test mathematical expression."""
+        expr = "(a + b) * c / (d - e)"
+        tokens = tokenize(expr)
+        
+        ids = extract_identifiers(tokens)
+        self.assertEqual(ids, ["a", "b", "c", "d", "e"])
+        
+        ops = [t.value for t in tokens if t.type == TokenType.OPERATOR]
+        self.assertEqual(ops, ["+", "*", "/", "-"])
 
 
 if __name__ == "__main__":
-    unittest.main(verbosity=2)
+    unittest.main()
