@@ -1,180 +1,225 @@
-# Roman Numeral Utilities
+# Roman Numeral Utils - 罗马数字转换工具
 
-A comprehensive Python library for converting between Arabic numerals and Roman numerals. Zero external dependencies.
+一个完整的 Python 罗马数字转换工具，提供阿拉伯数字与罗马数字之间的相互转换、验证和运算功能。
 
-## Features
+## 功能特性
 
-- **Integer to Roman**: Convert integers (1-3999) to Roman numeral strings
-- **Roman to Integer**: Parse Roman numerals back to integers
-- **Validation**: Check if strings are valid Roman numerals
-- **Text Parsing**: Extract Roman numerals from text
-- **Arithmetic**: Add, subtract, and compare Roman numerals
-- **Range Generation**: Generate Roman numeral sequences
+- ✅ **基本转换**：阿拉伯数字 ↔ 罗马数字双向转换
+- ✅ **输入验证**：完整的罗马数字格式验证
+- ✅ **算术运算**：支持加减乘除四则运算
+- ✅ **比较功能**：罗马数字大小比较
+- ✅ **信息查询**：获取罗马数字详细信息
+- ✅ **范围生成**：批量生成指定范围的罗马数字
+- ✅ **扩展支持**：支持上划线表示法处理大于 3999 的数字
 
-## Installation
-
-No installation required - just copy the `mod.py` file to your project.
-
-## Quick Start
+## 安装
 
 ```python
-from roman_numeral_utils.mod import to_roman, from_roman
-
-# Convert to Roman
-print(to_roman(1994))  # 'MCMXCIV'
-
-# Convert from Roman
-print(from_roman('MCMXCIV'))  # 1994
+# 无需外部依赖，直接导入使用
+from mod import int_to_roman, roman_to_int
 ```
 
-## API Reference
+## 快速开始
 
-### Core Functions
-
-#### `to_roman(num: int) -> str`
-Convert an integer to a Roman numeral (1-3999).
+### 基本转换
 
 ```python
-to_roman(1)      # 'I'
-to_roman(4)      # 'IV'
-to_roman(1994)   # 'MCMXCIV'
+from mod import int_to_roman, roman_to_int
+
+# 阿拉伯数字 → 罗马数字
+print(int_to_roman(2024))  # 输出: MMXXIV
+print(int_to_roman(4))     # 输出: IV
+print(int_to_roman(3999))  # 输出: MMMCMXCIX
+
+# 罗马数字 → 阿拉伯数字
+print(roman_to_int('MMXXIV'))  # 输出: 2024
+print(roman_to_int('IV'))      # 输出: 4
+print(roman_to_int('MCMLXXXIV'))  # 输出: 1984
 ```
 
-#### `from_roman(roman: str) -> int`
-Convert a Roman numeral to an integer.
+### 验证功能
 
 ```python
-from_roman('I')        # 1
-from_roman('IV')        # 4
-from_roman('MCMXCIV')   # 1994
+from mod import is_valid_roman
+
+print(is_valid_roman('IV'))     # True - 有效
+print(is_valid_roman('IIII'))   # False - 无效（应该是IV）
+print(is_valid_roman('MMXXIV')) # True - 有效
+print(is_valid_roman('ABC'))    # False - 无效字符
 ```
 
-### Validation
-
-#### `is_valid_roman(roman: str) -> bool`
-Check if a string is a valid Roman numeral.
+### 算术运算
 
 ```python
-is_valid_roman('IV')    # True
-is_valid_roman('IIII')  # False (invalid notation)
+from mod import roman_add, roman_subtract, roman_multiply, roman_divide
+
+# 加法
+print(roman_add('X', 'V'))      # 输出: XV (10 + 5 = 15)
+print(roman_add('IV', 'VI'))    # 输出: X (4 + 6 = 10)
+
+# 减法
+print(roman_subtract('X', 'V'))  # 输出: V (10 - 5 = 5)
+print(roman_subtract('X', 'I'))  # 输出: IX (10 - 1 = 9)
+
+# 乘法
+print(roman_multiply('V', 'II'))  # 输出: X (5 × 2 = 10)
+print(roman_multiply('X', 'X'))   # 输出: C (10 × 10 = 100)
+
+# 除法（返回商和余数）
+print(roman_divide('X', 'III'))  # 输出: ('III', 'I') (10 ÷ 3 = 3 余 1)
+print(roman_divide('X', 'II'))   # 输出: ('V', '') (10 ÷ 2 = 5 余 0)
 ```
 
-### Text Parsing
-
-#### `parse_roman_in_text(text: str) -> List[Tuple[str, int, int, int]]`
-Find and parse all Roman numerals in text. Returns list of (roman, value, start, end).
+### 比较功能
 
 ```python
-text = "King Henry VIII ruled England"
-parsed = parse_roman_in_text(text)
-# [('VIII', 8, 12, 16)]
+from mod import roman_compare
+
+print(roman_compare('V', 'X'))   # -1 (V < X)
+print(roman_compare('X', 'V'))   # 1 (X > V)
+print(roman_compare('X', 'X'))   # 0 (X = X)
 ```
 
-### Arithmetic
-
-#### `add_roman(roman1: str, roman2: str) -> str`
-Add two Roman numerals.
+### 获取详细信息
 
 ```python
-add_roman('X', 'V')   # 'XV'
-add_roman('IV', 'I')  # 'V'
-```
+from mod import get_roman_info
 
-#### `subtract_roman(roman1: str, roman2: str) -> str`
-Subtract two Roman numerals.
-
-```python
-subtract_roman('X', 'V')  # 'V'
-subtract_roman('V', 'I')  # 'IV'
-```
-
-#### `compare_roman(roman1: str, roman2: str) -> int`
-Compare two Roman numerals. Returns -1, 0, or 1.
-
-```python
-compare_roman('I', 'V')   # -1 (I < V)
-compare_roman('V', 'V')   # 0  (V == V)
-compare_roman('X', 'V')   # 1  (X > V)
-```
-
-### Utilities
-
-#### `roman_range(start: int, end: int, step: int = 1) -> Generator[str]`
-Generate Roman numerals in a range.
-
-```python
-list(roman_range(1, 6))  # ['I', 'II', 'III', 'IV', 'V']
-```
-
-#### `get_roman_info(roman: str) -> dict`
-Get detailed information about a Roman numeral.
-
-```python
-info = get_roman_info('MCMXCIV')
+info = get_roman_info('MMXXIV')
+print(info)
 # {
-#     'roman': 'MCMXCIV',
+#     'original': 'MMXXIV',
+#     'value': 2024,
 #     'valid': True,
-#     'value': 1994,
-#     'length': 7,
-#     'characters': ['M', 'C', 'M', 'X', 'C', 'I', 'V'],
-#     'breakdown': [...]
+#     'length': 6,
+#     'components': ['M', 'M', 'X', 'X', 'IV'],
+#     'digit_count': 4
 # }
 ```
 
-#### `format_with_ordinal(num: int, use_roman: bool = True) -> str`
-Format a number as Roman numeral or with ordinal suffix.
+### 批量生成
 
 ```python
-format_with_ordinal(1)                 # 'I'
-format_with_ordinal(1, use_roman=False)  # '1st'
-format_with_ordinal(3, use_roman=False)  # '3rd'
+from mod import find_roman_range
+
+# 生成1到10的罗马数字
+for value, roman in find_roman_range(1, 10):
+    print(f"{value}: {roman}")
+# 输出:
+# 1: I
+# 2: II
+# 3: III
+# 4: IV
+# 5: V
+# ...
 ```
 
-## Constants
+### 扩展模式（大于3999的数字）
 
-- `ROMAN_ONES`: Roman numerals for 1-10 (I, II, III, IV, V, VI, VII, VIII, IX, X)
-- `ROMAN_TENS`: Roman numerals for 10-100 by tens
-- `ROMAN_HUNDREDS`: Roman numerals for 100-1000 by hundreds
+```python
+# 标准模式最大支持3999
+# int_to_roman(4000)  # 抛出 OutOfRangeError
 
-## Examples
-
-Run the example files:
-
-```bash
-python examples/basic_conversion.py
-python examples/arithmetic.py
-python examples/text_parsing.py
+# 使用上划线表示法
+print(int_to_roman(5000, use_overline=True))  # V̄ (V加上划线表示5000)
+print(int_to_roman(10000, use_overline=True)) # X̄
 ```
 
-## Testing
+## API 参考
 
-Run the test suite:
+### `int_to_roman(num: int, use_overline: bool = False) -> str`
+
+将阿拉伯数字转换为罗马数字。
+
+**参数:**
+- `num`: 要转换的整数（标准模式: 1-3999）
+- `use_overline`: 是否使用上划线表示法
+
+**返回:** 罗马数字字符串
+
+**异常:**
+- `OutOfRangeError`: 数字超出范围
+- `TypeError`: 输入不是整数
+
+### `roman_to_int(roman: str) -> int`
+
+将罗马数字转换为阿拉伯数字。
+
+**参数:**
+- `roman`: 罗马数字字符串
+
+**返回:** 对应的整数
+
+**异常:**
+- `InvalidRomanError`: 输入不是有效的罗马数字
+- `TypeError`: 输入不是字符串
+
+### `is_valid_roman(roman: str) -> bool`
+
+验证字符串是否为有效的罗马数字。
+
+### `roman_add(roman1: str, roman2: str) -> str`
+### `roman_subtract(roman1: str, roman2: str) -> str`
+### `roman_multiply(roman1: str, roman2: str) -> str`
+### `roman_divide(roman1: str, roman2: str) -> Tuple[str, str]`
+
+罗马数字算术运算。
+
+### `roman_compare(roman1: str, roman2: str) -> int`
+
+比较两个罗马数字。返回 -1/0/1。
+
+### `get_roman_info(roman: str) -> dict`
+
+获取罗马数字的详细信息。
+
+### `find_roman_range(start: int, end: int) -> list`
+
+生成指定范围内的所有罗马数字。
+
+### `search_by_value(value: int) -> Optional[str]`
+
+根据整数值搜索对应的罗马数字。
+
+## 罗马数字规则
+
+本工具遵循标准罗马数字规则：
+
+1. **基本符号**:
+   - I = 1, V = 5, X = 10, L = 50
+   - C = 100, D = 500, M = 1000
+
+2. **减法原则**:
+   - IV = 4, IX = 9, XL = 40, XC = 90
+   - CD = 400, CM = 900
+
+3. **重复规则**:
+   - I, X, C, M 可以重复最多3次
+   - V, L, D 不能重复
+
+4. **标准范围**: 1 到 3999
+
+## 运行测试
 
 ```bash
 python roman_numeral_utils_test.py
 ```
 
-## Roman Numeral Rules
+## 常见问题
 
-Standard Roman numerals use the following symbols:
-- I = 1
-- V = 5
-- X = 10
-- L = 50
-- C = 100
-- D = 500
-- M = 1000
+**Q: 为什么最大只支持3999？**
+A: 标准罗马数字没有表示5000以上的专用符号。可以使用上划线表示法（use_overline=True）处理更大数字。
 
-Subtractive notation:
-- IV = 4 (not IIII)
-- IX = 9
-- XL = 40
-- XC = 90
-- CD = 400
-- CM = 900
+**Q: 为什么 IIII 不是有效的罗马数字？**
+A: 根据罗马数字规则，4 应该写作 IV（减法原则），而不是 IIII。
 
-Valid range: 1 to 3999 (MMMCMXCIX)
+**Q: 大小写敏感吗？**
+A: 不敏感，`iv`、`IV`、`iV` 都会被识别为有效的罗马数字。
 
-## License
+## 许可证
 
-MIT License - Free to use and modify.
+MIT License
+
+## 作者
+
+AllToolkit 自动生成
