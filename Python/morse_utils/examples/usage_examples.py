@@ -1,411 +1,424 @@
 """
-Morse Utils - 使用示例
+摩尔斯电码工具使用示例
 
-展示摩尔斯电码工具的各种用法：
-1. 基本编码解码
-2. 音频生成
-3. 练习模式
-4. 文件操作
-5. 高级功能
+演示如何使用 morse_utils 模块进行:
+- 文本编码为摩尔斯电码
+- 摩尔斯电码解码为文本
+- 音频生成与保存
+- 统计信息获取
+- 可视化输出
+- 练习功能
 """
 
 import sys
 import os
 
-# 添加模块路径（直接导入 mod）
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# 添加父目录到路径
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from mod import (
-    encode,
-    decode,
-    MorseConfig,
-    MorseCode,
-    generate_morse_audio,
-    calculate_duration,
-    get_morse_stats,
-    get_supported_characters,
-    get_morse_for_char,
-    get_char_for_morse,
-    is_valid_morse,
-    is_valid_text_for_encoding,
-    translate_abbreviation,
-    translate_q_code,
-    list_abbreviations,
-    list_q_codes,
-    practice_mode,
-    reverse_encode,
-    compare_morse,
-    text_to_morse,
-    morse_to_text,
-    text_to_audio,
+from morse_utils.mod import (
+    MorseUtils, MorseEncoder, MorseDecoder, MorseAudioGenerator,
+    MorseConfig, encode, decode, get_morse_table, get_abbreviations
 )
-
-
-def print_section(title):
-    """打印章节标题"""
-    print("\n" + "=" * 50)
-    print(f"  {title}")
-    print("=" * 50)
 
 
 def example_basic_encoding():
     """基本编码示例"""
-    print_section("1. 基本编码")
+    print("\n" + "="*60)
+    print("示例 1: 基本编码")
+    print("="*60)
     
-    # 编码单个字符
-    print("\n编码单个字符:")
-    print(f"  A -> {encode('A')}")
-    print(f"  B -> {encode('B')}")
-    print(f"  E -> {encode('E')}")
-    print(f"  T -> {encode('T')}")
+    # 使用便捷函数
+    text = "HELLO WORLD"
+    morse = encode(text)
+    print(f"原文: {text}")
+    print(f"电码: {morse}")
     
-    # 编码单词
-    print("\n编码单词:")
-    print(f"  HELLO -> {encode('HELLO')}")
-    print(f"  WORLD -> {encode('WORLD')}")
-    print(f"  SOS -> {encode('SOS')}")
-    
-    # 编码句子
-    print("\n编码句子:")
-    print(f"  'HELLO WORLD' -> {encode('HELLO WORLD')}")
-    print(f"  'I LOVE YOU' -> {encode('I LOVE YOU')}")
-    
-    # 编码数字和符号
-    print("\n编码数字和符号:")
-    print(f"  123 -> {encode('123')}")
-    print(f"  S.O.S -> {encode('S.O.S')}")
-    print(f"  TEST@EMAIL.COM -> {encode('TEST@EMAIL.COM')}")
+    # 使用类
+    encoder = MorseEncoder()
+    texts = ["SOS", "MORSE CODE", "ABC123"]
+    for t in texts:
+        print(f"{t} -> {encoder.encode(t)}")
 
 
 def example_basic_decoding():
     """基本解码示例"""
-    print_section("2. 基本解码")
+    print("\n" + "="*60)
+    print("示例 2: 基本解码")
+    print("="*60)
     
-    # 解码单个字符
-    print("\n解码单个字符:")
-    print(f"  .- -> {decode('.-')}")
-    print(f"  -... -> {decode('-...')}")
-    print(f"  . -> {decode('.')}")
-    print(f"  - -> {decode('-')}")
+    # 使用便捷函数
+    morse = "... --- ..."
+    text = decode(morse)
+    print(f"电码: {morse}")
+    print(f"原文: {text}")
     
-    # 解码单词
-    print("\n解码单词:")
-    print(f"  '.... . .-.. .-.. ---' -> {decode('.... . .-.. .-.. ---')}")
-    print(f"  '... --- ...' -> {decode('... --- ...')}")
-    
-    # 解码句子
-    print("\n解码句子:")
-    morse = '.... . .-.. .-.. --- / .-- --- .-. .-.. -..'
-    print(f"  '{morse}' -> {decode(morse)}")
+    # 使用类
+    decoder = MorseDecoder()
+    morse_codes = [
+        "... --- ...",           # SOS
+        ".- -... -.-.",          # ABC
+        ".---- ..--- ...--",     # 123
+        ".... . .-.. .-.. --- / .-- --- .-. .-.. -..",  # HELLO WORLD
+    ]
+    for m in morse_codes:
+        print(f"{m} -> {decoder.decode(m)}")
 
 
-def example_custom_separator():
-    """自定义分隔符示例"""
-    print_section("3. 自定义分隔符")
+def example_round_trip():
+    """编码解码往返示例"""
+    print("\n" + "="*60)
+    print("示例 3: 编码解码往返")
+    print("="*60)
     
-    # 默认分隔符
-    text = "HELLO WORLD"
-    print(f"\n文本: {text}")
-    print(f"默认分隔符: {encode(text)}")
+    utils = MorseUtils()
     
-    # 自定义字母分隔符
-    print(f"字母分隔符 '/': {encode(text, letter_separator='/')}")
+    messages = [
+        "HELLO",
+        "SOS",
+        "MORSE CODE",
+        "12345",
+        "HELP ME",
+    ]
     
-    # 自定义单词分隔符
-    print(f"单词分隔符 ' | ': {encode(text, word_separator=' | ')}")
+    for msg in messages:
+        morse = utils.encode(msg)
+        decoded = utils.decode(morse)
+        print(f"原文: {msg}")
+        print(f"电码: {morse}")
+        print(f"解码: {decoded}")
+        print(f"一致: {msg.upper() == decoded}")
+        print()
+
+
+def example_custom_config():
+    """自定义配置示例"""
+    print("\n" + "="*60)
+    print("示例 4: 自定义配置")
+    print("="*60)
     
-    # 解码时使用相同分隔符
-    # 先用自定义分隔符编码，再解码
-    morse_custom = encode("HI", letter_separator='|')
-    print(f"\n用 '|' 作为字母分隔符编码 'HI': {morse_custom}")
-    decoded = decode(morse_custom, letter_separator='|')
-    print(f"解码结果: {decoded}")
+    # 自定义符号
+    config1 = MorseConfig(dot_symbol='*', dash_symbol='_')
+    encoder1 = MorseEncoder(config1)
+    print("使用 * 和 _ 作为符号:")
+    print(f"SOS -> {encoder1.encode('SOS')}")
+    
+    # 自定义分隔符
+    config2 = MorseConfig(letter_separator=' | ', word_separator=' // ')
+    encoder2 = MorseEncoder(config2)
+    print("\n使用自定义分隔符:")
+    print(f"HELLO WORLD -> {encoder2.encode('HELLO WORLD')}")
+    
+    # 自定义音频参数
+    config3 = MorseConfig(
+        frequency=500,        # 500 Hz
+        dot_duration=0.08,    # 80ms 点
+    )
+    utils = MorseUtils(config3)
+    duration = utils.calculate_duration('SOS')
+    print(f"\n使用 500Hz/80ms 配置:")
+    print(f"SOS 播放时长: {duration:.2f} 秒")
 
 
 def example_audio_generation():
     """音频生成示例"""
-    print_section("4. 音频生成")
+    print("\n" + "="*60)
+    print("示例 5: 音频生成")
+    print("="*60)
     
-    # 默认配置
-    print("\n默认配置:")
-    print(f"  点时长: 0.1 秒")
-    print(f"  划时长: 0.3 秒 (点的 3 倍)")
-    print(f"  频率: 600 Hz")
+    generator = MorseAudioGenerator()
     
-    # 生成音频
+    # 生成音频数据
     text = "SOS"
-    audio = generate_morse_audio(text)
-    print(f"\n生成 '{text}' 的音频:")
-    print(f"  音频大小: {len(audio)} 字节")
-    print(f"  WAV 格式: RIFF 头 = {audio[:4]}")
+    audio_data = generator.generate_audio(text)
+    print(f"为 '{text}' 生成的音频大小: {len(audio_data)} 字节")
     
-    # 计算播放时长
-    morse = encode(text)
-    duration = calculate_duration(morse)
-    print(f"  预计时长: {duration:.2f} 秒")
+    # 保存到临时文件
+    import tempfile
+    with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as f:
+        filepath = f.name
     
-    # 自定义配置
-    print("\n自定义配置:")
-    config = MorseConfig(
-        dot_duration=0.08,    # 更快的点
-        frequency=800,        # 更高的频率
-    )
-    mc = MorseCode(config)
-    audio = mc.to_audio("HELLO")
-    duration = mc.duration(encode("HELLO"))
-    print(f"  频率: {config.frequency} Hz")
-    print(f"  点时长: {config.dot_duration} 秒")
-    print(f"  'HELLO' 预计时长: {duration:.2f} 秒")
+    generator.save_audio(text, filepath)
+    print(f"音频已保存到: {filepath}")
+    
+    # 检查文件
+    file_size = os.path.getsize(filepath)
+    print(f"文件大小: {file_size} 字节")
+    
+    # 清理
+    os.unlink(filepath)
+    print("临时文件已删除")
 
 
 def example_statistics():
-    """统计功能示例"""
-    print_section("5. 统计功能")
+    """统计信息示例"""
+    print("\n" + "="*60)
+    print("示例 6: 统计信息")
+    print("="*60)
     
-    morse = encode("HELLO WORLD")
-    stats = get_morse_stats(morse)
+    utils = MorseUtils()
     
-    print(f"\n摩尔斯码: {morse}")
-    print(f"统计信息:")
-    print(f"  点数: {stats['dots']}")
-    print(f"  划数: {stats['dashes']}")
-    print(f"  字母数: {stats['letters']}")
-    print(f"  单词数: {stats['words']}")
-    print(f"  总符号数: {stats['total_symbols']}")
+    texts = ["SOS", "HELLO WORLD", "THE QUICK BROWN FOX"]
     
-    # 反转摩尔斯码
-    print(f"\n反转摩尔斯码:")
-    original = "..."
-    reversed_morse = reverse_encode(original)
-    print(f"  原始: {original}")
-    print(f"  反转: {reversed_morse}")
+    for text in texts:
+        stats = utils.get_statistics(text)
+        print(f"\n文本: {text}")
+        print(f"  电码: {stats['morse_code']}")
+        print(f"  点数: {stats['dot_count']}")
+        print(f"  划数: {stats['dash_count']}")
+        print(f"  总符号: {stats['total_symbols']}")
+        print(f"  时长: {stats['duration_seconds']:.3f} 秒")
+        print(f"  字符数: {stats['character_count']}")
+        print(f"  单词数: {stats['word_count']}")
+
+
+def example_visualization():
+    """可视化示例"""
+    print("\n" + "="*60)
+    print("示例 7: 可视化")
+    print("="*60)
+    
+    utils = MorseUtils()
+    
+    text = "SOS"
+    
+    # 标准格式
+    print(f"标准格式: {utils.visualize(text, 'standard')}")
+    
+    # 圆点格式
+    print(f"圆点格式: {utils.visualize(text, 'dots')}")
+    
+    # 竖线格式
+    print(f"竖线格式: {utils.visualize(text, 'bars')}")
+    
+    # 音效拟声
+    print(f"音效拟声: {utils.visualize(text, 'sound')}")
+    
+    # 更多示例
+    print("\n完整句子可视化:")
+    sentence = "HELLO WORLD"
+    print(f"音效: {utils.visualize(sentence, 'sound')}")
+
+
+def example_morse_table():
+    """摩尔斯电码表示例"""
+    print("\n" + "="*60)
+    print("示例 8: 摩尔斯电码表")
+    print("="*60)
+    
+    table = get_morse_table()
+    
+    # 显示字母
+    print("字母电码表:")
+    for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
+        print(f"  {letter}: {table[letter]}")
+    
+    # 显示数字
+    print("\n数字电码表:")
+    for digit in "0123456789":
+        print(f"  {digit}: {table[digit]}")
+    
+    # 显示部分标点
+    print("\n常用标点:")
+    for punc in ". , ? ! /":
+        print(f"  {punc}: {table[punc]}")
+
+
+def example_abbreviations():
+    """常用缩写示例"""
+    print("\n" + "="*60)
+    print("示例 9: 常用缩写")
+    print("="*60)
+    
+    abbreviations = get_abbreviations()
+    
+    print("无线电通讯常用缩写:")
+    for name, morse in abbreviations.items():
+        print(f"  {name}: {morse}")
+    
+    # 解码缩写
+    decoder = MorseDecoder()
+    print("\n解码 SOS:")
+    print(f"  电码: {abbreviations['SOS']}")
+    print(f"  解码: {decoder.decode(abbreviations['SOS'])}")
+
+
+def example_practice():
+    """练习功能示例"""
+    print("\n" + "="*60)
+    print("示例 10: 练习功能")
+    print("="*60)
+    
+    utils = MorseUtils()
+    
+    # 指定字符练习
+    practice = utils.practice('A')
+    print(f"字符: {practice['character']}")
+    print(f"电码: {practice['morse_code']}")
+    print(f"描述: {practice['description']}")
+    print(f"口诀: {practice['mnemonic']}")
+    
+    # 随机练习
+    print("\n随机练习示例:")
+    for i in range(5):
+        p = utils.practice()
+        print(f"  {p['character']}: {p['morse_code']}")
+
+
+def example_duration_calculation():
+    """持续时间计算示例"""
+    print("\n" + "="*60)
+    print("示例 11: 持续时间计算")
+    print("="*60)
+    
+    utils = MorseUtils()
+    
+    # 不同文本的播放时长
+    texts = ["E", "T", "SOS", "HELLO", "HELLO WORLD"]
+    
+    for text in texts:
+        duration = utils.calculate_duration(text)
+        morse = utils.encode(text)
+        print(f"'{text}' ({morse}): {duration:.3f} 秒")
+    
+    # 使用更快的速度
+    print("\n使用更快的速度 (40ms 点):")
+    config = MorseConfig(dot_duration=0.04)
+    fast_utils = MorseUtils(config)
+    for text in texts:
+        duration = fast_utils.calculate_duration(text)
+        print(f"'{text}': {duration:.3f} 秒")
+
+
+def example_full_workflow():
+    """完整工作流示例"""
+    print("\n" + "="*60)
+    print("示例 12: 完整工作流")
+    print("="*60)
+    
+    # 1. 创建工具实例
+    utils = MorseUtils()
+    
+    # 2. 输入消息
+    message = "HELP"
+    print(f"原始消息: {message}")
+    
+    # 3. 编码
+    morse = utils.encode(message)
+    print(f"摩尔斯电码: {morse}")
+    
+    # 4. 获取统计
+    stats = utils.get_statistics(message)
+    print(f"播放时长: {stats['duration_seconds']:.2f} 秒")
+    
+    # 5. 可视化
+    print(f"音效表示: {utils.visualize(message, 'sound')}")
+    
+    # 6. 生成音频 (演示，不保存文件)
+    audio = utils.generate_audio(message)
+    print(f"音频大小: {len(audio)} 字节")
+    
+    # 7. 解码验证
+    decoded = utils.decode(morse)
+    print(f"解码验证: {decoded}")
+    
+    # 8. 验证一致性
+    if decoded == message.upper():
+        print("✓ 编码解码一致")
+
+
+def example_unknown_characters():
+    """未知字符处理示例"""
+    print("\n" + "="*60)
+    print("示例 13: 未知字符处理")
+    print("="*60)
+    
+    # 默认配置 - 替换未知字符
+    encoder = MorseEncoder()
+    text = "HELLO世界"
+    print(f"原文: {text}")
+    print(f"默认处理: {encoder.encode(text)}")
+    
+    # 忽略未知字符
+    config = MorseConfig(ignore_unknown=True)
+    encoder2 = MorseEncoder(config)
+    print(f"忽略处理: {encoder2.encode(text)}")
 
 
 def example_validation():
     """验证功能示例"""
-    print_section("6. 验证功能")
+    print("\n" + "="*60)
+    print("示例 14: 电码验证")
+    print("="*60)
     
-    # 验证摩尔斯码
-    print("\n验证摩尔斯码:")
-    valid_morse = "... --- ..."
-    invalid_morse = "... abc ..."
-    print(f"  '{valid_morse}' 有效: {is_valid_morse(valid_morse)}")
-    print(f"  '{invalid_morse}' 有效: {is_valid_morse(invalid_morse)}")
+    decoder = MorseDecoder()
     
-    # 验证文本
-    print("\n验证文本编码:")
-    valid, invalid = is_valid_text_for_encoding("HELLO")
-    print(f"  'HELLO' 可编码: {valid}, 无效字符: {invalid}")
+    valid_codes = ["... --- ...", ".- -... -.-.", ".----"]
+    invalid_codes = ["abc", "...xyz...", "123"]
     
-    valid, invalid = is_valid_text_for_encoding("你好")
-    print(f"  '你好' 可编码: {valid}, 无效字符: {invalid}")
+    print("有效电码:")
+    for code in valid_codes:
+        print(f"  '{code}': {decoder.is_valid_morse(code)}")
+    
+    print("\n无效电码:")
+    for code in invalid_codes:
+        print(f"  '{code}': {decoder.is_valid_morse(code)}")
 
 
-def example_abbreviations():
-    """缩写和 Q 代码示例"""
-    print_section("7. 缩写和 Q 代码")
+def example_punctuation():
+    """标点符号示例"""
+    print("\n" + "="*60)
+    print("示例 15: 标点符号")
+    print("="*60)
     
-    # 常见缩写
-    print("\n常见摩尔斯缩写:")
-    abbreviations = ['SOS', 'CQ', 'K', 'SK']
-    for abbr in abbreviations:
-        morse = translate_abbreviation(abbr)
-        print(f"  {abbr}: {morse}")
+    encoder = MorseEncoder()
+    decoder = MorseDecoder()
     
-    # Q 代码
-    print("\n常用 Q 代码:")
-    q_codes = ['QTH', 'QRZ', 'QRM', 'QRN', 'QSL']
-    for code in q_codes:
-        meaning = translate_q_code(code)
-        print(f"  {code}: {meaning}")
+    # 常用标点
+    punctuations = [
+        ("句号", "."),
+        ("逗号", ","),
+        ("问号", "?"),
+        ("感叹号", "!"),
+        ("斜杠", "/"),
+        ("冒号", ":"),
+        ("等号", "="),
+        ("加号", "+"),
+        ("减号", "-"),
+    ]
+    
+    for name, char in punctuations:
+        morse = encoder.encode(char)
+        decoded = decoder.decode(morse)
+        print(f"{name} ({char}): {morse} -> {decoded}")
 
 
-def example_practice_mode():
-    """练习模式示例"""
-    print_section("8. 练习模式")
-    
-    # 编码练习
-    print("\n编码练习:")
-    practice = practice_mode(text='HELLO', show_answer=False)
-    print(f"  类型: {practice['type']}")
-    print(f"  文本: {practice['text']}")
-    print(f"  提示: {practice['hint']}")
-    print(f"  (隐藏答案)")
-    
-    practice = practice_mode(text='HELLO', show_answer=True)
-    print(f"\n  显示答案:")
-    print(f"  摩尔斯码: {practice['morse']}")
-    
-    # 解码练习
-    print("\n解码练习:")
-    practice = practice_mode(morse='... --- ...', show_answer=False)
-    print(f"  类型: {practice['type']}")
-    print(f"  摩尔斯码: {practice['morse']}")
-    print(f"  提示: {practice['hint']}")
-    print(f"  (隐藏答案)")
-    
-    practice = practice_mode(morse='... --- ...', show_answer=True)
-    print(f"\n  显示答案:")
-    print(f"  文本: {practice['text']}")
-
-
-def example_class_api():
-    """面向对象 API 示例"""
-    print_section("9. 面向对象 API")
-    
-    # 创建 MorseCode 对象
-    mc = MorseCode()
-    print(f"\n创建 MorseCode 对象: {mc}")
-    
-    # 编码
-    text = "HELLO"
-    morse = mc.encode(text)
-    print(f"\n编码 '{text}': {morse}")
-    
-    # 解码
-    decoded = mc.decode(morse)
-    print(f"解码 '{morse}': {decoded}")
-    
-    # 计算时长
-    duration = mc.duration(morse)
-    print(f"播放时长: {duration:.2f} 秒")
-    
-    # 生成音频
-    audio = mc.to_audio(text)
-    print(f"音频大小: {len(audio)} 字节")
-    
-    # 自定义配置
-    config = MorseConfig(
-        dot_duration=0.05,
-        frequency=700
-    )
-    mc_fast = MorseCode(config)
-    print(f"\n快速配置: {mc_fast}")
-    duration_fast = mc_fast.duration(morse)
-    print(f"快速播放时长: {duration_fast:.2f} 秒")
-
-
-def example_convenience_functions():
-    """便捷函数示例"""
-    print_section("10. 便捷函数")
-    
-    # text_to_morse
-    text = "SOS"
-    morse = text_to_morse(text)
-    print(f"\ntext_to_morse('{text}'): {morse}")
-    
-    # morse_to_text
-    decoded = morse_to_text(morse)
-    print(f"morse_to_text('{morse}'): {decoded}")
-    
-    # text_to_audio
-    audio = text_to_audio("SOS")
-    print(f"text_to_audio('SOS'): {len(audio)} 字节")
-
-
-def example_character_lookup():
-    """字符查询示例"""
-    print_section("11. 字符查询")
-    
-    # 获取支持的字符
-    chars = get_supported_characters()
-    print(f"\n支持的字符数: {len(chars)}")
-    print(f"字母: {[c for c in chars if c.isalpha() and len(c) == 1][:10]}...")
-    print(f"数字: {[c for c in chars if c.isdigit()]}")
-    
-    # 查询字符对应的摩尔斯码
-    print("\n字符摩尔斯码查询:")
-    for char in ['A', 'B', 'S', 'O', '1', '0']:
-        morse = get_morse_for_char(char)
-        print(f"  {char} -> {morse}")
-    
-    # 查询摩尔斯码对应的字符
-    print("\n摩尔斯码字符查询:")
-    for morse in ['.-', '-...', '...', '---']:
-        char = get_char_for_morse(morse)
-        print(f"  {morse} -> {char}")
-
-
-def example_compare():
-    """比较功能示例"""
-    print_section("12. 比较功能")
-    
-    # 比较相同的摩尔斯码
-    morse1 = "... --- ..."
-    morse2 = "... --- ..."
-    equal, diff = compare_morse(morse1, morse2)
-    print(f"\n比较 '{morse1}' 和 '{morse2}':")
-    print(f"  相等: {equal}")
-    print(f"  匹配: {diff['matches']}, 不匹配: {diff['mismatches']}")
-    
-    # 比较不同的摩尔斯码
-    morse1 = "... --- ..."
-    morse2 = "... ... ..."
-    equal, diff = compare_morse(morse1, morse2)
-    print(f"\n比较 '{morse1}' 和 '{morse2}':")
-    print(f"  相等: {equal}")
-    print(f"  匹配: {diff['matches']}, 不匹配: {diff['mismatches']}")
-
-
-def example_complete():
-    """完整示例"""
-    print_section("13. 完整示例")
-    
-    # 模拟电报发送
-    message = "HELLO WORLD"
-    
-    print(f"\n发送消息: '{message}'")
-    
-    # 1. 编码
-    morse = encode(message)
-    print(f"\n1. 编码为摩尔斯电码:")
-    print(f"   {morse}")
-    
-    # 2. 统计
-    stats = get_morse_stats(morse)
-    print(f"\n2. 统计信息:")
-    print(f"   点: {stats['dots']}, 划: {stats['dashes']}")
-    print(f"   字母: {stats['letters']}, 单词: {stats['words']}")
-    
-    # 3. 计算时长
-    duration = calculate_duration(morse)
-    print(f"\n3. 播放时长: {duration:.2f} 秒")
-    
-    # 4. 生成音频
-    audio = generate_morse_audio(message)
-    print(f"\n4. 生成音频: {len(audio)} 字节")
-    
-    # 5. 解码
-    decoded = decode(morse)
-    print(f"\n5. 解码还原: '{decoded}'")
-    
-    print(f"\n✅ 消息发送完成!")
-
-
-def main():
+def run_all_examples():
     """运行所有示例"""
-    print("\n" + "=" * 60)
-    print("  Morse Utils 使用示例")
-    print("=" * 60)
+    print("\n" + "="*60)
+    print("摩尔斯电码工具使用示例")
+    print("="*60)
     
     example_basic_encoding()
     example_basic_decoding()
-    example_custom_separator()
+    example_round_trip()
+    example_custom_config()
     example_audio_generation()
     example_statistics()
-    example_validation()
+    example_visualization()
+    example_morse_table()
     example_abbreviations()
-    example_practice_mode()
-    example_class_api()
-    example_convenience_functions()
-    example_character_lookup()
-    example_compare()
-    example_complete()
+    example_practice()
+    example_duration_calculation()
+    example_full_workflow()
+    example_unknown_characters()
+    example_validation()
+    example_punctuation()
     
-    print("\n" + "=" * 60)
-    print("  示例演示完成!")
-    print("=" * 60 + "\n")
+    print("\n" + "="*60)
+    print("所有示例运行完成!")
+    print("="*60)
 
 
 if __name__ == '__main__':
-    main()
+    run_all_examples()
