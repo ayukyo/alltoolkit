@@ -1,850 +1,1279 @@
 """
-塔罗牌工具模块 (Tarot Card Utilities)
-提供完整的塔罗牌牌组、抽牌、牌阵解读等功能
-零外部依赖，纯 Python 标准库实现
+Tarot Card Utilities
 
-功能：
-- 完整 78 张塔罗牌牌组（22张大阿卡纳 + 56张小阿卡纳）
-- 单牌抽取
-- 三牌牌阵（过去/现在/未来）
-- 凯尔特十字牌阵（10张牌）
-- 牌面解读
-- 正位/逆位判断
-- 牌组信息查询
+A comprehensive tarot card reading and divination toolkit.
+
+Features:
+- Complete 78-card tarot deck (22 Major Arcana, 56 Minor Arcana)
+- Multiple spread layouts (Celtic Cross, Three Card, Relationship, etc.)
+- Card meanings for upright and reversed positions
+- Daily draws and random readings
+- Detailed interpretations for each card position
+- No external dependencies - pure Python implementation
 """
 
-import random
-from typing import List, Dict, Tuple, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
+from typing import Optional, List, Dict, Tuple, Callable
+import random
+from datetime import datetime, date
+import hashlib
 
 
-class CardType(Enum):
-    """牌的类型"""
-    MAJOR_ARCANA = "大阿卡纳"
-    MINOR_ARCANA = "小阿卡纳"
+class Arcana(Enum):
+    """Tarot card arcana types."""
+    MAJOR = "major"
+    MINOR = "minor"
 
 
 class Suit(Enum):
-    """小阿卡纳花色"""
-    WANDS = "权杖"
-    CUPS = "圣杯"
-    SWORDS = "宝剑"
-    PENTACLES = "金币"
+    """Minor Arcana suits."""
+    WANDS = "wands"
+    CUPS = "cups"
+    SWORDS = "swords"
+    PENTACLES = "pentacles"
 
 
 class Orientation(Enum):
-    """牌的朝向"""
-    UPRIGHT = "正位"
-    REVERSED = "逆位"
+    """Card orientation."""
+    UPRIGHT = "upright"
+    REVERSED = "reversed"
+
+
+# Major Arcana Cards
+MAJOR_ARCANA = {
+    0: {
+        "name": "The Fool",
+        "keywords": ["beginnings", "innocence", "spontaneity", "free spirit"],
+        "upright": "New beginnings, fresh start, innocence, spontaneity, leap of faith, unlimited potential. The Fool represents the start of a journey, embracing the unknown with childlike wonder.",
+        "reversed": "Recklessness, risk-taking, foolishness, naivety, lack of planning. You may be acting without thinking or ignoring important warnings.",
+        "element": "Air",
+        "zodiac": "Uranus",
+        "theme": "New Beginnings"
+    },
+    1: {
+        "name": "The Magician",
+        "keywords": ["manifestation", "resourcefulness", "power", "inspired action"],
+        "upright": "Manifestation, resourcefulness, power, inspired action. You have all the tools you need to succeed. Focus your will and take action.",
+        "reversed": "Manipulation, poor planning, untapped talents, latent potential. Your skills are being wasted or misused.",
+        "element": "Air",
+        "zodiac": "Mercury",
+        "theme": "Creation"
+    },
+    2: {
+        "name": "The High Priestess",
+        "keywords": ["intuition", "sacred knowledge", "divine feminine", "subconscious mind"],
+        "upright": "Intuition, sacred knowledge, divine feminine, subconscious mind. Trust your inner voice and the mysteries unfolding within.",
+        "reversed": "Secrets, disconnection from intuition, withdrawal, silence. You may be ignoring your inner wisdom or repressing important truths.",
+        "element": "Water",
+        "zodiac": "Moon",
+        "theme": "Mystery"
+    },
+    3: {
+        "name": "The Empress",
+        "keywords": ["femininity", "beauty", "nature", "nurturing", "abundance"],
+        "upright": "Femininity, beauty, nature, nurturing, abundance. Connect with your sensual side and embrace the natural world around you.",
+        "reversed": "Creative block, dependence on others, emptiness, smothering. You may be neglecting your own needs or stifling your creativity.",
+        "element": "Earth",
+        "zodiac": "Venus",
+        "theme": "Nurturing"
+    },
+    4: {
+        "name": "The Emperor",
+        "keywords": ["authority", "establishment", "structure", "father figure"],
+        "upright": "Authority, establishment, structure, father figure. Step into your power and create order from chaos. Leadership and control.",
+        "reversed": "Tyranny, rigidity, coldness, domination. Abuse of power or excessive control. Rebelliousness against authority.",
+        "element": "Fire",
+        "zodiac": "Aries",
+        "theme": "Authority"
+    },
+    5: {
+        "name": "The Hierophant",
+        "keywords": ["spiritual wisdom", "religious beliefs", "conformity", "tradition"],
+        "upright": "Spiritual wisdom, religious beliefs, conformity, tradition. Seek guidance from established institutions or spiritual teachers.",
+        "reversed": "Personal beliefs, freedom, challenging status quo, unconventional approaches. Break free from traditional thinking.",
+        "element": "Earth",
+        "zodiac": "Taurus",
+        "theme": "Tradition"
+    },
+    6: {
+        "name": "The Lovers",
+        "keywords": ["love", "harmony", "relationships", "values alignment", "choices"],
+        "upright": "Love, harmony, relationships, values alignment, choices. A significant relationship or important decision about your values.",
+        "reversed": "Self-love, disharmony, imbalance, misalignment of values. Relationship challenges or difficult choices ahead.",
+        "element": "Air",
+        "zodiac": "Gemini",
+        "theme": "Union"
+    },
+    7: {
+        "name": "The Chariot",
+        "keywords": ["control", "willpower", "success", "determination", "action"],
+        "upright": "Control, willpower, success, determination, action. Victory through focused effort and determination. Stay on course.",
+        "reversed": "Self-discipline, opposition, lack of direction, aggression. Loss of control or being pulled in different directions.",
+        "element": "Water",
+        "zodiac": "Cancer",
+        "theme": "Victory"
+    },
+    8: {
+        "name": "Strength",
+        "keywords": ["strength", "courage", "persuasion", "influence", "compassion"],
+        "upright": "Strength, courage, persuasion, influence, compassion. Inner strength and gentle power. Face challenges with grace.",
+        "reversed": "Inner strength, insecurity, self-doubt, weakness. Lack of confidence or giving in to fear.",
+        "element": "Fire",
+        "zodiac": "Leo",
+        "theme": "Courage"
+    },
+    9: {
+        "name": "The Hermit",
+        "keywords": ["soul-searching", "introspection", "inner guidance", "solitude"],
+        "upright": "Soul-searching, introspection, inner guidance, solitude. Take time for reflection and seek inner wisdom.",
+        "reversed": "Isolation, loneliness, withdrawal, alienation. Excessive withdrawal or fear of connecting with others.",
+        "element": "Earth",
+        "zodiac": "Virgo",
+        "theme": "Reflection"
+    },
+    10: {
+        "name": "Wheel of Fortune",
+        "keywords": ["good luck", "karma", "life cycles", "destiny", "turning point"],
+        "upright": "Good luck, karma, life cycles, destiny, turning point. Change is coming - embrace the cycles of life.",
+        "reversed": "Bad luck, resistance to change, breaking cycles, external forces. Feeling powerless against circumstances.",
+        "element": "Fire",
+        "zodiac": "Jupiter",
+        "theme": "Change"
+    },
+    11: {
+        "name": "Justice",
+        "keywords": ["justice", "fairness", "truth", "cause and effect", "law"],
+        "upright": "Justice, fairness, truth, cause and effect, law. Balance and impartiality. Accountability for actions.",
+        "reversed": "Unfairness, lack of accountability, dishonesty, legal injustice. Injustice or refusing to accept consequences.",
+        "element": "Air",
+        "zodiac": "Libra",
+        "theme": "Balance"
+    },
+    12: {
+        "name": "The Hanged Man",
+        "keywords": ["pause", "surrender", "letting go", "new perspectives"],
+        "upright": "Pause, surrender, letting go, new perspectives. A time for sacrifice and seeing things differently.",
+        "reversed": "Delays, resistance, stalling, indecision. Fighting necessary changes or being stuck in limbo.",
+        "element": "Water",
+        "zodiac": "Neptune",
+        "theme": "Sacrifice"
+    },
+    13: {
+        "name": "Death",
+        "keywords": ["endings", "change", "transformation", "transition"],
+        "upright": "Endings, change, transformation, transition. Profound change and transformation. Let go of what no longer serves you.",
+        "reversed": "Resistance to change, personal transformation, inner purging, fear of change. Clinging to what must end.",
+        "element": "Water",
+        "zodiac": "Scorpio",
+        "theme": "Transformation"
+    },
+    14: {
+        "name": "Temperance",
+        "keywords": ["balance", "moderation", "patience", "purpose"],
+        "upright": "Balance, moderation, patience, purpose. Find middle ground and practice restraint. Harmony in all things.",
+        "reversed": "Imbalance, excess, self-healing, realignment. Lack of long-term vision or extremes in behavior.",
+        "element": "Fire",
+        "zodiac": "Sagittarius",
+        "theme": "Harmony"
+    },
+    15: {
+        "name": "The Devil",
+        "keywords": ["shadow self", "attachment", "addiction", "restriction", "sexuality"],
+        "upright": "Shadow self, attachment, addiction, restriction, sexuality. Bondage to material concerns or unhealthy attachments.",
+        "reversed": "Releasing limiting beliefs, exploring dark thoughts, detachment, breaking free. Liberation from constraints.",
+        "element": "Earth",
+        "zodiac": "Capricorn",
+        "theme": "Bondage"
+    },
+    16: {
+        "name": "The Tower",
+        "keywords": ["sudden change", "upheaval", "chaos", "revelation", "awakening"],
+        "upright": "Sudden change, upheaval, chaos, revelation, awakening. Dramatic transformation through destruction of the old.",
+        "reversed": "Personal transformation, fear of change, averting disaster, delaying the inevitable. Resisting necessary change.",
+        "element": "Fire",
+        "zodiac": "Mars",
+        "theme": "Upheaval"
+    },
+    17: {
+        "name": "The Star",
+        "keywords": ["hope", "faith", "purpose", "renewal", "spirituality"],
+        "upright": "Hope, faith, purpose, renewal, spirituality. Calm after the storm. Trust in the universe and your path.",
+        "reversed": "Lack of faith, despair, self-trust, disconnection. Loss of hope or feeling disconnected from spirit.",
+        "element": "Air",
+        "zodiac": "Aquarius",
+        "theme": "Hope"
+    },
+    18: {
+        "name": "The Moon",
+        "keywords": ["illusion", "fear", "anxiety", "subconscious", "intuition"],
+        "upright": "Illusion, fear, anxiety, subconscious, intuition. Things are not as they seem. Navigate through confusion and trust instincts.",
+        "reversed": "Release of fear, repressed emotions, inner confusion. Facing fears or releasing repressed emotions.",
+        "element": "Water",
+        "zodiac": "Pisces",
+        "theme": "Mystery"
+    },
+    19: {
+        "name": "The Sun",
+        "keywords": ["positivity", "fun", "warmth", "success", "vitality"],
+        "upright": "Positivity, fun, warmth, success, vitality. Joy, success, and celebration. Everything is illuminated.",
+        "reversed": "Inner child, feeling down, overly optimistic, temporary depression. Inner blockages to happiness.",
+        "element": "Fire",
+        "zodiac": "Sun",
+        "theme": "Joy"
+    },
+    20: {
+        "name": "Judgement",
+        "keywords": ["judgement", "rebirth", "inner calling", "absolution"],
+        "upright": "Judgement, rebirth, inner calling, absolution. A time of reflection and awakening. Answer your higher calling.",
+        "reversed": "Self-doubt, inner critic, ignoring the call, excessive self-analysis. Refusing to face truths or make decisions.",
+        "element": "Fire",
+        "zodiac": "Pluto",
+        "theme": "Awakening"
+    },
+    21: {
+        "name": "The World",
+        "keywords": ["completion", "integration", "accomplishment", "travel"],
+        "upright": "Completion, integration, accomplishment, travel. Fulfillment and achievement. The end of a cycle.",
+        "reversed": "Seeking personal closure, short-cuts, delays, lack of closure. Incomplete tasks or seeking shortcuts.",
+        "element": "Earth",
+        "zodiac": "Saturn",
+        "theme": "Completion"
+    }
+}
+
+# Minor Arcana - Court Cards and Number Cards
+MINOR_ARCANA_COURT = {
+    "wands": {
+        "king": {
+            "name": "King of Wands",
+            "keywords": ["leadership", "vision", "entrepreneur", "honor"],
+            "upright": "Natural leader, vision, entrepreneur, honor. Take charge with confidence and inspire others.",
+            "reversed": "Tyranny, arrogance, impulsiveness, expectations unmet. Overbearing leadership or abuse of power."
+        },
+        "queen": {
+            "name": "Queen of Wands",
+            "keywords": ["confidence", "independence", "social", "determined"],
+            "upright": "Confidence, independence, social, determined. Charismatic and energetic leadership.",
+            "reversed": "Selfishness, jealousy, bitterness, unfaithful. Overconfidence turning into arrogance."
+        },
+        "knight": {
+            "name": "Knight of Wands",
+            "keywords": ["action", "adventure", "impulsiveness", "fearless"],
+            "upright": "Action, adventure, impulsiveness, fearless. Energetic pursuit of goals. Charge ahead!",
+            "reversed": "Restlessness, delays, frustration, setbacks. Hasty action leading to problems."
+        },
+        "page": {
+            "name": "Page of Wands",
+            "keywords": ["exploration", "excitement", "freedom", "messenger"],
+            "upright": "Exploration, excitement, freedom, messenger. New beginnings and creative inspiration.",
+            "reversed": "Lack of direction, procrastination, all talk no action. Unfulfilled potential or scattered energy."
+        }
+    },
+    "cups": {
+        "king": {
+            "name": "King of Cups",
+            "keywords": ["emotional balance", "compassion", "diplomatic"],
+            "upright": "Emotional balance, compassion, diplomatic. Mastery over emotions and wisdom in relationships.",
+            "reversed": "Emotional manipulation, moodiness, coldness. Repressed emotions or emotional manipulation."
+        },
+        "queen": {
+            "name": "Queen of Cups",
+            "keywords": ["compassion", "care", "emotional security", "intuitive"],
+            "upright": "Compassion, care, emotional security, intuitive. Deep emotional understanding and nurturing.",
+            "reversed": "Martyrdom, insecurity, dependency, unrealistic. Emotional dependence or over-sensitivity."
+        },
+        "knight": {
+            "name": "Knight of Cups",
+            "keywords": ["romance", "charm", "imagination", "beauty"],
+            "upright": "Romance, charm, imagination, beauty. Following your heart and pursuing dreams.",
+            "reversed": "Unrealistic, jealousy, moodiness, disappointment. Disillusionment or unrealistic expectations."
+        },
+        "page": {
+            "name": "Page of Cups",
+            "keywords": ["creative opportunities", "intuitive", "messenger", "curiosity"],
+            "upright": "Creative opportunities, intuitive, messenger, curiosity. New emotional experiences or creative messages.",
+            "reversed": "Creative blocks, emotional immaturity, escapism. Avoiding emotional growth."
+        }
+    },
+    "swords": {
+        "king": {
+            "name": "King of Swords",
+            "keywords": ["authority", "truth", "intellect", "clarity"],
+            "upright": "Authority, truth, intellect, clarity. Wise leadership through logic and fairness.",
+            "reversed": "Manipulation, tyranny, cruelty, lack of compassion. Abuse of power or cruel logic."
+        },
+        "queen": {
+            "name": "Queen of Swords",
+            "keywords": ["independence", "clarity", "direct communication", "justice"],
+            "upright": "Independence, clarity, direct communication, justice. Sharp mind and honest judgment.",
+            "reversed": "Coldness, cruelty, bitterness, judgmental. Overly harsh or emotionally cut off."
+        },
+        "knight": {
+            "name": "Knight of Swords",
+            "keywords": ["action", "ambition", "assertiveness", "fearless"],
+            "upright": "Action, ambition, assertiveness, fearless. Charge forward with determination and speed.",
+            "reversed": "No direction, ruthless, burnout, lack of planning. Reckless action without thought."
+        },
+        "page": {
+            "name": "Page of Swords",
+            "keywords": ["curiosity", "restlessness", "new ideas", "messenger"],
+            "upright": "Curiosity, restlessness, new ideas, messenger. Mental agility and new perspectives.",
+            "reversed": "All talk no action, lack of planning, gossip, avoidance. Scattered thoughts or avoiding truth."
+        }
+    },
+    "pentacles": {
+        "king": {
+            "name": "King of Pentacles",
+            "keywords": ["wealth", "business", "leadership", "security"],
+            "upright": "Wealth, business, leadership, security. Financial success and responsible management.",
+            "reversed": "Greed, indulgence, sensory, stubbornness. Materialism or poor financial judgment."
+        },
+        "queen": {
+            "name": "Queen of Pentacles",
+            "keywords": ["practical", "nurturing", "financially secure", "grounded"],
+            "upright": "Practical, nurturing, financially secure, grounded. Balancing material success with care for others.",
+            "reversed": "Self-centered, jealousy, workaholic, neglect. Over-focus on material security."
+        },
+        "knight": {
+            "name": "Knight of Pentacles",
+            "keywords": ["efficiency", "routine", "conservatism", "methodical"],
+            "upright": "Efficiency, routine, conservatism, methodical. Steady progress through disciplined effort.",
+            "reversed": "Procrastination, obsessiveness, dullness, laziness. Stagnation or resistance to change."
+        },
+        "page": {
+            "name": "Page of Pentacles",
+            "keywords": ["ambitious", "diligent", "new financial opportunities", "messenger"],
+            "upright": "Ambitious, diligent, new financial opportunities, messenger. Beginning of material success.",
+            "reversed": "Procrastination, lack of progress, poor planning. Unfulfilled potential or lack of focus."
+        }
+    }
+}
+
+# Minor Arcana - Number Cards meanings (1-10)
+MINOR_ARCANA_NUMBERS = {
+    "wands": {
+        1: {"name": "Ace of Wands", "keywords": ["inspiration", "new beginnings", "creative spark"], "upright": "Insppiration, new opportunities, creative potential. A spark of new energy.", "reversed": "Lack of inspiration, delays, false starts. Blocked creative energy."},
+        2: {"name": "Two of Wands", "keywords": ["planning", "decisions", "discovery"], "upright": "Planning, making decisions, leaving comfort zone. Future vision and choices.", "reversed": "Fear of unknown, poor planning, lack of direction. Staying in your comfort zone."},
+        3: {"name": "Three of Wands", "keywords": ["expansion", "foresight", "progress"], "upright": "Expansion, foresight, progress. Looking ahead to new horizons.", "reversed": "Delays, frustration, lack of foresight. Obstacles to growth."},
+        4: {"name": "Four of Wands", "keywords": ["celebration", "harmony", "homecoming"], "upright": "Celebration, harmony, homecoming. Joy and community support.", "reversed": "Lack of harmony, transition, unsettled. Disrupted celebrations."},
+        5: {"name": "Five of Wands", "keywords": ["competition", "conflict", "tension"], "upright": "Competition, conflict, tension. Challenges and testing your position.", "reversed": "Conflict resolution, avoiding conflict, inner conflict. Peace after struggle."},
+        6: {"name": "Six of Wands", "keywords": ["victory", "public recognition", "success"], "upright": "Victory, public recognition, success. Triumph and being celebrated.", "reversed": "Lack of recognition, fall from grace, self-doubt. Temporary failure."},
+        7: {"name": "Seven of Wands", "keywords": ["defiance", "conviction", "holding your ground"], "upright": "Defiance, conviction, holding your ground. Standing up for beliefs.", "reversed": "Giving up, overwhelmed, backing down. Feeling defeated."},
+        8: {"name": "Eight of Wands", "keywords": ["speed", "movement", "swift action"], "upright": "Speed, movement, swift action. Things moving quickly forward.", "reversed": "Delays, frustration, waiting. Blocked progress."},
+        9: {"name": "Nine of Wands", "keywords": ["resilience", "persistence", "last stand"], "upright": "Resilience, persistence, last stand. Keep going despite challenges.", "reversed": "Exhaustion, giving up, paranoia. Running out of energy."},
+        10: {"name": "Ten of Wands", "keywords": ["burden", "responsibility", "hard work"], "upright": "Burden, responsibility, hard work. Carrying a heavy load.", "reversed": "Releasing burden, delegation, collapse. Setting down your load."}
+    },
+    "cups": {
+        1: {"name": "Ace of Cups", "keywords": ["love", "new relationships", "compassion", "creativity"], "upright": "New love, emotional awakening, creativity. An overflow of feelings.", "reversed": "Emotional loss, blocked creativity, emptiness. Repressed emotions."},
+        2: {"name": "Two of Cups", "keywords": ["unity", "partnership", "connection"], "upright": "Unity, partnership, connection. A strong bond forming.", "reversed": "Imbalance, broken communication, tension. Disconnection in relationships."},
+        3: {"name": "Three of Cups", "keywords": ["celebration", "friendship", "community"], "upright": "Celebration, friendship, community. Joy with others.", "reversed": "Overindulgence, gossip, isolation. Exclusion or excessive partying."},
+        4: {"name": "Four of Cups", "keywords": ["contemplation", "apathy", "disconnection"], "upright": "Contemplation, apathy, disconnection. Ignoring opportunities.", "reversed": "New opportunities, engagement, awareness. Breaking from stagnation."},
+        5: {"name": "Five of Cups", "keywords": ["loss", "grief", "regret"], "upright": "Loss, grief, regret. Focusing on what was lost.", "reversed": "Recovery, acceptance, moving on. Finding peace after loss."},
+        6: {"name": "Six of Cups", "keywords": ["nostalgia", "childhood", "innocence"], "upright": "Nostalgia, childhood memories, innocence. Looking back fondly.", "reversed": "Living in the past, moving forward, childhood issues. Stuck in memories."},
+        7: {"name": "Seven of Cups", "keywords": ["choices", "wishful thinking", "illusion"], "upright": "Choices, wishful thinking, illusion. Many options, some deceptive.", "reversed": "Escapism, confusion, overwhelmed. Clearing away illusions."},
+        8: {"name": "Eight of Cups", "keywords": ["departure", "disillusionment", "seeking"], "upright": "Departure, disillusionment, seeking higher meaning. Walking away.", "reversed": "Fear of unknown, staying put, aimless wandering. Avoiding needed departure."},
+        9: {"name": "Nine of Cups", "keywords": ["satisfaction", "wishes fulfilled", "contentment"], "upright": "Satisfaction, wishes fulfilled, contentment. Emotional fulfillment.", "reversed": "Overindulgence, greed, unfulfilled desires. Unrealistic expectations."},
+        10: {"name": "Ten of Cups", "keywords": ["harmony", "marriage", "alignment"], "upright": "Harmony, marriage, alignment. Emotional completion.", "reversed": "Broken family, misalignment, divorce. Disrupted domestic harmony."}
+    },
+    "swords": {
+        1: {"name": "Ace of Swords", "keywords": ["breakthrough", "clarity", "new ideas"], "upright": "Breakthrough, clarity, new ideas. Mental sharpness and truth.", "reversed": "Confusion, lack of clarity, harshness. Blocked mental energy."},
+        2: {"name": "Two of Swords", "keywords": ["indecision", "stalemate", "blocked emotions"], "upright": "Indecision, stalemate, blocked emotions. A difficult choice.", "reversed": "Decision made, information revealed, release. Ending the stalemate."},
+        3: {"name": "Three of Swords", "keywords": ["heartbreak", "sorrow", "painful truth"], "upright": "Heartbreak, sorrow, painful truth. Deep emotional pain.", "reversed": "Recovery, forgiveness, moving on. Healing from heartbreak."},
+        4: {"name": "Four of Swords", "keywords": ["rest", "restoration", "contemplation"], "upright": "Rest, restoration, contemplation. Taking a needed break.", "reversed": "Exhaustion, burnout, restless. Unresolved stress."},
+        5: {"name": "Five of Swords", "keywords": ["conflict", "tension", "defeat"], "upright": "Conflict, tension, defeat. Hollow victory or loss.", "reversed": "Reconciliation, moving past conflict, forgiveness. Ending conflict."},
+        6: {"name": "Six of Swords", "keywords": ["transition", "change", "journey"], "upright": "Transition, change, journey. Moving toward calmer waters.", "reversed": "Personal transition, resistance to change. Stuck in turbulent waters."},
+        7: {"name": "Seven of Swords", "keywords": ["deception", "strategy", "stealth"], "upright": "Deception, strategy, stealth. Hidden actions or betrayal.", "reversed": "Coming clean, conscience, mental challenges. Revealing the truth."},
+        8: {"name": "Eight of Swords", "keywords": ["imprisonment", "entrapment", "self-victimization"], "upright": "Imprisonment, entrapment, self-victimization. Feeling trapped.", "reversed": "Self-liberation, new perspective, empowerment. Breaking free."},
+        9: {"name": "Nine of Swords", "keywords": ["anxiety", "fear", "nightmares"], "upright": "Anxiety, fear, nightmares. Overwhelming worry.", "reversed": "Hopelessness, releasing fear, inner turmoil. Working through fears."},
+        10: {"name": "Ten of Swords", "keywords": ["painful endings", "betrayal", "loss"], "upright": "Painful endings, betrayal, loss. Rock bottom reached.", "reversed": "Recovery, renewal, resistance. Rising from defeat."}
+    },
+    "pentacles": {
+        1: {"name": "Ace of Pentacles", "keywords": ["opportunity", "prosperity", "new venture"], "upright": "Opportunity, prosperity, new venture. Material and financial potential.", "reversed": "Lost opportunity, lack of planning, poor investment. Missed chances."},
+        2: {"name": "Two of Pentacles", "keywords": ["balance", "adaptability", "time management"], "upright": "Balance, adaptability, juggling priorities. Flexible management.", "reversed": "Overwhelm, disorganization, financial issues. Losing balance."},
+        3: {"name": "Three of Pentacles", "keywords": ["teamwork", "collaboration", "building"], "upright": "Teamwork, collaboration, skill development. Working together well.", "reversed": "Lack of teamwork, poor execution, working alone. Collaboration issues."},
+        4: {"name": "Four of Pentacles", "keywords": ["security", "stability", "control"], "upright": "Security, stability, control. Holding tightly to resources.", "reversed": "Overspending, greed, self-protection. Releasing attachment."},
+        5: {"name": "Five of Pentacles", "keywords": ["hardship", "poverty", "isolation"], "upright": "Hardship, poverty, isolation. Material struggle.", "reversed": "Recovery, spiritual poverty, charity. Finding help."},
+        6: {"name": "Six of Pentacles", "keywords": ["generosity", "charity", "sharing"], "upright": "Generosity, charity, sharing wealth. Giving and receiving.", "reversed": "One-sided charity, strings attached, debt. Unfair exchange."},
+        7: {"name": "Seven of Pentacles", "keywords": ["patience", "investment", "reward"], "upright": "Patience, investment, waiting for results. Long-term vision.", "reversed": "Lack of patience, limited success, poor investment. Frustration."},
+        8: {"name": "Eight of Pentacles", "keywords": ["skill development", "craftsmanship", "diligence"], "upright": "Skill development, craftsmanship, diligence. Dedicated work.", "reversed": "Perfectionism, lack of focus, shortcuts. Cutting corners."},
+        9: {"name": "Nine of Pentacles", "keywords": ["luxury", "self-sufficiency", "accomplishment"], "upright": "Luxury, self-sufficiency, accomplishment. Enjoying the fruits of labor.", "reversed": "Overwork, show-off, false success. Materialism without fulfillment."},
+        10: {"name": "Ten of Pentacles", "keywords": ["legacy", "inheritance", "family"], "upright": "Legacy, inheritance, family wealth. Long-lasting success.", "reversed": "Family conflict, financial failure, losing everything. Generational issues."}
+    }
+}
 
 
 @dataclass
 class TarotCard:
-    """塔罗牌数据结构"""
-    id: int
+    """Represents a single tarot card."""
     name: str
-    english_name: str
-    card_type: CardType
-    suit: Optional[Suit]
-    number: Optional[int]  # 小阿卡纳编号 1-14 (A-10, 侍从/骑士/王后/国王)
-    keywords_upright: List[str]
-    keywords_reversed: List[str]
-    meaning_upright: str
-    meaning_reversed: str
-    element: Optional[str] = None  # 元素属性
-    zodiac: Optional[str] = None  # 对应星座
-    planet: Optional[str] = None   # 对应行星
-
-
-# 大阿卡纳牌组 (22张)
-MAJOR_ARCANA = [
-    TarotCard(
-        id=0, name="愚者", english_name="The Fool",
-        card_type=CardType.MAJOR_ARCANA, suit=None, number=None,
-        keywords_upright=["新开始", "冒险", "纯真", "自由", "自发"],
-        keywords_reversed=["鲁莽", "轻率", "愚蠢", "冒险精神过头"],
-        meaning_upright="愚者代表新的旅程即将开始，保持开放的心态，拥抱未知的可能性。这是一张充满希望和潜力的牌。",
-        meaning_reversed="逆位的愚者警告你可能过于鲁莽或轻率。在行动前请三思，不要因为冲动而做出错误决定。",
-        element="风", planet="天王星"
-    ),
-    TarotCard(
-        id=1, name="魔术师", english_name="The Magician",
-        card_type=CardType.MAJOR_ARCANA, suit=None, number=None,
-        keywords_upright=["创造力", "技能", "意志力", "资源", "新机会"],
-        keywords_reversed=["操纵", "欺骗", "浪费才能", "缺乏计划"],
-        meaning_upright="魔术师象征着你有能力将想法变为现实。你拥有所需的一切资源，只需要行动起来。",
-        meaning_reversed="逆位的魔术师提醒你可能正在浪费自己的才能，或者有人正在试图欺骗你。",
-        element="风", planet="水星"
-    ),
-    TarotCard(
-        id=2, name="女祭司", english_name="The High Priestess",
-        card_type=CardType.MAJOR_ARCANA, suit=None, number=None,
-        keywords_upright=["直觉", "神秘", "潜意识", "内在智慧", "隐藏知识"],
-        keywords_reversed=["秘密", "脱离现实", "隐瞒真相", "表面化"],
-        meaning_upright="女祭司邀请你倾听内心的声音。答案就在你的潜意识中，静下心来便能听见。",
-        meaning_reversed="逆位表示你可能忽视了直觉，或者有人在隐藏重要信息。",
-        element="水", planet="月亮"
-    ),
-    TarotCard(
-        id=3, name="女皇", english_name="The Empress",
-        card_type=CardType.MAJOR_ARCANA, suit=None, number=None,
-        keywords_upright=["丰饶", "母性", "创造力", "自然", "富足"],
-        keywords_reversed=["依赖", "空虚", "创意枯竭", "过度保护"],
-        meaning_upright="女皇代表丰盛与创造。这是孕育新事物、享受生活美好的时期。",
-        meaning_reversed="逆位提醒你要注意是否过度依赖他人，或者自己的创造力正在枯竭。",
-        element="地", planet="金星"
-    ),
-    TarotCard(
-        id=4, name="皇帝", english_name="The Emperor",
-        card_type=CardType.MAJOR_ARCANA, suit=None, number=None,
-        keywords_upright=["权威", "结构", "控制", "父亲形象", "稳定"],
-        keywords_reversed=["专制", "僵化", "控制欲", "滥用权力"],
-        meaning_upright="皇帝象征秩序与权威。现在是建立结构、承担责任的时候。",
-        meaning_reversed="逆位警告你可能过于专制，或者正在面对一个滥用权力的人。",
-        element="火", planet="白羊座"
-    ),
-    TarotCard(
-        id=5, name="教皇", english_name="The Hierophant",
-        card_type=CardType.MAJOR_ARCANA, suit=None, number=None,
-        keywords_upright=["传统", "信仰", "教育", "精神指引", " conformity"],
-        keywords_reversed=["叛逆", "打破常规", "新观点", "自由思想"],
-        meaning_upright="教皇代表传统价值观和信仰体系。寻求精神指引或遵循传统路径可能是正确的选择。",
-        meaning_reversed="逆位暗示你可能需要打破常规，走一条与众不同的道路。",
-        element="地", planet="金牛座"
-    ),
-    TarotCard(
-        id=6, name="恋人", english_name="The Lovers",
-        card_type=CardType.MAJOR_ARCANA, suit=None, number=None,
-        keywords_upright=["爱情", "选择", "关系", "价值观", "和谐"],
-        keywords_reversed=["不和谐", "失衡", "错误选择", "价值观冲突"],
-        meaning_upright="恋人牌象征重要的选择和关系。这是关于爱与和谐的时期，但要做出明智的选择。",
-        meaning_reversed="逆位提示关系中的不和谐，或者你正在面临价值观的冲突。",
-        element="风", planet="双子座"
-    ),
-    TarotCard(
-        id=7, name="战车", english_name="The Chariot",
-        card_type=CardType.MAJOR_ARCANA, suit=None, number=None,
-        keywords_upright=["胜利", "意志力", "决心", "控制", "进展"],
-        keywords_reversed=["失控", "攻击性", "方向迷失", "障碍"],
-        meaning_upright="战车代表通过决心和意志力获得胜利。保持专注，你将克服障碍达成目标。",
-        meaning_reversed="逆位暗示你正在失去控制，或者过度的攻击性反而造成障碍。",
-        element="水", planet="巨蟹座"
-    ),
-    TarotCard(
-        id=8, name="力量", english_name="Strength",
-        card_type=CardType.MAJOR_ARCANA, suit=None, number=None,
-        keywords_upright=["勇气", "耐心", "内在力量", "温柔控制", "自信"],
-        keywords_reversed=["自我怀疑", "软弱", "缺乏自信", "过度使用力量"],
-        meaning_upright="力量牌提醒你，真正的力量来自内心的勇气和耐心，而非蛮力。相信自己。",
-        meaning_reversed="逆位表示你可能正在经历自我怀疑，或者错误地使用了你的力量。",
-        element="火", planet="狮子座"
-    ),
-    TarotCard(
-        id=9, name="隐士", english_name="The Hermit",
-        card_type=CardType.MAJOR_ARCANA, suit=None, number=None,
-        keywords_upright=["内省", "独处", "寻求真理", "智慧", "指引"],
-        keywords_reversed=["孤立", "孤独", "退缩", "拒绝帮助"],
-        meaning_upright="隐士邀请你暂时抽离喧嚣，独自思考。答案在内心深处等待被发现。",
-        meaning_reversed="逆位警告你可能在过度孤立自己，或者拒绝接受他人的帮助。",
-        element="地", planet="处女座"
-    ),
-    TarotCard(
-        id=10, name="命运之轮", english_name="Wheel of Fortune",
-        card_type=CardType.MAJOR_ARCANA, suit=None, number=None,
-        keywords_upright=["改变", "循环", "命运", "机遇", "转折点"],
-        keywords_reversed=["厄运", "抗拒改变", "失控", "命运逆转"],
-        meaning_upright="命运之轮预示着变化的到来。命运的转折点即将出现，拥抱变化吧。",
-        meaning_reversed="逆位暗示你可能正在抗拒必要的改变，或者经历一段不如意的时期。",
-        element="火", planet="木星"
-    ),
-    TarotCard(
-        id=11, name="正义", english_name="Justice",
-        card_type=CardType.MAJOR_ARCANA, suit=None, number=None,
-        keywords_upright=["公正", "真相", "因果", "法律", "平衡"],
-        keywords_reversed=["不公", "逃避责任", "偏见", "法律问题"],
-        meaning_upright="正义牌提醒你，公正和真相终将得到彰显。你的决定将产生深远影响。",
-        meaning_reversed="逆位暗示不公正的情况，或者你正在试图逃避应承担的责任。",
-        element="风", planet="天秤座"
-    ),
-    TarotCard(
-        id=12, name="倒吊人", english_name="The Hanged Man",
-        card_type=CardType.MAJOR_ARCANA, suit=None, number=None,
-        keywords_upright=["牺牲", "等待", "新视角", "放手", "停滞"],
-        keywords_reversed=["拖延", "无谓牺牲", "反抗改变", "僵局"],
-        meaning_upright="倒吊人邀请你换个角度看问题。有时暂时的停滞是为了更好的前进。",
-        meaning_reversed="逆位提示你可能在无谓地牺牲，或者在拖延必要的决定。",
-        element="水", planet="海王星"
-    ),
-    TarotCard(
-        id=13, name="死神", english_name="Death",
-        card_type=CardType.MAJOR_ARCANA, suit=None, number=None,
-        keywords_upright=["转变", "结束", "重生", "放下", "新开始"],
-        keywords_reversed=["抗拒改变", "停滞不前", "无法放手", "恐惧"],
-        meaning_upright="死神牌象征着转变与重生。旧的正在结束，新的即将开始，接受变化吧。",
-        meaning_reversed="逆位表示你正在抗拒必要的改变，导致停滞不前。",
-        element="水", planet="天蝎座"
-    ),
-    TarotCard(
-        id=14, name="节制", english_name="Temperance",
-        card_type=CardType.MAJOR_ARCANA, suit=None, number=None,
-        keywords_upright=["平衡", "调和", "耐心", "适度", "治愈"],
-        keywords_reversed=["失衡", "过度", "缺乏耐心", "冲突"],
-        meaning_upright="节制牌提醒你寻求平衡与和谐。耐心和适度是成功的关键。",
-        meaning_reversed="逆位暗示生活中的失衡，或者你正在某个方面过度。",
-        element="火", planet="射手座"
-    ),
-    TarotCard(
-        id=15, name="恶魔", english_name="The Devil",
-        card_type=CardType.MAJOR_ARCANA, suit=None, number=None,
-        keywords_upright=["束缚", "诱惑", "物质主义", "阴影面", "依赖"],
-        keywords_reversed=["解放", "突破", "摆脱束缚", "面对阴影"],
-        meaning_upright="恶魔牌揭示了你可能正在被某些东西束缚——可能是习惯、关系或欲望。",
-        meaning_reversed="逆位是积极的，表示你正在挣脱枷锁，获得解放。",
-        element="地", planet="摩羯座"
-    ),
-    TarotCard(
-        id=16, name="高塔", english_name="The Tower",
-        card_type=CardType.MAJOR_ARCANA, suit=None, number=None,
-        keywords_upright=["突变", "毁灭", "觉醒", "真相大白", "解脱"],
-        keywords_reversed=["避免灾难", "恐惧改变", "延迟崩溃", "内部转变"],
-        meaning_upright="高塔预示着突如其来的变化。虽然过程可能痛苦，但这是为了让你从虚假中解脱。",
-        meaning_reversed="逆位表示你可能正在试图避免不可避免的改变，或者这种转变是内在的。",
-        element="火", planet="火星"
-    ),
-    TarotCard(
-        id=17, name="星星", english_name="The Star",
-        card_type=CardType.MAJOR_ARCANA, suit=None, number=None,
-        keywords_upright=["希望", "灵感", "治愈", "平静", "信心"],
-        keywords_reversed=["绝望", "失去信心", "断开连接", "挫败"],
-        meaning_upright="星星带来希望和治愈。风暴过后，平静和光明正在等待着你。",
-        meaning_reversed="逆位暗示你正在失去信心，或者感到与灵感断开连接。",
-        element="风", planet="水瓶座"
-    ),
-    TarotCard(
-        id=18, name="月亮", english_name="The Moon",
-        card_type=CardType.MAJOR_ARCANA, suit=None, number=None,
-        keywords_upright=["幻象", "直觉", "潜意识", "恐惧", "不确定性"],
-        keywords_reversed=["释放恐惧", "真相浮现", "清晰", "正视内在"],
-        meaning_upright="月亮牌提醒你事物可能并非表面那样。相信直觉，探索潜意识中的真相。",
-        meaning_reversed="逆位是积极的，表示迷雾正在散去，你开始看清真相。",
-        element="水", planet="双鱼座"
-    ),
-    TarotCard(
-        id=19, name="太阳", english_name="The Sun",
-        card_type=CardType.MAJOR_ARCANA, suit=None, number=None,
-        keywords_upright=["成功", "喜悦", "活力", "积极", "光明"],
-        keywords_reversed=["暂时挫折", "过度乐观", "内在小孩", "寻求快乐"],
-        meaning_upright="太阳是最积极的牌之一。成功、喜悦和光明正等着你。",
-        meaning_reversed="逆位不代表完全的负面，只是成功可能有所延迟，或者需要调整期望。",
-        element="火", planet="太阳"
-    ),
-    TarotCard(
-        id=20, name="审判", english_name="Judgement",
-        card_type=CardType.MAJOR_ARCANA, suit=None, number=None,
-        keywords_upright=["重生", "觉醒", "召唤", "反思", "赦免"],
-        keywords_reversed=["自我怀疑", "拒绝召唤", "逃避审判", "后悔"],
-        meaning_upright="审判牌象征着精神的觉醒和重生。聆听内心的召唤，迎接新的开始。",
-        meaning_reversed="逆位暗示你可能在拒绝成长的机会，或者被自我怀疑所困。",
-        element="火", planet="冥王星"
-    ),
-    TarotCard(
-        id=21, name="世界", english_name="The World",
-        card_type=CardType.MAJOR_ARCANA, suit=None, number=None,
-        keywords_upright=["完成", "成就", "圆满", "旅程结束", "整合"],
-        keywords_reversed=["未完成", "延迟成功", "缺乏收尾", "寻求结束"],
-        meaning_upright="世界牌代表一个周期的完美完成。你的努力即将得到回报，享受这份圆满。",
-        meaning_reversed="逆位表示某件事情尚未完成，或者成功被延迟了。",
-        element="地", planet="土星"
-    ),
-]
-
-
-def _create_minor_arcana() -> List[TarotCard]:
-    """创建小阿卡纳牌组 (56张)"""
-    cards = []
-    card_id = 22
+    arcana: Arcana
+    suit: Optional[Suit] = None
+    number: Optional[int] = None
+    rank: Optional[str] = None  # For court cards: king, queen, knight, page
+    keywords: List[str] = field(default_factory=list)
+    upright_meaning: str = ""
+    reversed_meaning: str = ""
+    element: str = ""
+    zodiac: str = ""
+    theme: str = ""
     
-    # 数字牌编号对应的名称
-    number_names = {
-        1: "A", 2: "二", 3: "三", 4: "四", 5: "五",
-        6: "六", 7: "七", 8: "八", 9: "九", 10: "十",
-        11: "侍从", 12: "骑士", 13: "王后", 14: "国王"
-    }
+    def get_meaning(self, orientation: Orientation = Orientation.UPRIGHT) -> str:
+        """Get card meaning based on orientation."""
+        return self.upright_meaning if orientation == Orientation.UPRIGHT else self.reversed_meaning
     
-    # 各花色的元素和主题
-    suit_info = {
-        Suit.WANDS: {
-            "element": "火",
-            "theme": "行动、激情、创意",
-            "upright_keywords": ["行动", "创意", "激情", "能量", "冒险"],
-            "reversed_keywords": ["延迟", "挫折", "能量受阻", "冲动"]
-        },
-        Suit.CUPS: {
-            "element": "水",
-            "theme": "情感、关系、直觉",
-            "upright_keywords": ["情感", "直觉", "关系", "创造力", "心灵"],
-            "reversed_keywords": ["情感压抑", "逃避", "失望", "情绪化"]
-        },
-        Suit.SWORDS: {
-            "element": "风",
-            "theme": "思维、沟通、冲突",
-            "upright_keywords": ["思维", "真相", "沟通", "决定", "清晰"],
-            "reversed_keywords": ["困惑", "冲突", "思想混乱", "残酷"]
-        },
-        Suit.PENTACLES: {
-            "element": "地",
-            "theme": "物质、财富、实践",
-            "upright_keywords": ["财富", "物质", "工作", "实际", "健康"],
-            "reversed_keywords": ["损失", "贪婪", "物质主义", "不安全感"]
+    def to_dict(self) -> dict:
+        """Convert to dictionary."""
+        return {
+            'name': self.name,
+            'arcana': self.arcana.value,
+            'suit': self.suit.value if self.suit else None,
+            'number': self.number,
+            'rank': self.rank,
+            'keywords': self.keywords,
+            'upright_meaning': self.upright_meaning,
+            'reversed_meaning': self.reversed_meaning,
+            'element': self.element,
+            'zodiac': self.zodiac,
+            'theme': self.theme
         }
-    }
-    
-    for suit in Suit:
-        info = suit_info[suit]
-        for num in range(1, 15):
-            name = f"{suit.value}{number_names[num]}"
-            
-            # 根据编号和花色生成含义
-            if num == 1:  # A牌
-                upright_meaning = f"{suit.value}A代表新的机会和纯粹的{info['theme']}能量开始显现。"
-                reversed_meaning = f"{suit.value}A逆位表示新的机会被延迟或{info['theme']}方面的阻碍。"
-            elif num == 11:  # 侍从
-                upright_meaning = f"{suit.value}侍从代表{info['theme']}方面的新消息或学习机会。"
-                reversed_meaning = f"{suit.value}侍从逆位表示不成熟的态度或{info['theme']}方面的延误消息。"
-            elif num == 12:  # 骑士
-                upright_meaning = f"{suit.value}骑士代表在{info['theme']}方面的行动和追求。"
-                reversed_meaning = f"{suit.value}骑士逆位表示冲动或{info['theme']}方面的过度行为。"
-            elif num == 13:  # 王后
-                upright_meaning = f"{suit.value}王后代表{info['theme']}方面的成熟和内在智慧。"
-                reversed_meaning = f"{suit.value}王后逆位表示{info['theme']}方面的情感依赖或不安全感。"
-            elif num == 14:  # 国王
-                upright_meaning = f"{suit.value}国王代表{info['theme']}方面的掌控和成功。"
-                reversed_meaning = f"{suit.value}国王逆位表示{info['theme']}方面的过度控制或滥用权力。"
-            else:  # 数字牌 2-10
-                upright_meaning = f"{suit.value}{number_names[num]}反映{info['theme']}方面的平衡与进展。"
-                reversed_meaning = f"{suit.value}{number_names[num]}逆位表示{info['theme']}方面的失衡或挑战。"
-            
-            card = TarotCard(
-                id=card_id,
-                name=name,
-                english_name=f"{number_names[num]} of {suit.name.capitalize()}",
-                card_type=CardType.MINOR_ARCANA,
-                suit=suit,
-                number=num,
-                keywords_upright=info["upright_keywords"].copy(),
-                keywords_reversed=info["reversed_keywords"].copy(),
-                meaning_upright=upright_meaning,
-                meaning_reversed=reversed_meaning,
-                element=info["element"]
-            )
-            cards.append(card)
-            card_id += 1
-    
-    return cards
-
-
-# 小阿卡纳牌组
-MINOR_ARCANA = _create_minor_arcana()
-
-# 完整牌组
-FULL_DECK = MAJOR_ARCANA + MINOR_ARCANA
 
 
 class TarotDeck:
-    """塔罗牌牌组类"""
+    """Complete 78-card tarot deck."""
+    
+    def __init__(self):
+        self.cards: List[TarotCard] = []
+        self._create_deck()
+    
+    def _create_deck(self):
+        """Create all 78 cards."""
+        # Major Arcana
+        for number, data in MAJOR_ARCANA.items():
+            card = TarotCard(
+                name=data['name'],
+                arcana=Arcana.MAJOR,
+                number=number,
+                keywords=data['keywords'],
+                upright_meaning=data['upright'],
+                reversed_meaning=data['reversed'],
+                element=data.get('element', ''),
+                zodiac=data.get('zodiac', ''),
+                theme=data.get('theme', '')
+            )
+            self.cards.append(card)
+        
+        # Minor Arcana
+        for suit_name in ['wands', 'cups', 'swords', 'pentacles']:
+            suit = Suit(suit_name)
+            
+            # Number cards (Ace-10)
+            for number in range(1, 11):
+                data = MINOR_ARCANA_NUMBERS[suit_name][number]
+                card = TarotCard(
+                    name=data['name'],
+                    arcana=Arcana.MINOR,
+                    suit=suit,
+                    number=number,
+                    keywords=data['keywords'],
+                    upright_meaning=data['upright'],
+                    reversed_meaning=data['reversed'],
+                    element=self._suit_to_element(suit)
+                )
+                self.cards.append(card)
+            
+            # Court cards
+            for rank in ['page', 'knight', 'queen', 'king']:
+                data = MINOR_ARCANA_COURT[suit_name][rank]
+                card = TarotCard(
+                    name=data['name'],
+                    arcana=Arcana.MINOR,
+                    suit=suit,
+                    rank=rank,
+                    keywords=data['keywords'],
+                    upright_meaning=data['upright'],
+                    reversed_meaning=data['reversed'],
+                    element=self._suit_to_element(suit)
+                )
+                self.cards.append(card)
+    
+    @staticmethod
+    def _suit_to_element(suit: Suit) -> str:
+        """Convert suit to element."""
+        mapping = {
+            Suit.WANDS: "Fire",
+            Suit.CUPS: "Water",
+            Suit.SWORDS: "Air",
+            Suit.PENTACLES: "Earth"
+        }
+        return mapping.get(suit, "")
+    
+    def get_card(self, name: str) -> Optional[TarotCard]:
+        """Get a card by name."""
+        for card in self.cards:
+            if card.name.lower() == name.lower():
+                return card
+        return None
+    
+    def get_major_arcana(self) -> List[TarotCard]:
+        """Get all Major Arcana cards."""
+        return [c for c in self.cards if c.arcana == Arcana.MAJOR]
+    
+    def get_minor_arcana(self) -> List[TarotCard]:
+        """Get all Minor Arcana cards."""
+        return [c for c in self.cards if c.arcana == Arcana.MINOR]
+    
+    def get_by_suit(self, suit: Suit) -> List[TarotCard]:
+        """Get all cards of a suit."""
+        return [c for c in self.cards if c.suit == suit]
+    
+    def get_court_cards(self) -> List[TarotCard]:
+        """Get all court cards."""
+        return [c for c in self.cards if c.rank is not None]
+
+
+class SpreadType(Enum):
+    """Types of tarot spreads."""
+    ONE_CARD = "one_card"
+    THREE_CARD = "three_card"
+    CELTIC_CROSS = "celtic_cross"
+    RELATIONSHIP = "relationship"
+    DECISION = "decision"
+    DAILY = "daily"
+    HORSESHOE = "horseshoe"
+    MONTHLY = "monthly"
+
+
+@dataclass
+class SpreadPosition:
+    """Represents a position in a spread."""
+    position: int
+    name: str
+    description: str
+    card: Optional[TarotCard] = None
+    orientation: Optional[Orientation] = None
+    
+    def to_dict(self) -> dict:
+        """Convert to dictionary."""
+        return {
+            'position': self.position,
+            'name': self.name,
+            'description': self.description,
+            'card': self.card.to_dict() if self.card else None,
+            'card_name': self.card.name if self.card else None,
+            'orientation': self.orientation.value if self.orientation else None,
+            'meaning': self.card.get_meaning(self.orientation) if self.card and self.orientation else None
+        }
+
+
+# Spread definitions
+SPREAD_DEFINITIONS = {
+    SpreadType.ONE_CARD: {
+        "name": "One Card Draw",
+        "positions": [
+            {"name": "Guidance", "description": "A single card to guide your day or question"}
+        ]
+    },
+    SpreadType.THREE_CARD: {
+        "name": "Three Card Spread",
+        "positions": [
+            {"name": "Past", "description": "Past influences on your situation"},
+            {"name": "Present", "description": "Current situation and energies"},
+            {"name": "Future", "description": "Potential outcome or direction"}
+        ]
+    },
+    SpreadType.CELTIC_CROSS: {
+        "name": "Celtic Cross",
+        "positions": [
+            {"name": "Present", "description": "Your current situation"},
+            {"name": "Challenge", "description": "The challenge or obstacle you face"},
+            {"name": "Foundation", "description": "The root cause or basis of the situation"},
+            {"name": "Recent Past", "description": "Recent events influencing the situation"},
+            {"name": "Possible Future", "description": "A possible outcome if things continue"},
+            {"name": "Near Future", "description": "What will happen soon"},
+            {"name": "Your Influence", "description": "Your attitude and influence on the matter"},
+            {"name": "External Influence", "description": "Outside forces affecting the situation"},
+            {"name": "Hopes and Fears", "description": "Your hopes and fears about the outcome"},
+            {"name": "Final Outcome", "description": "The most likely result"}
+        ]
+    },
+    SpreadType.RELATIONSHIP: {
+        "name": "Relationship Spread",
+        "positions": [
+            {"name": "You", "description": "Your position in the relationship"},
+            {"name": "Partner", "description": "Your partner's position"},
+            {"name": "Connection", "description": "What connects you"},
+            {"name": "Strengths", "description": "Relationship strengths"},
+            {"name": "Challenges", "description": "Relationship challenges"},
+            {"name": "Future", "description": "Where the relationship is heading"}
+        ]
+    },
+    SpreadType.DECISION: {
+        "name": "Decision Spread",
+        "positions": [
+            {"name": "Current Situation", "description": "Where you are now"},
+            {"name": "Option A", "description": "The first choice and its outcome"},
+            {"name": "Option B", "description": "The second choice and its outcome"},
+            {"name": "Hidden Factors", "description": "What you're not seeing"},
+            {"name": "Advice", "description": "Guidance for your decision"}
+        ]
+    },
+    SpreadType.DAILY: {
+        "name": "Daily Guidance",
+        "positions": [
+            {"name": "Morning", "description": "Energy for the morning"},
+            {"name": "Afternoon", "description": "Energy for the afternoon"},
+            {"name": "Evening", "description": "Energy for the evening"},
+            {"name": "Focus", "description": "What to focus on today"},
+            {"name": "Warning", "description": "What to be aware of"},
+            {"name": "Blessing", "description": "A gift or opportunity today"}
+        ]
+    },
+    SpreadType.HORSESHOE: {
+        "name": "Horseshoe Spread",
+        "positions": [
+            {"name": "Past", "description": "Past influences"},
+            {"name": "Present", "description": "Current situation"},
+            {"name": "Hidden Influences", "description": "What you're not aware of"},
+            {"name": "Obstacles", "description": "Challenges ahead"},
+            {"name": "External Influences", "description": "Outside forces"},
+            {"name": "Near Future", "description": "What's coming soon"},
+            {"name": "Outcome", "description": "Likely result"}
+        ]
+    },
+    SpreadType.MONTHLY: {
+        "name": "Monthly Spread",
+        "positions": [
+            {"name": "Overall Theme", "description": "The month's main energy"},
+            {"name": "Week 1", "description": "First week focus"},
+            {"name": "Week 2", "description": "Second week focus"},
+            {"name": "Week 3", "description": "Third week focus"},
+            {"name": "Week 4", "description": "Fourth week focus"},
+            {"name": "Opportunity", "description": "A key opportunity this month"},
+            {"name": "Challenge", "description": "A challenge to overcome"},
+            {"name": "Advice", "description": "Guidance for the month"}
+        ]
+    }
+}
+
+
+@dataclass
+class TarotReading:
+    """Represents a complete tarot reading."""
+    spread_type: SpreadType
+    positions: List[SpreadPosition] = field(default_factory=list)
+    timestamp: datetime = field(default_factory=datetime.now)
+    question: Optional[str] = None
+    
+    def get_summary(self) -> str:
+        """Get a summary of the reading."""
+        spread_def = SPREAD_DEFINITIONS.get(self.spread_type, {})
+        spread_name = spread_def.get('name', self.spread_type.value)
+        
+        summary = f"=== {spread_name} ===\n"
+        summary += f"Timestamp: {self.timestamp.strftime('%Y-%m-%d %H:%M')}\n"
+        if self.question:
+            summary += f"Question: {self.question}\n"
+        summary += "\n"
+        
+        for pos in self.positions:
+            if pos.card:
+                orientation = "(Reversed)" if pos.orientation == Orientation.REVERSED else "(Upright)"
+                summary += f"{pos.position}. {pos.name}: {pos.card.name} {orientation}\n"
+                summary += f"   Meaning: {pos.card.get_meaning(pos.orientation)}\n\n"
+        
+        return summary
+    
+    def to_dict(self) -> dict:
+        """Convert to dictionary."""
+        return {
+            'spread_type': self.spread_type.value,
+            'spread_name': SPREAD_DEFINITIONS.get(self.spread_type, {}).get('name', ''),
+            'positions': [p.to_dict() for p in self.positions],
+            'timestamp': self.timestamp.isoformat(),
+            'question': self.question
+        }
+
+
+class TarotReader:
+    """Main class for performing tarot readings."""
     
     def __init__(self, seed: Optional[int] = None):
         """
-        初始化牌组
+        Initialize the tarot reader.
         
         Args:
-            seed: 随机种子，用于可重复的抽取结果
+            seed: Optional random seed for reproducible readings
         """
+        self.deck = TarotDeck()
         self.seed = seed
         if seed is not None:
             random.seed(seed)
-        self._deck = FULL_DECK.copy()
-        self._drawn_cards: List[Tuple[TarotCard, Orientation]] = []
     
-    def shuffle(self) -> None:
-        """洗牌"""
-        self._deck = FULL_DECK.copy()
-        random.shuffle(self._deck)
-        self._drawn_cards = []
-    
-    def draw_card(self, orientation_random: bool = True) -> Tuple[TarotCard, Orientation]:
+    def draw_card(self, include_reversed: bool = True) -> Tuple[TarotCard, Orientation]:
         """
-        抽取一张牌
-        
-        Args:
-            orientation_random: 是否随机正逆位
+        Draw a single random card.
         
         Returns:
-            元组 (牌, 朝向)
+            Tuple of (card, orientation)
         """
-        if not self._deck:
-            self.shuffle()
+        card = random.choice(self.deck.cards)
         
-        card = self._deck.pop()
-        orientation = Orientation.REVERSED if orientation_random and random.random() < 0.5 else Orientation.UPRIGHT
-        result = (card, orientation)
-        self._drawn_cards.append(result)
-        return result
-    
-    def draw_cards(self, count: int, orientation_random: bool = True) -> List[Tuple[TarotCard, Orientation]]:
-        """
-        抽取多张牌
-        
-        Args:
-            count: 牌数量
-            orientation_random: 是否随机正逆位
-        
-        Returns:
-            牌列表，每项为 (牌, 朝向)
-        """
-        return [self.draw_card(orientation_random) for _ in range(count)]
-    
-    def get_drawn_cards(self) -> List[Tuple[TarotCard, Orientation]]:
-        """获取已抽取的牌"""
-        return self._drawn_cards.copy()
-    
-    def remaining_count(self) -> int:
-        """获取剩余牌数"""
-        return len(self._deck)
-
-
-class TarotReading:
-    """塔罗牌解读类"""
-    
-    def __init__(self, deck: Optional[TarotDeck] = None):
-        """
-        初始化解读器
-        
-        Args:
-            deck: 使用的牌组，如果为 None 则创建新牌组
-        """
-        self.deck = deck or TarotDeck()
-    
-    def single_card_reading(self, question: Optional[str] = None) -> Dict:
-        """
-        单牌解读
-        
-        Args:
-            question: 问题（可选）
-        
-        Returns:
-            解读结果字典
-        """
-        self.deck.shuffle()
-        card, orientation = self.deck.draw_card()
-        
-        return {
-            "spread_type": "单牌牌阵",
-            "question": question,
-            "cards": [{
-                "position": "指引牌",
-                "card": card.name,
-                "english_name": card.english_name,
-                "orientation": orientation.value,
-                "type": card.card_type.value,
-                "keywords": card.keywords_upright if orientation == Orientation.UPRIGHT else card.keywords_reversed,
-                "meaning": card.meaning_upright if orientation == Orientation.UPRIGHT else card.meaning_reversed,
-                "element": card.element,
-                "zodiac": card.zodiac,
-                "planet": card.planet
-            }],
-            "interpretation": self._interpret_single(card, orientation, question)
-        }
-    
-    def three_card_reading(self, question: Optional[str] = None, 
-                          positions: Tuple[str, str, str] = ("过去", "现在", "未来")) -> Dict:
-        """
-        三牌牌阵解读
-        
-        Args:
-            question: 问题（可选）
-            positions: 三个位置的含义，默认为过去/现在/未来
-        
-        Returns:
-            解读结果字典
-        """
-        self.deck.shuffle()
-        cards = self.deck.draw_cards(3)
-        
-        card_results = []
-        for i, (card, orientation) in enumerate(cards):
-            card_results.append({
-                "position": positions[i],
-                "card": card.name,
-                "english_name": card.english_name,
-                "orientation": orientation.value,
-                "type": card.card_type.value,
-                "keywords": card.keywords_upright if orientation == Orientation.UPRIGHT else card.keywords_reversed,
-                "meaning": card.meaning_upright if orientation == Orientation.UPRIGHT else card.meaning_reversed,
-                "element": card.element
-            })
-        
-        return {
-            "spread_type": "三牌牌阵",
-            "positions": list(positions),
-            "question": question,
-            "cards": card_results,
-            "interpretation": self._interpret_three(cards, positions, question)
-        }
-    
-    def celtic_cross_reading(self, question: Optional[str] = None) -> Dict:
-        """
-        凯尔特十字牌阵解读（10张牌）
-        
-        位置含义：
-        1. 现状 - 你目前的情况
-        2. 挑战 - 你面临的障碍或挑战
-        3. 根源 - 问题的根源或基础
-        4. 过去 - 已经过去的影响
-        5. 近期未来 - 即将发生的事
-        6. 远期未来 - 最终结果或趋势
-        7. 你的态度 - 你对此事的心态
-        8. 外部环境 - 他人的影响或环境因素
-        9. 希望与恐惧 - 你的期望和担忧
-        10. 最终结果 - 事情的结局
-        
-        Args:
-            question: 问题（可选）
-        
-        Returns:
-            解读结果字典
-        """
-        self.deck.shuffle()
-        cards = self.deck.draw_cards(10)
-        
-        positions = [
-            "现状", "挑战", "根源", "过去", "近期未来", "远期未来",
-            "你的态度", "外部环境", "希望与恐惧", "最终结果"
-        ]
-        
-        position_meanings = [
-            "你目前的情况和处境",
-            "你面临的障碍或挑战",
-            "问题的根源或基础",
-            "已经过去的影响因素",
-            "即将发生的事情",
-            "最终的结果或发展趋势",
-            "你对此事的心态和立场",
-            "他人的影响或环境因素",
-            "你的期望和担忧",
-            "事情的最终结局"
-        ]
-        
-        card_results = []
-        for i, (card, orientation) in enumerate(cards):
-            card_results.append({
-                "position": positions[i],
-                "position_meaning": position_meanings[i],
-                "card": card.name,
-                "english_name": card.english_name,
-                "orientation": orientation.value,
-                "type": card.card_type.value,
-                "keywords": card.keywords_upright if orientation == Orientation.UPRIGHT else card.keywords_reversed,
-                "meaning": card.meaning_upright if orientation == Orientation.UPRIGHT else card.meaning_reversed,
-                "element": card.element
-            })
-        
-        return {
-            "spread_type": "凯尔特十字牌阵",
-            "question": question,
-            "cards": card_results,
-            "interpretation": self._interpret_celtic_cross(cards, question)
-        }
-    
-    def yes_no_reading(self, question: str) -> Dict:
-        """
-        是非问题解读
-        
-        Args:
-            question: 是非问题
-        
-        Returns:
-            解读结果字典
-        """
-        self.deck.shuffle()
-        card, orientation = self.deck.draw_card()
-        
-        # 基于牌的编号和朝向判断是非
-        # 大阿卡纳的前半部分（0-10）倾向于是，后半部分（11-21）倾向否
-        # 正位倾向是，逆位倾向否
-        
-        if card.card_type == CardType.MAJOR_ARCANA:
-            base_score = 1 if card.id <= 10 else -1
+        if include_reversed:
+            orientation = random.choice([Orientation.UPRIGHT, Orientation.REVERSED])
         else:
-            # 小阿卡纳根据花色判断
-            suit_scores = {
-                Suit.WANDS: 1,      # 权杖积极
-                Suit.CUPS: 1,       # 圣杯积极
-                Suit.SWORDS: -1,    # 宝剑消极
-                Suit.PENTACLES: 0   # 金币中性
-            }
-            base_score = suit_scores.get(card.suit, 0)
+            orientation = Orientation.UPRIGHT
         
-        orientation_score = 1 if orientation == Orientation.UPRIGHT else -1
-        total_score = base_score * orientation_score
+        return card, orientation
+    
+    def draw_cards(self, count: int, include_reversed: bool = True) -> List[Tuple[TarotCard, Orientation]]:
+        """
+        Draw multiple random cards.
         
-        if total_score > 0:
-            answer = "是的"
-            confidence = "高" if abs(total_score) == 2 else "中"
-        elif total_score < 0:
-            answer = "不是"
-            confidence = "高" if abs(total_score) == 2 else "中"
-        else:
-            answer = "不确定"
-            confidence = "低"
+        Args:
+            count: Number of cards to draw
+            include_reversed: Whether to include reversed cards
         
-        return {
-            "spread_type": "是非牌阵",
-            "question": question,
-            "answer": answer,
-            "confidence": confidence,
-            "card": {
-                "name": card.name,
-                "orientation": orientation.value,
-                "meaning": card.meaning_upright if orientation == Orientation.UPRIGHT else card.meaning_reversed
-            },
-            "interpretation": f"牌面【{card.name}】({orientation.value})的指引：{card.meaning_upright if orientation == Orientation.UPRIGHT else card.meaning_reversed}"
+        Returns:
+            List of (card, orientation) tuples
+        """
+        cards = random.sample(self.deck.cards, min(count, len(self.deck.cards)))
+        results = []
+        
+        for card in cards:
+            if include_reversed:
+                orientation = random.choice([Orientation.UPRIGHT, Orientation.REVERSED])
+            else:
+                orientation = Orientation.UPRIGHT
+            results.append((card, orientation))
+        
+        return results
+    
+    def one_card_reading(self, question: Optional[str] = None, 
+                        include_reversed: bool = True) -> TarotReading:
+        """
+        Perform a one-card reading.
+        
+        Args:
+            question: Optional question for the reading
+            include_reversed: Whether to include reversed cards
+        
+        Returns:
+            TarotReading object
+        """
+        card, orientation = self.draw_card(include_reversed)
+        
+        position = SpreadPosition(
+            position=1,
+            name="Guidance",
+            description="A single card to guide your day or question",
+            card=card,
+            orientation=orientation
+        )
+        
+        return TarotReading(
+            spread_type=SpreadType.ONE_CARD,
+            positions=[position],
+            question=question
+        )
+    
+    def three_card_reading(self, 
+                          positions: Optional[List[str]] = None,
+                          question: Optional[str] = None,
+                          include_reversed: bool = True) -> TarotReading:
+        """
+        Perform a three-card reading.
+        
+        Args:
+            positions: Custom position names (default: Past, Present, Future)
+            question: Optional question
+            include_reversed: Whether to include reversed cards
+        
+        Returns:
+            TarotReading object
+        """
+        if positions is None:
+            positions = ["Past", "Present", "Future"]
+        
+        cards = self.draw_cards(3, include_reversed)
+        spread_positions = []
+        
+        default_descriptions = {
+            "Past": "Past influences on your situation",
+            "Present": "Current situation and energies",
+            "Future": "Potential outcome or direction"
         }
-    
-    def _interpret_single(self, card: TarotCard, orientation: Orientation, 
-                         question: Optional[str]) -> str:
-        """解读单牌"""
-        meaning = card.meaning_upright if orientation == Orientation.UPRIGHT else card.meaning_reversed
-        keywords = "、".join(card.keywords_upright if orientation == Orientation.UPRIGHT else card.keywords_reversed)
-        
-        interpretation = f"【{card.name}】{orientation.value}\n\n"
-        interpretation += f"关键词：{keywords}\n\n"
-        interpretation += f"解读：{meaning}\n\n"
-        
-        if question:
-            interpretation += f"针对你的问题，这张牌建议你关注{keywords}这些方面。"
-        
-        return interpretation
-    
-    def _interpret_three(self, cards: List[Tuple[TarotCard, Orientation]], 
-                        positions: Tuple[str, str, str], question: Optional[str]) -> str:
-        """解读三牌牌阵"""
-        interpretation = "【牌阵解读】\n\n"
         
         for i, (card, orientation) in enumerate(cards):
-            meaning = card.meaning_upright if orientation == Orientation.UPRIGHT else card.meaning_reversed
-            interpretation += f"【{positions[i]}】{card.name}({orientation.value})：{meaning}\n\n"
+            pos_name = positions[i] if i < len(positions) else f"Position {i+1}"
+            desc = default_descriptions.get(pos_name, f"Position {i+1} in the spread")
+            
+            spread_positions.append(SpreadPosition(
+                position=i + 1,
+                name=pos_name,
+                description=desc,
+                card=card,
+                orientation=orientation
+            ))
         
-        # 综合解读
-        major_count = sum(1 for c, _ in cards if c.card_type == CardType.MAJOR_ARCANA)
-        reversed_count = sum(1 for _, o in cards if o == Orientation.REVERSED)
-        
-        interpretation += "【综合分析】\n"
-        if major_count >= 2:
-            interpretation += "多张大阿卡纳牌出现，说明这是一个重要的转折点，具有深刻的精神意义。\n"
-        if reversed_count >= 2:
-            interpretation += "多张逆位牌提示可能需要反思内部因素，或者当前面临一些阻碍。\n"
-        
-        return interpretation
+        return TarotReading(
+            spread_type=SpreadType.THREE_CARD,
+            positions=spread_positions,
+            question=question
+        )
     
-    def _interpret_celtic_cross(self, cards: List[Tuple[TarotCard, Orientation]], 
-                               question: Optional[str]) -> str:
-        """解读凯尔特十字牌阵"""
-        positions = ["现状", "挑战", "根源", "过去", "近期未来", "远期未来",
-                    "你的态度", "外部环境", "希望与恐惧", "最终结果"]
+    def celtic_cross_reading(self, question: Optional[str] = None,
+                            include_reversed: bool = True) -> TarotReading:
+        """
+        Perform a Celtic Cross reading.
         
-        interpretation = "【凯尔特十字牌阵解读】\n\n"
+        Args:
+            question: Optional question for the reading
+            include_reversed: Whether to include reversed cards
         
-        # 第一部分：现状分析
-        interpretation += "━━━ 现状分析 ━━━\n"
-        for i in range(6):
-            card, orientation = cards[i]
-            meaning = card.meaning_upright if orientation == Orientation.UPRIGHT else card.meaning_reversed
-            interpretation += f"【{positions[i]}】{card.name}({orientation.value})\n{meaning}\n\n"
+        Returns:
+            TarotReading object
+        """
+        cards = self.draw_cards(10, include_reversed)
+        positions_data = SPREAD_DEFINITIONS[SpreadType.CELTIC_CROSS]['positions']
         
-        # 第二部分：建议与结果
-        interpretation += "━━━ 指引与结果 ━━━\n"
-        for i in range(6, 10):
-            card, orientation = cards[i]
-            meaning = card.meaning_upright if orientation == Orientation.UPRIGHT else card.meaning_reversed
-            interpretation += f"【{positions[i]}】{card.name}({orientation.value})\n{meaning}\n\n"
+        spread_positions = []
+        for i, (card, orientation) in enumerate(cards):
+            pos_data = positions_data[i]
+            spread_positions.append(SpreadPosition(
+                position=i + 1,
+                name=pos_data['name'],
+                description=pos_data['description'],
+                card=card,
+                orientation=orientation
+            ))
         
-        # 综合分析
-        major_count = sum(1 for c, _ in cards if c.card_type == CardType.MAJOR_ARCANA)
-        reversed_count = sum(1 for _, o in cards if o == Orientation.REVERSED)
+        return TarotReading(
+            spread_type=SpreadType.CELTIC_CROSS,
+            positions=spread_positions,
+            question=question
+        )
+    
+    def relationship_reading(self, question: Optional[str] = None,
+                            include_reversed: bool = True) -> TarotReading:
+        """
+        Perform a relationship spread reading.
         
-        interpretation += "【综合分析】\n"
-        interpretation += f"大阿卡纳牌数：{major_count}/10\n"
-        interpretation += f"逆位牌数：{reversed_count}/10\n\n"
+        Args:
+            question: Optional question
+            include_reversed: Whether to include reversed cards
         
-        if major_count >= 5:
-            interpretation += "大量大阿卡纳牌出现，这是一个命运性的时刻，事件具有深远的精神意义。\n"
-        elif major_count <= 2:
-            interpretation += "大阿卡纳牌较少，事件更多是日常事务，可以主动掌控。\n"
+        Returns:
+            TarotReading object
+        """
+        cards = self.draw_cards(6, include_reversed)
+        positions_data = SPREAD_DEFINITIONS[SpreadType.RELATIONSHIP]['positions']
         
-        # 最终结果牌特别强调
-        final_card, final_orientation = cards[9]
-        interpretation += f"【最终结果】{final_card.name}({final_orientation.value})：{final_card.meaning_upright if final_orientation == Orientation.UPRIGHT else final_card.meaning_reversed}"
+        spread_positions = []
+        for i, (card, orientation) in enumerate(cards):
+            pos_data = positions_data[i]
+            spread_positions.append(SpreadPosition(
+                position=i + 1,
+                name=pos_data['name'],
+                description=pos_data['description'],
+                card=card,
+                orientation=orientation
+            ))
         
-        return interpretation
+        return TarotReading(
+            spread_type=SpreadType.RELATIONSHIP,
+            positions=spread_positions,
+            question=question
+        )
+    
+    def decision_reading(self, question: Optional[str] = None,
+                        include_reversed: bool = True) -> TarotReading:
+        """
+        Perform a decision spread reading.
+        
+        Args:
+            question: Optional question about the decision
+            include_reversed: Whether to include reversed cards
+        
+        Returns:
+            TarotReading object
+        """
+        cards = self.draw_cards(5, include_reversed)
+        positions_data = SPREAD_DEFINITIONS[SpreadType.DECISION]['positions']
+        
+        spread_positions = []
+        for i, (card, orientation) in enumerate(cards):
+            pos_data = positions_data[i]
+            spread_positions.append(SpreadPosition(
+                position=i + 1,
+                name=pos_data['name'],
+                description=pos_data['description'],
+                card=card,
+                orientation=orientation
+            ))
+        
+        return TarotReading(
+            spread_type=SpreadType.DECISION,
+            positions=spread_positions,
+            question=question
+        )
+    
+    def daily_reading(self, include_reversed: bool = True) -> TarotReading:
+        """
+        Perform a daily guidance reading.
+        
+        Args:
+            include_reversed: Whether to include reversed cards
+        
+        Returns:
+            TarotReading object
+        """
+        cards = self.draw_cards(6, include_reversed)
+        positions_data = SPREAD_DEFINITIONS[SpreadType.DAILY]['positions']
+        
+        spread_positions = []
+        for i, (card, orientation) in enumerate(cards):
+            pos_data = positions_data[i]
+            spread_positions.append(SpreadPosition(
+                position=i + 1,
+                name=pos_data['name'],
+                description=pos_data['description'],
+                card=card,
+                orientation=orientation
+            ))
+        
+        return TarotReading(
+            spread_type=SpreadType.DAILY,
+            positions=spread_positions
+        )
+    
+    def horseshoe_reading(self, question: Optional[str] = None,
+                         include_reversed: bool = True) -> TarotReading:
+        """
+        Perform a horseshoe spread reading.
+        
+        Args:
+            question: Optional question
+            include_reversed: Whether to include reversed cards
+        
+        Returns:
+            TarotReading object
+        """
+        cards = self.draw_cards(7, include_reversed)
+        positions_data = SPREAD_DEFINITIONS[SpreadType.HORSESHOE]['positions']
+        
+        spread_positions = []
+        for i, (card, orientation) in enumerate(cards):
+            pos_data = positions_data[i]
+            spread_positions.append(SpreadPosition(
+                position=i + 1,
+                name=pos_data['name'],
+                description=pos_data['description'],
+                card=card,
+                orientation=orientation
+            ))
+        
+        return TarotReading(
+            spread_type=SpreadType.HORSESHOE,
+            positions=spread_positions,
+            question=question
+        )
+    
+    def monthly_reading(self, include_reversed: bool = True) -> TarotReading:
+        """
+        Perform a monthly spread reading.
+        
+        Args:
+            include_reversed: Whether to include reversed cards
+        
+        Returns:
+            TarotReading object
+        """
+        cards = self.draw_cards(8, include_reversed)
+        positions_data = SPREAD_DEFINITIONS[SpreadType.MONTHLY]['positions']
+        
+        spread_positions = []
+        for i, (card, orientation) in enumerate(cards):
+            pos_data = positions_data[i]
+            spread_positions.append(SpreadPosition(
+                position=i + 1,
+                name=pos_data['name'],
+                description=pos_data['description'],
+                card=card,
+                orientation=orientation
+            ))
+        
+        return TarotReading(
+            spread_type=SpreadType.MONTHLY,
+            positions=spread_positions
+        )
+    
+    def custom_reading(self, spread_type: SpreadType, 
+                      question: Optional[str] = None,
+                      include_reversed: bool = True) -> TarotReading:
+        """
+        Perform a reading of any spread type.
+        
+        Args:
+            spread_type: Type of spread to perform
+            question: Optional question
+            include_reversed: Whether to include reversed cards
+        
+        Returns:
+            TarotReading object
+        """
+        positions_data = SPREAD_DEFINITIONS.get(spread_type, {}).get('positions', [])
+        if not positions_data:
+            raise ValueError(f"Unknown spread type: {spread_type}")
+        
+        cards = self.draw_cards(len(positions_data), include_reversed)
+        
+        spread_positions = []
+        for i, (card, orientation) in enumerate(cards):
+            pos_data = positions_data[i]
+            spread_positions.append(SpreadPosition(
+                position=i + 1,
+                name=pos_data['name'],
+                description=pos_data['description'],
+                card=card,
+                orientation=orientation
+            ))
+        
+        return TarotReading(
+            spread_type=spread_type,
+            positions=spread_positions,
+            question=question
+        )
 
 
-# 便捷函数
-def draw_single_card(question: Optional[str] = None, seed: Optional[int] = None) -> Dict:
+# Convenience functions
+def get_card_by_name(name: str) -> Optional[TarotCard]:
+    """Get a card by name from the default deck."""
+    deck = TarotDeck()
+    return deck.get_card(name)
+
+
+def get_card_meaning(name: str, reversed: bool = False) -> Optional[str]:
     """
-    快速单牌解读
+    Get the meaning of a card by name.
     
     Args:
-        question: 问题（可选）
-        seed: 随机种子
+        name: Card name
+        reversed: Whether to get reversed meaning
     
     Returns:
-        解读结果
+        Card meaning or None if not found
     """
-    reading = TarotReading(TarotDeck(seed))
-    return reading.single_card_reading(question)
-
-
-def draw_three_cards(question: Optional[str] = None, 
-                    positions: Tuple[str, str, str] = ("过去", "现在", "未来"),
-                    seed: Optional[int] = None) -> Dict:
-    """
-    快速三牌牌阵解读
-    
-    Args:
-        question: 问题（可选）
-        positions: 位置含义
-        seed: 随机种子
-    
-    Returns:
-        解读结果
-    """
-    reading = TarotReading(TarotDeck(seed))
-    return reading.three_card_reading(question, positions)
-
-
-def draw_celtic_cross(question: Optional[str] = None, seed: Optional[int] = None) -> Dict:
-    """
-    快速凯尔特十字牌阵解读
-    
-    Args:
-        question: 问题（可选）
-        seed: 随机种子
-    
-    Returns:
-        解读结果
-    """
-    reading = TarotReading(TarotDeck(seed))
-    return reading.celtic_cross_reading(question)
-
-
-def ask_yes_no(question: str, seed: Optional[int] = None) -> Dict:
-    """
-    快速是非问题解读
-    
-    Args:
-        question: 是非问题
-        seed: 随机种子
-    
-    Returns:
-        解读结果
-    """
-    reading = TarotReading(TarotDeck(seed))
-    return reading.yes_no_reading(question)
-
-
-def get_card_info(card_name: str) -> Optional[Dict]:
-    """
-    获取特定牌的信息
-    
-    Args:
-        card_name: 牌名称（支持中文名称如"愚者"、"权杖A"）
-    
-    Returns:
-        牌信息字典，如果未找到返回 None
-    """
-    for card in FULL_DECK:
-        if card.name == card_name or card.english_name.lower() == card_name.lower():
-            return {
-                "id": card.id,
-                "name": card.name,
-                "english_name": card.english_name,
-                "type": card.card_type.value,
-                "suit": card.suit.value if card.suit else None,
-                "number": card.number,
-                "keywords_upright": card.keywords_upright,
-                "keywords_reversed": card.keywords_reversed,
-                "meaning_upright": card.meaning_upright,
-                "meaning_reversed": card.meaning_reversed,
-                "element": card.element,
-                "zodiac": card.zodiac,
-                "planet": card.planet
-            }
+    card = get_card_by_name(name)
+    if card:
+        orientation = Orientation.REVERSED if reversed else Orientation.UPRIGHT
+        return card.get_meaning(orientation)
     return None
 
 
-def list_all_cards() -> List[str]:
+def daily_card(seed: Optional[int] = None) -> Tuple[TarotCard, Orientation]:
     """
-    列出所有牌名
-    
-    Returns:
-        牌名列表
-    """
-    return [card.name for card in FULL_DECK]
-
-
-def list_major_arcana() -> List[str]:
-    """列出所有大阿卡纳牌名"""
-    return [card.name for card in MAJOR_ARCANA]
-
-
-def list_minor_arcana() -> List[str]:
-    """列出所有小阿卡纳牌名"""
-    return [card.name for card in MINOR_ARCANA]
-
-
-def list_cards_by_suit(suit: Suit) -> List[str]:
-    """
-    列出特定花色的牌名
+    Get a daily card based on the current date.
     
     Args:
-        suit: 花色
+        seed: Optional seed for reproducibility
     
     Returns:
-        牌名列表
+        Tuple of (card, orientation)
     """
-    return [card.name for card in MINOR_ARCANA if card.suit == suit]
+    if seed is None:
+        # Use today's date as seed for consistent daily draw
+        today = date.today()
+        seed = hash(f"{today.year}-{today.month}-{today.day}")
+    
+    reader = TarotReader(seed=seed)
+    return reader.draw_card(include_reversed=True)
 
 
-if __name__ == "__main__":
-    # 演示用法
-    print("=" * 50)
-    print("塔罗牌工具模块演示")
-    print("=" * 50)
+def quick_reading(spread_type: str = "three_card", 
+                 question: Optional[str] = None,
+                 seed: Optional[int] = None) -> TarotReading:
+    """
+    Perform a quick reading.
     
-    print("\n【单牌解读】")
-    result = draw_single_card("今天运势如何？", seed=42)
-    print(f"问题: {result['question']}")
-    for card in result['cards']:
-        print(f"牌面: {card['card']} ({card['orientation']})")
-        print(f"关键词: {', '.join(card['keywords'])}")
-    print(f"\n解读:\n{result['interpretation']}")
+    Args:
+        spread_type: Type of spread ("one_card", "three_card", "celtic_cross", etc.)
+        question: Optional question
+        seed: Optional seed for reproducibility
     
-    print("\n" + "=" * 50)
-    print("【三牌牌阵】")
-    result = draw_three_cards("近期感情发展", seed=42)
-    for card in result['cards']:
-        print(f"【{card['position']}】{card['card']} ({card['orientation']})")
+    Returns:
+        TarotReading object
+    """
+    reader = TarotReader(seed=seed)
+    spread_map = {
+        "one_card": reader.one_card_reading,
+        "three_card": reader.three_card_reading,
+        "celtic_cross": reader.celtic_cross_reading,
+        "relationship": reader.relationship_reading,
+        "decision": reader.decision_reading,
+        "daily": reader.daily_reading,
+        "horseshoe": reader.horseshoe_reading,
+        "monthly": reader.monthly_reading
+    }
     
-    print("\n" + "=" * 50)
-    print("【是非问题】")
-    result = ask_yes_no("我应该接受这份新工作吗？", seed=42)
-    print(f"问题: {result['question']}")
-    print(f"答案: {result['answer']} (置信度: {result['confidence']})")
-    print(f"牌面: {result['card']['name']} ({result['card']['orientation']})")
+    if spread_type not in spread_map:
+        raise ValueError(f"Unknown spread type: {spread_type}. Available: {list(spread_map.keys())}")
     
-    print("\n" + "=" * 50)
-    print(f"牌组总数: {len(FULL_DECK)} 张")
-    print(f"大阿卡纳: {len(MAJOR_ARCANA)} 张")
-    print(f"小阿卡纳: {len(MINOR_ARCANA)} 张")
+    method = spread_map[spread_type]
+    if spread_type in ["one_card", "three_card", "celtic_cross", "relationship", "decision", "horseshoe"]:
+        return method(question=question)
+    else:
+        return method()
+
+
+def get_major_arcana_cards() -> List[TarotCard]:
+    """Get all Major Arcana cards."""
+    deck = TarotDeck()
+    return deck.get_major_arcana()
+
+
+def get_minor_arcana_cards() -> List[TarotCard]:
+    """Get all Minor Arcana cards."""
+    deck = TarotDeck()
+    return deck.get_minor_arcana()
+
+
+def get_suit_cards(suit: str) -> List[TarotCard]:
+    """
+    Get all cards of a suit.
+    
+    Args:
+        suit: Suit name ("wands", "cups", "swords", "pentacles")
+    
+    Returns:
+        List of TarotCard objects
+    """
+    deck = TarotDeck()
+    suit_enum = Suit(suit.lower())
+    return deck.get_by_suit(suit_enum)
+
+
+def search_cards_by_keyword(keyword: str) -> List[TarotCard]:
+    """
+    Search for cards by keyword.
+    
+    Args:
+        keyword: Keyword to search for
+    
+    Returns:
+        List of matching TarotCard objects
+    """
+    deck = TarotDeck()
+    keyword = keyword.lower()
+    return [c for c in deck.cards if any(keyword in k.lower() for k in c.keywords)]
+
+
+def reading_for_date(target_date: date, spread_type: str = "three_card") -> TarotReading:
+    """
+    Get a reading for a specific date (reproducible).
+    
+    Args:
+        target_date: Date for the reading
+        spread_type: Type of spread
+    
+    Returns:
+        TarotReading object
+    """
+    seed = hash(f"{target_date.year}-{target_date.month}-{target_date.day}")
+    return quick_reading(spread_type, seed=seed)
+
+
+def interpret_combination(cards: List[TarotCard]) -> str:
+    """
+    Provide a basic interpretation of card combinations.
+    
+    Args:
+        cards: List of cards to interpret together
+    
+    Returns:
+        Interpretation string
+    """
+    if not cards:
+        return "No cards to interpret."
+    
+    # Count arcana types
+    major_count = sum(1 for c in cards if c.arcana == Arcana.MAJOR)
+    minor_count = len(cards) - major_count
+    
+    # Count elements
+    elements = {}
+    for card in cards:
+        if card.element:
+            elements[card.element] = elements.get(card.element, 0) + 1
+    
+    # Count suits
+    suits = {}
+    for card in cards:
+        if card.suit:
+            suits[card.suit.value] = suits.get(card.suit.value, 0) + 1
+    
+    interpretation = []
+    
+    # Major Arcana dominance
+    if major_count > minor_count:
+        interpretation.append("The reading is dominated by Major Arcana, indicating significant life events and karmic influences.")
+    elif major_count == len(cards):
+        interpretation.append("All Major Arcana cards - this is a powerful reading about major life themes.")
+    
+    # Element balance
+    if elements:
+        dominant_element = max(elements, key=elements.get)
+        element_meanings = {
+            "Fire": "strong energy, action, and passion",
+            "Water": "emotions, intuition, and relationships",
+            "Air": "mental activity, communication, and ideas",
+            "Earth": "material matters, stability, and practicality"
+        }
+        if elements[dominant_element] >= len(cards) * 0.5:
+            interpretation.append(f"Dominant {dominant_element} element suggests {element_meanings.get(dominant_element, 'significant influence')}.")
+    
+    # Suit balance
+    if suits:
+        dominant_suit = max(suits, key=suits.get)
+        suit_meanings = {
+            "wands": "creativity, career, and personal projects",
+            "cups": "emotions, relationships, and spiritual matters",
+            "swords": "intellect, communication, and challenges",
+            "pentacles": "finances, material matters, and security"
+        }
+        if suits[dominant_suit] >= len(cards) * 0.5:
+            interpretation.append(f"Dominant {dominant_suit} suit focuses on {suit_meanings.get(dominant_suit, 'key themes')}.")
+    
+    return " ".join(interpretation) if interpretation else "The cards present a balanced mix of influences."
+
+
+# Export all
+__all__ = [
+    # Enums
+    'Arcana',
+    'Suit', 
+    'Orientation',
+    'SpreadType',
+    # Classes
+    'TarotCard',
+    'TarotDeck',
+    'SpreadPosition',
+    'TarotReading',
+    'TarotReader',
+    # Data
+    'MAJOR_ARCANA',
+    'MINOR_ARCANA_COURT',
+    'MINOR_ARCANA_NUMBERS',
+    'SPREAD_DEFINITIONS',
+    # Functions
+    'get_card_by_name',
+    'get_card_meaning',
+    'daily_card',
+    'quick_reading',
+    'get_major_arcana_cards',
+    'get_minor_arcana_cards',
+    'get_suit_cards',
+    'search_cards_by_keyword',
+    'reading_for_date',
+    'interpret_combination'
+]

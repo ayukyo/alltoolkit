@@ -1,216 +1,358 @@
-# 塔罗牌工具 (Tarot Utils)
+# Tarot Utilities
 
-完整的塔罗牌工具模块，提供牌组管理、多种牌阵解读、牌面查询等功能。
+A comprehensive tarot card reading and divination toolkit for Python.
 
-## 功能特性
+## Features
 
-- ✨ **完整78张牌组** - 22张大阿卡纳 + 56张小阿卡纳
-- 🎴 **多种牌阵** - 单牌、三牌、凯尔特十字、是非牌阵
-- 📖 **详细解读** - 每张牌包含正逆位含义、关键词
-- 🔮 **神秘学对应** - 元素、星座、行星对应
-- 🎲 **可重复结果** - 支持随机种子
-- 📦 **零依赖** - 纯Python标准库实现
+- **Complete 78-card tarot deck** - All Major Arcana (22 cards) and Minor Arcana (56 cards)
+- **Multiple spread layouts** - Celtic Cross, Three Card, Relationship, Decision, Daily, Horseshoe, Monthly
+- **Card meanings** - Detailed interpretations for both upright and reversed positions
+- **Daily draws** - Reproducible daily card based on date
+- **Card search** - Find cards by keywords, suits, or arcana type
+- **Zero dependencies** - Pure Python implementation
 
-## 快速开始
+## Installation
 
-```python
-from tarot_utils.mod import (
-    draw_single_card,
-    draw_three_cards,
-    draw_celtic_cross,
-    ask_yes_no,
-    get_card_info
-)
-
-# 单牌解读
-result = draw_single_card("今天运势如何？")
-print(result["interpretation"])
-
-# 三牌牌阵（过去/现在/未来）
-result = draw_three_cards("近期感情发展")
-for card in result["cards"]:
-    print(f"【{card['position']}】{card['card']} ({card['orientation']})")
-
-# 凯尔特十字牌阵（10张牌）
-result = draw_celtic_cross("我的事业发展方向？")
-print(result["interpretation"])
-
-# 是非问题
-result = ask_yes_no("我应该接受这份新工作吗？")
-print(f"答案: {result['answer']} (置信度: {result['confidence']})")
-
-# 查询牌信息
-info = get_card_info("愚者")
-print(f"愚者 - 元素: {info['element']}, 关键词: {info['keywords_upright']}")
-```
-
-## 牌阵类型
-
-### 单牌牌阵
-快速获得一个指引或建议。
+No installation needed - just import the module:
 
 ```python
-result = draw_single_card("问题")
+from tarot_utils.mod import TarotReader, quick_reading
 ```
 
-### 三牌牌阵
-最常用的牌阵，可自定义位置含义：
+## Quick Start
+
+### One Card Reading
 
 ```python
-# 默认：过去/现在/未来
-result = draw_three_cards("问题")
+from tarot_utils.mod import quick_reading
 
-# 自定义位置
-result = draw_three_cards(
-    "问题",
-    positions=("情境", "行动", "结果")
-)
+# Simple one-card draw
+reading = quick_reading("one_card", question="What should I focus on today?")
+print(reading.get_summary())
 ```
 
-### 凯尔特十字牌阵
-最经典的10张牌大阵，全面分析：
-
-| 位置 | 含义 |
-|------|------|
-| 1 | 现状 - 你目前的情况 |
-| 2 | 挑战 - 面临的障碍 |
-| 3 | 根源 - 问题的根源 |
-| 4 | 过去 - 已经过去的影响 |
-| 5 | 近期未来 - 即将发生的事 |
-| 6 | 远期未来 - 最终趋势 |
-| 7 | 你的态度 - 心态和立场 |
-| 8 | 外部环境 - 他人的影响 |
-| 9 | 希望与恐惧 - 期望和担忧 |
-| 10 | 最终结果 - 事情的结局 |
+### Three Card Reading
 
 ```python
-result = draw_celtic_cross("问题")
+# Classic Past-Present-Future spread
+reading = quick_reading("three_card", question="What's my career path?")
+print(reading.get_summary())
+
+# Custom positions
+reader = TarotReader()
+reading = reader.three_card_reading(positions=["Mind", "Body", "Spirit"])
 ```
 
-### 是非牌阵
-针对是非问题的简单解读：
+### Celtic Cross Reading
 
 ```python
-result = ask_yes_no("这是一个好主意吗？")
-# 返回: "是的"/"不是"/"不确定" + 置信度
+# Full 10-card Celtic Cross spread
+reader = TarotReader(seed=42)  # Optional seed for reproducibility
+reading = reader.celtic_cross_reading(question="What are my life themes?")
+print(reading.get_summary())
 ```
 
-## 牌组信息
+## API Reference
 
-### 大阿卡纳 (Major Arcana)
-22张，代表人生重大主题：
-
-| 编号 | 牌名 | 元素 | 行星/星座 |
-|------|------|------|-----------|
-| 0 | 愚者 | 风 | 天王星 |
-| 1 | 魔术师 | 风 | 水星 |
-| 2 | 女祭司 | 水 | 月亮 |
-| 3 | 女皇 | 地 | 金星 |
-| 4 | 皇帝 | 火 | 白羊座 |
-| 5 | 教皇 | 地 | 金牛座 |
-| ... | ... | ... | ... |
-
-### 小阿卡纳 (Minor Arcana)
-56张，分为四个花色：
-
-| 花色 | 元素 | 主题 |
-|------|------|------|
-| 权杖 (Wands) | 火 | 行动、激情、创意 |
-| 圣杯 (Cups) | 水 | 情感、关系、直觉 |
-| 宝剑 (Swords) | 风 | 思维、沟通、冲突 |
-| 金币 (Pentacles) | 地 | 物质、财富、实践 |
-
-每个花色14张牌：A-10 + 侍从 + 骑士 + 王后 + 国王
-
-## API 参考
-
-### 核心类
+### Classes
 
 #### TarotDeck
-塔罗牌牌组类。
+
+Complete 78-card tarot deck.
 
 ```python
-deck = TarotDeck(seed=42)  # 可选随机种子
-deck.shuffle()              # 洗牌
-card, orientation = deck.draw_card()  # 抽一张牌
-cards = deck.draw_cards(5)  # 抽多张牌
+deck = TarotDeck()
+
+# Get cards
+major = deck.get_major_arcana()  # 22 Major Arcana cards
+minor = deck.get_minor_arcana()  # 56 Minor Arcana cards
+wands = deck.get_by_suit(Suit.WANDS)  # All Wands cards
+
+# Find specific card
+card = deck.get_card("The Fool")
+```
+
+#### TarotCard
+
+Represents a single tarot card.
+
+```python
+card = deck.get_card("The Magician")
+
+# Properties
+card.name           # "The Magician"
+card.arcana         # Arcana.MAJOR
+card.keywords       # ["manifestation", "resourcefulness", ...]
+card.upright_meaning  # Full upright interpretation
+card.reversed_meaning # Full reversed interpretation
+card.element        # "Air"
+card.zodiac         # "Mercury"
+
+# Get meaning based on orientation
+meaning = card.get_meaning(Orientation.UPRIGHT)
+```
+
+#### TarotReader
+
+Main class for performing readings.
+
+```python
+reader = TarotReader(seed=42)  # Optional seed for reproducibility
+
+# Available spreads
+reader.one_card_reading(question="...")
+reader.three_card_reading(positions=None, question="...")
+reader.celtic_cross_reading(question="...")
+reader.relationship_reading(question="...")
+reader.decision_reading(question="...")
+reader.daily_reading()
+reader.horseshoe_reading(question="...")
+reader.monthly_reading()
+
+# Draw random cards
+card, orientation = reader.draw_card()
+cards = reader.draw_cards(count=5)
 ```
 
 #### TarotReading
-塔罗牌解读类。
+
+Represents a complete reading.
 
 ```python
-reading = TarotReading(deck)
-result = reading.single_card_reading("问题")
-result = reading.three_card_reading("问题")
-result = reading.celtic_cross_reading("问题")
-result = reading.yes_no_reading("是非问题")
+reading = reader.three_card_reading()
+
+# Properties
+reading.spread_type  # SpreadType enum
+reading.positions    # List of SpreadPosition objects
+reading.timestamp    # datetime object
+reading.question     # Optional question string
+
+# Methods
+summary = reading.get_summary()  # Human-readable summary
+data = reading.to_dict()         # JSON-serializable dict
 ```
 
-### 便捷函数
-
-| 函数 | 说明 |
-|------|------|
-| `draw_single_card(question, seed)` | 单牌解读 |
-| `draw_three_cards(question, positions, seed)` | 三牌牌阵 |
-| `draw_celtic_cross(question, seed)` | 凯尔特十字 |
-| `ask_yes_no(question, seed)` | 是非问题 |
-| `get_card_info(card_name)` | 获取牌信息 |
-| `list_all_cards()` | 列出所有牌 |
-| `list_major_arcana()` | 列出大阿卡纳 |
-| `list_minor_arcana()` | 列出小阿卡纳 |
-| `list_cards_by_suit(suit)` | 按花色列出牌 |
-
-### 数据结构
+### Convenience Functions
 
 ```python
-@dataclass
-class TarotCard:
-    id: int                    # 牌编号 (0-77)
-    name: str                  # 中文名
-    english_name: str          # 英文名
-    card_type: CardType        # 大/小阿卡纳
-    suit: Optional[Suit]       # 花色 (小阿卡纳)
-    number: Optional[int]      # 编号 (小阿卡纳 1-14)
-    keywords_upright: List[str]    # 正位关键词
-    keywords_reversed: List[str]   # 逆位关键词
-    meaning_upright: str       # 正位含义
-    meaning_reversed: str      # 逆位含义
-    element: Optional[str]     # 元素
-    zodiac: Optional[str]      # 星座 (大阿卡纳)
-    planet: Optional[str]      # 行星 (大阿卡纳)
+# Quick reading
+reading = quick_reading("three_card", question="...")
+
+# Get card by name
+card = get_card_by_name("The Star")
+
+# Get card meaning
+meaning = get_card_meaning("The Star", reversed=False)
+
+# Daily card (reproducible by date)
+card, orientation = daily_card()
+
+# Get cards by type
+major = get_major_arcana_cards()
+minor = get_minor_arcana_cards()
+wands = get_suit_cards("wands")
+
+# Search by keyword
+cards = search_cards_by_keyword("love")
+
+# Reading for specific date
+reading = reading_for_date(date(2024, 1, 1), "three_card")
+
+# Interpret combination
+interpretation = interpret_combination([card1, card2, card3])
 ```
 
-## 示例输出
+### Enums
 
+```python
+# Card arcana
+Arcana.MAJOR  # Major Arcana (22 cards)
+Arcana.MINOR  # Minor Arcana (56 cards)
+
+# Minor Arcana suits
+Suit.WANDS      # Fire element - creativity, career
+Suit.CUPS       # Water element - emotions, relationships
+Suit.SWORDS     # Air element - intellect, communication
+Suit.PENTACLES  # Earth element - material, finances
+
+# Card orientation
+Orientation.UPRIGHT   # Positive interpretation
+Orientation.REVERSED  # Shadow/blocked interpretation
+
+# Spread types
+SpreadType.ONE_CARD
+SpreadType.THREE_CARD
+SpreadType.CELTIC_CROSS
+SpreadType.RELATIONSHIP
+SpreadType.DECISION
+SpreadType.DAILY
+SpreadType.HORSESHOE
+SpreadType.MONTHLY
 ```
-【牌阵解读】
 
-【过去】命运之轮(正位)：命运之轮预示着变化的到来。命运的转折点即将出现，拥抱变化吧。
+## Spread Layouts
 
-【现在】星星(正位)：星星带来希望和治愈。风暴过后，平静和光明正在等待着你。
+### One Card (1 card)
+Simple guidance for a day or question.
 
-【未来】力量(逆位)：逆位表示你可能正在经历自我怀疑，或者错误地使用了你的力量。
+### Three Card (3 cards)
+- Default: Past, Present, Future
+- Customizable positions
 
-【综合分析】
-多张大阿卡纳牌出现，说明这是一个重要的转折点，具有深刻的精神意义。
+### Celtic Cross (10 cards)
+1. Present - Current situation
+2. Challenge - Obstacle you face
+3. Foundation - Root cause
+4. Recent Past - Recent influences
+5. Possible Future - Potential outcome
+6. Near Future - Coming events
+7. Your Influence - Your attitude
+8. External Influence - Outside forces
+9. Hopes and Fears - Expectations
+10. Final Outcome - Most likely result
+
+### Relationship (6 cards)
+1. You - Your position
+2. Partner - Partner's position
+3. Connection - What connects you
+4. Strengths - Relationship strengths
+5. Challenges - Relationship challenges
+6. Future - Where it's heading
+
+### Decision (5 cards)
+1. Current Situation
+2. Option A outcome
+3. Option B outcome
+4. Hidden Factors
+5. Advice
+
+### Daily (6 cards)
+Morning, Afternoon, Evening, Focus, Warning, Blessing
+
+### Horseshoe (7 cards)
+Past, Present, Hidden Influences, Obstacles, External Influences, Near Future, Outcome
+
+### Monthly (8 cards)
+Theme, Week 1-4, Opportunity, Challenge, Advice
+
+## Examples
+
+### Daily Card Routine
+
+```python
+from tarot_utils.mod import daily_card, Orientation
+
+card, orientation = daily_card()
+print(f"Today's card: {card.name}")
+if orientation == Orientation.REVERSED:
+    print("(Reversed)")
+print(f"Meaning: {card.get_meaning(orientation)}")
 ```
 
-## 运行测试
+### Relationship Analysis
+
+```python
+from tarot_utils.mod import TarotReader, interpret_combination
+
+reader = TarotReader()
+reading = reader.relationship_reading(question="Where is our relationship heading?")
+
+for position in reading.positions:
+    print(f"{position.name}: {position.card.name}")
+    if position.orientation == Orientation.REVERSED:
+        print("  (Reversed)")
+
+# Get combined interpretation
+print(interpret_combination([p.card for p in reading.positions]))
+```
+
+### Custom Three Card Spread
+
+```python
+reader = TarotReader()
+reading = reader.three_card_reading(
+    positions=["Situation", "Action", "Result"],
+    question="Should I move to a new city?"
+)
+```
+
+### Reproducible Readings
+
+```python
+# Same seed = same results
+reader1 = TarotReader(seed=123)
+reader2 = TarotReader(seed=123)
+
+reading1 = reader1.one_card_reading()
+reading2 = reader2.one_card_reading()
+
+# Both readings will have the same card
+```
+
+### Search Cards
+
+```python
+# Find all cards related to love
+love_cards = search_cards_by_keyword("love")
+for card in love_cards:
+    print(f"{card.name}: {card.keywords}")
+
+# Get all fire element cards (Wands)
+fire_cards = get_suit_cards("wands")
+```
+
+## Major Arcana Quick Reference
+
+| # | Card | Keywords |
+|---|------|----------|
+| 0 | The Fool | beginnings, innocence, spontaneity |
+| 1 | The Magician | manifestation, resourcefulness, power |
+| 2 | The High Priestess | intuition, sacred knowledge, mystery |
+| 3 | The Empress | femininity, nurturing, abundance |
+| 4 | The Emperor | authority, structure, leadership |
+| 5 | The Hierophant | tradition, conformity, wisdom |
+| 6 | The Lovers | love, harmony, choices |
+| 7 | The Chariot | victory, determination, willpower |
+| 8 | Strength | courage, compassion, inner power |
+| 9 | The Hermit | introspection, solitude, guidance |
+| 10 | Wheel of Fortune | luck, karma, cycles |
+| 11 | Justice | fairness, truth, balance |
+| 12 | The Hanged Man | sacrifice, perspective, pause |
+| 13 | Death | transformation, endings, change |
+| 14 | Temperance | harmony, moderation, patience |
+| 15 | The Devil | attachment, addiction, shadow |
+| 16 | The Tower | upheaval, revelation, awakening |
+| 17 | The Star | hope, faith, renewal |
+| 18 | The Moon | illusion, intuition, fear |
+| 19 | The Sun | joy, success, positivity |
+| 20 | Judgement | rebirth, calling, reflection |
+| 21 | The World | completion, achievement, integration |
+
+## Suit Meanings
+
+- **Wands (Fire)**: Creativity, action, career, passion
+- **Cups (Water)**: Emotions, relationships, intuition, spirituality
+- **Swords (Air)**: Intellect, communication, challenges, truth
+- **Pentacles (Earth)**: Material matters, finances, security, work
+
+## Testing
+
+Run the test suite:
 
 ```bash
-python test_tarot.py
+python -m pytest tarot_utils_test.py -v
 ```
 
-## 文件结构
+Or with unittest:
 
-```
-tarot_utils/
-├── mod.py          # 主模块
-├── test_tarot.py  # 测试文件
-└── README.md      # 说明文档
+```bash
+python tarot_utils_test.py
 ```
 
-## 许可证
+## License
 
-MIT License
+MIT License - Free to use for any purpose.
+
+## Author
+
+Generated by AllToolkit - 2026-05-20
