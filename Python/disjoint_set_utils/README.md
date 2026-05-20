@@ -1,190 +1,270 @@
-# Disjoint Set (Union-Find) Utilities - 并查集工具
+# Disjoint Set Union (Union-Find) Utils
 
-[![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
-[![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+A comprehensive Python implementation of the Disjoint Set Union (DSU) data structure, also known as Union-Find. This data structure efficiently manages a partition of elements into disjoint subsets.
 
-零依赖、生产就绪的并查集（Disjoint Set / Union-Find）数据结构模块。
+## Features
 
-## 功能特性
+- **Path Compression**: O(α(n)) amortized find operations
+- **Union by Rank/Size**: Balanced tree structure for optimal performance
+- **Generic Type Support**: Works with any hashable type (int, str, tuple, etc.)
+- **Undo Support**: Backtrack operations with `DisjointSetWithUndo`
+- **Weighted Unions**: Track component weights with `WeightedDisjointSet`
+- **Algorithm Helpers**: Connected components, cycle detection, Kruskal's MST
 
-- **路径压缩**：查找时自动压缩路径，优化后续查询
-- **按秩合并**：合并时选择较小的树作为子树
-- **泛型支持**：支持任意可哈希类型作为元素
-- **分量计数**：追踪连通分量数量
-- **分量大小**：追踪每个分量的大小
-- **批量操作**：支持批量添加和合并
-- **Kruskal MST**：最小生成树算法辅助工具
-- **网络分析**：连通性分析工具
+## Installation
 
-## 时间复杂度
-
-所有操作的均摊时间复杂度接近 O(1)：
-- **Find**: O(α(n)) ≈ O(1)
-- **Union**: O(α(n)) ≈ O(1)
-- **Connected**: O(α(n)) ≈ O(1)
-
-其中 α 是反阿克曼函数，对于所有实际输入都小于 5。
-
-## 安装
+No external dependencies! Pure Python implementation.
 
 ```bash
-# 直接使用
-from disjoint_set_utils import DisjointSet
-
-# 或安装为包
-pip install alltoolkit-disjoint-set-utils
+# Just copy the module to your project
+cp -r disjoint_set_utils/ your_project/
 ```
 
-## 快速开始
+## Quick Start
 
-### 基本操作
+### Basic Usage
 
 ```python
 from disjoint_set_utils import DisjointSet
 
-# 创建并查集
-ds = DisjointSet[str]()
-
-# 添加元素（每个元素初始为独立集合）
-ds.make_set("A")
-ds.make_set("B")
-ds.make_set("C")
-
-# 合并集合
-ds.union("A", "B")  # A 和 B 现在在同一集合
-
-# 检查连通性
-print(ds.connected("A", "B"))  # True
-print(ds.connected("A", "C"))  # False
-
-# 查找代表元素
-print(ds.find("A"))  # 'A' 或 'B'（代表元素）
-```
-
-### 批量操作
-
-```python
-from disjoint_set_utils import DisjointSet
-
+# Create a disjoint set
 ds = DisjointSet[int]()
 
-# 批量添加元素
-ds.make_set_batch([1, 2, 3, 4, 5])
+# Create singleton sets
+ds.make_sets([1, 2, 3, 4, 5])
 
-# 批量合并
-ds.union_batch([(1, 2), (3, 4), (4, 5)])
-# 现在: {1, 2}, {3, 4, 5}
+# Unite sets
+ds.union(1, 2)
+ds.union(2, 3)
+
+# Check connectivity
+print(ds.connected(1, 3))  # True
+print(ds.connected(1, 4))  # False
+
+# Find representative (root)
+print(ds.find(3))  # Same as ds.find(1)
+
+# Get component size
+print(ds.get_size(1))  # 3 (elements 1, 2, 3)
+
+# Count disjoint sets
+print(ds.count_sets())  # 3 (one with {1,2,3}, {4}, {5})
 ```
 
-### 分量信息
+### String Elements
 
 ```python
 from disjoint_set_utils import DisjointSet
 
 ds = DisjointSet[str]()
-for elem in ["A", "B", "C", "D"]:
-    ds.make_set(elem)
+ds.make_sets(['apple', 'banana', 'cherry'])
 
-ds.union("A", "B")
-ds.union("C", "D")
-
-# 获取分量数量
-print(ds.count_components())  # 2
-
-# 获取分量大小
-print(ds.size("A"))  # 2（{A, B} 的大小）
-
-# 获取所有分量
-print(ds.get_components())  # [{'A', 'B'}, {'C', 'D'}]
+ds.union('apple', 'banana')
+print(ds.connected('apple', 'banana'))  # True
+print(ds.connected('apple', 'cherry'))  # False
 ```
 
-### 网络连通性分析
+### Grid/Coordinate Elements
 
 ```python
-from disjoint_set_utils import is_connected_graph, find_connected_groups
+from disjoint_set_utils import DisjointSet
 
-# 检查图是否完全连通
-edges = [("A", "B"), ("B", "C"), ("C", "D")]
-print(is_connected_graph(edges))  # True（A-B-C-D 连通）
+# Useful for maze/pathfinding problems
+ds = DisjointSet[tuple]()
+grid_size = 10
 
-# 找出连通分组
-edges = [("A", "B"), ("C", "D")]
-groups = find_connected_groups(edges, nodes=["A", "B", "C", "D"])
-print(groups)  # [{'A', 'B'}, {'C', 'D'}]
+# Create cells
+for i in range(grid_size):
+    for j in range(grid_size):
+        ds.make_set((i, j))
+
+# Connect adjacent cells
+for i in range(grid_size):
+    for j in range(grid_size):
+        if i + 1 < grid_size:
+            ds.union((i, j), (i + 1, j))
+        if j + 1 < grid_size:
+            ds.union((i, j), (i, j + 1))
+
+print(ds.count_sets())  # 1 (all connected)
 ```
 
-### Kruskal 最小生成树
+### Weighted Disjoint Set
+
+```python
+from disjoint_set_utils import WeightedDisjointSet
+
+wds = WeightedDisjointSet[str]()
+wds.make_sets(['A', 'B', 'C', 'D'])
+
+# Union with weights
+wds.union_weighted('A', 'B', 5.0)
+wds.union_weighted('B', 'C', 3.0)
+wds.union_weighted('C', 'D', 2.0)
+
+print(wds.get_component_weight('A'))  # 10.0
+print(wds.same_component('A', 'D'))   # True
+```
+
+### Undo Support
+
+```python
+from disjoint_set_utils import DisjointSetWithUndo
+
+ds = DisjointSetWithUndo[int]()
+ds.make_sets([1, 2, 3, 4])
+
+ds.union(1, 2)
+ds.union(3, 4)
+print(ds.count_sets())  # 2
+
+ds.undo()  # Undo last union
+print(ds.count_sets())  # 3
+
+ds.undo()  # Undo another
+print(ds.count_sets())  # 4
+```
+
+## Algorithm Helpers
+
+### Count Connected Components
+
+```python
+from disjoint_set_utils import count_connected_components
+
+# Graph with 5 vertices and edges
+n = 5
+edges = [(0, 1), (1, 2), (3, 4)]
+
+components = count_connected_components(n, edges)
+print(components)  # 2 (one component with {0,1,2}, another with {3,4})
+```
+
+### Detect Cycle in Undirected Graph
+
+```python
+from disjoint_set_utils import detect_cycle_undirected
+
+# Graph with cycle: 0-1-2-0
+has_cycle = detect_cycle_undirected(3, [(0, 1), (1, 2), (2, 0)])
+print(has_cycle)  # True
+
+# Graph without cycle
+has_cycle = detect_cycle_undirected(3, [(0, 1), (1, 2)])
+print(has_cycle)  # False
+```
+
+### Kruskal's MST Algorithm
 
 ```python
 from disjoint_set_utils import kruskal_mst
 
-# 边列表：(u, v, weight)
+# Graph with weighted edges (u, v, weight)
 edges = [
-    ("A", "B", 1),
-    ("B", "C", 2),
-    ("A", "C", 3),
-    ("C", "D", 1),
+    (0, 1, 4.0),
+    (0, 2, 1.0),
+    (1, 2, 2.0),
+    (1, 3, 1.0),
+    (2, 3, 5.0)
 ]
 
-mst_edges, total_weight = kruskal_mst(edges)
-print(f"MST 边: {mst_edges}")
-print(f"总权重: {total_weight}")
+mst_edges, total_weight = kruskal_mst(4, edges)
+print(f"MST weight: {total_weight}")  # 4.0
+print(f"MST edges: {mst_edges}")     # [(0,2,1.0), (1,3,1.0), (1,2,2.0)]
 ```
 
-## API 参考
-
-### DisjointSet
+### Find Redundant Connection
 
 ```python
-DisjointSet[T]()  # 泛型，T 必须是可哈希类型
+from disjoint_set_utils import find_redundant_connection
+
+# Graph where (2,3) creates a cycle
+redundant = find_redundant_connection(3, [(1, 2), (1, 3), (2, 3)])
+print(redundant)  # (2, 3)
+
+# No redundant edge
+redundant = find_redundant_connection(3, [(1, 2), (2, 3)])
+print(redundant)  # None
 ```
 
-**核心操作**:
-- `make_set(element)` - 创建单元素集合
-- `make_set_batch(elements)` - 批量创建
-- `find(element)` - 查找代表元素
-- `union(a, b)` - 合并两个集合
-- `union_batch(pairs)` - 批量合并
-- `connected(a, b)` - 检查是否连通
+## API Reference
 
-**查询操作**:
-- `count_components()` - 分量数量
-- `size(element)` - 元素所在分量大小
-- `get_components()` - 获取所有分量
-- `get_component(element)` - 获取元素所在分量
-- `__contains__(element)` - 检查元素是否存在
-- `__len__()` - 元素总数
+### DisjointSet[T]
 
-### 辅助函数
+| Method | Description | Time Complexity |
+|--------|-------------|-----------------|
+| `make_set(x)` | Create singleton set | O(1) |
+| `make_sets(elements)` | Create multiple singleton sets | O(n) |
+| `find(x)` | Find representative with path compression | O(α(n))* |
+| `union(x, y)` | Unite sets by rank | O(α(n))* |
+| `union_by_size(x, y)` | Unite sets by size | O(α(n))* |
+| `connected(x, y)` | Check if same set | O(α(n))* |
+| `get_size(x)` | Get component size | O(α(n))* |
+| `count_sets()` | Number of disjoint sets | O(1) |
+| `get_sets()` | Get all sets as dict | O(n) |
+| `get_members(x)` | Get all members of x's set | O(n) |
 
-```python
-# Kruskal 最小生成树
-kruskal_mst(edges: List[Tuple]) -> Tuple[List, float]
+*α(n) is the inverse Ackermann function, effectively ≤ 4 for practical inputs.
 
-# 检查图是否完全连通
-is_connected_graph(edges: List[Tuple]) -> bool
+### WeightedDisjointSet[T]
 
-# 找出连通分组
-find_connected_groups(edges: List[Tuple], nodes: List) -> List[Set]
-```
+| Method | Description |
+|--------|-------------|
+| `union_weighted(x, y, weight)` | Union with associated weight |
+| `get_component_weight(x)` | Total weight of component |
+| `same_component(x, y)` | Check connectivity |
 
-## 使用场景
+### DisjointSetWithUndo[T]
 
-| 场景 | 说明 |
-|------|------|
-| 社交网络 | 查找好友圈子、判断两人是否连通 |
-| 图像处理 | 连通区域标记 |
-| 网络拓扑 | 判断网络连通性 |
-| 最小生成树 | Kruskal 算法核心 |
-| 动态连通性 | 实时判断元素连通关系 |
-| 聚类分析 | 基于距离的层次聚类 |
+| Method | Description |
+|--------|-------------|
+| `undo()` | Undo last operation |
+| `history_size()` | Number of undoable operations |
 
-## 测试
+### Helper Functions
+
+| Function | Description |
+|----------|-------------|
+| `count_connected_components(n, edges)` | Count graph components |
+| `detect_cycle_undirected(n, edges)` | Detect cycle in undirected graph |
+| `kruskal_mst(n, weighted_edges)` | Find minimum spanning tree |
+| `find_redundant_connection(n, edges)` | Find edge creating cycle |
+
+## Testing
 
 ```bash
-python disjoint_set_utils_test.py
+cd disjoint_set_utils
+python -m pytest test_disjoint_set.py -v
 ```
 
-## 许可证
+Or run directly:
+```bash
+python test_disjoint_set.py
+```
 
-MIT License
+## Use Cases
+
+1. **Graph Algorithms**: Connected components, MST, cycle detection
+2. **Image Processing**: Connected component labeling
+3. **Network Analysis**: Finding network clusters
+4. **Social Networks**: Group detection
+5. **Maze Generation**: Kruskal's maze algorithm
+6. **Dynamic Connectivity**: Online connectivity queries
+
+## Time Complexity
+
+| Operation | Worst Case | Amortized |
+|-----------|------------|-----------|
+| Find | O(log n) | O(α(n)) |
+| Union | O(log n) | O(α(n)) |
+| Make Set | O(1) | O(1) |
+
+Where α(n) is the inverse Ackermann function, which grows extremely slowly. For all practical values of n, α(n) ≤ 4.
+
+## License
+
+MIT License - Part of AllToolkit
+
+## Author
+
+AllToolkit - 2026-05-20
