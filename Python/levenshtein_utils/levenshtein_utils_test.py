@@ -1,431 +1,550 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-Levenshtein 工具模块单元测试
+Levenshtein Utils 测试模块
+=========================
+全面测试编辑距离工具的所有功能。
+
+测试覆盖:
+- 基础 Levenshtein 距离计算
+- 空间优化版距离计算
+- 阈值优化距离计算
+- 相似度计算（比率、Jaro、Jaro-Winkler）
+- 编辑操作序列回溯
+- Damerau-Levenshtein 距离
+- 最长公共子序列（LCS）
+- 模糊匹配搜索
+- 批量计算
+- 工具函数
+- 边界值处理
+
+作者: AllToolkit
+日期: 2026-05-20
 """
 
 import unittest
+from typing import List
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     levenshtein_distance,
     levenshtein_distance_optimized,
+    levenshtein_distance_threshold,
     similarity_ratio,
-    normalized_levenshtein,
-    damerau_levenshtein_distance,
-    fuzzy_search,
-    fuzzy_match_one,
-    edit_sequence,
+    similarity_result,
+    SimilarityResult,
+    jaro_similarity,
     jaro_winkler_similarity,
-    hamming_distance,
+    levenshtein_operations,
+    apply_operations,
+    EditOperation,
+    EditStep,
+    damerau_levenshtein_distance,
     longest_common_subsequence,
-    longest_common_substring,
-    fuzzy_replace,
+    lcs_length,
+    find_similar,
+    find_nearest,
+    fuzzy_search,
+    batch_similarity,
+    batch_distance,
+    similarity_matrix,
+    normalized_levenshtein,
+    hamming_distance,
+    is_one_edit_away,
     spell_check_suggestions,
-    FuzzyMatcher,
-    distance,
-    similarity,
-    is_similar
+    align_strings
 )
 
 
-class TestLevenshteinDistance(unittest.TestCase):
-    """Levenshtein 距离测试"""
+class TestBasicLevenshtein(unittest.TestCase):
+    """测试基础 Levenshtein 距离计算"""
     
-    def test_basic_distances(self):
-        """测试基本距离计算"""
-        self.assertEqual(levenshtein_distance("kitten", "sitting"), 3)
+    def test_identical_strings(self):
+        """相同字符串距离为 0"""
+        self.assertEqual(levenshtein_distance("hello", "hello"), 0)
+        self.assertEqual(levenshtein_distance("", ""), 0)
+        self.assertEqual(levenshtein_distance("a", "a"), 0)
+    
+    def test_empty_strings(self):
+        """空字符串测试"""
         self.assertEqual(levenshtein_distance("", "abc"), 3)
         self.assertEqual(levenshtein_distance("abc", ""), 3)
         self.assertEqual(levenshtein_distance("", ""), 0)
-        self.assertEqual(levenshtein_distance("same", "same"), 0)
+    
+    def test_classic_example(self):
+        """经典例子 kitten -> sitting"""
+        self.assertEqual(levenshtein_distance("kitten", "sitting"), 3)
     
     def test_single_operations(self):
-        """测试单个操作"""
-        # 单个插入
-        self.assertEqual(levenshtein_distance("abc", "abcd"), 1)
-        # 单个删除
-        self.assertEqual(levenshtein_distance("abcd", "abc"), 1)
-        # 单个替换
-        self.assertEqual(levenshtein_distance("abc", "axc"), 1)
+        """单次编辑操作"""
+        # 单次插入
+        self.assertEqual(levenshtein_distance("hello", "helloo"), 1)
+        # 单次删除
+        self.assertEqual(levenshtein_distance("helloo", "hello"), 1)
+        # 单次替换
+        self.assertEqual(levenshtein_distance("hello", "hallo"), 1)
+    
+    def test_multiple_operations(self):
+        """多次编辑操作"""
+        self.assertEqual(levenshtein_distance("sunday", "saturday"), 3)
+        self.assertEqual(levenshtein_distance("book", "back"), 2)
     
     def test_unicode_strings(self):
-        """测试 Unicode 字符串"""
-        self.assertEqual(levenshtein_distance("你好", "你好世界"), 2)
+        """Unicode 字符串测试"""
+        self.assertEqual(levenshtein_distance("你好", "你好"), 0)
+        self.assertEqual(levenshtein_distance("你好", "您好"), 1)
         self.assertEqual(levenshtein_distance("中文", "英文"), 1)
     
     def test_long_strings(self):
-        """测试长字符串"""
-        s1 = "a" * 100
-        s2 = "a" * 50 + "b" * 50
-        self.assertEqual(levenshtein_distance(s1, s2), 50)
+        """长字符串测试"""
+        s1 = "The quick brown fox jumps over the lazy dog"
+        s2 = "The quick brown fox jumps over lazy dog"  # 删除 "the "
+        self.assertEqual(levenshtein_distance(s1, s2), 4)
 
 
-class TestLevenshteinDistanceOptimized(unittest.TestCase):
-    """优化版 Levenshtein 距离测试"""
+class TestOptimizedLevenshtein(unittest.TestCase):
+    """测试空间优化版 Levenshtein"""
     
-    def test_consistency_with_standard(self):
-        """测试与标准版本结果一致"""
+    def test_consistency_with_basic(self):
+        """与基础版本结果一致性"""
         test_cases = [
             ("kitten", "sitting"),
-            ("hello", "hallo"),
-            ("", "test"),
-            ("same", "same"),
-            ("abc", "xyz"),
+            ("", "abc"),
+            ("abc", ""),
+            ("hello", "hello"),
+            ("sunday", "saturday"),
         ]
         for s1, s2 in test_cases:
-            with self.subTest(s1=s1, s2=s2):
-                self.assertEqual(
-                    levenshtein_distance(s1, s2),
-                    levenshtein_distance_optimized(s1, s2)
-                )
+            basic = levenshtein_distance(s1, s2)
+            opt = levenshtein_distance_optimized(s1, s2)
+            self.assertEqual(basic, opt, f"不一致: {s1}, {s2}")
+    
+    def test_symmetry(self):
+        """距离对称性"""
+        self.assertEqual(
+            levenshtein_distance_optimized("abc", "def"),
+            levenshtein_distance_optimized("def", "abc")
+        )
+
+
+class TestThresholdLevenshtein(unittest.TestCase):
+    """测试带阈值的距离计算"""
+    
+    def test_within_threshold(self):
+        """距离在阈值内"""
+        self.assertEqual(levenshtein_distance_threshold("hello", "hallo", 2), 1)
+        self.assertEqual(levenshtein_distance_threshold("hello", "hello", 0), 0)
+    
+    def test_exceeds_threshold(self):
+        """距离超过阈值"""
+        result = levenshtein_distance_threshold("hello", "world", 2)
+        self.assertEqual(result, 3)  # threshold + 1
+    
+    def test_threshold_zero(self):
+        """阈值为 0"""
+        self.assertEqual(levenshtein_distance_threshold("hello", "hello", 0), 0)
+        result = levenshtein_distance_threshold("hello", "hallo", 0)
+        self.assertEqual(result, 1)  # threshold + 1
+    
+    def test_length_difference_exceeds(self):
+        """长度差异超过阈值"""
+        result = levenshtein_distance_threshold("a", "abcdefgh", 2)
+        self.assertEqual(result, 3)  # threshold + 1
 
 
 class TestSimilarityRatio(unittest.TestCase):
-    """相似度比率测试"""
+    """测试相似度比率计算"""
     
     def test_identical_strings(self):
-        """测试完全相同的字符串"""
+        """相同字符串相似度为 1"""
         self.assertEqual(similarity_ratio("hello", "hello"), 1.0)
         self.assertEqual(similarity_ratio("", ""), 1.0)
     
     def test_completely_different(self):
-        """测试完全不同的字符串"""
-        self.assertEqual(similarity_ratio("abc", "xyz"), 0.0)
+        """完全不同的字符串"""
+        sim = similarity_ratio("abc", "xyz")
+        self.assertEqual(sim, 0.0)
     
     def test_partial_similarity(self):
-        """测试部分相似"""
-        ratio = similarity_ratio("hello", "hallo")
-        self.assertAlmostEqual(ratio, 0.8, places=2)
+        """部分相似"""
+        sim = similarity_ratio("kitten", "sitting")
+        self.assertAlmostEqual(sim, 1 - 3/7, places=3)
     
-    def test_case_sensitivity(self):
-        """测试大小写敏感"""
-        ratio = similarity_ratio("Hello", "hello")
-        self.assertLess(ratio, 1.0)
+    def test_empty_vs_nonempty(self):
+        """空字符串与非空字符串"""
+        self.assertEqual(similarity_ratio("", "abc"), 0.0)
+        self.assertEqual(similarity_ratio("abc", ""), 0.0)
 
 
-class TestNormalizedLevenshtein(unittest.TestCase):
-    """归一化 Levenshtein 距离测试"""
+class TestSimilarityResult(unittest.TestCase):
+    """测试完整相似度结果"""
     
-    def test_complement_of_similarity(self):
-        """测试与相似度互补"""
-        s1, s2 = "hello", "hallo"
-        self.assertAlmostEqual(
-            normalized_levenshtein(s1, s2),
-            1 - similarity_ratio(s1, s2),
-            places=10
-        )
-
-
-class TestDamerauLevenshtein(unittest.TestCase):
-    """Damerau-Levenshtein 距离测试"""
+    def test_result_properties(self):
+        """结果属性测试"""
+        result = similarity_result("kitten", "sitting")
+        self.assertEqual(result.distance, 3)
+        self.assertEqual(result.max_length, 7)
+        self.assertAlmostEqual(result.similarity, 1 - 3/7, places=3)
     
-    def test_with_transposition(self):
-        """测试交换操作"""
-        # abcd -> acbd: 交换 b 和 c，Damerau 距离为 1
-        self.assertEqual(damerau_levenshtein_distance("abcd", "acbd"), 1)
-        # 标准 Levenshtein 需要两次替换，Damerau 只需一次交换
-        self.assertLess(
-            damerau_levenshtein_distance("abcd", "acbd"),
-            levenshtein_distance("abcd", "acbd")
-        )
-    
-    def test_basic_distances(self):
-        """测试基本距离"""
-        self.assertEqual(damerau_levenshtein_distance("", ""), 0)
-        self.assertEqual(damerau_levenshtein_distance("test", "test"), 0)
-
-
-class TestFuzzySearch(unittest.TestCase):
-    """模糊搜索测试"""
-    
-    def setUp(self):
-        self.candidates = ["apple", "apply", "application", "banana", "orange"]
-    
-    def test_basic_search(self):
-        """测试基本搜索"""
-        results = fuzzy_search("aple", self.candidates, threshold=0.5)
-        self.assertTrue(len(results) > 0)
-        # 检查结果按相似度排序
-        if len(results) > 1:
-            self.assertGreaterEqual(results[0][1], results[1][1])
-    
-    def test_threshold(self):
-        """测试阈值过滤"""
-        results = fuzzy_search("xyz", self.candidates, threshold=0.5)
-        self.assertEqual(len(results), 0)
-    
-    def test_limit(self):
-        """测试结果数量限制"""
-        results = fuzzy_search("ap", self.candidates, threshold=0.3, limit=2)
-        self.assertLessEqual(len(results), 2)
-    
-    def test_exact_match(self):
-        """测试精确匹配"""
-        results = fuzzy_search("apple", self.candidates, threshold=0.9)
-        self.assertTrue(any(r[0] == "apple" and r[1] == 1.0 for r in results))
-
-
-class TestFuzzyMatchOne(unittest.TestCase):
-    """单个模糊匹配测试"""
-    
-    def test_best_match(self):
-        """测试最佳匹配"""
-        candidates = ["hello", "hallo", "hell"]
-        result = fuzzy_match_one("helo", candidates, threshold=0.7)
-        self.assertIsNotNone(result)
-        self.assertIn(result[0], candidates)
-        self.assertGreaterEqual(result[1], 0.7)
-    
-    def test_no_match(self):
-        """测试无匹配"""
-        result = fuzzy_match_one("xyz", ["abc", "def"], threshold=0.8)
-        self.assertIsNone(result)
-
-
-class TestEditSequence(unittest.TestCase):
-    """编辑序列测试"""
-    
-    def test_basic_sequence(self):
-        """测试基本编辑序列"""
-        ops = edit_sequence("kitten", "sitting")
-        self.assertTrue(len(ops) > 0)
-        # 验证操作类型
-        for op in ops:
-            self.assertIn(op[0], ['insert', 'delete', 'replace', 'match'])
+    def test_is_similar_method(self):
+        """相似判断方法"""
+        result = similarity_result("hello", "hallo")
+        self.assertTrue(result.is_similar(0.5))
+        self.assertTrue(result.is_similar(0.8))
+        self.assertFalse(result.is_similar(0.9))
     
     def test_empty_strings(self):
-        """测试空字符串"""
-        ops = edit_sequence("", "abc")
-        self.assertTrue(all(op[0] == 'insert' for op in ops))
-        
-        ops = edit_sequence("abc", "")
-        self.assertTrue(all(op[0] == 'delete' for op in ops))
+        """空字符串结果"""
+        result = similarity_result("", "")
+        self.assertEqual(result.distance, 0)
+        self.assertEqual(result.max_length, 0)
+        self.assertEqual(result.similarity, 1.0)
+
+
+class TestJaroSimilarity(unittest.TestCase):
+    """测试 Jaro 相似度"""
     
     def test_identical_strings(self):
-        """测试相同字符串"""
-        ops = edit_sequence("same", "same")
-        self.assertTrue(all(op[0] == 'match' for op in ops))
+        """相同字符串"""
+        self.assertEqual(jaro_similarity("hello", "hello"), 1.0)
+    
+    def test_classic_example(self):
+        """经典例子"""
+        # MARTHA vs MARHTA
+        jaro = jaro_similarity("MARTHA", "MARHTA")
+        self.assertAlmostEqual(jaro, 0.944, places=2)
+    
+    def test_empty_strings(self):
+        """空字符串"""
+        self.assertEqual(jaro_similarity("", ""), 1.0)
+        self.assertEqual(jaro_similarity("", "abc"), 0.0)
+    
+    def test_no_matches(self):
+        """无匹配"""
+        self.assertEqual(jaro_similarity("abc", "xyz"), 0.0)
 
 
 class TestJaroWinklerSimilarity(unittest.TestCase):
-    """Jaro-Winkler 相似度测试"""
-    
-    def test_identical_strings(self):
-        """测试完全相同"""
-        self.assertEqual(jaro_winkler_similarity("test", "test"), 1.0)
-    
-    def test_empty_strings(self):
-        """测试空字符串"""
-        self.assertEqual(jaro_winkler_similarity("", ""), 1.0)
-        self.assertEqual(jaro_winkler_similarity("test", ""), 0.0)
-    
-    def test_typo_detection(self):
-        """测试拼写错误检测"""
-        # Jaro-Winkler 对交换字母更宽容
-        sim = jaro_winkler_similarity("MARTHA", "MARHTA")
-        self.assertGreater(sim, 0.9)
+    """测试 Jaro-Winkler 相似度"""
     
     def test_prefix_bonus(self):
-        """测试前缀加分"""
-        # 前缀相同应该得分更高
-        sim1 = jaro_winkler_similarity("crate", "trace")
-        sim2 = jaro_winkler_similarity("crate", "crane")
-        # crane 与 crate 前缀相同，相似度应更高
-        self.assertGreater(sim2, sim1)
-
-
-class TestHammingDistance(unittest.TestCase):
-    """Hamming 距离测试"""
-    
-    def test_basic_distances(self):
-        """测试基本距离"""
-        self.assertEqual(hamming_distance("karolin", "kathrin"), 3)
-        self.assertEqual(hamming_distance("1011101", "1001001"), 2)
+        """公共前缀加分"""
+        jw = jaro_winkler_similarity("MARTHA", "MARHTA")
+        jaro = jaro_similarity("MARTHA", "MARHTA")
+        self.assertGreater(jw, jaro)  # Jaro-Winkler 应更高
     
     def test_identical_strings(self):
-        """测试相同字符串"""
-        self.assertEqual(hamming_distance("same", "same"), 0)
+        """相同字符串"""
+        self.assertEqual(jaro_winkler_similarity("hello", "hello"), 1.0)
     
-    def test_length_mismatch(self):
-        """测试长度不匹配"""
-        with self.assertRaises(ValueError):
-            hamming_distance("abc", "abcd")
+    def test_long_prefix(self):
+        """长公共前缀"""
+        jw = jaro_winkler_similarity("abcdefgh", "abcdefxy")
+        self.assertGreater(jw, 0.8)
 
 
-class TestLongestCommonSubsequence(unittest.TestCase):
-    """最长公共子序列测试"""
+class TestEditOperations(unittest.TestCase):
+    """测试编辑操作序列"""
     
-    def test_basic_lcs(self):
-        """测试基本 LCS"""
-        # LCS 可以有多种等价结果，检查长度即可
-        result = longest_common_subsequence("ABCBDAB", "BDCABA")
-        self.assertEqual(len(result), 4)  # LCS 长度为 4
-        self.assertIn(result, ["BCBA", "BDAB", "BCAB"])  # 都是有效的 LCS
-    
-    def test_no_common(self):
-        """测试无公共子序列"""
-        result = longest_common_subsequence("abc", "xyz")
-        self.assertEqual(result, "")
-    
-    def test_complete_match(self):
-        """测试完全匹配"""
-        self.assertEqual(longest_common_subsequence("abc", "abc"), "abc")
-
-
-class TestLongestCommonSubstring(unittest.TestCase):
-    """最长公共子串测试"""
-    
-    def test_basic_substring(self):
-        """测试基本子串"""
-        result = longest_common_substring("ABABC", "BABCA")
-        self.assertEqual(result, "BABC")
-    
-    def test_no_common(self):
-        """测试无公共子串"""
-        result = longest_common_substring("abc", "xyz")
-        self.assertEqual(result, "")
-    
-    def test_complete_match(self):
-        """测试完全匹配"""
-        self.assertEqual(longest_common_substring("abc", "abc"), "abc")
-
-
-class TestFuzzyReplace(unittest.TestCase):
-    """模糊替换测试"""
-    
-    def test_basic_replace(self):
-        """测试基本替换"""
-        text, count = fuzzy_replace("I have an aplpe", "apple", "orange", 0.6)
-        self.assertGreater(count, 0)
-    
-    def test_case_sensitivity(self):
-        """测试大小写敏感"""
-        # "Apple" 和 "apple" 相似度为 0.8（只有一个字符不同）
-        # 所以会被匹配，这是正确行为
-        text, count = fuzzy_replace("Apple", "apple", "orange", 0.8)
-        self.assertEqual(count, 1)  # 会匹配
+    def test_basic_operations(self):
+        """基础操作序列"""
+        ops = levenshtein_operations("kitten", "sitting")
+        # 应包含操作
+        self.assertGreater(len(ops), 0)
         
-        # 测试真正不匹配的情况
-        text, count = fuzzy_replace("Apple", "apple", "orange", 0.99)
-        self.assertEqual(count, 0)  # 阈值太高，不匹配
+        # 验证可以应用操作得到目标字符串
+        result = apply_operations("kitten", ops)
+        self.assertEqual(result, "sitting")
+    
+    def test_identical_strings(self):
+        """相同字符串只有 MATCH 操作"""
+        ops = levenshtein_operations("hello", "hello")
+        for op in ops:
+            self.assertEqual(op.operation, EditOperation.MATCH)
+    
+    def test_empty_to_string(self):
+        """空字符串到非空"""
+        ops = levenshtein_operations("", "abc")
+        self.assertEqual(len(ops), 3)
+        for op in ops:
+            self.assertEqual(op.operation, EditOperation.INSERT)
+    
+    def test_string_to_empty(self):
+        """非空到空字符串"""
+        ops = levenshtein_operations("abc", "")
+        self.assertEqual(len(ops), 3)
+        for op in ops:
+            self.assertEqual(op.operation, EditOperation.DELETE)
+    
+    def test_edit_step_description(self):
+        """编辑步骤描述"""
+        step = EditStep(EditOperation.REPLACE, 0, "a", "b")
+        desc = step.describe()
+        self.assertIn("替换", desc)
+
+
+class TestDamerauLevenshtein(unittest.TestCase):
+    """测试 Damerau-Levenshtein 距离"""
+    
+    def test_transpose_benefit(self):
+        """交换操作的优势"""
+        # ab -> ba: Damerau 只需 1 次，普通需要 2 次
+        dl = damerau_levenshtein_distance("ab", "ba")
+        l = levenshtein_distance("ab", "ba")
+        self.assertEqual(dl, 1)
+        self.assertEqual(l, 2)
+    
+    def test_regular_cases(self):
+        """常规情况与普通版本相同"""
+        self.assertEqual(
+            damerau_levenshtein_distance("kitten", "sitting"),
+            levenshtein_distance("kitten", "sitting")
+        )
+    
+    def test_identical_strings(self):
+        """相同字符串"""
+        self.assertEqual(damerau_levenshtein_distance("hello", "hello"), 0)
     
     def test_empty_strings(self):
-        """测试空字符串"""
-        text, count = fuzzy_replace("", "apple", "orange")
-        self.assertEqual(count, 0)
+        """空字符串"""
+        self.assertEqual(damerau_levenshtein_distance("", "abc"), 3)
+    
+    def test_complex_transpose(self):
+        """复杂交换场景"""
+        # 多处相邻交换
+        dl = damerau_levenshtein_distance("abcd", "badc")
+        self.assertLess(dl, levenshtein_distance("abcd", "badc"))
+
+
+class TestLCS(unittest.TestCase):
+    """测试最长公共子序列"""
+    
+    def test_classic_example(self):
+        """经典例子"""
+        lcs = longest_common_subsequence("ABCBDAB", "BDCABA")
+        self.assertEqual(len(lcs), 4)  # LCS 长度为 4，具体结果可能有多种
+    
+    def test_lcs_length(self):
+        """LCS 长度"""
+        self.assertEqual(lcs_length("ABCBDAB", "BDCABA"), 4)
+    
+    def test_identical_strings(self):
+        """相同字符串"""
+        self.assertEqual(longest_common_subsequence("hello", "hello"), "hello")
+        self.assertEqual(lcs_length("hello", "hello"), 5)
+    
+    def test_no_common(self):
+        """无公共子序列"""
+        self.assertEqual(longest_common_subsequence("abc", "xyz"), "")
+        self.assertEqual(lcs_length("abc", "xyz"), 0)
+    
+    def test_empty_strings(self):
+        """空字符串"""
+        self.assertEqual(longest_common_subsequence("", "abc"), "")
+        self.assertEqual(lcs_length("abc", ""), 0)
+    
+    def test_partial_common(self):
+        """部分公共"""
+        lcs = longest_common_subsequence("abcdef", "ace")
+        self.assertEqual(lcs, "ace")
+
+
+class TestFuzzySearch(unittest.TestCase):
+    """测试模糊搜索"""
+    
+    def test_find_similar(self):
+        """查找相似字符串"""
+        candidates = ["hallo", "helloo", "world", "hell"]
+        results = find_similar("hello", candidates, threshold=0.5)
         
-        text, count = fuzzy_replace("some text", "", "orange")
-        self.assertEqual(count, 0)
-
-
-class TestSpellCheckSuggestions(unittest.TestCase):
-    """拼写检查建议测试"""
-    
-    def setUp(self):
-        self.dictionary = ["apple", "banana", "orange", "grape", "application"]
-    
-    def test_typo_correction(self):
-        """测试拼写纠错"""
-        suggestions = spell_check_suggestions("aple", self.dictionary)
-        self.assertTrue(len(suggestions) > 0)
-        # apple 应该是首选
-        self.assertEqual(suggestions[0][0], "apple")
-    
-    def test_threshold(self):
-        """测试阈值"""
-        suggestions = spell_check_suggestions("xyz", self.dictionary, threshold=0.8)
-        self.assertEqual(len(suggestions), 0)
-    
-    def test_limit(self):
-        """测试建议数量限制"""
-        suggestions = spell_check_suggestions("aple", self.dictionary, max_suggestions=2)
-        self.assertLessEqual(len(suggestions), 2)
-
-
-class TestFuzzyMatcher(unittest.TestCase):
-    """FuzzyMatcher 类测试"""
-    
-    def setUp(self):
-        self.matcher = FuzzyMatcher(["apple", "banana", "orange", "grape"])
-    
-    def test_find_best(self):
-        """测试查找最佳匹配"""
-        result = self.matcher.find_best("aple", threshold=0.7)
-        self.assertIsNotNone(result)
-        self.assertEqual(result[0], "apple")
-    
-    def test_find_all(self):
-        """测试查找所有匹配"""
-        results = self.matcher.find_all("ap", threshold=0.3)
-        self.assertTrue(len(results) > 0)
-    
-    def test_cache(self):
-        """测试缓存功能"""
-        # 第一次查询
-        result1 = self.matcher.find_best("aple")
-        # 第二次应该从缓存读取
-        result2 = self.matcher.find_best("aple")
-        self.assertEqual(result1, result2)
+        # 应返回相似度 >= 0.5 的结果
+        for word, sim in results:
+            self.assertGreaterEqual(sim, 0.5)
         
-        # 清除缓存后
-        self.matcher.clear_cache()
-        result3 = self.matcher.find_best("aple")
-        self.assertEqual(result1, result3)
+        # 按相似度降序
+        sims = [sim for _, sim in results]
+        self.assertEqual(sims, sorted(sims, reverse=True))
     
-    def test_add_remove_candidate(self):
-        """测试添加和移除候选"""
-        self.matcher.add_candidate("apricot")
-        result = self.matcher.find_best("apricot", threshold=0.9)
-        self.assertIsNotNone(result)
+    def test_find_similar_limit(self):
+        """限制返回数量"""
+        candidates = ["a", "b", "c", "d", "e", "f", "g"]
+        results = find_similar("a", candidates, threshold=0.0, limit=3)
+        self.assertLessEqual(len(results), 3)
+    
+    def test_find_nearest(self):
+        """查找最近字符串"""
+        candidates = ["hallo", "world", "help"]
+        word, dist = find_nearest("hello", candidates)
+        self.assertEqual(word, "hallo")
+        self.assertEqual(dist, 1)
+    
+    def test_find_nearest_empty_candidates(self):
+        """空候选列表"""
+        word, dist = find_nearest("hello", [])
+        self.assertEqual(dist, 5)
+    
+    def test_fuzzy_search_in_text(self):
+        """文本中模糊搜索"""
+        text = "hallo world helloo"
+        results = fuzzy_search("hello", text, max_distance=2)
         
-        self.assertTrue(self.matcher.remove_candidate("apricot"))
-        self.assertFalse(self.matcher.remove_candidate("nonexistent"))
-    
-    def test_custom_similarity_func(self):
-        """测试自定义相似度函数"""
-        custom_matcher = FuzzyMatcher(
-            ["abc", "def"],
-            similarity_func=lambda a, b: 1.0 if a == b else 0.0
-        )
-        result = custom_matcher.find_best("abc", threshold=0.5)
-        self.assertIsNotNone(result)
-        self.assertEqual(result[0], "abc")
+        # 应找到相似片段
+        self.assertGreater(len(results), 0)
+        
+        # 每个结果的距离应在阈值内
+        for pos, dist, substr in results:
+            self.assertLessEqual(dist, 2)
 
 
-class TestConvenienceFunctions(unittest.TestCase):
-    """便捷函数测试"""
+class TestBatchOperations(unittest.TestCase):
+    """测试批量操作"""
     
-    def test_distance_alias(self):
-        """测试 distance 别名"""
-        self.assertEqual(distance("abc", "abc"), 0)
-        self.assertEqual(distance("abc", "abcd"), 1)
+    def test_batch_similarity(self):
+        """批量相似度"""
+        pairs = [("hello", "hallo"), ("world", "word")]
+        sims = batch_similarity(pairs)
+        
+        self.assertEqual(len(sims), 2)
+        for sim in sims:
+            self.assertGreater(sim, 0.0)
     
-    def test_similarity_alias(self):
-        """测试 similarity 别名"""
-        self.assertEqual(similarity("same", "same"), 1.0)
+    def test_batch_distance(self):
+        """批量距离"""
+        pairs = [("kitten", "sitting"), ("hello", "hello")]
+        dists = batch_distance(pairs)
+        
+        self.assertEqual(dists, [3, 0])
     
-    def test_is_similar(self):
-        """测试 is_similar 函数"""
-        self.assertTrue(is_similar("hello", "hallo", threshold=0.7))
-        self.assertFalse(is_similar("hello", "world", threshold=0.7))
+    def test_similarity_matrix(self):
+        """相似度矩阵"""
+        strings = ["hello", "hallo", "world"]
+        matrix = similarity_matrix(strings)
+        
+        # 对角线应为 1.0
+        for i in range(3):
+            self.assertEqual(matrix[i][i], 1.0)
+        
+        # 矩阵对称
+        for i in range(3):
+            for j in range(3):
+                self.assertEqual(matrix[i][j], matrix[j][i])
+
+
+class TestUtilityFunctions(unittest.TestCase):
+    """测试工具函数"""
+    
+    def test_normalized_levenshtein(self):
+        """归一化距离"""
+        self.assertEqual(normalized_levenshtein("hello", "hello"), 0.0)
+        self.assertEqual(normalized_levenshtein("", "abc"), 1.0)
+    
+    def test_hamming_distance(self):
+        """汉明距离"""
+        self.assertEqual(hamming_distance("karolin", "kathrin"), 3)
+        self.assertEqual(hamming_distance("hello", "hello"), 0)
+    
+    def test_hamming_distance_unequal_length(self):
+        """不等长汉明距离应报错"""
+        with self.assertRaises(ValueError):
+            hamming_distance("abc", "abcd")
+    
+    def test_is_one_edit_away(self):
+        """一次编辑判断"""
+        self.assertTrue(is_one_edit_away("hello", "hallo"))  # 替换
+        self.assertTrue(is_one_edit_away("hello", "helo"))   # 删除
+        self.assertTrue(is_one_edit_away("helo", "hello"))   # 插入
+        self.assertFalse(is_one_edit_away("hello", "world"))
+        self.assertFalse(is_one_edit_away("hello", "hellaoo"))
+    
+    def test_spell_check_suggestions(self):
+        """拼写建议"""
+        dictionary = ["hello", "help", "held", "hero", "helmet"]
+        suggestions = spell_check_suggestions("helo", dictionary, max_distance=1)
+        
+        self.assertGreater(len(suggestions), 0)
+        
+        # 所有建议距离应在阈值内
+        for word, dist in suggestions:
+            self.assertLessEqual(dist, 1)
+    
+    def test_align_strings(self):
+        """字符串对齐"""
+        a1, a2 = align_strings("kitten", "sitting")
+        
+        # 对齐后应有合理的填充
+        self.assertEqual(len(a1), len(a2))
 
 
 class TestEdgeCases(unittest.TestCase):
-    """边界情况测试"""
+    """测试边界情况"""
     
-    def test_large_strings(self):
-        """测试大字符串"""
+    def test_single_character(self):
+        """单字符"""
+        self.assertEqual(levenshtein_distance("a", "a"), 0)
+        self.assertEqual(levenshtein_distance("a", "b"), 1)
+        self.assertEqual(levenshtein_distance("a", ""), 1)
+    
+    def test_very_long_strings(self):
+        """非常长的字符串"""
         s1 = "a" * 1000
-        s2 = "a" * 500 + "b" * 500
-        distance = levenshtein_distance(s1, s2)
-        self.assertEqual(distance, 500)
+        s2 = "a" * 1000
+        self.assertEqual(levenshtein_distance_optimized(s1, s2), 0)
+        
+        s2 = "b" * 1000
+        self.assertEqual(levenshtein_distance_optimized(s1, s2), 1000)
     
-    def test_special_characters(self):
-        """测试特殊字符"""
-        self.assertEqual(levenshtein_distance("!@#", "!@#$"), 1)
-        self.assertEqual(levenshtein_distance("\n\t", "\n"), 1)
+    def test_threshold_efficiency(self):
+        """阈值优化效率"""
+        # 长字符串但阈值很小，应快速返回
+        s1 = "a" * 1000
+        s2 = "b" * 1000
+        result = levenshtein_distance_threshold(s1, s2, 5)
+        self.assertEqual(result, 6)  # threshold + 1
+
+
+class TestIntegration(unittest.TestCase):
+    """综合测试"""
     
-    def test_unicode_emoji(self):
-        """测试 Unicode 和 Emoji"""
-        self.assertEqual(levenshtein_distance("😀😁", "😀"), 1)
-        self.assertEqual(similarity_ratio("中文测试", "中文"), 0.5)
+    def test_workflow(self):
+        """完整工作流程"""
+        # 模拟拼写检查工作流程
+        word = "typoo"
+        dictionary = ["type", "typo", "typical", "typing", "top"]
+        
+        # 找相似词
+        similar = find_similar(word, dictionary, threshold=0.5)
+        self.assertGreater(len(similar), 0)
+        
+        # 获取拼写建议
+        suggestions = spell_check_suggestions(word, dictionary, max_distance=2)
+        self.assertGreater(len(suggestions), 0)
+        
+        # 找最近词
+        nearest, dist = find_nearest(word, dictionary)
+        self.assertLess(dist, 3)
+    
+    def test_distance_operations_consistency(self):
+        """距离与操作序列一致性"""
+        test_pairs = [
+            ("kitten", "sitting"),
+            ("sunday", "saturday"),
+            ("hello", "hallo"),
+        ]
+        
+        for s1, s2 in test_pairs:
+            # 计算距离
+            dist = levenshtein_distance(s1, s2)
+            
+            # 获取操作
+            ops = levenshtein_operations(s1, s2)
+            
+            # 验证非匹配操作数量等于距离
+            non_match_ops = [op for op in ops 
+                           if op.operation != EditOperation.MATCH]
+            self.assertEqual(len(non_match_ops), dist)
 
 
 if __name__ == "__main__":

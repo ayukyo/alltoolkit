@@ -1,237 +1,233 @@
-# Levenshtein Distance Utils - 编辑距离工具
+# Levenshtein Utils - 编辑距离工具模块
 
-计算字符串相似度的实用工具集，零外部依赖。
+提供 Levenshtein 编辑距离及相关字符串相似度计算功能。零外部依赖，仅使用 Python 标准库。
 
-## 功能特性
+## 功能概览
 
-- ✅ **Levenshtein 编辑距离** - 计算将一个字符串转换为另一个所需的最少编辑操作次数
-- ✅ **字符串相似度** - 计算 0-1 范围的相似度分数
-- ✅ **模糊匹配** - 在候选列表中查找最相似的字符串
-- ✅ **编辑操作序列** - 获取详细的编辑操作步骤
-- ✅ **自定义成本** - 支持自定义插入/删除/替换操作成本
-- ✅ **Damerau-Levenshtein** - 支持相邻字符交换的扩展距离
-- ✅ **汉明距离** - 适用于等长字符串的距离计算
+| 功能模块 | 描述 |
+|---------|------|
+| 基础距离 | 经典 Levenshtein 距离计算 |
+| 优化算法 | 空间优化、阈值剪枝版距离计算 |
+| 相似度 | 比率计算、Jaro、Jaro-Winkler |
+| 编辑序列 | 编辑操作回溯、对齐显示 |
+| Damerau | 含相邻交换的 Damerau-Levenshtein |
+| LCS | 最长公共子序列计算 |
+| 模糊匹配 | 相似字符串搜索、模糊查找 |
+| 批量操作 | 批量距离、相似度矩阵 |
 
-## 快速开始
-
-### 基本编辑距离
+## 安装使用
 
 ```python
-from mod import levenshtein_distance, similarity
+from levenshtein_utils.mod import (
+    levenshtein_distance,
+    similarity_ratio,
+    find_similar,
+    jaro_winkler_similarity,
+    longest_common_subsequence
+)
 
 # 计算编辑距离
-dist = levenshtein_distance("kitten", "sitting")
-print(dist)  # 输出: 3
+dist = levenshtein_distance("kitten", "sitting")  # 3
 
-# 计算相似度 (0-1)
-sim = similarity("kitten", "sitting")
-print(f"{sim:.2%}")  # 输出: 57.14%
+# 计算相似度
+sim = similarity_ratio("hello", "hallo")  # 0.8
+
+# 模糊搜索
+matches = find_similar("hello", ["hallo", "help", "world"], threshold=0.5)
 ```
 
-### 模糊匹配
+## 详细功能
+
+### 基础 Levenshtein 距离
 
 ```python
-from mod import find_closest, find_all_closest
+# 经典算法
+dist = levenshtein_distance("kitten", "sitting")  # 3
 
-candidates = ["apple", "banana", "orange", "application"]
+# 空间优化版（适合长字符串）
+dist = levenshtein_distance_optimized("kitten", "sitting")  # 3
 
-# 查找最相似的字符串
-closest = find_closest("banan", candidates)
-print(closest)  # 输出: "banana"
+# 带阈值（超过阈值提前终止）
+dist = levenshtein_distance_threshold("hello", "world", 2)  # 3 (threshold+1)
+```
 
-# 查找前 N 个最相似的字符串
-top_matches = find_all_closest("banan", candidates, top_n=3)
-for word, sim in top_matches:
-    print(f"{word}: {sim:.2%}")
-# 输出:
-# banana: 83.33%
-# apple: 20.00%
-# orange: 20.00%
+### 相似度计算
 
-# 使用阈值过滤
-result = find_closest("xyz", candidates, threshold=0.5)
-print(result)  # 输出: None (无满足阈值的匹配)
+```python
+# 基础相似度比率
+sim = similarity_ratio("hello", "hallo")  # 0.8
+
+# 完整结果对象
+result = similarity_result("kitten", "sitting")
+result.distance      # 3
+result.similarity    # 0.571
+result.is_similar(0.5)  # True
+
+# Jaro 相似度（适合姓名匹配）
+jaro = jaro_similarity("MARTHA", "MARHTA")  # 0.944
+
+# Jaro-Winkler（公共前缀加权）
+jw = jaro_winkler_similarity("MARTHA", "MARHTA")  # 0.961
 ```
 
 ### 编辑操作序列
 
 ```python
-from mod import edit_sequence, apply_edits
+# 获取编辑步骤
+ops = levenshtein_operations("kitten", "sitting")
+for op in ops:
+    print(op.describe())
 
-# 获取编辑距离和操作序列
-dist, ops = edit_sequence("kitten", "sitting")
-print(f"编辑距离: {dist}")
-print("操作序列:")
-for op, data in ops:
-    print(f"  - {op}: {data}")
+# 应用操作
+result = apply_operations("kitten", ops)  # "sitting"
 
-# 应用编辑操作
-result = apply_edits("kitten", ops)
-print(result)  # 输出: "sitting"
+# 字符串对齐
+a1, a2 = align_strings("kitten", "sitting")
+# ('kitten--', 'sitting')
 ```
 
-### 高级功能
+### Damerau-Levenshtein
 
 ```python
-from mod import (
-    damerau_levenshtein_distance,
-    hamming_distance,
-    ratio,
-    normalized_distance
-)
+# 含相邻交换操作
+dl = damerau_levenshtein_distance("ab", "ba")  # 1
+l = levenshtein_distance("ab", "ba")  # 2
+```
 
-# Damerau-Levenshtein 距离 (支持相邻字符交换)
-dl_dist = damerau_levenshtein_distance("abcd", "acbd")
-print(dl_dist)  # 输出: 1 (只需一次相邻交换)
+### 最长公共子序列 (LCS)
 
-# 汉明距离 (仅限等长字符串)
-h_dist = hamming_distance("karolin", "kathrin")
-print(h_dist)  # 输出: 3
+```python
+# 获取 LCS
+lcs = longest_common_subsequence("ABCBDAB", "BDCABA")  # "BCBA"
 
-# 匹配比率 (与 fuzzywuzzy 兼容)
-r = ratio("hello world", "hello")
-print(f"{r:.2f}%")  # 输出: 62.50%
+# 仅获取长度
+length = lcs_length("ABCBDAB", "BDCABA")  # 4
+```
 
+### 模糊搜索
+
+```python
+# 在候选中找相似字符串
+matches = find_similar("hello", ["hallo", "helloo", "world"], threshold=0.6)
+# [('helloo', 0.889), ('hallo', 0.8)]
+
+# 找最近的字符串
+nearest, dist = find_nearest("hello", ["hallo", "world", "help"])
+# ('hallo', 1)
+
+# 在文本中模糊搜索
+results = fuzzy_search("hello", "hallo world helloo", max_distance=2)
+# [(0, 1, 'hallo'), (12, 1, 'helloo')]
+```
+
+### 批量操作
+
+```python
+# 批量相似度
+sims = batch_similarity([("hello", "hallo"), ("world", "word")])
+# [0.8, 0.8]
+
+# 批量距离
+dists = batch_distance([("kitten", "sitting"), ("hello", "hello")])
+# [3, 0]
+
+# 相似度矩阵
+matrix = similarity_matrix(["hello", "hallo", "world"])
+# [[1.0, 0.8, 0.2], [0.8, 1.0, 0.2], [0.2, 0.2, 1.0]]
+```
+
+### 工具函数
+
+```python
 # 归一化距离
-nd = normalized_distance("abc", "abd")
-print(nd)  # 输出: 0.167
+norm = normalized_levenshtein("hello", "hallo")  # 0.2
+
+# 汉明距离（仅等长字符串）
+hamming = hamming_distance("karolin", "kathrin")  # 3
+
+# 一次编辑判断
+is_one = is_one_edit_away("hello", "hallo")  # True
+
+# 拼写建议
+suggestions = spell_check_suggestions("helo", ["hello", "help", "held"], max_distance=1)
+# [('hello', 1), ('help', 1), ('held', 1)]
 ```
-
-### 自定义操作成本
-
-```python
-from mod import levenshtein_distance
-
-# 插入操作成本更高
-dist = levenshtein_distance(
-    "abc",
-    "ab",
-    insert_cost=2,    # 插入成本
-    delete_cost=1,    # 删除成本
-    replace_cost=1    # 替换成本
-)
-```
-
-## API 参考
-
-### `levenshtein_distance(s1, s2, *, insert_cost=1, delete_cost=1, replace_cost=1)`
-
-计算两个字符串之间的 Levenshtein 编辑距离。
-
-**参数:**
-- `s1` (str): 源字符串
-- `s2` (str): 目标字符串
-- `insert_cost` (float): 插入操作成本，默认 1
-- `delete_cost` (float): 删除操作成本，默认 1
-- `replace_cost` (float): 替换操作成本，默认 1
-
-**返回:** `int` - 编辑距离
-
-### `similarity(s1, s2)`
-
-计算两个字符串的相似度 (0-1)。
-
-**返回:** `float` - 相似度，1 表示完全相同，0 表示完全不同
-
-### `find_closest(target, candidates, *, threshold=0.0, return_distance=False)`
-
-在候选列表中查找最相似的字符串。
-
-**参数:**
-- `target` (str): 目标字符串
-- `candidates` (List[str]): 候选字符串列表
-- `threshold` (float): 相似度阈值 (0-1)
-- `return_distance` (bool): 是否返回距离
-
-**返回:** `str` 或 `Tuple[str, int]` 或 `None`
-
-### `find_all_closest(target, candidates, *, top_n=5, threshold=0.0)`
-
-查找所有满足阈值的相似字符串，按相似度排序。
-
-**返回:** `List[Tuple[str, float]]` - (字符串, 相似度) 列表
-
-### `edit_sequence(s1, s2)`
-
-计算编辑距离并返回编辑操作序列。
-
-**返回:** `Tuple[int, List]` - (距离, 操作列表)
-
-操作类型:
-- `('equal', (i, j, length))`: 相同字符片段
-- `('replace', (i, char))`: 在位置 i 替换字符
-- `('insert', (i, char))`: 在位置 i 插入字符
-- `('delete', (i, length))`: 从位置 i 删除字符
-
-### `apply_edits(s, operations)`
-
-将编辑操作序列应用到字符串。
-
-### `damerau_levenshtein_distance(s1, s2)`
-
-计算 Damerau-Levenshtein 距离（支持相邻字符交换）。
-
-### `hamming_distance(s1, s2)`
-
-计算汉明距离（仅限等长字符串）。
-
-**异常:** `ValueError` - 当字符串长度不等时
-
-### `ratio(s1, s2)`
-
-计算匹配比率 (0-100)，与 fuzzywuzzy 库兼容。
-
-### `normalized_distance(s1, s2)`
-
-计算归一化编辑距离 (0-1)。
-
-## 使用场景
-
-1. **拼写检查和纠正**
-   ```python
-   dictionary = ["apple", "banana", "orange"]
-   user_input = "appel"
-   suggestion = find_closest(user_input, dictionary)
-   ```
-
-2. **模糊搜索**
-   ```python
-   def search_products(query, products):
-       return find_all_closest(query, products, threshold=0.6)
-   ```
-
-3. **数据去重**
-   ```python
-   def find_duplicates(records):
-       duplicates = []
-       for i, r1 in enumerate(records):
-           for r2 in records[i+1:]:
-               if similarity(r1, r2) > 0.9:
-                   duplicates.append((r1, r2))
-       return duplicates
-   ```
-
-4. **DNA 序列比对**
-   ```python
-   seq1 = "AGCTAGCT"
-   seq2 = "AGCTAGGT"
-   distance = levenshtein_distance(seq1, seq2)
-   ```
-
-## 性能说明
-
-- 时间复杂度: O(m × n)，其中 m 和 n 是两个字符串的长度
-- 空间复杂度: O(min(m, n))，使用优化的动态规划算法
-- 对于大字符串，考虑使用更高效的算法（如 BK-tree）
 
 ## 测试
 
-运行测试：
-
 ```bash
-python -m pytest test_mod.py -v
+python levenshtein_utils_test.py
 ```
+
+测试覆盖（50+ 测试用例）:
+- 基础 Levenshtein 距离（相同、空、Unicode、长字符串）
+- 空间优化版（一致性、对称性）
+- 阈值优化（阈值内、超阈值、长度差异）
+- 相似度计算（比率、Jaro、Jaro-Winkler）
+- 编辑操作序列（回溯、应用、描述）
+- Damerau-Levenshtein（交换优势）
+- LCS（经典例子、长度、边界）
+- 模糊搜索（相似查找、最近、文本搜索）
+- 批量操作（批量相似度、距离、矩阵）
+- 工具函数（归一化、汉明、一次编辑）
+- 边界情况（单字符、长字符串、阈值效率）
+
+## 应用场景
+
+- 拼写检查与纠错
+- 模糊搜索
+- DNA 序列比对
+- 姓名匹配
+- 文档相似度比较
+- 数据清洗（重复检测）
+- 机器翻译评估
+- OCR 结果校正
+
+## 算法说明
+
+### Levenshtein 距离
+
+定义：将字符串 A 转换为 B 所需的最少单字符编辑操作数。
+
+允许操作：
+- 插入一个字符
+- 删除一个字符
+- 替换一个字符
+
+时间复杂度：O(m×n)
+空间复杂度：O(m×n) 或优化版 O(min(m,n))
+
+### Damerau-Levenshtein
+
+额外允许相邻字符交换操作。
+
+例子：`ab` → `ba`
+- Levenshtein: 2（两次替换）
+- Damerau: 1（一次交换）
+
+### Jaro-Winkler
+
+特点：对公共前缀给予更高权重。
+
+公式：
+```
+JW = Jaro + (prefix_len × scale × (1 - Jaro))
+```
+
+适合：姓名匹配、拼写变体检测。
+
+## 性能建议
+
+- 长字符串使用 `levenshtein_distance_optimized`
+- 有阈值需求使用 `levenshtein_distance_threshold`
+- 批量计算使用 `batch_*` 函数
+- 姓名匹配优先用 Jaro-Winkler
 
 ## 许可证
 
-MIT License
+MIT License - 详见项目 LICENSE 文件
+
+---
+
+**作者**: AllToolkit  
+**日期**: 2026-05-20
