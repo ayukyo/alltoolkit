@@ -1,520 +1,440 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-AllToolkit - Sudoku Utilities Test Suite
-========================================
-Comprehensive tests for the Sudoku utilities module.
+Test suite for sudoku_utils module.
 
-Author: AllToolkit Contributors
-License: MIT
+Tests all major functionality including solving, generating, validating,
+and analyzing sudoku puzzles.
 """
 
 import sys
 import os
-import unittest
-import random
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-from mod import (
+from sudoku_utils.mod import (
     SudokuGrid, SudokuSolver, SudokuGenerator, SudokuValidator,
-    SudokuHint, SudokuDifficultyEstimator, SudokuFormatter,
-    Difficulty, create_puzzle, solve_puzzle, is_valid_puzzle,
-    is_solved_puzzle, get_hint, estimate_difficulty, parse_puzzle,
-    format_puzzle
+    SudokuAnalyzer, Difficulty, solve, generate, validate, is_solved, analyze
 )
 
 
-class TestSudokuGrid(unittest.TestCase):
+def test_sudoku_grid():
     """Test SudokuGrid class."""
+    print("Testing SudokuGrid...")
     
-    def test_empty_grid(self):
-        """Test creating an empty grid."""
-        grid = SudokuGrid()
-        self.assertEqual(len(grid.get_empty_cells()), 81)
-        for i in range(9):
-            for j in range(9):
-                self.assertEqual(grid.get(i, j), 0)
+    # Test empty grid creation
+    grid = SudokuGrid()
+    assert grid.count_given() == 0
+    assert len(grid.get_empty_cells()) == 81
     
-    def test_grid_with_values(self):
-        """Test creating a grid with initial values."""
-        data = [
-            [5, 3, 0, 0, 7, 0, 0, 0, 0],
-            [6, 0, 0, 1, 9, 5, 0, 0, 0],
-            [0, 9, 8, 0, 0, 0, 0, 6, 0],
-            [8, 0, 0, 0, 6, 0, 0, 0, 3],
-            [4, 0, 0, 8, 0, 3, 0, 0, 1],
-            [7, 0, 0, 0, 2, 0, 0, 0, 6],
-            [0, 6, 0, 0, 0, 0, 2, 8, 0],
-            [0, 0, 0, 4, 1, 9, 0, 0, 5],
-            [0, 0, 0, 0, 8, 0, 0, 7, 9]
-        ]
-        grid = SudokuGrid(data)
-        
-        self.assertEqual(grid.get(0, 0), 5)
-        self.assertEqual(grid.get(0, 1), 3)
-        self.assertEqual(grid.get(0, 2), 0)
-        self.assertEqual(grid.get(0, 4), 7)
+    # Test grid from list
+    data = [
+        [5, 3, 0, 0, 7, 0, 0, 0, 0],
+        [6, 0, 0, 1, 9, 5, 0, 0, 0],
+        [0, 9, 8, 0, 0, 0, 0, 6, 0],
+        [8, 0, 0, 0, 6, 0, 0, 0, 3],
+        [4, 0, 0, 8, 0, 3, 0, 0, 1],
+        [7, 0, 0, 0, 2, 0, 0, 0, 6],
+        [0, 6, 0, 0, 0, 0, 2, 8, 0],
+        [0, 0, 0, 4, 1, 9, 0, 0, 5],
+        [0, 0, 0, 0, 8, 0, 0, 7, 9],
+    ]
+    grid = SudokuGrid(data)
+    assert grid.count_given() == 30
+    assert grid.get(0, 0) == 5
+    assert grid.get(0, 2) == 0
     
-    def test_grid_validation(self):
-        """Test grid validation on construction."""
-        # Invalid grid size
-        with self.assertRaises(ValueError):
-            SudokuGrid([[1, 2, 3]])  # Not 9x9
-        
-        # Invalid value
-        with self.assertRaises(ValueError):
-            SudokuGrid([[10 for _ in range(9)] for _ in range(9)])  # Value > 9
+    # Test row/col/box access
+    assert grid.get_row(0) == [5, 3, 0, 0, 7, 0, 0, 0, 0]
+    assert grid.get_col(0) == [5, 6, 0, 8, 4, 7, 0, 0, 0]
+    assert grid.get_box(0, 0) == [5, 3, 0, 6, 0, 0, 0, 9, 8]
     
-    def test_get_row_col_box(self):
-        """Test row, column, and box extraction."""
-        grid = SudokuGrid()
-        grid.set(0, 0, 5)
-        grid.set(0, 1, 3)
-        
-        row = grid.get_row(0)
-        self.assertEqual(row[0], 5)
-        self.assertEqual(row[1], 3)
-        
-        grid.set(1, 0, 6)
-        col = grid.get_col(0)
-        self.assertEqual(col[0], 5)
-        self.assertEqual(col[1], 6)
-        
-        box = grid.get_box(0)
-        self.assertEqual(box[0], 5)
-        self.assertEqual(box[1], 3)
-        self.assertEqual(box[3], 6)
+    # Test set/get
+    grid.set(0, 2, 4)
+    assert grid.get(0, 2) == 4
     
-    def test_candidates(self):
-        """Test candidate calculation."""
-        grid = SudokuGrid()
-        grid.set(0, 0, 5)
-        
-        # Candidates for cell (0, 1) should not include 5 (same row)
-        candidates = grid.get_candidates(0, 1)
-        self.assertNotIn(5, candidates)
-        self.assertIn(1, candidates)
-        self.assertIn(2, candidates)
-        
-        grid.set(1, 0, 3)
-        candidates = grid.get_candidates(0, 1)
-        self.assertNotIn(5, candidates)  # Same row
-        self.assertNotIn(3, candidates)  # Same box
+    # Test from_string (81 digits)
+    grid2 = SudokuGrid.from_string("530070000600195000098000060800000045000000003700000026060000080000410005000080079")
+    assert grid2.get(0, 0) == 5
+    assert grid2.get(0, 2) == 0
     
-    def test_copy(self):
-        """Test grid copying."""
-        grid = SudokuGrid()
-        grid.set(0, 0, 5)
-        
-        copy = grid.copy()
-        self.assertEqual(copy.get(0, 0), 5)
-        
-        copy.set(0, 0, 6)
-        self.assertEqual(grid.get(0, 0), 5)  # Original unchanged
-        self.assertEqual(copy.get(0, 0), 6)  # Copy changed
+    # Test from flat
+    flat = [i % 10 for i in range(81)]
+    grid3 = SudokuGrid.from_flat(flat)
+    assert grid3.to_flat() == flat
     
-    def test_to_list(self):
-        """Test conversion to list."""
-        grid = SudokuGrid()
-        grid.set(0, 0, 5)
-        
-        data = grid.to_list()
-        self.assertEqual(data[0][0], 5)
-        self.assertEqual(len(data), 9)
-        self.assertEqual(len(data[0]), 9)
+    # Test to_list
+    assert len(grid.to_list()) == 9
+    assert len(grid.to_list()[0]) == 9
+    
+    # Test copy
+    grid_copy = grid.copy()
+    grid.set(0, 0, 9)
+    assert grid_copy.get(0, 0) == 5  # Original unchanged
+    
+    # Test string representation
+    str_repr = str(grid)
+    assert "5" in str_repr
+    assert "|" in str_repr  # Box borders
+    assert "-" in str_repr
+    
+    print("✓ SudokuGrid tests passed")
 
 
-class TestSudokuSolver(unittest.TestCase):
+def test_sudoku_solver():
     """Test SudokuSolver class."""
+    print("Testing SudokuSolver...")
     
-    def test_solve_simple_puzzle(self):
-        """Test solving a simple puzzle."""
-        # A simple puzzle
-        data = [
-            [5, 3, 0, 0, 7, 0, 0, 0, 0],
-            [6, 0, 0, 1, 9, 5, 0, 0, 0],
-            [0, 9, 8, 0, 0, 0, 0, 6, 0],
-            [8, 0, 0, 0, 6, 0, 0, 0, 3],
-            [4, 0, 0, 8, 0, 3, 0, 0, 1],
-            [7, 0, 0, 0, 2, 0, 0, 0, 6],
-            [0, 6, 0, 0, 0, 0, 2, 8, 0],
-            [0, 0, 0, 4, 1, 9, 0, 0, 5],
-            [0, 0, 0, 0, 8, 0, 0, 7, 9]
-        ]
-        grid = SudokuGrid(data)
-        
-        solution = solve_puzzle(grid)
-        self.assertIsNotNone(solution)
-        self.assertTrue(is_solved_puzzle(solution))
+    # Test puzzle (medium difficulty)
+    puzzle_data = [
+        [5, 3, 0, 0, 7, 0, 0, 0, 0],
+        [6, 0, 0, 1, 9, 5, 0, 0, 0],
+        [0, 9, 8, 0, 0, 0, 0, 6, 0],
+        [8, 0, 0, 0, 6, 0, 0, 0, 3],
+        [4, 0, 0, 8, 0, 3, 0, 0, 1],
+        [7, 0, 0, 0, 2, 0, 0, 0, 6],
+        [0, 6, 0, 0, 0, 0, 2, 8, 0],
+        [0, 0, 0, 4, 1, 9, 0, 0, 5],
+        [0, 0, 0, 0, 8, 0, 0, 7, 9],
+    ]
+    grid = SudokuGrid(puzzle_data)
+    solver = SudokuSolver(grid)
     
-    def test_solve_unsolvable(self):
-        """Test handling unsolvable puzzle."""
-        # Create an invalid puzzle (two 5s in same row)
-        data = [[5, 5, 0, 0, 0, 0, 0, 0, 0] for _ in range(9)]
-        grid = SudokuGrid()
-        grid.set(0, 0, 5)
-        grid.set(0, 1, 5)  # Invalid
-        
-        solution = solve_puzzle(grid)
-        self.assertIsNone(solution)  # Should return None for invalid puzzle
+    # Test is_valid_placement
+    # Cell (0, 2): box contains [5, 3, 0, 6, 0, 0, 0, 9, 8]
+    # Row 0 contains [5, 3, 0, 0, 7, 0, 0, 0, 0]
+    assert solver.is_valid_placement(0, 2, 1) == True   # 1 is valid
+    assert solver.is_valid_placement(0, 2, 3) == False  # 3 already in box
+    assert solver.is_valid_placement(0, 2, 5) == False  # 5 already in box
+    assert solver.is_valid_placement(0, 2, 6) == False  # 6 already in box
+    assert solver.is_valid_placement(0, 2, 9) == False  # 9 already in box
     
-    def test_solve_empty_grid(self):
-        """Test solving an empty grid (should work)."""
-        grid = SudokuGrid()
-        solution = solve_puzzle(grid)
-        self.assertIsNotNone(solution)
-        self.assertTrue(is_solved_puzzle(solution))
+    # Test get_possible_values
+    possible = solver.get_possible_values(0, 2)
+    # Row 0 has [5, 3, _, _, 7, _, _, _, _] -> used: {5, 3, 7}
+    # Col 2 has values from rows 0-8 -> used: {8} (row 2 has 8 at col 2)
+    # Box (0,0) has [5, 3, _, 6, _, _, _, 9, 8] -> used: {5, 3, 6, 9, 8}
+    # Combined used: {5, 3, 7, 8, 6, 9}
+    # Possible: {1, 2, 4}
+    assert 4 in possible
+    assert 1 in possible  # 1 is valid
+    assert 2 in possible  # 2 is valid
+    assert 5 not in possible  # 5 in row and box
+    assert 3 not in possible  # 3 in row and box
+    assert len(possible) == 3  # {1, 2, 4}
     
-    def test_count_solutions(self):
-        """Test solution counting."""
-        # A puzzle with unique solution
-        grid = create_puzzle(Difficulty.EASY)
-        count = SudokuSolver.count_solutions(grid, 10)
-        self.assertEqual(count, 1)
+    # Test solve
+    solution = solver.get_solution()
+    assert solution is not None
+    assert SudokuValidator.is_valid_solution(solution)
     
-    def test_solve_copy(self):
-        """Test that solve_copy doesn't modify original."""
-        grid = SudokuGrid()
-        solution = SudokuSolver.solve_copy(grid)
-        
-        self.assertIsNotNone(solution)
-        self.assertEqual(len(grid.get_empty_cells()), 81)  # Original still empty
-        self.assertEqual(len(solution.get_empty_cells()), 0)  # Solution filled
+    # Verify specific known solution values
+    assert solution.get(0, 2) == 4
+    assert solution.get(0, 3) == 6
+    
+    # Test count_solutions
+    solver2 = SudokuSolver(grid)
+    assert solver2.count_solutions(2) == 1  # Unique solution
+    
+    # Test has_unique_solution
+    solver3 = SudokuSolver(grid)
+    assert solver3.has_unique_solution() == True
+    
+    print("✓ SudokuSolver tests passed")
 
 
-class TestSudokuGenerator(unittest.TestCase):
+def test_sudoku_generator():
     """Test SudokuGenerator class."""
+    print("Testing SudokuGenerator...")
     
-    def test_generate_puzzle(self):
-        """Test puzzle generation."""
-        puzzle = create_puzzle(Difficulty.MEDIUM)
-        
-        # Should have some empty cells
-        empty = len(puzzle.get_empty_cells())
-        self.assertGreater(empty, 20)
-        self.assertLess(empty, 60)
-        
-        # Should be valid
-        self.assertTrue(is_valid_puzzle(puzzle))
-        
-        # Should have unique solution
-        count = SudokuSolver.count_solutions(puzzle, 2)
-        self.assertEqual(count, 1)
+    # Test generate_solved
+    solved = SudokuGenerator.generate_solved()
+    assert SudokuValidator.is_valid_solution(solved)
+    assert solved.is_filled()
     
-    def test_generate_different_difficulties(self):
-        """Test generating different difficulties."""
-        easy = create_puzzle(Difficulty.EASY)
-        medium = create_puzzle(Difficulty.MEDIUM)
-        hard = create_puzzle(Difficulty.HARD)
-        expert = create_puzzle(Difficulty.EXPERT)
+    # Test generate with different difficulties
+    for difficulty in [Difficulty.EASY, Difficulty.MEDIUM, Difficulty.HARD]:
+        puzzle = SudokuGenerator.generate(difficulty)
+        assert SudokuValidator.is_valid_grid(puzzle)
+        assert not puzzle.is_filled()  # Should have empty cells
         
-        # Check that harder puzzles have fewer givens
-        easy_givens = 81 - len(easy.get_empty_cells())
-        medium_givens = 81 - len(medium.get_empty_cells())
-        hard_givens = 81 - len(hard.get_empty_cells())
-        expert_givens = 81 - len(expert.get_empty_cells())
+        # Verify unique solution
+        solver = SudokuSolver(puzzle)
+        assert solver.has_unique_solution()
         
-        # Generally harder puzzles have fewer givens
-        self.assertGreaterEqual(easy_givens, medium_givens)
-        self.assertGreaterEqual(medium_givens, hard_givens)
+        # Check difficulty matches (roughly)
+        given = puzzle.count_given()
+        if difficulty == Difficulty.EASY:
+            assert 36 <= given <= 45
+        elif difficulty == Difficulty.MEDIUM:
+            assert 27 <= given <= 35
+        elif difficulty == Difficulty.HARD:
+            assert 22 <= given <= 26
     
-    def test_generate_with_solution(self):
-        """Test generating puzzle with solution."""
-        puzzle, solution = SudokuGenerator.generate_with_solution(Difficulty.MEDIUM)
-        
-        self.assertTrue(is_valid_puzzle(puzzle))
-        self.assertTrue(is_solved_puzzle(solution))
-        
-        # Solution should match puzzle's given numbers
-        for i in range(9):
-            for j in range(9):
-                if puzzle.get(i, j) != 0:
-                    self.assertEqual(puzzle.get(i, j), solution.get(i, j))
+    # Test generate_with_solution
+    puzzle, solution = SudokuGenerator.generate_with_solution(Difficulty.MEDIUM)
+    assert SudokuValidator.is_valid_grid(puzzle)
+    assert SudokuValidator.is_valid_solution(solution)
     
-    def test_all_generated_puzzles_solvable(self):
-        """Test that all generated puzzles are solvable."""
-        for diff in [Difficulty.EASY, Difficulty.MEDIUM, Difficulty.HARD]:
-            puzzle = create_puzzle(diff)
-            solution = solve_puzzle(puzzle)
-            self.assertIsNotNone(solution)
+    # Verify puzzle matches solution for given cells
+    for r in range(9):
+        for c in range(9):
+            if puzzle.get(r, c) != 0:
+                assert puzzle.get(r, c) == solution.get(r, c)
+    
+    print("✓ SudokuGenerator tests passed")
 
 
-class TestSudokuValidator(unittest.TestCase):
+def test_sudoku_validator():
     """Test SudokuValidator class."""
+    print("Testing SudokuValidator...")
     
-    def test_valid_grid(self):
-        """Test valid grid check."""
-        grid = SudokuGrid()
-        self.assertTrue(is_valid_puzzle(grid))
-        
-        grid.set(0, 0, 5)
-        self.assertTrue(is_valid_puzzle(grid))
+    # Test is_valid_grid
+    valid_puzzle = [
+        [5, 3, 0, 0, 7, 0, 0, 0, 0],
+        [6, 0, 0, 1, 9, 5, 0, 0, 0],
+        [0, 9, 8, 0, 0, 0, 0, 6, 0],
+        [8, 0, 0, 0, 6, 0, 0, 0, 3],
+        [4, 0, 0, 8, 0, 3, 0, 0, 1],
+        [7, 0, 0, 0, 2, 0, 0, 0, 6],
+        [0, 6, 0, 0, 0, 0, 2, 8, 0],
+        [0, 0, 0, 4, 1, 9, 0, 0, 5],
+        [0, 0, 0, 0, 8, 0, 0, 7, 9],
+    ]
+    assert SudokuValidator.is_valid_grid(SudokuGrid(valid_puzzle))
     
-    def test_invalid_grid_conflicts(self):
-        """Test conflict detection."""
-        grid = SudokuGrid()
-        grid.set(0, 0, 5)
-        grid.set(0, 1, 5)  # Same row
-        
-        self.assertFalse(is_valid_puzzle(grid))
-        
-        conflicts = SudokuValidator.get_conflicts(grid)
-        self.assertGreater(len(conflicts), 0)
+    # Test invalid grid (duplicate in row)
+    invalid_row = [[5, 5, 0, 0, 0, 0, 0, 0, 0]] + [[0]*9 for _ in range(8)]
+    assert not SudokuValidator.is_valid_grid(SudokuGrid(invalid_row))
     
-    def test_complete_check(self):
-        """Test completeness check."""
-        grid = SudokuGrid()
-        self.assertFalse(SudokuValidator.is_complete(grid))
-        
-        # Fill grid
-        solution = solve_puzzle(grid)
-        self.assertTrue(SudokuValidator.is_complete(solution))
+    # Test invalid grid (duplicate in column)
+    invalid_col = [[5] + [0]*8] + [[5] + [0]*8] + [[0]*9 for _ in range(7)]
+    assert not SudokuValidator.is_valid_grid(SudokuGrid(invalid_col))
     
-    def test_solved_check(self):
-        """Test solved check."""
-        puzzle = create_puzzle(Difficulty.EASY)
-        self.assertFalse(is_solved_puzzle(puzzle))
-        
-        solution = solve_puzzle(puzzle)
-        self.assertTrue(is_solved_puzzle(solution))
+    # Test invalid grid (duplicate in box)
+    invalid_box = [
+        [5, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 5, 0, 0, 0, 0, 0, 0, 0],
+    ] + [[0]*9 for _ in range(7)]
+    assert not SudokuValidator.is_valid_grid(SudokuGrid(invalid_box))
+    
+    # Test is_valid_solution
+    solved = SudokuGenerator.generate_solved()
+    assert SudokuValidator.is_valid_solution(solved)
+    
+    # Test invalid solution (not filled)
+    assert not SudokuValidator.is_valid_solution(SudokuGrid())
+    
+    # Test find_conflicts
+    conflict_grid = [[5, 5, 0, 0, 0, 0, 0, 0, 0]] + [[0]*9 for _ in range(8)]
+    conflicts = SudokuValidator.find_conflicts(SudokuGrid(conflict_grid))
+    assert len(conflicts) > 0
+    
+    print("✓ SudokuValidator tests passed")
 
 
-class TestSudokuHint(unittest.TestCase):
-    """Test SudokuHint class."""
+def test_sudoku_analyzer():
+    """Test SudokuAnalyzer class."""
+    print("Testing SudokuAnalyzer...")
     
-    def test_get_hint(self):
-        """Test getting a hint."""
-        puzzle = create_puzzle(Difficulty.EASY)
-        solution = solve_puzzle(puzzle)
-        
-        hint = get_hint(puzzle, solution)
-        self.assertIsNotNone(hint)
-        
-        row, col, val, technique = hint
-        self.assertEqual(solution.get(row, col), val)
+    # Test estimate_difficulty
+    easy_puzzle = SudokuGenerator.generate(Difficulty.EASY)
+    difficulty = SudokuAnalyzer.estimate_difficulty(easy_puzzle)
+    assert difficulty == Difficulty.EASY
     
-    def test_hint_progress(self):
-        """Test that hints help progress the puzzle."""
-        puzzle = create_puzzle(Difficulty.EASY)
-        solution = solve_puzzle(puzzle)
-        
-        # Apply hints until puzzle is solved
-        max_hints = 81
-        hints_used = 0
-        
-        while not is_solved_puzzle(puzzle) and hints_used < max_hints:
-            hint = get_hint(puzzle, solution)
-            if hint:
-                row, col, val, technique = hint
-                puzzle.set(row, col, val)
-                hints_used += 1
-            else:
-                break
-        
-        self.assertTrue(is_solved_puzzle(puzzle))
+    hard_puzzle = SudokuGenerator.generate(Difficulty.HARD)
+    difficulty = SudokuAnalyzer.estimate_difficulty(hard_puzzle)
+    assert difficulty in [Difficulty.HARD, Difficulty.EXPERT, Difficulty.EVIL]
+    
+    # Test get_progress
+    grid = SudokuGrid([
+        [5, 3, 4, 6, 7, 8, 9, 1, 2],
+        [6, 7, 2, 1, 9, 5, 3, 4, 8],
+        [1, 9, 8, 3, 4, 2, 5, 6, 7],
+        [8, 5, 9, 7, 6, 1, 4, 2, 3],
+        [4, 2, 6, 8, 5, 3, 7, 9, 1],
+        [7, 1, 3, 9, 2, 4, 8, 5, 6],
+        [9, 6, 1, 5, 3, 7, 2, 8, 4],
+        [2, 8, 7, 4, 1, 9, 6, 3, 5],
+        [3, 4, 5, 2, 8, 6, 1, 7, 0],  # One empty cell
+    ])
+    filled, total, percentage = SudokuAnalyzer.get_progress(grid)
+    assert filled == 80
+    assert total == 81
+    assert abs(percentage - 98.77) < 0.1
+    
+    # Test get_hint (naked single)
+    hint = SudokuAnalyzer.get_hint(grid)
+    assert hint is not None
+    r, c, val, technique = hint
+    assert r == 8 and c == 8
+    assert val == 9
+    assert "single" in technique.lower()
+    
+    # Test get_all_hints
+    puzzle = SudokuGenerator.generate(Difficulty.EASY)
+    hints = SudokuAnalyzer.get_all_hints(puzzle)
+    assert len(hints) > 0
+    
+    print("✓ SudokuAnalyzer tests passed")
 
 
-class TestSudokuDifficultyEstimator(unittest.TestCase):
-    """Test SudokuDifficultyEstimator class."""
-    
-    def test_estimate_easy_puzzle(self):
-        """Test estimating easy puzzle."""
-        puzzle = create_puzzle(Difficulty.EASY)
-        difficulty, metrics = estimate_difficulty(puzzle)
-        
-        self.assertIn(difficulty, [Difficulty.EASY, Difficulty.MEDIUM])
-        self.assertIn('givens', metrics)
-        self.assertGreater(metrics['givens'], 30)
-    
-    def test_estimate_hard_puzzle(self):
-        """Test estimating hard puzzle."""
-        puzzle = create_puzzle(Difficulty.HARD)
-        difficulty, metrics = estimate_difficulty(puzzle)
-        
-        self.assertIn(difficulty, [Difficulty.MEDIUM, Difficulty.HARD, Difficulty.EXPERT])
-        self.assertLess(metrics['givens'], 45)
-    
-    def test_metrics_calculated(self):
-        """Test that metrics are calculated."""
-        puzzle = create_puzzle(Difficulty.MEDIUM)
-        difficulty, metrics = estimate_difficulty(puzzle)
-        
-        # Check metrics exist
-        self.assertIn('givens', metrics)
-        self.assertIn('empty_cells', metrics)
-        self.assertIn('avg_candidates', metrics)
-        self.assertIn('naked_singles', metrics)
-        self.assertIn('hidden_singles', metrics)
-        
-        # Check values are reasonable
-        self.assertEqual(metrics['givens'] + metrics['empty_cells'], 81)
-
-
-class TestSudokuFormatter(unittest.TestCase):
-    """Test SudokuFormatter class."""
-    
-    def test_to_string(self):
-        """Test string conversion."""
-        grid = SudokuGrid()
-        grid.set(0, 0, 5)
-        
-        s = format_puzzle(grid, 'string')
-        self.assertEqual(len(s), 81)
-        self.assertEqual(s[0], '5')
-    
-    def test_from_string(self):
-        """Test parsing from string."""
-        s = "53..7....6..195....98....6.8...6...34..8.3..17...2...6.6....28....419..5....8..79"
-        grid = parse_puzzle(s)
-        
-        self.assertEqual(grid.get(0, 0), 5)
-        self.assertEqual(grid.get(0, 1), 3)
-        self.assertEqual(grid.get(0, 2), 0)
-    
-    def test_string_roundtrip(self):
-        """Test string roundtrip."""
-        puzzle = create_puzzle(Difficulty.EASY)
-        s = format_puzzle(puzzle, 'string')
-        parsed = parse_puzzle(s)
-        
-        for i in range(9):
-            for j in range(9):
-                self.assertEqual(puzzle.get(i, j), parsed.get(i, j))
-    
-    def test_json_format(self):
-        """Test JSON format."""
-        puzzle = create_puzzle(Difficulty.EASY)
-        json_str = format_puzzle(puzzle, 'json')
-        
-        parsed = SudokuFormatter.from_json(json_str)
-        
-        for i in range(9):
-            for j in range(9):
-                self.assertEqual(puzzle.get(i, j), parsed.get(i, j))
-    
-    def test_markdown_format(self):
-        """Test Markdown format."""
-        puzzle = create_puzzle(Difficulty.EASY)
-        md = format_puzzle(puzzle, 'markdown')
-        
-        # Should contain table markers
-        self.assertIn('|', md)
-        self.assertIn('---', md)
-    
-    def test_pretty_format(self):
-        """Test pretty format."""
-        puzzle = create_puzzle(Difficulty.EASY)
-        pretty = format_puzzle(puzzle, 'pretty')
-        
-        # Should contain borders
-        self.assertIn('-', pretty)
-        self.assertIn('|', pretty)
-
-
-class TestConvenienceFunctions(unittest.TestCase):
+def test_convenience_functions():
     """Test convenience functions."""
+    print("Testing convenience functions...")
     
-    def test_create_puzzle(self):
-        """Test create_puzzle function."""
-        puzzle = create_puzzle(Difficulty.EASY)
-        self.assertIsInstance(puzzle, SudokuGrid)
-        self.assertTrue(is_valid_puzzle(puzzle))
+    # Test solve
+    puzzle = SudokuGenerator.generate(Difficulty.EASY)
+    solution = solve(puzzle)
+    assert solution is not None
+    assert is_solved(solution)
     
-    def test_solve_puzzle(self):
-        """Test solve_puzzle function."""
-        puzzle = create_puzzle(Difficulty.MEDIUM)
-        solution = solve_puzzle(puzzle)
-        
-        self.assertIsNotNone(solution)
-        self.assertTrue(is_solved_puzzle(solution))
+    # Test generate
+    new_puzzle = generate(Difficulty.MEDIUM)
+    assert validate(new_puzzle)
     
-    def test_parse_puzzle(self):
-        """Test parse_puzzle function."""
-        s = "53..7....6..195....98....6.8...6...34..8.3..17...2...6.6....28....419..5....8..79"
-        puzzle = parse_puzzle(s)
-        
-        self.assertEqual(puzzle.get(0, 0), 5)
+    # Test validate
+    assert validate(puzzle)
     
-    def test_format_puzzle(self):
-        """Test format_puzzle function."""
-        puzzle = create_puzzle(Difficulty.EASY)
-        
-        # Test different formats
-        string_fmt = format_puzzle(puzzle, 'string')
-        self.assertEqual(len(string_fmt), 81)
-        
-        pretty_fmt = format_puzzle(puzzle, 'pretty')
-        self.assertIsInstance(pretty_fmt, str)
+    # Test is_solved
+    assert is_solved(solution)
+    assert not is_solved(puzzle)
+    
+    # Test analyze
+    analysis = analyze(puzzle)
+    assert "given_cells" in analysis
+    assert "empty_cells" in analysis
+    assert "difficulty" in analysis
+    assert "is_valid" in analysis
+    assert "has_unique_solution" in analysis
+    assert analysis["is_valid"] == True
+    assert analysis["has_unique_solution"] == True
+    
+    print("✓ Convenience function tests passed")
 
 
-class TestEdgeCases(unittest.TestCase):
+def test_edge_cases():
     """Test edge cases and error handling."""
+    print("Testing edge cases...")
     
-    def test_invalid_string_length(self):
-        """Test parsing invalid string length."""
-        with self.assertRaises(ValueError):
-            parse_puzzle("123")  # Too short
+    # Test empty grid
+    empty_grid = SudokuGrid()
+    solver = SudokuSolver(empty_grid)
+    solution = solver.get_solution()
+    assert solution is not None
+    assert SudokuValidator.is_valid_solution(solution)
     
-    def test_invalid_format_type(self):
-        """Test invalid format type."""
-        puzzle = create_puzzle(Difficulty.EASY)
-        with self.assertRaises(ValueError):
-            format_puzzle(puzzle, 'invalid_format')
+    # Test solved grid
+    solved = SudokuGenerator.generate_solved()
+    solver = SudokuSolver(solved)
+    assert solver.has_unique_solution()
     
-    def test_set_fixed_cell(self):
-        """Test setting a fixed cell."""
-        puzzle = create_puzzle(Difficulty.EASY)
-        
-        # Find a fixed cell
-        fixed_cell = None
-        for i in range(9):
-            for j in range(9):
-                if puzzle.is_fixed(i, j):
-                    fixed_cell = (i, j)
-                    break
-        
-        if fixed_cell:
-            row, col = fixed_cell
-            result = puzzle.set(row, col, 9)  # Try to change
-            self.assertFalse(result)
+    # Test invalid grid size
+    try:
+        invalid = SudokuGrid([[1, 2, 3]])  # Wrong size
+        assert False, "Should have raised ValueError"
+    except ValueError:
+        pass
     
-    def test_solve_already_solved(self):
-        """Test solving an already solved puzzle."""
+    # Test invalid cell value
+    try:
         grid = SudokuGrid()
-        solution = solve_puzzle(grid)
-        
-        # Solving again should still work
-        solution2 = solve_puzzle(solution)
-        self.assertIsNotNone(solution2)
-
-
-class TestPerformance(unittest.TestCase):
-    """Test performance of solver."""
+        grid.set(0, 0, 10)  # Invalid value
+        assert False, "Should have raised ValueError"
+    except ValueError:
+        pass
     
-    def test_solve_multiple_puzzles(self):
-        """Test solving multiple puzzles quickly."""
-        puzzles = [create_puzzle(Difficulty.HARD) for _ in range(5)]
-        
-        solutions = []
-        for puzzle in puzzles:
-            solution = solve_puzzle(puzzle)
-            solutions.append(solution)
-        
-        # All should be solved
-        for solution in solutions:
-            self.assertIsNotNone(solution)
-            self.assertTrue(is_solved_puzzle(solution))
+    # Test from_string with invalid input
+    try:
+        SudokuGrid.from_string("123")  # Too short
+        assert False, "Should have raised ValueError"
+    except ValueError:
+        pass
     
-    def test_solve_evil_puzzle(self):
-        """Test solving a difficult puzzle."""
-        puzzle = create_puzzle(Difficulty.EVIL)
-        solution = solve_puzzle(puzzle)
+    print("✓ Edge case tests passed")
+
+
+def test_performance():
+    """Test performance with multiple puzzles."""
+    print("Testing performance...")
+    
+    import time
+    
+    # Generate and solve multiple puzzles
+    difficulties = [Difficulty.EASY, Difficulty.MEDIUM, Difficulty.HARD]
+    
+    for difficulty in difficulties:
+        start = time.time()
         
-        self.assertIsNotNone(solution)
-        self.assertTrue(is_solved_puzzle(solution))
+        for _ in range(3):  # 3 puzzles per difficulty
+            puzzle = SudokuGenerator.generate(difficulty)
+            solver = SudokuSolver(puzzle)
+            solution = solver.get_solution()
+            assert solution is not None
+            assert SudokuValidator.is_valid_solution(solution)
+        
+        elapsed = time.time() - start
+        print(f"  Generated and solved 3 {difficulty.value} puzzles in {elapsed:.3f}s")
+    
+    print("✓ Performance tests passed")
 
 
-if __name__ == '__main__':
-    unittest.main(verbosity=2)
+def test_string_formatting():
+    """Test string formatting and parsing."""
+    print("Testing string formatting...")
+    
+    # Test from_string with various formats
+    # Single line
+    grid1 = SudokuGrid.from_string("530070000600195000098000060800000045000000003700000026060000080000410005000080079")
+    assert grid1.count_given() == 25  # Count of non-zero digits in the string
+    
+    # With dots for zeros (full 81 characters)
+    # Using same puzzle but with dots for zeros
+    grid2 = SudokuGrid.from_string("53..7....6..195....98....6.8......45........37......26.6.....8....41...5....8..79")
+    assert grid2.count_given() == 25  # Same as grid1
+    
+    # Multi-line with separators
+    multi_line = """
+    5 3 0 | 0 7 0 | 0 0 0
+    6 0 0 | 1 9 5 | 0 0 0
+    0 9 8 | 0 0 0 | 0 6 0
+    ------+-------+------
+    8 0 0 | 0 6 0 | 0 0 3
+    4 0 0 | 8 0 3 | 0 0 1
+    7 0 0 | 0 2 0 | 0 0 6
+    ------+-------+------
+    0 6 0 | 0 0 0 | 2 8 0
+    0 0 0 | 4 1 9 | 0 0 5
+    0 0 0 | 0 8 0 | 0 7 9
+    """
+    grid3 = SudokuGrid.from_string(multi_line)
+    assert grid3.count_given() == 30
+    
+    # Test __str__ output
+    str_output = str(grid3)
+    assert "5" in str_output
+    assert "|" in str_output
+    
+    print("✓ String formatting tests passed")
+
+
+def run_all_tests():
+    """Run all test suites."""
+    print("\n" + "="*50)
+    print("Sudoku Utils Test Suite")
+    print("="*50 + "\n")
+    
+    test_sudoku_grid()
+    test_sudoku_solver()
+    test_sudoku_generator()
+    test_sudoku_validator()
+    test_sudoku_analyzer()
+    test_convenience_functions()
+    test_edge_cases()
+    test_performance()
+    test_string_formatting()
+    
+    print("\n" + "="*50)
+    print("All tests passed! ✓")
+    print("="*50)
+
+
+if __name__ == "__main__":
+    run_all_tests()

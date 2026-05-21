@@ -1,384 +1,311 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-AllToolkit - Sudoku Utilities Usage Examples
-=============================================
-Demonstrates various ways to use the Sudoku utilities module.
+Sudoku Utils - Usage Examples
 
-Author: AllToolkit Contributors
-License: MIT
+Demonstrates how to use the sudoku_utils module for:
+- Solving puzzles
+- Generating new puzzles
+- Validating solutions
+- Analyzing puzzles
+- Getting hints
 """
 
 import sys
 import os
-
-# Add Python directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from sudoku_utils.mod import (
     SudokuGrid, SudokuSolver, SudokuGenerator, SudokuValidator,
-    SudokuHint, SudokuDifficultyEstimator, SudokuFormatter,
-    Difficulty, create_puzzle, solve_puzzle, is_valid_puzzle,
-    is_solved_puzzle, get_hint, estimate_difficulty, parse_puzzle,
-    format_puzzle
+    SudokuAnalyzer, Difficulty, solve, generate, validate, is_solved, analyze
 )
 
 
-def example_1_basic_usage():
-    """
-    Example 1: Basic puzzle generation and solving
-    """
-    print("\n" + "=" * 60)
-    print("Example 1: Basic Usage")
-    print("=" * 60)
+def example_basic_solve():
+    """Basic puzzle solving example."""
+    print("\n" + "="*50)
+    print("Example 1: Basic Puzzle Solving")
+    print("="*50)
     
-    # Generate a puzzle
-    print("\n1. Generate a Medium difficulty puzzle:")
-    puzzle = create_puzzle(Difficulty.MEDIUM)
-    print(format_puzzle(puzzle, 'pretty'))
+    # Define a puzzle (0 or . for empty cells)
+    puzzle_data = [
+        [5, 3, 0, 0, 7, 0, 0, 0, 0],
+        [6, 0, 0, 1, 9, 5, 0, 0, 0],
+        [0, 9, 8, 0, 0, 0, 0, 6, 0],
+        [8, 0, 0, 0, 6, 0, 0, 0, 3],
+        [4, 0, 0, 8, 0, 3, 0, 0, 1],
+        [7, 0, 0, 0, 2, 0, 0, 0, 6],
+        [0, 6, 0, 0, 0, 0, 2, 8, 0],
+        [0, 0, 0, 4, 1, 9, 0, 0, 5],
+        [0, 0, 0, 0, 8, 0, 0, 7, 9],
+    ]
     
-    # Solve it
-    print("\n2. Solve the puzzle:")
-    solution = solve_puzzle(puzzle)
+    puzzle = SudokuGrid(puzzle_data)
+    
+    print("\nOriginal Puzzle:")
+    print(puzzle)
+    
+    # Solve using convenience function
+    solution = solve(puzzle)
+    
     if solution:
-        print(format_puzzle(solution, 'pretty'))
+        print("\nSolution:")
+        print(solution)
+        print("\n✓ Puzzle solved!")
     else:
-        print("Could not solve!")
-    
-    # Validate
-    print("\n3. Validation:")
-    print(f"   Puzzle is valid: {is_valid_puzzle(puzzle)}")
-    print(f"   Solution is solved: {is_solved_puzzle(solution) if solution else 'N/A'}")
+        print("\n✗ No solution found!")
 
 
-def example_2_difficulty_levels():
-    """
-    Example 2: Generate puzzles at different difficulty levels
-    """
-    print("\n" + "=" * 60)
-    print("Example 2: Different Difficulty Levels")
-    print("=" * 60)
+def example_generate_puzzle():
+    """Generate puzzles with different difficulties."""
+    print("\n" + "="*50)
+    print("Example 2: Generating Puzzles")
+    print("="*50)
     
-    for diff in [Difficulty.EASY, Difficulty.MEDIUM, Difficulty.HARD, Difficulty.EXPERT]:
-        print(f"\n{diff.name} puzzle:")
-        puzzle = create_puzzle(diff)
+    for difficulty in [Difficulty.EASY, Difficulty.MEDIUM, Difficulty.HARD]:
+        puzzle = generate(difficulty)
+        given = puzzle.count_given()
         
-        # Get statistics
-        empty_count = len(puzzle.get_empty_cells())
-        given_count = 81 - empty_count
-        
-        # Estimate actual difficulty
-        estimated_diff, metrics = estimate_difficulty(puzzle)
-        
-        print(f"   Given numbers: {given_count}")
-        print(f"   Empty cells: {empty_count}")
-        print(f"   Estimated difficulty: {estimated_diff.name}")
-        print(f"   Average candidates: {metrics['avg_candidates']:.2f}")
-        
-        # Show first few cells
-        print("   Top-left corner:")
-        for i in range(3):
-            row_str = "   "
-            for j in range(3):
-                val = puzzle.get(i, j)
-                row_str += f"{val if val != 0 else '.'} "
-            print(row_str)
+        print(f"\n{difficulty.value.upper()} Puzzle ({given} given cells):")
+        print(puzzle)
+    
+    # Generate with solution
+    print("\n" + "-"*30)
+    print("Generating puzzle with solution...")
+    puzzle, solution = SudokuGenerator.generate_with_solution(Difficulty.MEDIUM)
+    
+    print("\nPuzzle:")
+    print(puzzle)
+    print("\nSolution:")
+    print(solution)
 
 
-def example_3_parse_and_solve():
+def example_parsing_formats():
+    """Parse puzzles from different string formats."""
+    print("\n" + "="*50)
+    print("Example 3: Parsing Different Formats")
+    print("="*50)
+    
+    # Single line format
+    single_line = "530070000600195000098000060800000045000000003700000026060000080000410005000080079"
+    grid1 = SudokuGrid.from_string(single_line)
+    print("\nFrom single line (81 digits):")
+    print(grid1)
+    
+    # With dots
+    with_dots = "53..7....6..195....98......."
+    grid2 = SudokuGrid.from_string(with_dots)
+    print("\nWith dots for empty cells:")
+    print(grid2)
+    
+    # Multi-line with box separators
+    multi_line = """
+    5 3 0 | 0 7 0 | 0 0 0
+    6 0 0 | 1 9 5 | 0 0 0
+    0 9 8 | 0 0 0 | 0 6 0
+    ------+-------+------
+    8 0 0 | 0 6 0 | 0 0 3
+    4 0 0 | 8 0 3 | 0 0 1
+    7 0 0 | 0 2 0 | 0 0 6
+    ------+-------+------
+    0 6 0 | 0 0 0 | 2 8 0
+    0 0 0 | 4 1 9 | 0 0 5
+    0 0 0 | 0 8 0 | 0 7 9
     """
-    Example 3: Parse a puzzle from string and solve it
-    """
-    print("\n" + "=" * 60)
-    print("Example 3: Parse and Solve")
-    print("=" * 60)
-    
-    # Famous puzzle string
-    puzzle_string = "53..7....6..195....98....6.8...6...34..8.3..17...2...6.6....28....419..5....8..79"
-    
-    print("\n1. Parse puzzle from string:")
-    print(f"   Input: {puzzle_string[:40]}...")
-    
-    puzzle = parse_puzzle(puzzle_string)
-    print("\n   Grid:")
-    print(format_puzzle(puzzle, 'pretty'))
-    
-    print("\n2. Solve and show solution:")
-    solution = solve_puzzle(puzzle)
-    if solution:
-        print(format_puzzle(solution, 'pretty'))
-        
-        # Convert back to string
-        solution_string = format_puzzle(solution, 'string')
-        print(f"\n   Solution string: {solution_string[:40]}...")
-    else:
-        print("   Could not solve!")
+    grid3 = SudokuGrid.from_string(multi_line)
+    print("\nFrom multi-line with separators:")
+    print(grid3)
 
 
-def example_4_get_hints():
-    """
-    Example 4: Get hints for stuck players
-    """
-    print("\n" + "=" * 60)
-    print("Example 4: Hint System")
-    print("=" * 60)
+def example_validation():
+    """Validate puzzles and find conflicts."""
+    print("\n" + "="*50)
+    print("Example 4: Validation and Conflict Detection")
+    print("="*50)
     
-    # Generate puzzle and solution
-    puzzle, solution = SudokuGenerator.generate_with_solution(Difficulty.EASY)
+    # Valid puzzle
+    valid = [
+        [5, 3, 0, 0, 7, 0, 0, 0, 0],
+        [6, 0, 0, 1, 9, 5, 0, 0, 0],
+        [0, 9, 8, 0, 0, 0, 0, 6, 0],
+        [8, 0, 0, 0, 6, 0, 0, 0, 3],
+        [4, 0, 0, 8, 0, 3, 0, 0, 1],
+        [7, 0, 0, 0, 2, 0, 0, 0, 6],
+        [0, 6, 0, 0, 0, 0, 2, 8, 0],
+        [0, 0, 0, 4, 1, 9, 0, 0, 5],
+        [0, 0, 0, 0, 8, 0, 0, 7, 9],
+    ]
     
-    print("\n1. Original puzzle:")
-    print(format_puzzle(puzzle, 'pretty'))
+    puzzle = SudokuGrid(valid)
+    print("\nValid puzzle:")
+    print(f"  is_valid_grid: {validate(puzzle)}")
     
-    print("\n2. Getting hints one by one:")
+    # Invalid puzzle (duplicate in row)
+    invalid = [
+        [5, 5, 0, 0, 7, 0, 0, 0, 0],  # Two 5s in first row
+        [6, 0, 0, 1, 9, 5, 0, 0, 0],
+        [0, 9, 8, 0, 0, 0, 0, 6, 0],
+        [8, 0, 0, 0, 6, 0, 0, 0, 3],
+        [4, 0, 0, 8, 0, 3, 0, 0, 1],
+        [7, 0, 0, 0, 2, 0, 0, 0, 6],
+        [0, 6, 0, 0, 0, 0, 2, 8, 0],
+        [0, 0, 0, 4, 1, 9, 0, 0, 5],
+        [0, 0, 0, 0, 8, 0, 0, 7, 9],
+    ]
     
-    # Simulate player getting stuck and asking for hints
-    for hint_num in range(1, 6):
-        hint = get_hint(puzzle, solution)
-        if hint:
-            row, col, val, technique = hint
-            print(f"\n   Hint #{hint_num}:")
-            print(f"   Place {val} at row {row+1}, column {col+1}")
-            print(f"   Reason: {technique}")
-            
-            # Apply the hint
-            puzzle.set(row, col, val)
-            
-            # Show progress
-            empty = len(puzzle.get_empty_cells())
-            print(f"   Progress: {81 - empty}/81 cells filled")
-        else:
-            print(f"\n   No more hints needed - puzzle is complete!")
-            break
+    invalid_puzzle = SudokuGrid(invalid)
+    print("\nInvalid puzzle (duplicate 5 in row):")
+    print(f"  is_valid_grid: {validate(invalid_puzzle)}")
     
-    print("\n3. Remaining grid:")
-    print(format_puzzle(puzzle, 'pretty'))
+    # Find conflicts
+    conflicts = SudokuValidator.find_conflicts(invalid_puzzle)
+    print("\n  Conflicts found:")
+    for r, c, val, conflict_type in conflicts:
+        print(f"    Cell ({r}, {c}) = {val}: {conflict_type}")
 
 
-def example_5_validate_and_find_conflicts():
-    """
-    Example 5: Validate puzzles and find conflicts
-    """
-    print("\n" + "=" * 60)
-    print("Example 5: Validation and Conflict Detection")
-    print("=" * 60)
+def example_analyze_and_hints():
+    """Analyze puzzles and get hints."""
+    print("\n" + "="*50)
+    print("Example 5: Analysis and Hints")
+    print("="*50)
     
-    # Create a valid puzzle
-    print("\n1. Valid puzzle:")
-    puzzle = create_puzzle(Difficulty.EASY)
-    print(f"   Is valid: {is_valid_puzzle(puzzle)}")
+    puzzle = generate(Difficulty.MEDIUM)
     
-    # Create a puzzle with conflicts (manually)
-    print("\n2. Creating a puzzle with conflict:")
-    bad_puzzle = SudokuGrid()
-    bad_puzzle.set(0, 0, 5)
-    bad_puzzle.set(0, 1, 5)  # Conflict: same row!
+    print("\nGenerated Puzzle:")
+    print(puzzle)
     
-    print(f"   Is valid: {is_valid_puzzle(bad_puzzle)}")
+    # Analyze
+    analysis = analyze(puzzle)
+    print("\nAnalysis:")
+    print(f"  Given cells: {analysis['given_cells']}")
+    print(f"  Empty cells: {analysis['empty_cells']}")
+    print(f"  Difficulty: {analysis['difficulty']}")
+    print(f"  Valid: {analysis['is_valid']}")
+    print(f"  Unique solution: {analysis['has_unique_solution']}")
     
-    conflicts = SudokuValidator.get_conflicts(bad_puzzle)
-    print(f"   Number of conflicts found: {len(conflicts)}")
+    # Get progress
+    filled, total, pct = SudokuAnalyzer.get_progress(puzzle)
+    print(f"\nProgress: {filled}/{total} cells filled ({pct:.1f}%)")
     
-    for c1_row, c1_col, c2_row, c2_col in conflicts:
-        val1 = bad_puzzle.get(c1_row, c1_col)
-        val2 = bad_puzzle.get(c2_row, c2_col)
-        print(f"   Conflict: ({c1_row+1},{c1_col+1})={val1} conflicts with ({c2_row+1},{c2_col+1})={val2}")
+    # Get a hint
+    hint = SudokuAnalyzer.get_hint(puzzle)
+    if hint:
+        r, c, val, technique = hint
+        print(f"\nHint: Cell ({r}, {c}) = {val}")
+        print(f"  Technique: {technique}")
+    
+    # Get all hints
+    all_hints = SudokuAnalyzer.get_all_hints(puzzle)
+    print(f"\nTotal hints available: {len(all_hints)}")
+    print("First 5 hints:")
+    for r, c, val, technique in all_hints[:5]:
+        print(f"  ({r}, {c}) = {val} [{technique}]")
 
 
-def example_6_formats():
-    """
-    Example 6: Different output formats
-    """
-    print("\n" + "=" * 60)
-    print("Example 6: Output Formats")
-    print("=" * 60)
+def example_solver_details():
+    """Detailed solver usage."""
+    print("\n" + "="*50)
+    print("Example 6: Solver Details")
+    print("="*50)
     
-    puzzle = create_puzzle(Difficulty.MEDIUM)
+    puzzle = generate(Difficulty.EASY)
+    solver = SudokuSolver(puzzle)
     
-    print("\n1. Pretty format (with borders):")
-    print(format_puzzle(puzzle, 'pretty')[:100] + "...")
+    print("\nPuzzle:")
+    print(puzzle)
     
-    print("\n2. String format (compact):")
-    print(format_puzzle(puzzle, 'string'))
-    
-    print("\n3. JSON format (first 100 chars):")
-    print(format_puzzle(puzzle, 'json')[:100] + "...")
-    
-    print("\n4. Markdown format (table):")
-    print(format_puzzle(puzzle, 'markdown'))
-    
-    print("\n5. 2D array format:")
-    data = puzzle.to_list()
-    print(f"   First row: {data[0]}")
-
-
-def example_7_cell_operations():
-    """
-    Example 7: Working with individual cells
-    """
-    print("\n" + "=" * 60)
-    print("Example 7: Cell Operations")
-    print("=" * 60)
-    
-    puzzle = create_puzzle(Difficulty.EASY)
-    
-    print("\n1. Checking cell properties:")
-    
-    # Find first empty cell
+    # Check possible values for first empty cell
     empty_cells = puzzle.get_empty_cells()
     if empty_cells:
-        row, col = empty_cells[0]
-        print(f"   First empty cell: row {row+1}, column {col+1}")
-        print(f"   Candidates for this cell: {puzzle.get_candidates(row, col)}")
+        r, c = empty_cells[0]
+        possible = solver.get_possible_values(r, c)
+        print(f"\nPossible values for cell ({r}, {c}): {sorted(possible)}")
+    
+    # Check unique solution
+    print(f"\nHas unique solution: {solver.has_unique_solution()}")
+    
+    # Count solutions (up to 2)
+    num_solutions = solver.count_solutions(2)
+    print(f"Solutions found: {num_solutions}")
+    
+    # Get solution
+    solution = solver.get_solution()
+    if solution:
+        print("\nSolution:")
+        print(solution)
+
+
+def example_difficulty_levels():
+    """Generate puzzles at all difficulty levels."""
+    print("\n" + "="*50)
+    print("Example 7: All Difficulty Levels")
+    print("="*50)
+    
+    difficulties = [
+        Difficulty.EASY,
+        Difficulty.MEDIUM,
+        Difficulty.HARD,
+        Difficulty.EXPERT,
+        Difficulty.EVIL,
+    ]
+    
+    for diff in difficulties:
+        puzzle = generate(diff)
+        given = puzzle.count_given()
         
-        print("\n2. Setting a value:")
-        print(f"   Before: value = {puzzle.get(row, col)}")
+        # Verify solvable
+        solution = solve(puzzle)
+        has_solution = solution is not None
         
-        candidates = list(puzzle.get_candidates(row, col))
-        if candidates:
-            puzzle.set(row, col, candidates[0])
-            print(f"   After: value = {puzzle.get(row, col)}")
-            
-            print("\n3. Checking if cell is fixed (given number):")
-            print(f"   Is fixed: {puzzle.is_fixed(row, col)}")
-            
-            # Try to change a fixed cell
-            for i in range(9):
-                for j in range(9):
-                    if puzzle.is_fixed(i, j):
-                        print(f"   Found fixed cell at ({i+1}, {j+1}) with value {puzzle.get(i, j)}")
-                        print(f"   Trying to change it to 9...")
-                        result = puzzle.set(i, j, 9)
-                        print(f"   Success: {result}")
-                        break
-                break
+        print(f"\n{diff.value.upper():7} ({given:2} given): {'' if has_solution else 'not '}solvable")
 
 
-def example_8_row_col_box_operations():
-    """
-    Example 8: Working with rows, columns, and boxes
-    """
-    print("\n" + "=" * 60)
-    print("Example 8: Row, Column, Box Operations")
-    print("=" * 60)
+def example_conversions():
+    """Convert between formats."""
+    print("\n" + "="*50)
+    print("Example 8: Format Conversions")
+    print("="*50)
     
-    puzzle, solution = SudokuGenerator.generate_with_solution(Difficulty.EASY)
+    puzzle = generate(Difficulty.EASY)
     
-    print("\n1. Get row contents:")
-    print(f"   Row 1: {puzzle.get_row(0)}")
-    print(f"   Row 5: {puzzle.get_row(4)}")
+    print("\nOriginal:")
+    print(puzzle)
     
-    print("\n2. Get column contents:")
-    print(f"   Column 1: {puzzle.get_col(0)}")
-    print(f"   Column 5: {puzzle.get_col(4)}")
+    # To nested list
+    as_list = puzzle.to_list()
+    print(f"\nAs list: {as_list[0]} ...")
     
-    print("\n3. Get 3x3 box contents:")
-    print(f"   Box 0 (top-left): {puzzle.get_box(0)}")
-    print(f"   Box 4 (center): {puzzle.get_box(4)}")
-    print(f"   Box 8 (bottom-right): {puzzle.get_box(8)}")
+    # To flat list
+    as_flat = puzzle.to_flat()
+    print(f"As flat: {as_flat[:20]} ...")
     
-    print("\n4. Box numbering explained:")
-    print("   Boxes are numbered left-to-right, top-to-bottom:")
-    print("   0 | 1 | 2")
-    print("   3 | 4 | 5")
-    print("   6 | 7 | 8")
-
-
-def example_9_check_unique_solution():
-    """
-    Example 9: Check for unique solution
-    """
-    print("\n" + "=" * 60)
-    print("Example 9: Unique Solution Check")
-    print("=" * 60)
-    
-    print("\n1. Generated puzzle (always has unique solution):")
-    puzzle = create_puzzle(Difficulty.MEDIUM)
-    
-    count = SudokuSolver.count_solutions(puzzle, max_count=10)
-    print(f"   Number of solutions: {count}")
-    print(f"   Has unique solution: {SudokuValidator.has_unique_solution(puzzle)}")
-    
-    print("\n2. Empty grid (has many solutions):")
-    empty = SudokuGrid()
-    count = SudokuSolver.count_solutions(empty, max_count=10)
-    print(f"   Number of solutions (limited to 10): {count}")
-    print(f"   (Actually millions of solutions exist)")
-    
-    print("\n3. Partially filled grid:")
-    partial = SudokuGrid()
-    partial.set(0, 0, 1)
-    partial.set(1, 1, 2)
-    partial.set(2, 2, 3)
-    
-    count = SudokuSolver.count_solutions(partial, max_count=10)
-    print(f"   Number of solutions (limited to 10): {count}")
-
-
-def example_10_full_game_flow():
-    """
-    Example 10: Complete game flow demonstration
-    """
-    print("\n" + "=" * 60)
-    print("Example 10: Complete Game Flow")
-    print("=" * 60)
-    
-    # Generate
-    print("\n1. Generate new puzzle:")
-    puzzle = create_puzzle(Difficulty.MEDIUM)
-    difficulty, metrics = estimate_difficulty(puzzle)
-    
-    print(f"   Generated difficulty: {difficulty.name}")
-    print(f"   Given numbers: {metrics['givens']}")
-    print(format_puzzle(puzzle, 'pretty'))
-    
-    # Solve
-    print("\n2. Solve the puzzle:")
-    solution = solve_puzzle(puzzle)
-    print(format_puzzle(solution, 'pretty'))
-    
-    # Save
-    print("\n3. Save puzzle as string:")
-    puzzle_string = format_puzzle(puzzle, 'string')
-    print(f"   Puzzle: {puzzle_string}")
-    
-    solution_string = format_puzzle(solution, 'string')
-    print(f"   Solution: {solution_string}")
-    
-    # Load
-    print("\n4. Load puzzle from string:")
-    loaded = parse_puzzle(puzzle_string)
+    # From flat
+    reconstructed = SudokuGrid.from_flat(as_flat)
+    print(f"\nReconstructed from flat:")
+    print(reconstructed)
     
     # Verify
-    print("\n5. Verify loaded puzzle matches original:")
-    match = True
-    for i in range(9):
-        for j in range(9):
-            if puzzle.get(i, j) != loaded.get(i, j):
-                match = False
-                break
-    print(f"   Match: {match}")
+    assert puzzle.to_flat() == reconstructed.to_flat()
+    print("\n✓ Round-trip conversion successful!")
 
 
 def main():
     """Run all examples."""
-    print("\n" + "=" * 60)
-    print("Sudoku Utilities - Usage Examples")
-    print("=" * 60)
+    print("\n" + "#"*50)
+    print("# Sudoku Utils - Usage Examples")
+    print("#"*50)
     
-    example_1_basic_usage()
-    example_2_difficulty_levels()
-    example_3_parse_and_solve()
-    example_4_get_hints()
-    example_5_validate_and_find_conflicts()
-    example_6_formats()
-    example_7_cell_operations()
-    example_8_row_col_box_operations()
-    example_9_check_unique_solution()
-    example_10_full_game_flow()
+    example_basic_solve()
+    example_generate_puzzle()
+    example_parsing_formats()
+    example_validation()
+    example_analyze_and_hints()
+    example_solver_details()
+    example_difficulty_levels()
+    example_conversions()
     
-    print("\n" + "=" * 60)
-    print("All examples completed!")
-    print("=" * 60)
+    print("\n" + "#"*50)
+    print("# All examples completed!")
+    print("#"*50 + "\n")
 
 
 if __name__ == "__main__":
