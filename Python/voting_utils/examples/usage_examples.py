@@ -1,426 +1,427 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""AllToolkit - Voting Utilities Usage Examples
-
-Examples demonstrating various voting methods and poll management.
-
-Author: AllToolkit
-License: MIT
+"""
+投票选举工具使用示例
+演示各种投票算法的实际应用场景
 """
 
 import sys
 import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from voting_utils.mod import (
-    VotingMethod, create_poll, create_ballot, count_votes, 
-    generate_test_ballots, get_voting_method_info
+from mod import (
+    Ballot, VotingSystem, create_ballot, generate_random_ballot,
+    PluralityVoting, RankedChoiceVoting, BordaCount, 
+    CondorcetMethod, DHondtMethod, ApprovalVoting, RangeVoting,
+    SingleTransferableVote
 )
 
 
-def example_plurality_voting():
-    """Example: Basic plurality voting (first-past-the-post)."""
-    print("\n=== Example 1: Plurality Voting ===\n")
+def example_1_simple_election():
+    """示例1: 简单的多数制选举"""
+    print("=" * 60)
+    print("示例1: 简单的多数制选举")
+    print("=" * 60)
+    print("场景: 班级选举班长，3位候选人")
+    print()
     
-    # Create a poll for favorite color
-    poll = create_poll(
-        "Favorite Color Poll",
-        ["Red", "Blue", "Green", "Yellow"],
-        method=VotingMethod.PLURALITY,
-        description="Vote for your favorite color!"
-    )
+    candidates = ["张三", "李四", "王五"]
     
-    print(f"Poll: {poll.title}")
-    print(f"Method: {poll.method.value}")
-    print(f"Candidates: {[c.name for c in poll.candidates]}")
-    
-    # Create ballots manually
+    # 20位同学的投票
     ballots = [
-        create_ballot(poll.id, "voter1", choices=[poll.candidates[0].id]),
-        create_ballot(poll.id, "voter2", choices=[poll.candidates[0].id]),
-        create_ballot(poll.id, "voter3", choices=[poll.candidates[1].id]),
-        create_ballot(poll.id, "voter4", choices=[poll.candidates[0].id]),
-        create_ballot(poll.id, "voter5", choices=[poll.candidates[2].id]),
+        create_ballot(rankings=["张三"]),
+        create_ballot(rankings=["张三"]),
+        create_ballot(rankings=["张三"]),
+        create_ballot(rankings=["张三"]),
+        create_ballot(rankings=["张三"]),
+        create_ballot(rankings=["张三"]),
+        create_ballot(rankings=["张三"]),
+        create_ballot(rankings=["李四"]),
+        create_ballot(rankings=["李四"]),
+        create_ballot(rankings=["李四"]),
+        create_ballot(rankings=["李四"]),
+        create_ballot(rankings=["李四"]),
+        create_ballot(rankings=["李四"]),
+        create_ballot(rankings=["王五"]),
+        create_ballot(rankings=["王五"]),
+        create_ballot(rankings=["王五"]),
+        create_ballot(rankings=["王五"]),
+        create_ballot(rankings=["王五"]),
+        create_ballot(rankings=["王五"]),
+        create_ballot(rankings=["王五"]),
     ]
     
-    # Count votes
-    result = count_votes(poll, ballots)
+    result = PluralityVoting.count(ballots, candidates)
     
-    print(f"\nTotal votes: {result.total_votes}")
-    print(f"Winner: {result.get_winner().name}")
-    print("\nFull results:")
-    for count in result.counts:
-        print(f"  {count.rank}. {count.candidate_name}: {count.votes} votes ({count.percentage:.1f}%)")
+    print(f"总票数: {len(ballots)}")
+    print(f"投票结果:")
+    for candidate, votes in result.rankings:
+        percentage = (votes / len(ballots)) * 100
+        print(f"  {candidate}: {votes}票 ({percentage:.1f}%)")
+    print(f"\n获胜者: {result.winner} 🏆")
+    print()
 
 
-def example_approval_voting():
-    """Example: Approval voting."""
-    print("\n=== Example 2: Approval Voting ===\n")
+def example_2_ranked_choice_voting():
+    """示例2: 排名选择投票（即时决选）"""
+    print("=" * 60)
+    print("示例2: 排名选择投票（即时决选）")
+    print("=" * 60)
+    print("场景: 没有候选人获得超过50%选票时的自动决选")
+    print()
     
-    # Create a poll for pizza toppings (multiple can be approved)
-    poll = create_poll(
-        "Pizza Topping Selection",
-        ["Pepperoni", "Mushrooms", "Olives", "Bacon", "Extra Cheese"],
-        method=VotingMethod.APPROVAL,
-        max_choices=3,
-        description="Approve up to 3 toppings you'd like"
-    )
+    candidates = ["候选人A", "候选人B", "候选人C"]
     
-    print(f"Poll: {poll.title}")
-    print(f"Max approvals per voter: {poll.max_choices}")
+    # 选票按排名填写
+    ballots = [
+        # A的支持者（7票）
+        create_ballot(rankings=["候选人A", "候选人B", "候选人C"]),
+        create_ballot(rankings=["候选人A", "候选人B", "候选人C"]),
+        create_ballot(rankings=["候选人A", "候选人C", "候选人B"]),
+        create_ballot(rankings=["候选人A", "候选人C", "候选人B"]),
+        create_ballot(rankings=["候选人A", "候选人B", "候选人C"]),
+        create_ballot(rankings=["候选人A", "候选人C", "候选人B"]),
+        create_ballot(rankings=["候选人A", "候选人B", "候选人C"]),
+        # B的支持者（5票）
+        create_ballot(rankings=["候选人B", "候选人C", "候选人A"]),
+        create_ballot(rankings=["候选人B", "候选人C", "候选人A"]),
+        create_ballot(rankings=["候选人B", "候选人A", "候选人C"]),
+        create_ballot(rankings=["候选人B", "候选人A", "候选人C"]),
+        create_ballot(rankings=["候选人B", "候选人C", "候选人A"]),
+        # C的支持者（4票）
+        create_ballot(rankings=["候选人C", "候选人B", "候选人A"]),
+        create_ballot(rankings=["候选人C", "候选人B", "候选人A"]),
+        create_ballot(rankings=["候选人C", "候选人B", "候选人A"]),
+        create_ballot(rankings=["候选人C", "候选人A", "候选人B"]),
+    ]
     
-    # Generate test ballots with random approvals
-    ballots = generate_test_ballots(poll, 50)
+    result = RankedChoiceVoting.count(ballots, candidates)
     
-    # Count votes
-    result = count_votes(poll, ballots)
+    print(f"总票数: {len(ballots)}")
+    print(f"所需阈值: >{len(ballots)//2}票 ({len(ballots)//2 + 1}票)")
+    print()
     
-    print(f"\nTotal voters: {result.total_votes}")
-    print(f"Total approvals: {result.metadata.get('total_approvals', 0)}")
-    print(f"Winner(s): {[w.name for w in result.winners]}")
+    for i, round_data in enumerate(result.rounds, 1):
+        print(f"第{i}轮结果:")
+        for candidate, votes in sorted(round_data.items(), key=lambda x: x[1], reverse=True):
+            print(f"  {candidate}: {votes}票")
+        print()
     
-    print("\nApproval counts:")
-    for count in result.counts:
-        print(f"  {count.rank}. {count.candidate_name}: approved by {count.votes} voters ({count.percentage:.1f}%)")
+    print(f"最终获胜者: {result.winner} 🏆")
+    print()
 
 
-def example_ranked_choice():
-    """Example: Ranked choice voting (instant runoff)."""
-    print("\n=== Example 3: Ranked Choice Voting (IRV) ===\n")
+def example_3_borda_count():
+    """示例3: 波达计数法"""
+    print("=" * 60)
+    print("示例3: 波达计数法")
+    print("=" * 60)
+    print("场景: 体育比赛评分，排名越靠前得分越高")
+    print()
     
-    # Create a poll for best programming language
-    poll = create_poll(
-        "Best Programming Language 2026",
-        ["Python", "JavaScript", "Go", "Rust", "Java"],
-        method=VotingMethod.RANKED_CHOICE,
-        description="Rank your top programming languages"
-    )
+    candidates = ["运动员A", "运动员B", "运动员C", "运动员D"]
     
-    # Get method info
-    info = get_voting_method_info(VotingMethod.RANKED_CHOICE)
-    print(f"Method: {info['name']}")
-    print(f"Description: {info['description']}")
+    # 5位评委的排名
+    ballots = [
+        create_ballot(rankings=["运动员A", "运动员B", "运动员C", "运动员D"]),
+        create_ballot(rankings=["运动员A", "运动员C", "运动员B", "运动员D"]),
+        create_ballot(rankings=["运动员B", "运动员A", "运动员C", "运动员D"]),
+        create_ballot(rankings=["运动员C", "运动员A", "运动员B", "运动员D"]),
+        create_ballot(rankings=["运动员A", "运动员B", "运动员D", "运动员C"]),
+    ]
     
-    # Create ballots with rankings
-    # Simulate a scenario where Python leads but doesn't have majority initially
+    result = BordaCount.count(ballots, candidates)
+    
+    n = len(candidates)
+    print(f"波达计分规则: 第1名得{n-1}分，第2名得{n-2}分，...，第{n}名得0分")
+    print()
+    print("各运动员总得分:")
+    for candidate, score in result.rankings:
+        print(f"  {candidate}: {score}分")
+    print()
+    print(f"冠军: {result.winner} 🥇")
+    print()
+
+
+def example_4_condorcet_method():
+    """示例4: 孔多塞方法"""
+    print("=" * 60)
+    print("示例4: 孔多塞方法（两两对决）")
+    print("=" * 60)
+    print("场景: 找出在所有两两对决中都获胜的候选人")
+    print()
+    
+    candidates = ["方案A", "方案B", "方案C"]
+    
+    # 9位决策者的偏好
+    ballots = [
+        # 4人: A > B > C
+        create_ballot(rankings=["方案A", "方案B", "方案C"]),
+        create_ballot(rankings=["方案A", "方案B", "方案C"]),
+        create_ballot(rankings=["方案A", "方案B", "方案C"]),
+        create_ballot(rankings=["方案A", "方案B", "方案C"]),
+        # 3人: B > C > A
+        create_ballot(rankings=["方案B", "方案C", "方案A"]),
+        create_ballot(rankings=["方案B", "方案C", "方案A"]),
+        create_ballot(rankings=["方案B", "方案C", "方案A"]),
+        # 2人: C > A > B
+        create_ballot(rankings=["方案C", "方案A", "方案B"]),
+        create_ballot(rankings=["方案C", "方案A", "方案B"]),
+    ]
+    
+    result = CondorcetMethod.count(ballots, candidates)
+    
+    print("两两对决结果:")
+    pairwise = result.details["pairwise_matrix"]
+    for c1 in candidates:
+        for c2 in candidates:
+            if c1 != c2:
+                wins = pairwise[c1][c2]
+                losses = pairwise[c2][c1]
+                if wins > losses:
+                    print(f"  {c1} vs {c2}: {c1}获胜 ({wins}:{losses})")
+    
+    print()
+    if result.winner:
+        print(f"孔多塞赢家: {result.winner} 🏆")
+        print("(在所有两两对决中都获胜)")
+    else:
+        print("没有孔多塞赢家（存在孔多塞循环）")
+    print()
+
+
+def example_5_proportional_representation():
+    """示例5: 比例代表制（洪德法）"""
+    print("=" * 60)
+    print("示例5: 比例代表制（洪德法分配席位）")
+    print("=" * 60)
+    print("场景: 议会选举，按政党得票比例分配席位")
+    print()
+    
+    party_votes = {
+        "民主党": 45000,
+        "共和党": 30000,
+        "绿党": 15000,
+        "独立党": 10000
+    }
+    total_seats = 10
+    
+    result = DHondtMethod.count(party_votes, seats=total_seats)
+    
+    total_votes = sum(party_votes.values())
+    print("各政党得票:")
+    for party, votes in sorted(party_votes.items(), key=lambda x: x[1], reverse=True):
+        percentage = (votes / total_votes) * 100
+        print(f"  {party}: {votes:,}票 ({percentage:.1f}%)")
+    
+    print(f"\n总席位数: {total_seats}")
+    print("\n席位分配结果:")
+    for party, seats in result.rankings:
+        print(f"  {party}: {seats}席")
+    print()
+
+
+def example_6_approval_voting():
+    """示例6: 赞成投票"""
+    print("=" * 60)
+    print("示例6: 赞成投票")
+    print("=" * 60)
+    print("场景: 选出多位代表，每人可赞成多个候选人")
+    print()
+    
+    candidates = ["张三", "李四", "王五", "赵六"]
+    
+    # 每张选票可以赞成多人
+    ballots = [
+        create_ballot(rankings=[], approvals={"张三", "李四"}),
+        create_ballot(rankings=[], approvals={"张三", "李四"}),
+        create_ballot(rankings=[], approvals={"张三", "王五"}),
+        create_ballot(rankings=[], approvals={"李四", "王五"}),
+        create_ballot(rankings=[], approvals={"张三", "李四", "王五"}),
+        create_ballot(rankings=[], approvals={"李四"}),
+        create_ballot(rankings=[], approvals={"王五", "赵六"}),
+        create_ballot(rankings=[], approvals={"张三", "赵六"}),
+    ]
+    
+    result = ApprovalVoting.count(ballots, candidates)
+    
+    print("各候选人获赞成数:")
+    for candidate, approvals in result.rankings:
+        print(f"  {candidate}: {approvals}票")
+    print()
+    print(f"获胜者: {result.winner} 🏆")
+    print()
+
+
+def example_7_range_voting():
+    """示例7: 范围投票（评分投票）"""
+    print("=" * 60)
+    print("示例7: 范围投票（评分投票）")
+    print("=" * 60)
+    print("场景: 选美比赛，评委对每位选手打分（0-10分）")
+    print()
+    
+    candidates = ["选手A", "选手B", "选手C"]
+    
+    ballots = [
+        create_ballot(rankings=[], weights={"选手A": 9, "选手B": 8, "选手C": 7}),
+        create_ballot(rankings=[], weights={"选手A": 10, "选手B": 9, "选手C": 8}),
+        create_ballot(rankings=[], weights={"选手A": 8, "选手B": 10, "选手C": 6}),
+        create_ballot(rankings=[], weights={"选手A": 9, "选手B": 7, "选手C": 9}),
+        create_ballot(rankings=[], weights={"选手A": 8, "选手B": 8, "选手C": 9}),
+    ]
+    
+    result = RangeVoting.count(ballots, candidates, min_score=0, max_score=10)
+    
+    print("评分范围: 0-10分")
+    print("\n各选手平均得分:")
+    for candidate, avg_score in result.rankings:
+        print(f"  {candidate}: {avg_score:.2f}分")
+    print()
+    print(f"冠军: {result.winner} 🏆")
+    print()
+
+
+def example_8_stv_multiple_seats():
+    """示例8: 单一可转移投票（多席位）"""
+    print("=" * 60)
+    print("示例8: 单一可转移投票（STV）- 多席位选举")
+    print("=" * 60)
+    print("场景: 选举3位代表，选票可转移")
+    print()
+    
+    candidates = ["候选人A", "候选人B", "候选人C", "候选人D", "候选人E"]
+    seats = 3
+    
+    # 100张选票
     ballots = []
+    # A的前两名支持者: 28票
+    for _ in range(28):
+        ballots.append(create_ballot(rankings=["候选人A", "候选人B", "候选人C", "候选人D", "候选人E"]))
+    # B的前两名支持者: 22票
+    for _ in range(22):
+        ballots.append(create_ballot(rankings=["候选人B", "候选人A", "候选人C", "候选人D", "候选人E"]))
+    # C的支持者: 20票
+    for _ in range(20):
+        ballots.append(create_ballot(rankings=["候选人C", "候选人D", "候选人A", "候选人B", "候选人E"]))
+    # D的支持者: 18票
+    for _ in range(18):
+        ballots.append(create_ballot(rankings=["候选人D", "候选人C", "候选人A", "候选人B", "候选人E"]))
+    # E的支持者: 12票
+    for _ in range(12):
+        ballots.append(create_ballot(rankings=["候选人E", "候选人D", "候选人C", "候选人B", "候选人A"]))
     
-    # 35 voters: Python > JavaScript > Go
-    for i in range(35):
-        rankings = {
-            poll.candidates[0].id: 1,  # Python first
-            poll.candidates[1].id: 2,  # JavaScript second
-            poll.candidates[2].id: 3,  # Go third
-        }
-        ballots.append(create_ballot(poll.id, f"v{i}", rankings=rankings))
+    result = SingleTransferableVote.count(ballots, candidates, seats=seats)
     
-    # 25 voters: JavaScript > Python > Go
-    for i in range(35, 60):
-        rankings = {
-            poll.candidates[1].id: 1,  # JavaScript first
-            poll.candidates[0].id: 2,  # Python second
-            poll.candidates[2].id: 3,  # Go third
-        }
-        ballots.append(create_ballot(poll.id, f"v{i}", rankings=rankings))
-    
-    # 20 voters: Go > Rust > JavaScript
-    for i in range(60, 80):
-        rankings = {
-            poll.candidates[2].id: 1,  # Go first
-            poll.candidates[3].id: 2,  # Rust second
-            poll.candidates[1].id: 3,  # JavaScript third
-        }
-        ballots.append(create_ballot(poll.id, f"v{i}", rankings=rankings))
-    
-    # 20 voters: Rust > Go > Python
-    for i in range(80, 100):
-        rankings = {
-            poll.candidates[3].id: 1,  # Rust first
-            poll.candidates[2].id: 2,  # Go second
-            poll.candidates[0].id: 3,  # Python third
-        }
-        ballots.append(create_ballot(poll.id, f"v{i}", rankings=rankings))
-    
-    # Count votes
-    result = count_votes(poll, ballots)
-    
-    print(f"\nWinner: {result.get_winner().name}")
-    print(f"Number of rounds: {len(result.rounds) if result.rounds else 1}")
-    
-    if result.rounds:
-        print("\nRound-by-round results:")
-        for round_info in result.rounds:
-            print(f"  Round {round_info['round']}:")
-            for cid, votes in round_info['counts'].items():
-                cand = poll.get_candidate_by_id(cid)
-                print(f"    {cand.name}: {votes} votes")
-            print(f"    Majority threshold: {round_info['majority_threshold']}")
-            print(f"    Has majority: {round_info['has_majority']}")
+    total_votes = len(ballots)
+    quota = result.details["quota"]
+    print(f"总票数: {total_votes}")
+    print(f"席位数: {seats}")
+    print(f"当选配额（Droop配额）: {quota}票")
+    print()
+    print("当选者:")
+    for i, elected in enumerate(result.details["elected"], 1):
+        print(f"  第{i}席: {elected}")
+    print()
 
 
-def example_borda_count():
-    """Example: Borda count voting."""
-    print("\n=== Example 4: Borda Count ===\n")
+def example_9_compare_methods():
+    """示例9: 比较不同投票方法的结果"""
+    print("=" * 60)
+    print("示例9: 比较不同投票方法的结果")
+    print("=" * 60)
+    print("场景: 同一组选票，用不同方法可能产生不同结果")
+    print()
     
-    # Create a poll for best movie
-    poll = create_poll(
-        "Best Movie of the Year",
-        ["The Adventure", "Love Story", "Sci-Fi Epic", "Comedy Hit"],
-        method=VotingMethod.BORDA
-    )
+    candidates = ["A", "B", "C"]
     
-    print(f"Poll: {poll.title}")
-    
-    # Create ballots with rankings
-    ballots = generate_test_ballots(poll, 30)
-    
-    # Count votes
-    result = count_votes(poll, ballots)
-    
-    print(f"\nWinner: {result.get_winner().name}")
-    print(f"Max possible Borda score: {result.metadata['max_borda_score']}")
-    
-    print("\nBorda scores:")
-    for count in result.counts:
-        print(f"  {count.rank}. {count.candidate_name}: {count.votes} points ({count.percentage:.1f}% of max)")
-
-
-def example_condorcet():
-    """Example: Condorcet voting."""
-    print("\n=== Example 5: Condorcet Voting ===\n")
-    
-    # Create a poll
-    poll = create_poll(
-        "Best Restaurant in Town",
-        ["Pizza Place", "Sushi Bar", "Steak House", "Thai Corner"],
-        method=VotingMethod.CONDORCET
-    )
-    
-    print(f"Poll: {poll.title}")
-    
-    # Generate ballots
-    ballots = generate_test_ballots(poll, 25)
-    
-    result = count_votes(poll, ballots)
-    
-    print(f"\nCondorcet winner exists: {result.metadata['condorcet_winner_exists']}")
-    print(f"Resolution method: {result.metadata['resolution_method']}")
-    print(f"Winner: {result.get_winner().name}")
-    
-    # Show pairwise matrix if available
-    if result.pairwise_matrix:
-        print("\nPairwise comparison matrix (wins):")
-        cands = {c.id: c.name for c in poll.candidates}
-        print("    " + "  ".join(cands.values()))
-        for cid1, row in result.pairwise_matrix.items():
-            row_str = cands[cid1] + ": "
-            for cid2, wins in row.items():
-                if cid1 != cid2:
-                    row_str += f"{wins:>3} "
-            print(row_str)
-
-
-def example_score_voting():
-    """Example: Score/range voting."""
-    print("\n=== Example 6: Score Voting ===\n")
-    
-    # Create a poll with score range 0-10
-    poll = create_poll(
-        "Rate the Service Quality",
-        ["Staff Friendliness", "Speed", "Cleanliness", "Value"],
-        method=VotingMethod.SCORE,
-        min_score=0,
-        max_score=10
-    )
-    
-    print(f"Poll: {poll.title}")
-    print(f"Score range: {poll.min_score} to {poll.max_score}")
-    
-    # Create ballots with scores
-    ballots = generate_test_ballots(poll, 20)
-    
-    result = count_votes(poll, ballots)
-    
-    print(f"\nWinner: {result.get_winner().name}")
-    
-    print("\nAverage scores:")
-    for count in result.counts:
-        # Calculate average from total and percentage
-        avg = (count.percentage / 100) * poll.max_score
-        print(f"  {count.rank}. {count.candidate_name}: avg {avg:.1f}/10 (total: {count.votes})")
-
-
-def example_stv():
-    """Example: Single Transferable Vote for multi-seat."""
-    print("\n=== Example 7: STV (Multi-Seat Election) ===\n")
-    
-    # Create a poll to elect 3 committee members
-    poll = create_poll(
-        "Elect Committee Members",
-        ["Alice", "Bob", "Charlie", "Diana", "Eve", "Frank"],
-        method=VotingMethod.STV,
-        seats=3,
-        description="Elect 3 members to the committee"
-    )
-    
-    print(f"Poll: {poll.title}")
-    print(f"Seats to fill: {poll.seats}")
-    
-    # Generate ballots
-    ballots = generate_test_ballots(poll, 100)
-    
-    result = count_votes(poll, ballots)
-    
-    print(f"\nDroop quota: {result.metadata['droop_quota']}")
-    print(f"Elected: {[w.name for w in result.winners]}")
-    
-    if result.rounds:
-        print("\nElection rounds:")
-        for round_info in result.rounds:
-            print(f"  Round {round_info['round']}:")
-            print(f"    Elected so far: {[poll.get_candidate_by_id(cid).name for cid in round_info['elected_so_far']]}")
-            if round_info['new_elected']:
-                print(f"    Newly elected: {[poll.get_candidate_by_id(cid).name for cid in round_info['new_elected']]}")
-            if round_info['eliminated_this_round']:
-                print(f"    Eliminated: {[poll.get_candidate_by_id(cid).name for cid in round_info['eliminated_this_round']]}")
-
-
-def example_compare_methods():
-    """Example: Compare different methods on same ballots."""
-    print("\n=== Example 8: Comparing Methods ===\n")
-    
-    # Create a poll
-    poll = create_poll(
-        "Favorite Season",
-        ["Spring", "Summer", "Fall", "Winter"],
-        method=VotingMethod.PLURALITY
-    )
-    
-    # Generate base ballots
-    ballots = generate_test_ballots(poll, 50)
-    
-    print(f"Poll: {poll.title}")
-    print(f"Total voters: {len(ballots)}")
-    
-    # Test each method
-    methods = [
-        VotingMethod.PLURALITY,
-        VotingMethod.APPROVAL,
-        VotingMethod.RANKED_CHOICE,
-        VotingMethod.BORDA,
-        VotingMethod.CONDORCET,
-        VotingMethod.SCORE,
+    # 经典的孔多塞悖论案例
+    ballots = [
+        create_ballot(rankings=["A", "B", "C"]),
+        create_ballot(rankings=["A", "B", "C"]),
+        create_ballot(rankings=["B", "C", "A"]),
+        create_ballot(rankings=["B", "C", "A"]),
+        create_ballot(rankings=["C", "A", "B"]),
+        create_ballot(rankings=["C", "A", "B"]),
     ]
     
-    print("\nResults by method:")
-    for method in methods:
-        poll.method = method
-        # Regenerate ballots appropriate for each method
-        test_ballots = generate_test_ballots(poll, 50)
-        result = count_votes(poll, test_ballots)
-        winner = result.get_winner()
-        print(f"  {method.value}: {winner.name if winner else 'None'}")
+    print("选票分布:")
+    print("  A > B > C: 2票")
+    print("  B > C > A: 2票")
+    print("  C > A > B: 2票")
+    print()
+    
+    methods = ["plurality", "rcv", "borda", "condorcet", "approval"]
+    results = VotingSystem.compare_methods(ballots, candidates, methods)
+    
+    print("各方法结果:")
+    for method, result in results.items():
+        winner = result.winner or "无"
+        print(f"  {result.method}: 获胜者 = {winner}")
+    print()
+    print("注意: 不同方法可能产生不同获胜者!")
+    print()
 
 
-def example_method_info():
-    """Example: Get information about voting methods."""
-    print("\n=== Example 9: Voting Method Information ===\n")
+def example_10_real_world_scenario():
+    """示例10: 真实场景模拟"""
+    print("=" * 60)
+    print("示例10: 真实场景模拟 - 学生会选举")
+    print("=" * 60)
+    print("场景: 大学学生会主席选举，使用排名选择投票")
+    print()
     
-    methods = [
-        VotingMethod.PLURALITY,
-        VotingMethod.APPROVAL,
-        VotingMethod.RANKED_CHOICE,
-        VotingMethod.BORDA,
-        VotingMethod.CONDORCET,
-        VotingMethod.SCORE,
-        VotingMethod.STV,
-    ]
+    candidates = ["小明（改革派）", "小红（稳健派）", "小李（独立派）"]
     
-    for method in methods:
-        info = get_voting_method_info(method)
-        print(f"\n{info['name']}")
-        print(f"  Description: {info['description']}")
-        print(f"  Pros: {', '.join(info['pros'][:2])}")
-        print(f"  Cons: {', '.join(info['cons'][:2])}")
-
-
-def example_full_workflow():
-    """Example: Full poll workflow."""
-    print("\n=== Example 10: Full Poll Workflow ===\n")
+    # 模拟200名学生的投票
+    import random
+    random.seed(42)  # 设置随机种子以便复现
     
-    # Step 1: Create poll
-    print("Step 1: Creating poll...")
-    poll = create_poll(
-        "Team Lunch Decision",
-        ["Italian", "Chinese", "Mexican", "Indian"],
-        method=VotingMethod.RANKED_CHOICE,
-        description="Decide where to go for team lunch"
-    )
-    print(f"  Created poll: {poll.title} (ID: {poll.id})")
-    
-    # Step 2: Collect ballots
-    print("\nStep 2: Collecting ballots...")
     ballots = []
-    team_members = ["Alice", "Bob", "Charlie", "Diana", "Eve", "Frank", "Grace", "Henry"]
+    # 小明的铁杆支持者
+    for _ in range(70):
+        ballots.append(create_ballot(rankings=["小明（改革派）", "小李（独立派）", "小红（稳健派）"]))
+    # 小红的支持者
+    for _ in range(55):
+        ballots.append(create_ballot(rankings=["小红（稳健派）", "小李（独立派）", "小明（改革派）"]))
+    # 小李的支持者
+    for _ in range(35):
+        ballots.append(create_ballot(rankings=["小李（独立派）", "小红（稳健派）", "小明（改革派）"]))
+    # 战术性投票
+    for _ in range(20):
+        ballots.append(create_ballot(rankings=["小李（独立派）", "小明（改革派）", "小红（稳健派）"]))
+    for _ in range(20):
+        ballots.append(create_ballot(rankings=["小红（稳健派）", "小明（改革派）", "小李（独立派）"]))
     
-    # Simulate team preferences
-    preferences = [
-        [0, 1, 2, 3],  # Alice: Italian > Chinese > Mexican > Indian
-        [0, 2, 1, 3],  # Bob: Italian > Mexican > Chinese > Indian
-        [1, 0, 2, 3],  # Charlie: Chinese > Italian > Mexican > Indian
-        [1, 3, 0, 2],  # Diana: Chinese > Indian > Italian > Mexican
-        [2, 0, 1, 3],  # Eve: Mexican > Italian > Chinese > Indian
-        [2, 1, 0, 3],  # Frank: Mexican > Chinese > Italian > Indian
-        [3, 2, 1, 0],  # Grace: Indian > Mexican > Chinese > Italian
-        [3, 1, 0, 2],  # Henry: Indian > Chinese > Italian > Mexican
-    ]
+    print(f"总投票人数: {len(ballots)}")
+    print()
     
-    for i, (member, prefs) in enumerate(zip(team_members, preferences)):
-        rankings = {}
-        for rank, pref_idx in enumerate(prefs, 1):
-            rankings[poll.candidates[pref_idx].id] = rank
-        ballot = create_ballot(poll.id, member.lower(), rankings=rankings)
-        ballots.append(ballot)
+    # 使用排名选择投票
+    result = VotingSystem.run_election("rcv", ballots, candidates)
     
-    print(f"  Collected {len(ballots)} ballots")
+    print("选举过程:")
+    for i, round_data in enumerate(result.rounds, 1):
+        print(f"\n第{i}轮:")
+        for candidate, votes in sorted(round_data.items(), key=lambda x: x[1], reverse=True):
+            percentage = (votes / len(ballots)) * 100
+            print(f"  {candidate}: {votes}票 ({percentage:.1f}%)")
     
-    # Step 3: Count votes
-    print("\nStep 3: Counting votes...")
-    result = count_votes(poll, ballots)
-    
-    # Step 4: Display results
-    print("\nStep 4: Results")
-    print(result.to_summary())
-    
-    # Step 5: Decision
-    print("\nStep 5: Decision")
-    winner = result.get_winner()
-    print(f"  The team will go to: {winner.name}!")
+    print(f"\n{'=' * 40}")
+    print(f"当选主席: {result.winner} 🎉")
+    print(f"{'=' * 40}")
+    print()
 
 
-def main():
-    """Run all examples."""
+if __name__ == "__main__":
+    example_1_simple_election()
+    example_2_ranked_choice_voting()
+    example_3_borda_count()
+    example_4_condorcet_method()
+    example_5_proportional_representation()
+    example_6_approval_voting()
+    example_7_range_voting()
+    example_8_stv_multiple_seats()
+    example_9_compare_methods()
+    example_10_real_world_scenario()
+    
     print("=" * 60)
-    print("AllToolkit - Voting Utilities Examples")
+    print("所有示例运行完成!")
     print("=" * 60)
-    
-    example_plurality_voting()
-    example_approval_voting()
-    example_ranked_choice()
-    example_borda_count()
-    example_condorcet()
-    example_score_voting()
-    example_stv()
-    example_compare_methods()
-    example_method_info()
-    example_full_workflow()
-    
-    print("\n" + "=" * 60)
-    print("All examples completed successfully!")
-    print("=" * 60)
-
-
-if __name__ == '__main__':
-    main()
