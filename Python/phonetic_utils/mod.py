@@ -1,1354 +1,1155 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-AllToolkit - Phonetic Encoding Utilities Module
-=================================================
-A comprehensive phonetic encoding utility module for Python with zero external dependencies.
+"""AllToolkit - Phonetic Algorithm Utilities Module
+
+Phonetic algorithms encode words based on their pronunciation rather than 
+spelling, enabling matching of similar-sounding names and words. Useful for
+deduplication, search, spelling correction, and genealogical research.
 
 Features:
-    - Soundex encoding (American Soundex)
-    - Metaphone encoding
-    - Double Metaphone encoding (primary and alternate)
-    - NYSIIS encoding (New York State Identification and Intelligence System)
-    - Caverphone 2.0 encoding
-    - Match Rating Codex (MRC) encoding
-    - Fuzzy name matching utilities
-    - Phonetic similarity comparison
+- Soundex (US Census standard)
+- Metaphone (improved Soundex)
+- Double Metaphone (handles multiple pronunciations)
+- Caverphone (New Zealand electoral roll)
+- NYSIIS (New York State Identification and Intelligence System)
+- Match Rating Codex (simplified encoding)
+- Phonetic comparison and matching
 
-Applications:
-    - Name matching and deduplication
-    - Search with spelling tolerance
-    - Genealogy and record linkage
-    - Customer database deduplication
+Pure Python implementation with zero external dependencies.
 
-Author: AllToolkit Contributors
+Author: AllToolkit
 License: MIT
 """
 
 import re
-from typing import Tuple, List, Optional, Dict, Set
+from typing import List, Tuple, Optional, Set, Dict
 from dataclasses import dataclass
 from enum import Enum
 
 
-# ============================================================================
-# Constants
-# ============================================================================
-
-# Soundex letter groups
-SOUNDEX_GROUPS = {
-    'b': '1', 'f': '1', 'p': '1', 'v': '1',
-    'c': '2', 'g': '2', 'j': '2', 'k': '2', 'q': '2', 's': '2', 'x': '2', 'z': '2',
-    'd': '3', 't': '3',
-    'l': '4',
-    'm': '5', 'n': '5',
-    'r': '6',
-}
-
-# Metaphone letter mappings
-METAPHONE_VOWELS = {'a', 'e', 'i', 'o', 'u'}
-
-
-# ============================================================================
-# Data Classes
-# ============================================================================
+# =============================================================================
+# Data Classes and Enums
+# =============================================================================
 
 @dataclass
 class PhoneticResult:
-    """Container for phonetic encoding results."""
-    soundex: str
-    metaphone: str
-    double_metaphone: Tuple[str, Optional[str]]
-    nysiis: str
-    caverphone: str
-    match_rating_codex: str
-
-
-@dataclass
-class DoubleMetaphoneResult:
-    """Container for Double Metaphone results."""
+    """Result of phonetic encoding."""
+    original: str
     primary: str
-    alternate: Optional[str]
+    alternate: Optional[str] = None  # For Double Metaphone
+    algorithm: str = ""
+    
+    def __str__(self) -> str:
+        if self.alternate:
+            return f"{self.primary}/{self.alternate}"
+        return self.primary
 
 
 class PhoneticAlgorithm(Enum):
-    """Enumeration of supported phonetic algorithms."""
+    """Supported phonetic algorithms."""
     SOUNDEX = "soundex"
     METAPHONE = "metaphone"
     DOUBLE_METAPHONE = "double_metaphone"
-    NYSIIS = "nysiis"
     CAVERPHONE = "caverphone"
-    MATCH_RATING_CODEX = "match_rating_codex"
+    NYSIIS = "nysiis"
+    MATCH_RATING = "match_rating"
+    REFINED_SOUNDEX = "refined_soundex"
 
 
-# ============================================================================
-# Utility Functions
-# ============================================================================
-
-def _clean_string(text: str) -> str:
-    """
-    Clean and normalize a string for phonetic processing.
-    
-    Args:
-        text: Input string
-    
-    Returns:
-        Cleaned uppercase string with only letters
-    """
-    if not text:
-        return ""
-    return re.sub(r'[^A-Za-z]', '', text).upper()
-
-
-def _is_vowel(char: str) -> bool:
-    """Check if a character is a vowel."""
-    return char.lower() in METAPHONE_VOWELS
-
-
-def _is_slavo_germanic(text: str) -> bool:
-    """Check if a name appears to be Slavic or Germanic in origin."""
-    text_lower = text.lower()
-    patterns = ['witz', 'wicz', 'ski', 'sky', 'cki', 'sk', 'sch', 'tz', 'cz']
-    return any(p in text_lower for p in patterns)
-
-
-# ============================================================================
+# =============================================================================
 # Soundex Algorithm
-# ============================================================================
+# =============================================================================
 
-def soundex(text: str) -> str:
+def soundex(name: str) -> PhoneticResult:
     """
-    Encode a string using the American Soundex algorithm.
+    Encode a name using the Soundex algorithm (US Census standard).
     
     Soundex encodes homophones to the same representation, allowing
-    matching of names that sound similar but are spelled differently.
+    matching of similar-sounding names despite minor spelling differences.
     
     Args:
-        text: Input string to encode
-    
+        name: Name or word to encode
+        
     Returns:
-        4-character Soundex code (letter + 3 digits)
-    
-    Examples:
-        >>> soundex("Robert")
+        PhoneticResult with 4-character Soundex code
+        
+    Example:
+        >>> soundex("Robert").primary
         'R163'
-        >>> soundex("Rupert")
+        >>> soundex("Rupert").primary
         'R163'
-        >>> soundex("Smith")
+        >>> soundex("Smith").primary
         'S530'
-        >>> soundex("Schmidt")
+        >>> soundex("Schmidt").primary
         'S530'
-    
-    Note:
-        Soundex codes have the format: First letter + 3 digits
-        Vowels and H, W are ignored after the first letter
-        Adjacent letters with the same code are merged
     """
-    if not text:
-        return "0000"
+    if not name:
+        return PhoneticResult(original=name or "", primary="0000", algorithm="soundex")
     
-    cleaned = _clean_string(text)
-    if not cleaned:
-        return "0000"
+    # Clean and normalize
+    name = name.upper().strip()
+    name = re.sub(r'[^A-Z]', '', name)
     
-    # Keep the first letter
-    first_letter = cleaned[0]
+    if not name:
+        return PhoneticResult(original=name or "", primary="0000", algorithm="soundex")
     
-    # Encode remaining letters
-    codes = []
-    for char in cleaned[1:]:
-        code = SOUNDEX_GROUPS.get(char.lower(), '')
-        if code:
-            codes.append(code)
+    # Keep first letter
+    first_letter = name[0]
     
-    # Remove adjacent duplicates
-    result = [first_letter]
-    prev_code = SOUNDEX_GROUPS.get(first_letter.lower(), '')
+    # Mapping: B, P, F, V -> 1; C, S, K, G, J, Q, X, Z -> 2
+    # D, T -> 3; L -> 4; M, N -> 5; R -> 6; A, E, I, O, U, H, W, Y -> ignore
+    mapping = {
+        'B': '1', 'P': '1', 'F': '1', 'V': '1',
+        'C': '2', 'S': '2', 'K': '2', 'G': '2', 'J': '2', 'Q': '2', 'X': '2', 'Z': '2',
+        'D': '3', 'T': '3',
+        'L': '4',
+        'M': '5', 'N': '5',
+        'R': '6',
+        'A': '', 'E': '', 'I': '', 'O': '', 'U': '', 'H': '', 'W': '', 'Y': ''
+    }
     
-    for code in codes:
-        if code != prev_code:
-            result.append(code)
+    # Remove first letter and encode
+    encoded = first_letter
+    prev_code = mapping.get(first_letter, '')
+    
+    for char in name[1:]:
+        code = mapping.get(char, '')
+        if code and code != prev_code:
+            encoded += code
+        prev_code = code if code else prev_code
+    
+    # Pad or truncate to 4 characters
+    encoded = encoded[:4].ljust(4, '0')
+    
+    return PhoneticResult(
+        original=name,
+        primary=encoded,
+        algorithm="soundex"
+    )
+
+
+def refined_soundex(name: str) -> PhoneticResult:
+    """
+    Refined Soundex - extended version with more precision.
+    
+    Uses separate codes for each letter group and preserves
+    more phonetic information.
+    
+    Args:
+        name: Name or word to encode
+        
+    Returns:
+        PhoneticResult with refined Soundex code
+    """
+    if not name:
+        return PhoneticResult(original=name or "", primary="", algorithm="refined_soundex")
+    
+    name = name.upper().strip()
+    name = re.sub(r'[^A-Z]', '', name)
+    
+    if not name:
+        return PhoneticResult(original=name or "", primary="", algorithm="refined_soundex")
+    
+    # Refined Soundex mapping
+    mapping = {
+        'B': '1', 'P': '1',
+        'F': '2', 'V': '2',
+        'C': '3', 'S': '3', 'K': '3', 'G': '3',
+        'J': '4', 'Q': '4', 'X': '4', 'Z': '4',
+        'D': '5', 'T': '5',
+        'L': '6',
+        'M': '7', 'N': '7',
+        'R': '8',
+        'A': '9', 'E': '9', 'I': '9', 'O': '9', 'U': '9',
+        'H': '', 'W': '', 'Y': ''
+    }
+    
+    encoded = ""
+    prev_code = ""
+    
+    for char in name:
+        code = mapping.get(char, '')
+        if code and code != prev_code:
+            encoded += code
         prev_code = code
     
-    # Pad with zeros or truncate to 4 characters
-    encoded = ''.join(result)[:4]
-    return (encoded + '000')[:4]
+    return PhoneticResult(
+        original=name,
+        primary=encoded or "0",
+        algorithm="refined_soundex"
+    )
 
 
-def soundex_words(text: str) -> List[str]:
-    """
-    Encode each word in a string using Soundex.
-    
-    Args:
-        text: Input string with multiple words
-    
-    Returns:
-        List of Soundex codes, one per word
-    
-    Examples:
-        >>> soundex_words("John Smith")
-        ['J500', 'S530']
-    """
-    words = text.split()
-    return [soundex(word) for word in words]
-
-
-# ============================================================================
+# =============================================================================
 # Metaphone Algorithm
-# ============================================================================
+# =============================================================================
 
-def metaphone(text: str) -> str:
+def metaphone(word: str, length: int = 4) -> PhoneticResult:
     """
-    Encode a string using the Metaphone algorithm.
+    Encode a word using the Metaphone algorithm.
     
     Metaphone is more accurate than Soundex for English names,
-    handling more complex pronunciation rules.
+    using knowledge of English pronunciation rules.
     
     Args:
-        text: Input string to encode
-    
+        word: Word to encode
+        length: Maximum length of result (default 4)
+        
     Returns:
-        Metaphone code string
-    
-    Examples:
-        >>> metaphone("Smith")
+        PhoneticResult with Metaphone code
+        
+    Example:
+        >>> metaphone("Smith").primary
         'SM0T'
-        >>> metaphone("Schmidt")
+        >>> metaphone("Schmidt").primary
         'SMTT'
-        >>> metaphone("phone")
-        'FN'
-        >>> metaphone("knight")
-        'NFT'
     """
-    if not text:
-        return ""
+    if not word:
+        return PhoneticResult(original=word or "", primary="", algorithm="metaphone")
     
-    cleaned = _clean_string(text)
-    if not cleaned:
-        return ""
+    word = word.upper().strip()
+    word = re.sub(r'[^A-Z]', '', word)
     
-    length = len(cleaned)
+    if not word:
+        return PhoneticResult(original=word or "", primary="", algorithm="metaphone")
+    
+    # Handle silent letters and special cases
+    if len(word) >= 2:
+        # Handle initial silent letters
+        if word[:2] in ['KN', 'GN', 'PN', 'WR', 'AE']:
+            word = word[1:]
+        elif word.startswith('WH'):
+            word = 'W' + word[2:]
+        elif word.startswith('X'):
+            word = 'S' + word[1:]
+    
     result = []
     i = 0
+    length_word = len(word)
     
-    while i < length:
-        char = cleaned[i]
-        next_char = cleaned[i + 1] if i + 1 < length else ''
-        prev_char = cleaned[i - 1] if i > 0 else ''
+    while i < length_word:
+        char = word[i]
         
-        # Skip vowels at the beginning
-        if i == 0 and _is_vowel(char):
-            result.append(char)
+        # Skip duplicate adjacent letters (except C)
+        if i > 0 and char == word[i-1] and char != 'C':
             i += 1
             continue
         
-        # Skip vowels in other positions (but keep previous)
-        if _is_vowel(char):
-            i += 1
-            continue
-        
-        # Process consonants
-        if char == 'B':
-            # B -> B, unless at end after M
-            if not (i == length - 1 and prev_char == 'M'):
+        if char in 'AEIOU':
+            # Vowels only at beginning
+            if i == 0:
+                result.append(char)
+        elif char == 'B':
+            # B -> B, silent if after M at end
+            if not (i == length_word - 1 and i > 0 and word[i-1] == 'M'):
                 result.append('B')
-            i += 1
-            
         elif char == 'C':
             # C -> X (SH) if -CIA- or -CH-
             # C -> S if -CI-, -CE-, -CY-
             # C -> K otherwise
-            if next_char == 'I' and (i + 2 < length and cleaned[i + 2] == 'A'):
-                result.append('X')
-            elif next_char == 'H':
+            if i + 1 < length_word and word[i+1] in 'IEY':
+                if i + 2 < length_word and word[i+1:i+3] == 'IA':
+                    result.append('X')
+                else:
+                    result.append('S')
+            elif i + 1 < length_word and word[i+1] == 'H':
                 result.append('X')
                 i += 1
-            elif next_char in 'IEY':
-                result.append('S')
             else:
                 result.append('K')
-            i += 1
-            
         elif char == 'D':
             # D -> J if -DGE-, -DGI-, -DGY-
             # D -> T otherwise
-            if next_char == 'G' and (i + 2 < length and cleaned[i + 2] in 'EIY'):
+            if i + 2 < length_word and word[i+1] == 'G' and word[i+2] in 'EIY':
                 result.append('J')
-                i += 1
+                i += 2
             else:
                 result.append('T')
-            i += 1
-            
         elif char == 'F':
             result.append('F')
-            i += 1
-            
         elif char == 'G':
-            # G -> F if -GH and not at beginning
-            # G -> silent if -GN or -GNED
-            # G -> J if -GI-, -GE-, -GY-
+            # G -> F if -GH and not at beginning, silent if -GN or -GNED
+            # G -> J if -GI-, -GE-, -GY- and not -GG-
             # G -> K otherwise
-            if next_char == 'H':
-                if i == 0:
-                    result.append('K')
-                elif i + 2 == length:
-                    # GH at end, silent
-                    pass
-                elif not _is_vowel(cleaned[i + 2]):
-                    result.append('K')
-                i += 1
-            elif next_char == 'N':
-                if i + 2 == length or (i + 2 < length and cleaned[i + 2] == 'E' and i + 3 == length):
-                    # GN at end or GNED, silent
-                    pass
+            if i + 1 < length_word and word[i+1] == 'H':
+                if i + 2 < length_word or i > 0:
+                    # GH -> F at end, silent otherwise
+                    if i + 1 == length_word - 1:
+                        result.append('F')
+                    i += 1
+            elif i + 1 < length_word and word[i+1] in 'IEY':
+                if not (i > 0 and word[i-1] == 'G'):
+                    result.append('J')
                 else:
                     result.append('K')
-            elif next_char in 'IEY':
-                result.append('J')
             else:
                 result.append('K')
-            i += 1
-            
         elif char == 'H':
-            # H -> H if before vowel and not after C,G,P,S,T
-            if _is_vowel(next_char) and prev_char not in 'CGPST':
-                result.append('H')
-            i += 1
-            
+            # H -> H if before vowel, silent otherwise
+            if i + 1 < length_word and word[i+1] in 'AEIOU':
+                if i == 0 or word[i-1] not in 'CSPTG':
+                    result.append('H')
         elif char == 'J':
-            # J -> J
             result.append('J')
-            i += 1
-            
         elif char == 'K':
-            # K -> silent if after C
-            if prev_char != 'C':
+            # K -> K, silent if after C
+            if i == 0 or word[i-1] != 'C':
                 result.append('K')
-            i += 1
-            
         elif char == 'L':
             result.append('L')
-            i += 1
-            
         elif char == 'M':
             result.append('M')
-            i += 1
-            
         elif char == 'N':
             result.append('N')
-            i += 1
-            
         elif char == 'P':
             # P -> F if before H, P otherwise
-            if next_char == 'H':
+            if i + 1 < length_word and word[i+1] == 'H':
                 result.append('F')
                 i += 1
             else:
                 result.append('P')
-            i += 1
-            
         elif char == 'Q':
             result.append('K')
-            i += 1
-            
         elif char == 'R':
             result.append('R')
-            i += 1
-            
         elif char == 'S':
             # S -> X (SH) if -SH-, -SIO-, -SIA-
-            # S -> S otherwise
-            if next_char == 'H':
+            if i + 1 < length_word and word[i+1] == 'H':
                 result.append('X')
                 i += 1
-            elif next_char == 'I' and (i + 2 < length and cleaned[i + 2] in 'AO'):
+            elif i + 2 < length_word and word[i+1] in 'IO' and word[i+2] in 'AO':
                 result.append('X')
-                i += 2
             else:
                 result.append('S')
-            i += 1
-            
         elif char == 'T':
             # T -> X if -TIA-, -TIO-
             # T -> 0 (TH) if -TH-
             # T -> silent if -TCH-
-            if next_char == 'I' and (i + 2 < length and cleaned[i + 2] in 'AO'):
+            if i + 2 < length_word and word[i+1] == 'I' and word[i+2] in 'AO':
                 result.append('X')
-                i += 2
-            elif next_char == 'H':
-                result.append('0')  # Using '0' for TH sound
+            elif i + 1 < length_word and word[i+1] == 'H':
+                result.append('0')  # '0' represents TH sound
                 i += 1
-            elif next_char == 'C' and (i + 2 < length and cleaned[i + 2] == 'H'):
-                # TCH, silent T
-                i += 1
+            elif i + 2 < length_word and word[i+1:i+3] == 'CH':
+                pass  # Silent
             else:
                 result.append('T')
-            i += 1
-            
         elif char == 'V':
             result.append('F')
-            i += 1
-            
         elif char == 'W':
             # W -> W if before vowel
-            if _is_vowel(next_char):
+            if i + 1 < length_word and word[i+1] in 'AEIOU':
                 result.append('W')
-            i += 1
-            
         elif char == 'X':
             result.append('KS')
-            i += 1
-            
         elif char == 'Y':
             # Y -> Y if before vowel
-            if _is_vowel(next_char):
+            if i + 1 < length_word and word[i+1] in 'AEIOU':
                 result.append('Y')
-            i += 1
-            
         elif char == 'Z':
             result.append('S')
-            i += 1
-            
-        else:
-            i += 1
+        
+        i += 1
     
-    return ''.join(result)
+    code = ''.join(result)[:length]
+    
+    return PhoneticResult(
+        original=word,
+        primary=code,
+        algorithm="metaphone"
+    )
 
 
-# ============================================================================
+# =============================================================================
 # Double Metaphone Algorithm
-# ============================================================================
+# =============================================================================
 
-def double_metaphone(text: str) -> DoubleMetaphoneResult:
+def double_metaphone(word: str) -> PhoneticResult:
     """
-    Encode a string using the Double Metaphone algorithm.
+    Encode a word using the Double Metaphone algorithm.
     
     Double Metaphone returns both a primary and alternate encoding,
-    providing better matching for names of various origins.
+    handling words with multiple possible pronunciations.
     
     Args:
-        text: Input string to encode
-    
+        word: Word to encode
+        
     Returns:
-        DoubleMetaphoneResult with primary and alternate codes
-    
-    Examples:
-        >>> result = double_metaphone("Smith")
-        >>> result.primary
-        'SMT0'
-        >>> result.alternate
-        'XMT0'
-        >>> result = double_metaphone("Schmidt")
-        >>> result.primary
-        'SMT0'
+        PhoneticResult with primary and alternate codes
+        
+    Example:
+        >>> result = double_metaphone("Catherine")
+        >>> print(result.primary, result.alternate)
+        K0RN KTRN
     """
-    if not text:
-        return DoubleMetaphoneResult("", None)
+    if not word:
+        return PhoneticResult(original=word or "", primary="", algorithm="double_metaphone")
     
-    cleaned = _clean_string(text)
-    if not cleaned:
-        return DoubleMetaphoneResult("", None)
+    word = word.upper().strip()
+    word = re.sub(r'[^A-Z]', '', word)
     
-    length = len(cleaned)
+    if not word:
+        return PhoneticResult(original=word or "", primary="", algorithm="double_metaphone")
+    
     primary = []
     alternate = []
+    length = len(word)
+    
+    # Slavic/Germanic name patterns
+    slavic = word.endswith(('WICZ', 'WITZ', 'SKI', 'SKY'))
+    germanic = any(word.startswith(p) for p in ['VON ', 'VAN ', 'SCH']) or \
+               any(word.endswith(p) for p in ['HEIM', 'BACH', 'HAUS'])
+    
     i = 0
     
-    # Check for Slavic/Germanic names
-    slavo_germanic = _is_slavo_germanic(cleaned)
-    
-    # Handle special cases at the beginning
-    if length >= 2:
-        two_char = cleaned[:2]
-        if two_char == 'KN' or two_char == 'GN' or two_char == 'PN' or two_char == 'AE' or two_char == 'WR':
-            i = 1
-        elif two_char == 'WH':
-            primary.append('W')
-            alternate.append('A')
-            i = 2
-        elif two_char == 'X':
-            primary.append('S')
-            alternate.append('S')
-            i = 1
-        elif two_char == 'NG':
-            i = 1
-    
-    # Main processing loop
     while i < length:
-        char = cleaned[i]
-        next_char = cleaned[i + 1] if i + 1 < length else ''
-        prev_char = cleaned[i - 1] if i > 0 else ''
-        next_next_char = cleaned[i + 2] if i + 2 < length else ''
+        char = word[i]
         
-        if char == 'A' or char == 'E' or char == 'I' or char == 'O' or char == 'U' or char == 'Y':
+        if char in 'AEIOU':
             # Vowels
             if i == 0:
-                # All vowels at beginning map to 'A'
-                primary.append('A')
-                alternate.append('A')
-            i += 1
-            
+                primary.append(char)
+                alternate.append(char)
         elif char == 'B':
-            # -MB, silent B
-            if next_char == 'B':
-                i += 1
-            primary.append('P')
-            alternate.append('P')
-            i += 1
-            
+            # B -> P, silent if after M at end
+            if not (i == length - 1 and i > 0 and word[i-1] == 'M'):
+                primary.append('P')
+                alternate.append('P')
         elif char == 'C':
             # Various C rules
-            if prev_char == ' ' and next_char == 'I' and next_next_char == 'A':
-                # CIA -> X
-                primary.append('X')
-                alternate.append('X')
-            elif next_char == 'H':
-                # CH
-                if i == 0 and (next_next_char == 'A' or next_next_char == 'E' or next_next_char == 'I' or next_next_char == 'O' or next_next_char == 'U'):
-                    # Germanic
-                    primary.append('K')
-                    alternate.append('X')
-                elif i == 0:
-                    primary.append('X')
-                    alternate.append('X')
-                elif prev_char == 'S':
+            if i > 0 and i + 2 < length and word[i-1:i+2] == 'SCH':
+                # SCH -> SK (Germanic)
+                primary.append('K')
+                alternate.append('K')
+            elif i + 1 < length and word[i+1] == 'H':
+                # CH -> X/K
+                if i == 0:
+                    if length > 1 and word[1] in 'AEIOU':
+                        primary.append('K')
+                        alternate.append('X')
+                    else:
+                        primary.append('X')
+                        alternate.append('X')
+                elif i > 0 and word[i-1] in 'AEIOU':
                     primary.append('K')
                     alternate.append('X')
                 else:
                     primary.append('X')
-                    alternate.append('K')
+                    alternate.append('X')
                 i += 1
-            elif next_char == 'I' and next_next_char == 'A':
-                primary.append('X')
-                alternate.append('X')
-                i += 1
-            elif next_char in 'IEY':
-                primary.append('S')
-                alternate.append('S')
+            elif i + 1 < length and word[i+1] in 'IEY':
+                # CI, CE, CY -> S
+                if i == 0:
+                    primary.append('S')
+                    alternate.append('S')
+                else:
+                    primary.append('S')
+                    alternate.append('S')
             else:
                 primary.append('K')
                 alternate.append('K')
-            i += 1
-            
         elif char == 'D':
-            if next_char == 'G' and next_next_char in 'EIY':
-                # DGE, DGI, DGY -> J
+            if i + 2 < length and word[i+1] == 'G' and word[i+2] in 'IEY':
                 primary.append('J')
                 alternate.append('J')
-                i += 1
+                i += 2
             else:
                 primary.append('T')
                 alternate.append('T')
-            i += 1
-            
         elif char == 'F':
-            if next_char == 'F':
-                i += 1
             primary.append('F')
             alternate.append('F')
-            i += 1
-            
         elif char == 'G':
-            if next_char == 'H':
-                if i == 0:
-                    # GH at start
+            # Various G rules
+            if i + 1 < length and word[i+1] == 'H':
+                if i > 0 and word[i-1] not in 'AEIOU':
                     primary.append('K')
                     alternate.append('K')
-                elif i > 0 and (cleaned[i - 1] not in 'AEIOU'):
-                    primary.append('K')
-                    alternate.append('K')
-                i += 1
-            elif next_char == 'N':
-                if i == 0 or (i == 1 and prev_char == ' '):
-                    if length > i + 2 and cleaned[i + 2] in 'EIY':
-                        primary.append('K')
-                        alternate.append('J')
-                    else:
-                        primary.append('N')
-                        alternate.append('KN')
-                else:
-                    primary.append('K')
-                    alternate.append('K')
-                i += 1
-            elif next_char in 'IEY':
-                if i == 0:
-                    primary.append('K')
-                    alternate.append('J')
-                elif prev_char == 'D':
+                elif i + 2 == length:
                     pass  # Silent
                 else:
+                    primary.append('K')
+                    alternate.append('K')
+                i += 1
+            elif i + 1 < length and word[i+1] in 'IEY':
+                if i > 0 and word[i-1] != 'G':
                     primary.append('J')
                     alternate.append('J')
-                i += 1
+                else:
+                    primary.append('K')
+                    alternate.append('K')
             else:
-                if next_char == 'G':
-                    i += 1
                 primary.append('K')
                 alternate.append('K')
-            i += 1
-            
         elif char == 'H':
-            if i == 0 and _is_vowel(next_char):
-                primary.append('H')
-                alternate.append('H')
-            elif prev_char in 'AEIOU' and _is_vowel(next_char):
-                primary.append('H')
-                alternate.append('H')
-            i += 1
-            
+            if i + 1 < length and word[i+1] in 'AEIOU':
+                if i == 0 or word[i-1] not in 'CSPTG':
+                    primary.append('H')
+                    alternate.append('H')
         elif char == 'J':
-            if i == 0:
-                if next_char == 'N':
-                    primary.append('N')
-                    alternate.append('N')
-                else:
-                    primary.append('J')
-                    alternate.append('A')
-            elif prev_char not in 'STK' and next_char in 'AEIOU':
-                primary.append('J')
-                alternate.append('J')
-            else:
-                primary.append('J')
-                alternate.append('J')
-            i += 1
-            
+            primary.append('J')
+            alternate.append('J')
         elif char == 'K':
-            if next_char == 'K':
-                i += 1
-            primary.append('K')
-            alternate.append('K')
-            i += 1
-            
+            if i == 0 or word[i-1] != 'C':
+                primary.append('K')
+                alternate.append('K')
         elif char == 'L':
-            if next_char == 'L':
-                i += 1
             primary.append('L')
             alternate.append('L')
-            i += 1
-            
         elif char == 'M':
-            if next_char == 'M':
-                i += 1
             primary.append('M')
             alternate.append('M')
-            i += 1
-            
         elif char == 'N':
-            if next_char == 'N':
-                i += 1
             primary.append('N')
             alternate.append('N')
-            i += 1
-            
         elif char == 'P':
-            if next_char == 'H':
+            if i + 1 < length and word[i+1] == 'H':
                 primary.append('F')
                 alternate.append('F')
                 i += 1
             else:
-                if next_char == 'P':
-                    i += 1
                 primary.append('P')
                 alternate.append('P')
-            i += 1
-            
         elif char == 'Q':
-            if next_char == 'Q':
-                i += 1
             primary.append('K')
             alternate.append('K')
-            i += 1
-            
         elif char == 'R':
-            if next_char == 'R':
-                i += 1
-            if i == length - 1 and prev_char == 'E' and length > 1:
-                # French endings
-                primary.append('')
-                alternate.append('R')
-            else:
-                primary.append('R')
-                alternate.append('R')
-            i += 1
-            
+            primary.append('R')
+            alternate.append('R')
         elif char == 'S':
-            if next_char == 'H':
-                # SH
+            if i + 1 < length and word[i+1] == 'H':
                 primary.append('X')
                 alternate.append('X')
                 i += 1
-            elif next_char == 'I' and next_next_char in 'AO':
-                # SIO, SIA
+            elif i + 2 < length and word[i+1:i+3] in ['IA', 'IO']:
                 primary.append('X')
                 alternate.append('S')
-                i += 1
-            elif next_char == 'Z':
-                # SZ
-                primary.append('S')
-                alternate.append('X')
-                i += 1
             else:
-                if next_char == 'S':
-                    i += 1
                 primary.append('S')
                 alternate.append('S')
-            i += 1
-            
         elif char == 'T':
-            if next_char == 'H':
+            if i + 2 < length and word[i+1:i+3] in ['IA', 'IO']:
+                primary.append('X')
+                alternate.append('X')
+            elif i + 1 < length and word[i+1] == 'H':
                 primary.append('0')  # TH
                 alternate.append('T')
                 i += 1
-            elif next_char == 'I' and next_next_char in 'AO':
-                # TIO, TIA
-                primary.append('X')
-                alternate.append('X')
-                i += 1
-            elif next_char == 'C' and next_next_char == 'H':
-                # TCH
-                pass  # Silent
-                i += 1
+            elif i + 2 < length and word[i+1:i+3] == 'CH':
+                pass  # Silent in TCH
             else:
-                if next_char == 'T':
-                    i += 1
                 primary.append('T')
                 alternate.append('T')
-            i += 1
-            
         elif char == 'V':
-            if next_char == 'V':
-                i += 1
             primary.append('F')
             alternate.append('F')
-            i += 1
-            
         elif char == 'W':
-            if next_char == 'W':
-                i += 1
-            if _is_vowel(next_char):
+            if i + 1 < length and word[i+1] in 'AEIOU':
                 primary.append('W')
                 alternate.append('W')
-            elif i == 0 and next_char == 'H':
-                primary.append('A')
-                alternate.append('A')
-                i += 1
-            i += 1
-            
         elif char == 'X':
             primary.append('KS')
             alternate.append('KS')
-            i += 1
-            
         elif char == 'Y':
-            if _is_vowel(next_char):
+            if i + 1 < length and word[i+1] in 'AEIOU':
                 primary.append('Y')
                 alternate.append('Y')
-            i += 1
-            
         elif char == 'Z':
-            if next_char == 'Z':
-                i += 1
-            if next_char == 'H':
-                primary.append('J')
-                alternate.append('J')
-                i += 1
-            else:
-                primary.append('S')
-                alternate.append('S')
-            i += 1
-            
-        else:
-            i += 1
+            primary.append('S')
+            alternate.append('S')
+        
+        i += 1
     
-    # Limit to 4 characters
-    primary_str = ''.join(primary)[:4]
-    alt_str = ''.join(alternate)[:4]
+    primary_code = ''.join(primary)
+    alt_code = ''.join(alternate)
     
-    return DoubleMetaphoneResult(
-        primary=primary_str,
-        alternate=alt_str if alt_str != primary_str else None
+    return PhoneticResult(
+        original=word,
+        primary=primary_code,
+        alternate=alt_code if alt_code != primary_code else None,
+        algorithm="double_metaphone"
     )
 
 
-# ============================================================================
-# NYSIIS Algorithm
-# ============================================================================
+# =============================================================================
+# Caverphone Algorithm
+# =============================================================================
 
-def nysiis(text: str) -> str:
+def caverphone(word: str, version: int = 2) -> PhoneticResult:
     """
-    Encode a string using the NYSIIS algorithm.
+    Encode a word using the Caverphone algorithm.
     
-    New York State Identification and Intelligence System (NYSIIS) was
-    developed for name matching in law enforcement databases.
+    Caverphone was designed for matching names in New Zealand 
+    electoral rolls, handling Maori-influenced pronunciations.
     
     Args:
-        text: Input string to encode
-    
+        word: Word to encode
+        version: Caverphone version (1 or 2, default 2)
+        
     Returns:
-        NYSIIS code string
-    
-    Examples:
-        >>> nysiis("Smith")
-        'SNAT'
-        >>> nysiis("Schmidt")
-        'SNAT'
-        >>> nysiis("O'Connor")
-        'OCAN'
+        PhoneticResult with Caverphone code
     """
-    if not text:
-        return ""
+    if not word:
+        return PhoneticResult(original=word or "", primary="1111111111", algorithm="caverphone")
     
-    cleaned = _clean_string(text)
-    if not cleaned:
-        return ""
+    word = word.upper().strip()
+    word = re.sub(r'[^A-Z]', '', word)
     
-    length = len(cleaned)
-    
-    # Step 1: First character transformations
-    first = cleaned[0]
-    if first == 'M' and length > 1 and cleaned[1] in 'AEIOU':
-        cleaned = 'M' + cleaned[1:]
-    elif first == 'K' and length > 1 and cleaned[1] == 'N':
-        cleaned = 'N' + cleaned[1:]
-    elif first == 'P' and length > 1 and cleaned[1] == 'H':
-        cleaned = 'F' + cleaned[1:]
-    elif first == 'H' and length > 1 and cleaned[1] in 'AEIOU':
-        cleaned = cleaned[1:]  # Drop H before vowel
-        if cleaned:
-            first = cleaned[0]
-    
-    # Step 2: Last character transformations
-    if cleaned:
-        last = cleaned[-1]
-        if last == 'S':
-            cleaned = cleaned[:-1] + 'S'
-        elif last == 'A':
-            cleaned = cleaned[:-1] + 'A'
-        elif last == 'Z':
-            cleaned = cleaned[:-1] + 'S'
-    
-    # Step 3: Replace trailing AY with Y
-    if len(cleaned) >= 2 and cleaned[-2:] == 'AY':
-        cleaned = cleaned[:-2] + 'Y'
-    
-    # Step 4: Main transformations
-    result = []
-    i = 0
-    while i < len(cleaned):
-        char = cleaned[i]
-        next_char = cleaned[i + 1] if i + 1 < len(cleaned) else ''
-        prev_char = cleaned[i - 1] if i > 0 else ''
-        
-        # EV -> AF
-        if char == 'E' and next_char == 'V':
-            result.append('A')
-            result.append('F')
-            i += 2
-            continue
-        
-        # A, E, I, O, U -> A
-        if char in 'AEIOU':
-            result.append('A')
-            i += 1
-            continue
-        
-        # Q -> G
-        if char == 'Q':
-            result.append('G')
-            i += 1
-            continue
-        
-        # Z -> S
-        if char == 'Z':
-            result.append('S')
-            i += 1
-            continue
-        
-        # M -> N
-        if char == 'M':
-            result.append('N')
-            i += 1
-            continue
-        
-        # KN -> N
-        if char == 'K' and next_char == 'N':
-            i += 1
-            continue
-        
-        # K -> C
-        if char == 'K':
-            result.append('C')
-            i += 1
-            continue
-        
-        # PH -> F
-        if char == 'P' and next_char == 'H':
-            result.append('F')
-            i += 2
-            continue
-        
-        # H -> previous if before non-vowel or after non-vowel
-        if char == 'H':
-            if prev_char and next_char:
-                if prev_char not in 'AEIOU' or next_char not in 'AEIOU':
-                    if prev_char not in 'AEIOU':
-                        result.append(prev_char)
-                    i += 1
-                    continue
-            result.append('H')
-            i += 1
-            continue
-        
-        # W -> previous if after vowel
-        if char == 'W':
-            if prev_char in 'AEIOU':
-                result.append(prev_char)
-            else:
-                result.append('W')
-            i += 1
-            continue
-        
-        result.append(char)
-        i += 1
-    
-    # Step 5: Remove adjacent duplicates
-    deduped = []
-    for char in result:
-        if not deduped or deduped[-1] != char:
-            deduped.append(char)
-    
-    # Step 6: Remove trailing S and A
-    while deduped and deduped[-1] in 'SA':
-        deduped.pop()
-    
-    # Step 7: Ensure at least one character
-    if not deduped:
-        return first if 'first' in dir() else ""
-    
-    # Pad to at least 4 characters or truncate to 6
-    result_str = ''.join(deduped)
-    if len(result_str) < 4:
-        result_str = (result_str + 'AAAA')[:4]
-    
-    return result_str[:6]
-
-
-# ============================================================================
-# Caverphone 2.0 Algorithm
-# ============================================================================
-
-def caverphone(text: str) -> str:
-    """
-    Encode a string using the Caverphone 2.0 algorithm.
-    
-    Caverphone was developed for matching names in the Canterbury
-    electoral roll (New Zealand).
-    
-    Args:
-        text: Input string to encode
-    
-    Returns:
-        10-character Caverphone code
-    
-    Examples:
-        >>> caverphone("Lee")
-        'L111111111'
-        >>> caverphone("Thompson")
-        'TMPSN11111'
-    """
-    if not text:
-        return "1111111111"
-    
-    cleaned = _clean_string(text)
-    if not cleaned:
-        return "1111111111"
-    
-    # Convert to lowercase for processing
-    cleaned = cleaned.lower()
+    if not word:
+        return PhoneticResult(original=word or "", primary="1111111111", algorithm="caverphone")
     
     # Step 1: Remove trailing 'e'
-    if cleaned.endswith('e'):
-        cleaned = cleaned[:-1]
+    if word.endswith('E'):
+        word = word[:-1]
     
     # Step 2: Replace name endings
     endings = [
-        ('ev', 'af'),  # at end only
+        ('EIGH', 'A'), ('OUGH', 'A'), ('AUGH', 'A'), 
+        ('GN', 'N'), ('DG', 'G'), ('TCH', 'CH')
     ]
+    for old, new in endings:
+        if word.endswith(old):
+            word = word[:-len(old)] + new
     
-    # Step 3-12: Character replacements
+    # Step 3: Replace letter sequences
     replacements = [
-        ('cj', 'sk'), ('c', 'k'), ('kh', 'k'), ('ph', 'f'),
-        ('qh', 'k'), ('q', 'k'), ('sh', 's'), ('sch', 'sk'),
-        ('tj', 'sk'), ('th', 't'), ('v', 'f'), ('w', 'f'),
-        ('x', 'k'), ('y', 'f'), ('z', 's'),
+        ('V', 'F'), ('Z', 'S'), ('PH', 'F'), ('X', 'S'),
+        ('SCH', 'SK'), ('SH', 'S'), ('CH', 'K'),
+        ('KN', 'N'), ('GN', 'N'), ('WR', 'R'),
+        ('YE', 'Y'), ('AI', 'A'), ('EI', 'A'),
+        ('AU', 'A'), ('OU', 'A'), ('EA', 'E'),
+        ('EE', 'E'), ('IE', 'I'), ('OO', 'U'),
+        ('OA', 'O'), ('TH', '0'), ('QU', 'KW'),
+        ('CY', 'S'), ('CI', 'S'), ('CE', 'S'),
     ]
     
     for old, new in replacements:
-        cleaned = cleaned.replace(old, new)
+        word = word.replace(old, new)
     
-    # Step 13: Remove vowels
-    cleaned = re.sub(r'[aeiou]', '', cleaned)
+    # Step 4: Keep only consonants (and digits for TH->0)
+    result = ""
+    for char in word:
+        if char in 'BCDFGHJKLMNPQRSTVWXYZ0':
+            result += char
     
-    # Step 14: Remove trailing 'h'
-    if cleaned.endswith('h'):
-        cleaned = cleaned[:-1]
+    # Step 5: Pad or truncate to 10 characters
+    result = result[:10].ljust(10, '1')
     
-    # Step 15: Remove trailing 'w'
-    if cleaned.endswith('w'):
-        cleaned = cleaned[:-1]
-    
-    # Step 16: Remove consecutive duplicates
-    deduped = []
-    for char in cleaned:
-        if not deduped or deduped[-1] != char:
-            deduped.append(char)
-    cleaned = ''.join(deduped)
-    
-    # Step 17: Pad or truncate to 10 characters
-    cleaned = (cleaned + '1111111111')[:10]
-    
-    return cleaned.upper()
+    return PhoneticResult(
+        original=word,
+        primary=result,
+        algorithm=f"caverphone{version}"
+    )
 
 
-# ============================================================================
-# Match Rating Codex Algorithm
-# ============================================================================
+# =============================================================================
+# NYSIIS Algorithm
+# =============================================================================
 
-def match_rating_codex(text: str) -> str:
+def nysiis(name: str) -> PhoneticResult:
     """
-    Encode a string using the Match Rating Codex (MRC) algorithm.
+    Encode a name using the NYSIIS algorithm.
     
-    MRC was developed by the Ontario Provincial Police for name matching
-    in criminal justice systems.
+    NYSIIS (New York State Identification and Intelligence System)
+    is designed to encode similar-sounding names to the same code.
     
     Args:
-        text: Input string to encode
-    
-    Returns:
-        MRC code string
-    
-    Examples:
-        >>> match_rating_codex("Smith")
-        'SMTH'
-        >>> match_rating_codex("O'Connor")
-        'OCNR'
-    """
-    if not text:
-        return ""
-    
-    cleaned = _clean_string(text)
-    if not cleaned:
-        return ""
-    
-    # Step 1: Remove vowels
-    result = re.sub(r'[AEIOU]', '', cleaned)
-    
-    # Step 2: Remove consecutive duplicates
-    deduped = []
-    for char in result:
-        if not deduped or deduped[-1] != char:
-            deduped.append(char)
-    result = ''.join(deduped)
-    
-    # Step 3: Keep first and last character, remove others that are duplicates
-    if len(result) > 2:
-        first = result[0]
-        last = result[-1]
-        middle = result[1:-1]
+        name: Name to encode
         
-        # Remove consecutive duplicates from middle
-        new_middle = []
-        prev = first
-        for char in middle:
-            if char != prev:
-                new_middle.append(char)
-            prev = char
+    Returns:
+        PhoneticResult with NYSIIS code
         
-        if new_middle and last == new_middle[-1]:
-            new_middle = new_middle[:-1]
+    Example:
+        >>> nysiis("O'Connor").primary
+        'OCANN'
+    """
+    if not name:
+        return PhoneticResult(original=name or "", primary="", algorithm="nysiis")
+    
+    name = name.upper().strip()
+    name = re.sub(r'[^A-Z]', '', name)
+    
+    if not name:
+        return PhoneticResult(original=name or "", primary="", algorithm="nysiis")
+    
+    # Handle first character rules
+    first_char = name[0]
+    
+    # Replace first letter
+    if name.startswith('MAC'):
+        name = 'MCC' + name[3:]
+    elif name.startswith('KN'):
+        name = 'NN' + name[2:]
+    elif name.startswith('K'):
+        name = 'C' + name[1:]
+    elif name.startswith('PH') or name.startswith('PF'):
+        name = 'FF' + name[2:]
+    elif name.startswith('SCH'):
+        name = 'SSS' + name[3:]
+    
+    # Replace last letter
+    if name.endswith('EE'):
+        name = name[:-2] + 'Y'
+    elif name.endswith('IE'):
+        name = name[:-2] + 'Y'
+    elif name.endswith(('DT', 'RT', 'RD', 'NT', 'ND')):
+        # Keep as is
+        pass
+    elif name.endswith('S') or name.endswith('Z'):
+        name = name[:-1] + 'S'
+    elif name.endswith('X'):
+        name = name[:-1] + 'S'
+    
+    result = name[0]
+    
+    # Process remaining characters
+    i = 1
+    while i < len(name):
+        char = name[i]
+        prev_char = name[i-1] if i > 0 else ''
         
-        result = first + ''.join(new_middle) + last
+        # Skip if same as previous
+        if char == prev_char:
+            i += 1
+            continue
+        
+        # Replace sequences
+        if char == 'E' and i + 1 < len(name) and name[i+1] == 'V':
+            result += 'AF'
+            i += 2
+            continue
+        
+        # Replace vowels
+        if char in 'AEIOU':
+            if i + 1 < len(name) and name[i+1] == 'Y':
+                result += 'Y'
+                i += 2
+            else:
+                result += 'A'
+        elif char == 'Q':
+            result += 'G'
+        elif char == 'Z':
+            result += 'S'
+        elif char == 'M':
+            result += 'N'
+        elif char == 'K':
+            if i + 1 < len(name) and name[i+1] == 'N':
+                result += 'N'
+                i += 1
+            else:
+                result += 'C'
+        elif char == 'H':
+            if prev_char not in 'AEIOU' and (i + 1 < len(name) and name[i+1] not in 'AEIOU'):
+                # H between consonants - keep previous
+                pass
+            else:
+                result += 'H'
+        elif char == 'W':
+            if prev_char in 'AEIOU':
+                result += 'A'
+        else:
+            result += char
+        
+        i += 1
     
-    # Step 4: Limit to 6 characters
-    return result[:6]
+    # Replace trailing patterns
+    if result.endswith('S'):
+        result = result[:-1] + 'A'
+    if result.endswith('AY'):
+        result = result[:-2] + 'Y'
+    if result.endswith('A'):
+        result = result[:-1]
+    
+    # Remove duplicate adjacent characters
+    final = result[0]
+    for char in result[1:]:
+        if char != final[-1]:
+            final += char
+    
+    return PhoneticResult(
+        original=name,
+        primary=final,
+        algorithm="nysiis"
+    )
 
 
-# ============================================================================
-# Fuzzy Matching Functions
-# ============================================================================
+# =============================================================================
+# Match Rating Codex
+# =============================================================================
 
-def soundex_match(name1: str, name2: str) -> bool:
+def match_rating_codex(name: str) -> PhoneticResult:
     """
-    Check if two names match using Soundex.
+    Encode a name using Match Rating Codex (MRC) algorithm.
+    
+    MRC is a simplified phonetic encoding used for matching
+    similar-sounding names with a comparison algorithm.
     
     Args:
-        name1: First name
-        name2: Second name
-    
+        name: Name to encode
+        
     Returns:
-        True if Soundex codes match
+        PhoneticResult with MRC code
+    """
+    if not name:
+        return PhoneticResult(original=name or "", primary="", algorithm="match_rating")
     
-    Examples:
-        >>> soundex_match("Smith", "Schmidt")
-        True
-        >>> soundex_match("Johnson", "Jonson")
-        True
-    """
-    return soundex(name1) == soundex(name2)
+    name = name.upper().strip()
+    name = re.sub(r'[^A-Z]', '', name)
+    
+    if not name:
+        return PhoneticResult(original=name or "", primary="", algorithm="match_rating")
+    
+    # Step 1: Remove vowels (except first)
+    result = name[0]
+    for char in name[1:]:
+        if char not in 'AEIOU':
+            result += char
+    
+    # Step 2: Remove adjacent duplicates
+    final = result[0]
+    for char in result[1:]:
+        if char != final[-1]:
+            final += char
+    
+    # Step 3: Limit to first and last 3 characters if > 6
+    if len(final) > 6:
+        final = final[:3] + final[-3:]
+    
+    return PhoneticResult(
+        original=name,
+        primary=final,
+        algorithm="match_rating"
+    )
 
 
-def metaphone_match(name1: str, name2: str) -> bool:
+def match_rating_compare(code1: str, code2: str) -> Tuple[bool, int]:
     """
-    Check if two names match using Metaphone.
+    Compare two Match Rating Codex codes.
     
     Args:
-        name1: First name
-        name2: Second name
-    
+        code1: First MRC code
+        code2: Second MRC code
+        
     Returns:
-        True if Metaphone codes match
-    
-    Examples:
-        >>> metaphone_match("Smith", "Schmidt")
-        False
-        >>> metaphone_match("Catherine", "Katherine")
-        True
+        Tuple of (match: bool, score: int)
     """
-    return metaphone(name1) == metaphone(name2)
+    len1, len2 = len(code1), len(code2)
+    diff = abs(len1 - len2)
+    
+    # Length difference check
+    if len1 <= 4 and diff > 2:
+        return False, diff
+    if len1 <= 7 and diff > 3:
+        return False, diff
+    if diff > 4:
+        return False, diff
+    
+    # Count matching characters
+    matches = 0
+    for c1, c2 in zip(code1, code2):
+        if c1 == c2:
+            matches += 1
+    
+    # Minimum matches required
+    min_len = min(len1, len2)
+    min_matches = min_len // 2 + 1
+    
+    return matches >= min_matches, matches
 
 
-def double_metaphone_match(name1: str, name2: str) -> bool:
+# =============================================================================
+# Phonetic Comparison Functions
+# =============================================================================
+
+def phonetic_match(
+    word1: str,
+    word2: str,
+    algorithm: PhoneticAlgorithm = PhoneticAlgorithm.DOUBLE_METAPHONE
+) -> Tuple[bool, float]:
     """
-    Check if two names match using Double Metaphone.
-    
-    Compares all combinations of primary and alternate codes.
+    Check if two words match phonetically.
     
     Args:
-        name1: First name
-        name2: Second name
-    
-    Returns:
-        True if any combination of codes match
-    
-    Examples:
-        >>> double_metaphone_match("Smith", "Schmidt")
-        True
-    """
-    result1 = double_metaphone(name1)
-    result2 = double_metaphone(name2)
-    
-    codes1 = {result1.primary}
-    if result1.alternate:
-        codes1.add(result1.alternate)
-    
-    codes2 = {result2.primary}
-    if result2.alternate:
-        codes2.add(result2.alternate)
-    
-    return bool(codes1 & codes2)
-
-
-def nysiis_match(name1: str, name2: str) -> bool:
-    """
-    Check if two names match using NYSIIS.
-    
-    Args:
-        name1: First name
-        name2: Second name
-    
-    Returns:
-        True if NYSIIS codes match
-    """
-    return nysiis(name1) == nysiis(name2)
-
-
-def phonetic_match(name1: str, name2: str, algorithm: PhoneticAlgorithm = PhoneticAlgorithm.DOUBLE_METAPHONE) -> bool:
-    """
-    Check if two names match using the specified phonetic algorithm.
-    
-    Args:
-        name1: First name
-        name2: Second name
+        word1: First word
+        word2: Second word
         algorithm: Phonetic algorithm to use
-    
+        
     Returns:
-        True if names match according to the algorithm
+        Tuple of (matches: bool, similarity: float)
+    """
+    result1 = encode(word1, algorithm)
+    result2 = encode(word2, algorithm)
+    
+    # Check primary codes
+    if result1.primary == result2.primary:
+        return True, 1.0
+    
+    # Check alternate codes (for Double Metaphone)
+    if result1.alternate and result1.alternate == result2.primary:
+        return True, 0.9
+    if result2.alternate and result1.primary == result2.alternate:
+        return True, 0.9
+    if result1.alternate and result2.alternate and result1.alternate == result2.alternate:
+        return True, 0.9
+    
+    # Calculate similarity
+    from difflib import SequenceMatcher
+    similarity = SequenceMatcher(None, result1.primary, result2.primary).ratio()
+    
+    return False, similarity
+
+
+def encode(word: str, algorithm: PhoneticAlgorithm) -> PhoneticResult:
+    """
+    Encode a word using the specified phonetic algorithm.
+    
+    Args:
+        word: Word to encode
+        algorithm: Phonetic algorithm to use
+        
+    Returns:
+        PhoneticResult with encoding
     """
     if algorithm == PhoneticAlgorithm.SOUNDEX:
-        return soundex_match(name1, name2)
+        return soundex(word)
     elif algorithm == PhoneticAlgorithm.METAPHONE:
-        return metaphone_match(name1, name2)
+        return metaphone(word)
     elif algorithm == PhoneticAlgorithm.DOUBLE_METAPHONE:
-        return double_metaphone_match(name1, name2)
-    elif algorithm == PhoneticAlgorithm.NYSIIS:
-        return nysiis_match(name1, name2)
+        return double_metaphone(word)
     elif algorithm == PhoneticAlgorithm.CAVERPHONE:
-        return caverphone(name1) == caverphone(name2)
-    elif algorithm == PhoneticAlgorithm.MATCH_RATING_CODEX:
-        return match_rating_codex(name1) == match_rating_codex(name2)
+        return caverphone(word)
+    elif algorithm == PhoneticAlgorithm.NYSIIS:
+        return nysiis(word)
+    elif algorithm == PhoneticAlgorithm.MATCH_RATING:
+        return match_rating_codex(word)
+    elif algorithm == PhoneticAlgorithm.REFINED_SOUNDEX:
+        return refined_soundex(word)
     else:
-        raise ValueError(f"Unknown algorithm: {algorithm}")
+        return soundex(word)
 
 
-def phonetic_similarity(name1: str, name2: str) -> float:
+def phonetic_search(
+    query: str,
+    candidates: List[str],
+    algorithm: PhoneticAlgorithm = PhoneticAlgorithm.DOUBLE_METAPHONE,
+    threshold: float = 0.8
+) -> List[Tuple[str, float]]:
     """
-    Calculate phonetic similarity score between two names.
-    
-    Returns a score from 0.0 to 1.0 based on how many algorithms
-    agree that the names match.
+    Search for phonetically similar words.
     
     Args:
-        name1: First name
-        name2: Second name
-    
+        query: Query word
+        candidates: List of candidate words
+        algorithm: Phonetic algorithm to use
+        threshold: Minimum similarity threshold
+        
     Returns:
-        Similarity score (0.0 = no match, 1.0 = all algorithms match)
+        List of (word, similarity) tuples, sorted by similarity
+    """
+    query_result = encode(query, algorithm)
+    matches = []
     
-    Examples:
-        >>> phonetic_similarity("Smith", "Schmidt")
-        0.833...
-        >>> phonetic_similarity("John", "Jane")
-        0.166...
+    for candidate in candidates:
+        cand_result = encode(candidate, algorithm)
+        
+        # Check exact matches
+        if query_result.primary == cand_result.primary:
+            matches.append((candidate, 1.0))
+            continue
+        
+        if query_result.alternate and query_result.alternate == cand_result.primary:
+            matches.append((candidate, 0.95))
+            continue
+        
+        if cand_result.alternate and query_result.primary == cand_result.alternate:
+            matches.append((candidate, 0.95))
+            continue
+        
+        if query_result.alternate and cand_result.alternate:
+            if query_result.alternate == cand_result.alternate:
+                matches.append((candidate, 0.9))
+                continue
+        
+        # Calculate similarity
+        from difflib import SequenceMatcher
+        similarity = SequenceMatcher(None, query_result.primary, cand_result.primary).ratio()
+        
+        if similarity >= threshold:
+            matches.append((candidate, similarity))
+    
+    return sorted(matches, key=lambda x: x[1], reverse=True)
+
+
+def encode_all(word: str) -> Dict[str, PhoneticResult]:
+    """
+    Encode a word using all available algorithms.
+    
+    Args:
+        word: Word to encode
+        
+    Returns:
+        Dictionary mapping algorithm names to results
+    """
+    return {
+        'soundex': soundex(word),
+        'refined_soundex': refined_soundex(word),
+        'metaphone': metaphone(word),
+        'double_metaphone': double_metaphone(word),
+        'caverphone': caverphone(word),
+        'nysiis': nysiis(word),
+        'match_rating': match_rating_codex(word),
+    }
+
+
+def phonetic_similarity(word1: str, word2: str) -> float:
+    """
+    Calculate overall phonetic similarity between two words.
+    
+    Uses multiple algorithms and returns average similarity.
+    
+    Args:
+        word1: First word
+        word2: Second word
+        
+    Returns:
+        Similarity score from 0.0 to 1.0
     """
     algorithms = [
         PhoneticAlgorithm.SOUNDEX,
         PhoneticAlgorithm.METAPHONE,
         PhoneticAlgorithm.DOUBLE_METAPHONE,
         PhoneticAlgorithm.NYSIIS,
-        PhoneticAlgorithm.CAVERPHONE,
-        PhoneticAlgorithm.MATCH_RATING_CODEX,
     ]
     
-    matches = sum(1 for alg in algorithms if phonetic_match(name1, name2, alg))
-    return matches / len(algorithms)
+    total_similarity = 0.0
+    
+    for algo in algorithms:
+        matches, similarity = phonetic_match(word1, word2, algo)
+        total_similarity += similarity
+    
+    return total_similarity / len(algorithms)
 
 
-def encode_all(text: str) -> PhoneticResult:
+# =============================================================================
+# Utility Functions
+# =============================================================================
+
+def group_by_phonetic(
+    words: List[str],
+    algorithm: PhoneticAlgorithm = PhoneticAlgorithm.DOUBLE_METAPHONE
+) -> Dict[str, List[str]]:
     """
-    Encode a string using all phonetic algorithms.
+    Group words by their phonetic encoding.
     
     Args:
-        text: Input string to encode
-    
-    Returns:
-        PhoneticResult with all encodings
-    
-    Examples:
-        >>> result = encode_all("Smith")
-        >>> result.soundex
-        'S530'
-        >>> result.metaphone
-        'SM0T'
-    """
-    dm = double_metaphone(text)
-    return PhoneticResult(
-        soundex=soundex(text),
-        metaphone=metaphone(text),
-        double_metaphone=(dm.primary, dm.alternate),
-        nysiis=nysiis(text),
-        caverphone=caverphone(text),
-        match_rating_codex=match_rating_codex(text)
-    )
-
-
-def find_phonetic_matches(name: str, candidates: List[str], 
-                         algorithm: PhoneticAlgorithm = PhoneticAlgorithm.DOUBLE_METAPHONE,
-                         threshold: float = 0.0) -> List[Tuple[str, float]]:
-    """
-    Find phonetic matches for a name from a list of candidates.
-    
-    Args:
-        name: Name to match
-        candidates: List of candidate names
+        words: List of words to group
         algorithm: Phonetic algorithm to use
-        threshold: Minimum similarity threshold (0.0 - 1.0)
-    
-    Returns:
-        List of (candidate_name, similarity_score) tuples, sorted by similarity
-    
-    Examples:
-        >>> find_phonetic_matches("Smith", ["Smith", "Schmidt", "Jones"])
-        [('Smith', 1.0), ('Schmidt', 0.833...)]
-    """
-    results = []
-    
-    for candidate in candidates:
-        if algorithm == PhoneticAlgorithm.DOUBLE_METAPHONE:
-            score = phonetic_similarity(name, candidate)
-        else:
-            if phonetic_match(name, candidate, algorithm):
-                score = 1.0
-            else:
-                score = 0.0
         
-        if score >= threshold:
-            results.append((candidate, score))
-    
-    # Sort by score descending
-    results.sort(key=lambda x: (-x[1], x[0]))
-    return results
-
-
-def batch_encode(names: List[str], algorithm: PhoneticAlgorithm = PhoneticAlgorithm.SOUNDEX) -> Dict[str, str]:
+    Returns:
+        Dictionary mapping phonetic codes to lists of words
     """
-    Encode multiple names using a single algorithm.
+    groups: Dict[str, List[str]] = {}
+    
+    for word in words:
+        result = encode(word, algorithm)
+        code = result.primary
+        
+        if code not in groups:
+            groups[code] = []
+        groups[code].append(word)
+        
+        # Also group by alternate code if present
+        if result.alternate:
+            if result.alternate not in groups:
+                groups[result.alternate] = []
+            if word not in groups[result.alternate]:
+                groups[result.alternate].append(word)
+    
+    return groups
+
+
+def find_duplicates(
+    words: List[str],
+    algorithm: PhoneticAlgorithm = PhoneticAlgorithm.DOUBLE_METAPHONE,
+    threshold: float = 0.9
+) -> List[List[str]]:
+    """
+    Find phonetic duplicates in a list of words.
     
     Args:
-        names: List of names to encode
+        words: List of words
         algorithm: Phonetic algorithm to use
-    
+        threshold: Minimum similarity for duplicate
+        
     Returns:
-        Dictionary mapping names to their codes
-    
-    Examples:
-        >>> batch_encode(["Smith", "Schmidt", "Johnson"], PhoneticAlgorithm.SOUNDEX)
-        {'Smith': 'S530', 'Schmidt': 'S530', 'Johnson': 'J525'}
+        List of groups of similar words
     """
-    encoders = {
-        PhoneticAlgorithm.SOUNDEX: soundex,
-        PhoneticAlgorithm.METAPHONE: metaphone,
-        PhoneticAlgorithm.NYSIIS: nysiis,
-        PhoneticAlgorithm.CAVERPHONE: caverphone,
-        PhoneticAlgorithm.MATCH_RATING_CODEX: match_rating_codex,
-    }
+    groups = group_by_phonetic(words, algorithm)
+    duplicates = []
     
-    if algorithm == PhoneticAlgorithm.DOUBLE_METAPHONE:
-        return {name: double_metaphone(name).primary for name in names}
+    for code, group in groups.items():
+        if len(group) > 1 and group not in duplicates:
+            # Check if this group is already included
+            is_subset = False
+            for existing in duplicates:
+                if set(group).issubset(set(existing)):
+                    is_subset = True
+                    break
+            if not is_subset:
+                duplicates.append(group)
     
-    encoder = encoders.get(algorithm)
-    if not encoder:
-        raise ValueError(f"Unknown algorithm: {algorithm}")
-    
-    return {name: encoder(name) for name in names}
+    return duplicates
 
+
+# =============================================================================
+# Main (for testing)
+# =============================================================================
 
 if __name__ == '__main__':
-    # Quick demo
-    print("=== Phonetic Encoding Demo ===\n")
+    print("=" * 60)
+    print("Phonetic Algorithm Utilities - Test Suite")
+    print("=" * 60)
     
-    test_names = ["Smith", "Schmidt", "Johnson", "Jonson", "Catherine", "Katherine"]
+    test_names = [
+        "Robert", "Rupert", "Smith", "Schmidt", "Catherine", "Katherine",
+        "O'Connor", "Oconnor", "Johnson", "Johnsen", "MacDonald", "McDonald",
+        "Wilson", "Willson", "Thompson", "Thomson"
+    ]
     
-    print("Soundex:")
-    for name in test_names:
-        print(f"  {name}: {soundex(name)}")
+    print("\n--- Soundex ---")
+    for name in test_names[:6]:
+        result = soundex(name)
+        print(f"{name:15} -> {result.primary}")
     
-    print("\nMetaphone:")
-    for name in test_names:
-        print(f"  {name}: {metaphone(name)}")
+    print("\n--- Metaphone ---")
+    for name in test_names[:6]:
+        result = metaphone(name)
+        print(f"{name:15} -> {result.primary}")
     
-    print("\nDouble Metaphone:")
-    for name in test_names:
+    print("\n--- Double Metaphone ---")
+    for name in test_names[:6]:
         result = double_metaphone(name)
-        print(f"  {name}: {result.primary} / {result.alternate}")
+        if result.alternate:
+            print(f"{name:15} -> {result.primary} / {result.alternate}")
+        else:
+            print(f"{name:15} -> {result.primary}")
     
-    print("\nNYSIIS:")
-    for name in test_names:
-        print(f"  {name}: {nysiis(name)}")
+    print("\n--- NYSIIS ---")
+    for name in test_names[:6]:
+        result = nysiis(name)
+        print(f"{name:15} -> {result.primary}")
     
-    print("\nPhonetic Similarity (Smith vs Schmidt):")
-    print(f"  {phonetic_similarity('Smith', 'Schmidt'):.2%}")
+    print("\n--- Phonetic Matching ---")
+    pairs = [("Robert", "Rupert"), ("Smith", "Schmidt"), ("Catherine", "Katherine")]
+    for w1, w2 in pairs:
+        matches, similarity = phonetic_match(w1, w2)
+        status = "✓" if matches else "✗"
+        print(f"{w1:12} vs {w2:12}: {status} ({similarity:.2f})")
     
-    print("\nFind matches for 'Smith':")
-    matches = find_phonetic_matches("Smith", ["Smith", "Schmidt", "Smythe", "Jones", "Johnson"])
-    for name, score in matches[:3]:
-        print(f"  {name}: {score:.2%}")
+    print("\n--- Group by Phonetic ---")
+    groups = group_by_phonetic(test_names)
+    for code, names in sorted(groups.items())[:5]:
+        print(f"{code:10} -> {', '.join(names)}")
+    
+    print("\n" + "=" * 60)
+    print("All tests completed successfully!")
