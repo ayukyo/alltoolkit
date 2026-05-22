@@ -331,12 +331,22 @@ perl Perl/csv_utils/csv_utils_test.pl
 | fuel_efficiency_utils | Python | 43 | ✅ 100% |
 | ohm_law_utils | Python | 44 | ✅ 100% |
 | hex_dump_utils | Python | 57 | ✅ 100% |
+| rsi_utils | Python | 43 | ✅ 100% |
+| hrv_utils | Python | 46 | ✅ 100% |
+| ambient_noise_utils | Python | 90 | ✅ 100% |
 
-**总计**: Python 228 模块，402 测试文件，4400+ 测试用例，100% 通过率 ✅
+**总计**: Python 525 模块，538 测试文件，4500+ 测试用例，100% 通过率 ✅
 
 ---
 
-**最后更新**: 2026-05-18
+**最后更新**: 2026-05-23
+
+### 测试和文档更新 (2026-05-23)
+
+- **Python rsi_utils**: 新增 43 个测试用例，覆盖 RSI 计算（多种平滑方法）、背离检测、交易信号、Stochastic RSI、增量式计算器等 📈
+- **Python hrv_utils**: 新增 46 个测试用例，覆盖时域分析（SDNN/RMSSD/pNN50）、频域分析（LF/HF功率）、非线性分析（Poincaré图/熵）、健康评估、心律异常检测等 🫀
+- **Python ambient_noise_utils**: 新增 90 个测试用例，覆盖 6 种噪音类型生成、12+ 种环境音预设、噪音混合、淡入淡出、WAV 导出/导入、生成器类等 🔊
+- 新增 3 个 README 文档，详细说明 API 使用方法和指标含义
 
 ### 文档更新 (2026-05-15)
 
