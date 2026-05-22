@@ -1,391 +1,422 @@
-#!/usr/bin/env python3
 """
-Water Intake Utils - 使用示例
+Water Intake Utils 使用示例
+==========================================
 
-演示饮水追踪工具的各种功能。
+展示饮水量计算工具的各种用法。
+
+作者: AllToolkit 自动化生成
+日期: 2026-05-23
 """
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from datetime import datetime, time, timedelta
 from mod import (
     WaterIntakeCalculator,
-    WaterTracker,
-    DrinkReminder,
     ActivityLevel,
-    Climate,
-    DrinkType,
-    calculate_water_needs,
-    format_water_amount,
-    get_water_percentage,
+    ClimateType,
+    HydrationStatus,
+    calculate_daily_water,
+    get_quick_schedule
 )
+from datetime import datetime
 
 
 def example_basic_calculation():
-    """示例 1: 基础饮水量计算"""
-    print("=" * 50)
-    print("示例 1: 基础饮水量计算")
-    print("=" * 50)
+    """示例：基础饮水量计算"""
+    print("\n" + "="*50)
+    print("示例 1：基础饮水量计算")
+    print("="*50)
     
-    # 70公斤，中等活动，温和气候
-    calculator = WaterIntakeCalculator(
-        weight_kg=70,
-        activity_level=ActivityLevel.MODERATE,
-        climate=Climate.MILD,
-    )
+    calc = WaterIntakeCalculator()
     
-    target = calculator.calculate_daily_target()
-    print(f"\n个人信息:")
-    print(f"  体重: 70kg")
-    print(f"  活动水平: 中等")
-    print(f"  气候: 温和")
-    print(f"\n每日建议饮水量: {format_water_amount(target)}")
+    # 70kg 成年人，中度活动，温和气候
+    result = calc.calculate_daily_intake(weight_kg=70)
     
-    # 获取饮水建议
-    print(f"\n饮水建议:")
-    for i, rec in enumerate(calculator.get_recommendations(), 1):
-        print(f"  {i}. {rec}")
+    print(f"体重: {result['weight_kg']} kg")
+    print(f"基础饮水量: {result['base_intake_ml']} ml")
+    print(f"活动水平: {result['activity_level']}")
+    print(f"活动调整系数: {result['activity_multiplier']}")
+    print(f"气候: {result['climate']}")
+    print(f"气候调整系数: {result['climate_multiplier']}")
+    print(f"\n✨ 每日建议饮水量: {result['total_intake_ml']} ml ({result['total_intake_liters']} L)")
+    print(f"   相当于约 {int(result['glasses_of_water'])} 杯水（每杯250ml）")
 
 
-def example_different_scenarios():
-    """示例 2: 不同场景的饮水量需求"""
-    print("\n" + "=" * 50)
-    print("示例 2: 不同场景的饮水量需求")
-    print("=" * 50)
+def example_activity_levels():
+    """示例：不同活动水平的饮水需求"""
+    print("\n" + "="*50)
+    print("示例 2：不同活动水平的饮水需求")
+    print("="*50)
     
-    scenarios = [
-        ("久坐办公室", 65, ActivityLevel.SEDENTARY, Climate.MILD, None, False, False),
-        ("健身爱好者", 75, ActivityLevel.ACTIVE, Climate.MILD, None, False, False),
-        ("户外工作者", 70, ActivityLevel.MODERATE, Climate.HOT, None, False, False),
-        ("孕妇", 60, ActivityLevel.LIGHT, Climate.MILD, None, True, False),
-        ("哺乳期妈妈", 58, ActivityLevel.LIGHT, Climate.MILD, None, False, True),
-        ("老年人", 68, ActivityLevel.SEDENTARY, Climate.MILD, 70, False, False),
-        ("青少年运动员", 55, ActivityLevel.VERY_ACTIVE, Climate.WARM, 16, False, False),
+    calc = WaterIntakeCalculator()
+    weight = 70  # kg
+    
+    levels = [
+        (ActivityLevel.SEDENTARY, "久坐（很少运动）"),
+        (ActivityLevel.LIGHT, "轻度活动（每周1-3天轻度运动）"),
+        (ActivityLevel.MODERATE, "中度活动（每周3-5天中度运动）"),
+        (ActivityLevel.ACTIVE, "活跃（每周6-7天运动）"),
+        (ActivityLevel.VERY_ACTIVE, "非常活跃（剧烈运动/体力劳动）")
     ]
     
-    print(f"\n{'场景':<15} {'体重':>6} {'活动':<10} {'气候':<8} {'建议饮水量':>10}")
-    print("-" * 60)
+    print(f"\n体重: {weight} kg\n")
+    print(f"{'活动水平':<30} {'调整系数':<10} {'每日饮水量':<15}")
+    print("-" * 55)
     
-    for name, weight, activity, climate, age, pregnant, breastfeeding in scenarios:
-        calc = WaterIntakeCalculator(
+    for level, desc in levels:
+        result = calc.calculate_daily_intake(
             weight_kg=weight,
-            activity_level=activity,
-            climate=climate,
-            age=age,
-            is_pregnant=pregnant,
-            is_breastfeeding=breastfeeding,
+            activity_level=level
         )
-        target = calc.calculate_daily_target()
-        activity_name = {
-            ActivityLevel.SEDENTARY: "久坐",
-            ActivityLevel.LIGHT: "轻度",
-            ActivityLevel.MODERATE: "中等",
-            ActivityLevel.ACTIVE: "活跃",
-            ActivityLevel.VERY_ACTIVE: "非常活跃",
-        }[activity]
-        climate_name = {
-            Climate.COLD: "寒冷",
-            Climate.MILD: "温和",
-            Climate.WARM: "温暖",
-            Climate.HOT: "炎热",
-            Climate.VERY_HOT: "酷热",
-        }[climate]
-        print(f"{name:<15} {weight:>4}kg {activity_name:<10} {climate_name:<8} {format_water_amount(target):>10}")
+        print(f"{desc:<30} {result['activity_multiplier']:<10.1f} {result['total_intake_ml']} ml")
 
 
-def example_daily_tracking():
-    """示例 3: 每日饮水追踪"""
-    print("\n" + "=" * 50)
-    print("示例 3: 每日饮水追踪")
-    print("=" * 50)
+def example_climate_effects():
+    """示例：气候对饮水量的影响"""
+    print("\n" + "="*50)
+    print("示例 3：气候对饮水量的影响")
+    print("="*50)
     
-    # 创建追踪器
-    calculator = WaterIntakeCalculator(
-        weight_kg=70,
-        activity_level=ActivityLevel.MODERATE,
-        climate=Climate.MILD,
-    )
-    tracker = WaterTracker(calculator)
+    calc = WaterIntakeCalculator()
+    weight = 70  # kg
     
-    # 模拟一天的饮水记录
-    now = datetime.now()
+    climates = [
+        (ClimateType.COLD, "寒冷 (<10°C)"),
+        (ClimateType.MILD, "温和 (10-20°C)"),
+        (ClimateType.WARM, "温暖 (20-25°C)"),
+        (ClimateType.HOT, "炎热 (25-35°C)"),
+        (ClimateType.VERY_HOT, "酷热 (>35°C)"),
+        (ClimateType.HUMID, "潮湿（高湿度）")
+    ]
     
-    print(f"\n今日饮水记录:")
-    print("-" * 40)
+    print(f"\n体重: {weight} kg, 活动水平: 中度\n")
+    print(f"{'气候':<20} {'调整系数':<10} {'每日饮水量':<15}")
+    print("-" * 45)
     
-    # 早起
-    tracker.add_drink(250, DrinkType.WATER, timestamp=now.replace(hour=7, minute=30), note="起床第一杯")
-    print(f"07:30 - 🚰 纯净水 250ml - 起床第一杯")
-    
-    # 早餐
-    tracker.add_drink(200, DrinkType.MILK, timestamp=now.replace(hour=8, minute=0), note="早餐")
-    print(f"08:00 - 🥛 牛奶 200ml - 早餐")
-    
-    # 上午咖啡
-    tracker.add_drink(200, DrinkType.COFFEE, timestamp=now.replace(hour=10, minute=30), note="上午咖啡")
-    print(f"10:30 - ☕ 咖啡 200ml - 上午咖啡")
-    
-    # 午餐
-    tracker.add_drink(300, DrinkType.SOUP, timestamp=now.replace(hour=12, minute=30), note="午餐汤")
-    print(f"12:30 - 🍲 汤 300ml - 午餐汤")
-    
-    # 下午茶
-    tracker.add_drink(250, DrinkType.TEA, timestamp=now.replace(hour=15, minute=0), note="下午茶")
-    print(f"15:00 - 🍵 茶 250ml - 下午茶")
-    
-    # 运动后
-    tracker.add_drink(400, DrinkType.SPORTS_DRINK, timestamp=now.replace(hour=18, minute=0), note="运动后补水")
-    print(f"18:00 - 🧃 运动饮料 400ml - 运动后补水")
-    
-    # 晚餐
-    tracker.add_drink(300, DrinkType.WATER, timestamp=now.replace(hour=19, minute=30), note="晚餐")
-    print(f"19:30 - 🚰 纯净水 300ml - 晚餐")
-    
-    # 睡前
-    tracker.add_drink(200, DrinkType.WATER, timestamp=now.replace(hour=21, minute=30), note="睡前")
-    print(f"21:30 - 🚰 纯净水 200ml - 睡前")
-    
-    # 获取汇总
-    print("\n" + "-" * 40)
-    summary = tracker.get_daily_summary()
-    print(f"\n今日汇总:")
-    print(f"  总饮水量: {format_water_amount(summary.total_ml)}")
-    print(f"  有效水量: {format_water_amount(summary.effective_ml)}")
-    print(f"  目标水量: {format_water_amount(summary.target_ml)}")
-    print(f"  完成率: {summary.completion_rate * 100:.1f}%")
-    print(f"  状态: {'✅ 达标' if summary.is_goal_met else '❌ 未达标'}")
-    
-    # 显示进度条
-    print(f"\n进度: {get_water_percentage(summary.effective_ml, summary.target_ml)}")
+    for climate, desc in climates:
+        result = calc.calculate_daily_intake(
+            weight_kg=weight,
+            climate=climate
+        )
+        print(f"{desc:<20} {result['climate_multiplier']:<10.1f} {result['total_intake_ml']} ml")
 
 
-def example_drink_schedule():
-    """示例 4: 饮水时间表"""
-    print("\n" + "=" * 50)
-    print("示例 4: 饮水时间表")
-    print("=" * 50)
+def example_exercise_adjustment():
+    """示例：运动对饮水量的影响"""
+    print("\n" + "="*50)
+    print("示例 4：运动对饮水量的影响")
+    print("="*50)
     
-    calculator = WaterIntakeCalculator(
-        weight_kg=70,
-        activity_level=ActivityLevel.MODERATE,
-        climate=Climate.MILD,
-    )
+    calc = WaterIntakeCalculator()
     
-    schedule = calculator.get_drink_schedule(
-        start_time=time(7, 0),
-        end_time=time(21, 0),
-        interval_minutes=90,
-        drink_size_ml=250,
-    )
+    # 不同运动时间
+    exercise_times = [0, 30, 60, 90, 120]
     
-    print(f"\n建议饮水时间表 (每次 250ml):")
-    print("-" * 30)
-    for i, (drink_time, amount) in enumerate(schedule, 1):
-        emoji = "🌅" if drink_time.hour < 12 else "☀️" if drink_time.hour < 18 else "🌙"
-        print(f"{i:2}. {emoji} {drink_time.strftime('%H:%M')} - {int(amount)}ml")
+    print(f"\n体重: 70 kg\n")
+    print(f"{'运动时间':<15} {'额外补水':<15} {'总饮水量':<15}")
+    print("-" * 45)
     
-    total = sum(amount for _, amount in schedule)
-    print(f"\n总计划饮水量: {format_water_amount(total)}")
+    for minutes in exercise_times:
+        result = calc.calculate_daily_intake(
+            weight_kg=70,
+            exercise_minutes=minutes
+        )
+        print(f"{minutes} 分钟{' '*8} {result['exercise_addition_ml']} ml{' '*7} {result['total_intake_ml']} ml")
 
 
-def example_reminder():
-    """示例 5: 饮水提醒"""
-    print("\n" + "=" * 50)
-    print("示例 5: 饮水提醒")
-    print("=" * 50)
+def example_special_conditions():
+    """示例：特殊情况下的饮水需求"""
+    print("\n" + "="*50)
+    print("示例 5：特殊情况下的饮水需求")
+    print("="*50)
     
-    calculator = WaterIntakeCalculator(
-        weight_kg=70,
-        activity_level=ActivityLevel.SEDENTARY,
-        climate=Climate.MILD,
-    )
-    tracker = WaterTracker(calculator)
+    calc = WaterIntakeCalculator()
     
-    reminder = DrinkReminder(
-        tracker=tracker,
-        interval_minutes=60,
-        start_time=time(7, 0),
-        end_time=time(22, 0),
-    )
+    conditions = [
+        ([], "正常人"),
+        (['pregnancy'], "孕期"),
+        (['breastfeeding'], "哺乳期"),
+        (['illness_fever'], "发烧"),
+        (['altitude_high'], "高海拔"),
+        (['alcohol'], "饮酒后"),
+        (['pregnancy', 'altitude_high'], "孕期 + 高海拔")
+    ]
     
-    # 检查提醒
-    print("\n当前状态检查:")
-    message = reminder.check_reminder()
-    if message:
-        print(f"  💧 {message}")
+    print(f"\n体重: 70 kg\n")
+    print(f"{'特殊情况':<25} {'额外水量':<15} {'总饮水量':<15}")
+    print("-" * 55)
     
-    # 添加一些饮水记录
-    tracker.add_drink(250, DrinkType.WATER)
-    print(f"\n已记录: 250ml 纯净水")
-    
-    # 再次检查
-    message = reminder.check_reminder()
-    if message:
-        print(f"  💧 {message}")
-    else:
-        print(f"  ✅ 刚喝过水，暂时不需要提醒")
-    
-    # 获取下次提醒时间
-    next_time = reminder.get_next_reminder_time()
-    if next_time:
-        print(f"\n下次提醒时间: {next_time.strftime('%H:%M')}")
-    
-    # 获取剩余提醒次数
-    remaining = reminder.get_remaining_reminders_today()
-    print(f"今日预计还需提醒: {remaining} 次")
+    for condition_list, desc in conditions:
+        result = calc.calculate_daily_intake(
+            weight_kg=70,
+            special_conditions=condition_list
+        )
+        print(f"{desc:<25} +{result['special_addition_ml']} ml{' '*7} {result['total_intake_ml']} ml")
 
 
-def example_weekly_statistics():
-    """示例 6: 周统计"""
-    print("\n" + "=" * 50)
-    print("示例 6: 周统计")
-    print("=" * 50)
+def example_drinking_schedule():
+    """示例：生成饮水时间表"""
+    print("\n" + "="*50)
+    print("示例 6：饮水时间表")
+    print("="*50)
     
-    calculator = WaterIntakeCalculator(
-        weight_kg=70,
-        activity_level=ActivityLevel.MODERATE,
-        climate=Climate.MILD,
-    )
-    tracker = WaterTracker(calculator)
+    calc = WaterIntakeCalculator()
     
-    # 模拟一周的数据
-    import random
-    now = datetime.now()
-    
-    for i in range(7):
-        date = now - timedelta(days=i)
-        # 随机 6-10 杯水
-        num_drinks = random.randint(6, 10)
-        for j in range(num_drinks):
-            hour = 7 + j * 2
-            if hour > 22:
-                hour = 22
-            tracker.add_drink(
-                random.choice([200, 250, 300]),
-                random.choice([DrinkType.WATER, DrinkType.TEA, DrinkType.COFFEE]),
-                timestamp=date.replace(hour=hour, minute=random.randint(0, 59)),
-            )
-    
-    # 周汇总
-    weekly = tracker.get_weekly_summary()
-    
-    print(f"\n本周饮水记录:")
-    print("-" * 50)
-    day_names = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
-    
-    for summary in weekly:
-        date = datetime.strptime(summary.date, "%Y-%m-%d")
-        day_name = day_names[date.weekday()]
-        status = "✅" if summary.is_goal_met else "❌"
-        print(f"{summary.date} ({day_name}): {format_water_amount(summary.effective_ml):>8} {status}")
-    
-    # 统计数据
-    stats = tracker.get_statistics(days=7)
-    
-    print("\n" + "-" * 50)
-    print(f"\n周统计汇总:")
-    print(f"  记录天数: {stats['days_tracked']} 天")
-    print(f"  达标天数: {stats['days_goal_met']} 天")
-    print(f"  达标率: {stats['goal_met_rate'] * 100:.1f}%")
-    print(f"  平均饮水量: {format_water_amount(stats['average_ml'])}")
-    print(f"  平均完成率: {stats['average_completion_rate'] * 100:.1f}%")
-    print(f"  总饮水量: {format_water_amount(stats['total_ml'])}")
-
-
-def example_persistence():
-    """示例 7: 数据持久化"""
-    print("\n" + "=" * 50)
-    print("示例 7: 数据持久化")
-    print("=" * 50)
-    
-    # 创建并记录数据
-    calculator = WaterIntakeCalculator(
+    # 计算每日饮水量
+    daily = calc.calculate_daily_intake(
         weight_kg=70,
         activity_level=ActivityLevel.ACTIVE,
-        climate=Climate.WARM,
-        age=28,
+        climate=ClimateType.WARM
     )
-    tracker = WaterTracker(calculator)
     
-    tracker.add_drink(250, DrinkType.WATER, note="早上一杯")
-    tracker.add_drink(200, DrinkType.COFFEE, note="上午咖啡")
-    tracker.add_drink(300, DrinkType.WATER, note="午餐")
+    print(f"\n每日建议饮水量: {daily['total_intake_ml']} ml\n")
     
-    # 导出为 JSON
-    json_data = tracker.to_json()
-    print(f"\n导出的 JSON 数据:")
-    print(json_data[:300] + "..." if len(json_data) > 300 else json_data)
+    # 生成时间表
+    schedule = calc.generate_drinking_schedule(
+        daily_intake_ml=daily['total_intake_ml'],
+        wake_time=(7, 0),
+        sleep_time=(23, 0),
+        num_reminders=8
+    )
     
-    # 从 JSON 导入
-    restored = WaterTracker.from_json(json_data)
+    print(f"{'时间':<10} {'饮水量':<12} {'累计':<12} {'进度':<10} {'说明'}")
+    print("-" * 60)
     
-    print(f"\n从 JSON 恢复:")
-    print(f"  体重: {restored.calculator.weight_kg}kg")
-    print(f"  活动水平: {restored.calculator.activity_level.value}")
-    print(f"  气候: {restored.calculator.climate.value}")
-    print(f"  年龄: {restored.calculator.age}")
-    print(f"  记录数: {len(restored.records)}")
+    for s in schedule:
+        print(f"{s['time']:<10} {s['amount_ml']} ml{' '*4} {s['cumulative_ml']} ml{' '*4} {s['percentage']}%{' '*5} {s['note']}")
 
 
-def example_convenience_functions():
-    """示例 8: 便捷函数"""
-    print("\n" + "=" * 50)
-    print("示例 8: 便捷函数")
-    print("=" * 50)
+def example_record_and_track():
+    """示例：记录和追踪饮水"""
+    print("\n" + "="*50)
+    print("示例 7：记录和追踪饮水")
+    print("="*50)
     
-    # 快速计算饮水量
-    target1 = calculate_water_needs(weight_kg=70)
-    print(f"\n70kg 成人（默认活动水平和气候）: {format_water_amount(target1)}")
+    calc = WaterIntakeCalculator()
     
-    target2 = calculate_water_needs(
-        weight_kg=60,
-        activity_level="active",
-        climate="hot",
+    # 计算目标
+    target = calc.calculate_daily_intake(weight_kg=70)['total_intake_ml']
+    print(f"\n今日目标: {target} ml\n")
+    
+    # 模拟一天的饮水记录
+    drinks = [
+        (250, "water", "起床后"),
+        (300, "water", "早餐时"),
+        (200, "tea", "上午"),
+        (500, "water", "午餐后"),
+        (300, "coffee", "下午"),
+        (400, "water", "运动后"),
+        (250, "water", "晚餐时")
+    ]
+    
+    print("饮水记录:")
+    print("-" * 40)
+    for amount, beverage, note in drinks:
+        record = calc.record_intake(
+            amount_ml=amount,
+            beverage_type=beverage,
+            note=note
+        )
+        print(f"  {record['time']} - {amount}ml {beverage} ({note})")
+    
+    # 获取摘要
+    summary = calc.get_daily_summary(target_intake_ml=target)
+    
+    print(f"\n今日汇总:")
+    print(f"  总饮水量: {summary['total_intake_ml']} ml ({summary['total_intake_liters']} L)")
+    print(f"  记录次数: {summary['record_count']} 次")
+    print(f"  进度: {summary['progress_percentage']}%")
+    print(f"  剩余: {summary['remaining_ml']} ml")
+    
+    print(f"\n按饮料类型:")
+    for beverage, amount in summary['by_beverage_type'].items():
+        print(f"  {beverage}: {amount} ml")
+
+
+def example_hydration_assessment():
+    """示例：补水状态评估"""
+    print("\n" + "="*50)
+    print("示例 8：补水状态评估")
+    print("="*50)
+    
+    calc = WaterIntakeCalculator()
+    
+    target = 2500  # ml
+    
+    scenarios = [
+        (500, "pale_yellow", "早上刚起床"),
+        (1200, "yellow", "上午"),
+        (1800, "pale_yellow", "下午"),
+        (2500, "pale_yellow", "晚上达标"),
+        (3000, "clear", "饮水过量")
+    ]
+    
+    print(f"\n目标饮水量: {target} ml\n")
+    
+    for intake, urine_color, desc in scenarios:
+        assessment = calc.assess_hydration(
+            current_intake_ml=intake,
+            target_intake_ml=target,
+            urine_color=urine_color
+        )
+        
+        print(f"场景: {desc}")
+        print(f"  饮水量: {intake} ml ({assessment['progress_ratio']*100:.0f}%)")
+        print(f"  状态: {assessment['status_display']}")
+        if assessment['urine_color_assessment']:
+            print(f"  尿液颜色: {assessment['urine_color_assessment']['assessment']}")
+        print(f"  建议: {assessment['recommendations'][0]}")
+        print()
+
+
+def example_sweat_loss():
+    """示例：运动出汗量计算"""
+    print("\n" + "="*50)
+    print("示例 9：运动出汗量计算")
+    print("="*50)
+    
+    calc = WaterIntakeCalculator()
+    
+    result = calc.calculate_sweat_loss(
+        weight_before_kg=70,
+        weight_after_kg=69.2,
+        fluid_intake_ml=400,
+        urine_output_ml=0,
+        duration_minutes=60
     )
-    print(f"60kg 活跃人群，炎热气候: {format_water_amount(target2)}")
     
-    target3 = calculate_water_needs(
-        weight_kg=65,
-        activity_level="light",
-        climate="mild",
-        is_pregnant=True,
+    print(f"\n运动前后体重变化:")
+    print(f"  运动前: {result['weight_before_kg']} kg")
+    print(f"  运动后: {result['weight_after_kg']} kg")
+    print(f"  体重减少: {result['weight_loss_kg']} kg ({result['weight_loss_percent']}%)")
+    
+    print(f"\n出汗量分析:")
+    print(f"  估算出汗量: {result['sweat_loss_ml']} ml")
+    print(f"  出汗率: {result['sweat_rate_ml_per_hour']} ml/小时")
+    print(f"  运动中补水: {result['fluid_intake_ml']} ml")
+    
+    print(f"\n补水建议:")
+    print(f"  需要补充: {result['rehydration_needed_ml']} ml")
+    print(f"  脱水程度: {result['dehydration_severity']}")
+    print(f"\n建议:")
+    for rec in result['recommendations']:
+        if rec:
+            print(f"  • {rec}")
+
+
+def example_beverage_equivalents():
+    """示例：饮料等效量"""
+    print("\n" + "="*50)
+    print("示例 10：饮料等效量")
+    print("="*50)
+    
+    calc = WaterIntakeCalculator()
+    
+    water_needed = 2000  # ml
+    equivalents = calc.get_beverage_equivalent(water_needed)
+    
+    print(f"\n要达到 {water_needed} ml 纯水的补水效果，需要:\n")
+    
+    beverages_order = ['water', 'tea', 'coconut_water', 'sports_drink', 
+                       'juice', 'milk', 'coffee', 'soda', 'beer']
+    
+    for beverage in beverages_order:
+        if beverage in equivalents:
+            info = equivalents[beverage]
+            print(f"  {beverage:<15} {info['equivalent_ml']} ml  (补水系数: {info['hydration_factor']})")
+            print(f"                  {info['note']}")
+            print()
+
+
+def example_sport_hydration():
+    """示例：运动补水方案"""
+    print("\n" + "="*50)
+    print("示例 11：运动补水方案")
+    print("="*50)
+    
+    calc = WaterIntakeCalculator()
+    
+    sports = [
+        ('running', 'high', 60),
+        ('cycling', 'moderate', 90),
+        ('yoga', 'low', 45),
+        ('basketball', 'high', 90),
+        ('swimming', 'moderate', 60)
+    ]
+    
+    print(f"\n体重: 70 kg, 温度: 25°C\n")
+    
+    for sport, intensity, duration in sports:
+        result = calc.calculate_for_sport(
+            sport_type=sport,
+            duration_minutes=duration,
+            intensity=intensity,
+            weight_kg=70,
+            temperature_c=25
+        )
+        
+        print(f"🏃 {sport.upper()} ({duration}分钟, {intensity}强度)")
+        print(f"   预计出汗量: {result['estimated_sweat_loss_ml']} ml")
+        print(f"   补水计划:")
+        print(f"     • 运动前: {result['hydration_plan']['before_exercise_ml']} ml")
+        print(f"     • 运动中: 每15分钟 {result['hydration_plan']['during_exercise']['per_15_minutes_ml']} ml")
+        print(f"     • 运动后: {result['hydration_plan']['after_exercise_ml']} ml")
+        print(f"   总补水量: {result['total_recommended_ml']} ml\n")
+
+
+def example_quick_functions():
+    """示例：快速便捷函数"""
+    print("\n" + "="*50)
+    print("示例 12：快速便捷函数")
+    print("="*50)
+    
+    # 快速计算每日饮水量
+    result = calculate_daily_water(
+        weight_kg=75,
+        activity_level='active',
+        climate='hot',
+        exercise_minutes=45
     )
-    print(f"65kg 孕妇: {format_water_amount(target3)}")
     
-    # 格式化函数
-    print(f"\n格式化示例:")
-    print(f"  500ml -> {format_water_amount(500)}")
-    print(f"  1500ml -> {format_water_amount(1500)}")
-    print(f"  2000ml -> {format_water_amount(2000)}")
+    print(f"\n快速计算:")
+    print(f"  体重: 75 kg")
+    print(f"  活动水平: active")
+    print(f"  气候: hot")
+    print(f"  运动时间: 45 分钟")
+    print(f"  → 每日建议: {result['total_intake_ml']} ml\n")
     
-    # 进度条
-    print(f"\n进度条示例:")
-    print(f"  25%: {get_water_percentage(500, 2000)}")
-    print(f"  50%: {get_water_percentage(1000, 2000)}")
-    print(f"  75%: {get_water_percentage(1500, 2000)}")
-    print(f"  100%: {get_water_percentage(2000, 2000)}")
+    # 快速生成时间表
+    schedule = get_quick_schedule(total_ml=2500, wake_hour=6)
+    
+    print(f"快速时间表 (6:00 起床):")
+    for s in schedule[:5]:
+        print(f"  {s['time']} - {s['amount_ml']} ml")
 
 
 def main():
     """运行所有示例"""
-    print("\n" + "=" * 60)
-    print("🚰 Water Intake Utils - 使用示例")
-    print("=" * 60)
+    print("\n" + "="*60)
+    print("💧 Water Intake Utils - 饮水量计算工具 使用示例")
+    print("="*60)
     
     example_basic_calculation()
-    example_different_scenarios()
-    example_daily_tracking()
-    example_drink_schedule()
-    example_reminder()
-    example_weekly_statistics()
-    example_persistence()
-    example_convenience_functions()
+    example_activity_levels()
+    example_climate_effects()
+    example_exercise_adjustment()
+    example_special_conditions()
+    example_drinking_schedule()
+    example_record_and_track()
+    example_hydration_assessment()
+    example_sweat_loss()
+    example_beverage_equivalents()
+    example_sport_hydration()
+    example_quick_functions()
     
-    print("\n" + "=" * 60)
-    print("✅ 所有示例运行完成！")
-    print("=" * 60)
+    print("\n" + "="*60)
+    print("✨ 所有示例运行完成!")
+    print("="*60)
 
 
 if __name__ == "__main__":

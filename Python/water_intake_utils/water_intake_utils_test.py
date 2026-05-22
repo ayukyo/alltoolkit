@@ -1,801 +1,751 @@
-#!/usr/bin/env python3
 """
-Water Intake Utils - 测试文件
+Water Intake Utils 测试
+==========================================
 
-覆盖：
-- 每日建议饮水量计算（体重、活动水平、气候、年龄、怀孕/哺乳）
-- 饮水记录管理（添加、查询、统计）
-- 饮水时间表生成
-- 水分状态追踪
-- 每日/周/统计汇总
-- 饮水提醒
-- JSON 序列化/反序列化
+测试饮水量计算工具的所有功能。
+
+作者: AllToolkit 自动化生成
+日期: 2026-05-23
 """
 
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from datetime import datetime, time, timedelta
 from mod import (
-    ActivityLevel,
-    Climate,
-    DrinkType,
-    DrinkRecord,
-    DailySummary,
-    HydrationStatus,
     WaterIntakeCalculator,
-    WaterTracker,
-    DrinkReminder,
-    calculate_water_needs,
-    format_water_amount,
-    get_water_percentage,
-    DRINK_HYDRATION_FACTOR,
+    ActivityLevel,
+    ClimateType,
+    HydrationStatus,
+    calculate_daily_water,
+    get_quick_schedule
 )
+from datetime import datetime, timedelta
 
 
-def test_drink_type_hydration_factors():
-    """测试饮品水分含量系数"""
-    assert DRINK_HYDRATION_FACTOR[DrinkType.WATER] == 1.0
-    assert DRINK_HYDRATION_FACTOR[DrinkType.SPARKLING_WATER] == 1.0
-    assert DRINK_HYDRATION_FACTOR[DrinkType.COFFEE] == 0.85
-    assert DRINK_HYDRATION_FACTOR[DrinkType.TEA] == 0.95
-    assert DRINK_HYDRATION_FACTOR[DrinkType.JUICE] == 0.9
-    assert DRINK_HYDRATION_FACTOR[DrinkType.SPORTS_DRINK] == 1.0
-    assert DRINK_HYDRATION_FACTOR[DrinkType.MILK] == 0.9
-    assert DRINK_HYDRATION_FACTOR[DrinkType.SOUP] == 0.85
-    print("✅ test_drink_type_hydration_factors passed")
-
-
-def test_drink_record_creation():
-    """测试饮水记录创建"""
-    record = DrinkRecord(
-        timestamp=datetime(2026, 5, 21, 8, 0),
-        amount_ml=250,
-        drink_type=DrinkType.WATER,
-        note="起床第一杯水"
-    )
-    assert record.amount_ml == 250
-    assert record.effective_ml == 250  # 水的系数是1.0
-    assert record.note == "起床第一杯水"
-    print("✅ test_drink_record_creation passed")
-
-
-def test_drink_record_coffee():
-    """测试咖啡记录的有效水量"""
-    record = DrinkRecord(
-        timestamp=datetime.now(),
-        amount_ml=200,
-        drink_type=DrinkType.COFFEE,
-    )
-    assert record.amount_ml == 200
-    assert record.effective_ml == 170  # 200 * 0.85
-    print("✅ test_drink_record_coffee passed")
-
-
-def test_drink_record_serialization():
-    """测试饮水记录序列化"""
-    record = DrinkRecord(
-        timestamp=datetime(2026, 5, 21, 9, 30),
-        amount_ml=300,
-        drink_type=DrinkType.TEA,
-        note="上午茶"
-    )
+def test_calculate_daily_intake_basic():
+    """测试基础每日饮水量计算"""
+    calc = WaterIntakeCalculator()
     
-    # 转换为字典
-    data = record.to_dict()
-    assert data["amount_ml"] == 300
-    assert data["drink_type"] == "tea"
-    assert data["effective_ml"] == 285  # 300 * 0.95
+    # 70kg 成年人，中度活动，温和气候
+    result = calc.calculate_daily_intake(weight_kg=70)
     
-    # 从字典恢复
-    restored = DrinkRecord.from_dict(data)
-    assert restored.amount_ml == record.amount_ml
-    assert restored.drink_type == record.drink_type
-    assert restored.effective_ml == record.effective_ml
-    print("✅ test_drink_record_serialization passed")
+    assert result['weight_kg'] == 70
+    assert result['base_intake_ml'] == 70 * 30  # 30ml/kg
+    assert result['total_intake_ml'] >= 1500  # 最小1500ml
+    assert result['total_intake_ml'] <= 4500  # 最大4500ml
+    print("✅ test_calculate_daily_intake_basic")
 
 
-def test_daily_summary():
-    """测试每日汇总"""
-    records = [
-        DrinkRecord(datetime(2026, 5, 21, 8, 0), 250, DrinkType.WATER),
-        DrinkRecord(datetime(2026, 5, 21, 10, 0), 200, DrinkType.COFFEE),
-        DrinkRecord(datetime(2026, 5, 21, 12, 0), 300, DrinkType.WATER),
-    ]
+def test_calculate_daily_intake_activity_levels():
+    """测试不同活动水平的饮水量"""
+    calc = WaterIntakeCalculator()
     
-    summary = DailySummary(
-        date="2026-05-21",
-        total_ml=750,
-        effective_ml=720,  # 250 + 170 + 300
-        target_ml=2000,
-        records=records
-    )
-    
-    assert summary.completion_rate == 0.36  # 720/2000
-    assert not summary.is_goal_met
-    assert summary.deficit_ml == 1280  # 2000 - 720
-    print("✅ test_daily_summary passed")
-
-
-def test_daily_summary_goal_met():
-    """测试达成目标"""
-    summary = DailySummary(
-        date="2026-05-21",
-        total_ml=2200,
-        effective_ml=2200,
-        target_ml=2000,
-    )
-    
-    assert summary.is_goal_met
-    assert summary.completion_rate == 1.0  # max 1.0
-    assert summary.deficit_ml == -200  # 超额
-    print("✅ test_daily_summary_goal_met passed")
-
-
-def test_hydration_status():
-    """测试水分状态"""
-    status = HydrationStatus(
-        current_ml=800,
-        target_ml=2000,
-        last_drink_time=datetime(2026, 5, 21, 10, 0),
-    )
-    
-    assert status.completion_rate == 0.4
-    assert status.remaining_ml == 1200
-    assert status.status_text == "💧💧 继续保持"
-    print("✅ test_hydration_status passed")
-
-
-def test_hydration_status_levels():
-    """测试不同水分状态等级"""
-    # 需要补水
-    status1 = HydrationStatus(current_ml=200, target_ml=2000)
-    assert status1.status_text == "💧 需要补水"
-    
-    # 继续保持
-    status2 = HydrationStatus(current_ml=800, target_ml=2000)
-    assert status2.status_text == "💧💧 继续保持"
-    
-    # 快达标了
-    status3 = HydrationStatus(current_ml=1600, target_ml=2000)
-    assert status3.status_text == "💧💧💧 快达标了"
-    
-    # 达成
-    status4 = HydrationStatus(current_ml=2000, target_ml=2000)
-    assert status4.status_text == "✅ 今日目标达成！"
-    print("✅ test_hydration_status_levels passed")
-
-
-def test_water_intake_calculator_basic():
-    """测试基础饮水量计算"""
-    # 70公斤，中等活动，温和气候
-    calc = WaterIntakeCalculator(
+    # 久坐人群
+    sedentary = calc.calculate_daily_intake(
         weight_kg=70,
-        activity_level=ActivityLevel.MODERATE,
-        climate=Climate.MILD,
+        activity_level=ActivityLevel.SEDENTARY
     )
-    target = calc.calculate_daily_target()
     
-    # 70 * 30 * 1.2 * 1.0 = 2520ml
-    assert target == 2500  # 取整到100ml
-    print("✅ test_water_intake_calculator_basic passed")
-
-
-def test_water_intake_calculator_sedentary():
-    """测试久坐不动人群"""
-    calc = WaterIntakeCalculator(
-        weight_kg=60,
-        activity_level=ActivityLevel.SEDENTARY,
-        climate=Climate.MILD,
-    )
-    target = calc.calculate_daily_target()
-    
-    # 60 * 30 * 1.0 * 1.0 = 1800ml
-    assert target == 1800
-    print("✅ test_water_intake_calculator_sedentary passed")
-
-
-def test_water_intake_calculator_very_active():
-    """测试非常活跃人群"""
-    calc = WaterIntakeCalculator(
-        weight_kg=80,
-        activity_level=ActivityLevel.VERY_ACTIVE,
-        climate=Climate.MILD,
-    )
-    target = calc.calculate_daily_target()
-    
-    # 80 * 30 * 1.4 * 1.0 = 3360ml
-    assert target == 3400  # 取整到100ml
-    print("✅ test_water_intake_calculator_very_active passed")
-
-
-def test_water_intake_calculator_hot_climate():
-    """测试炎热气候"""
-    calc = WaterIntakeCalculator(
+    # 活跃人群
+    active = calc.calculate_daily_intake(
         weight_kg=70,
-        activity_level=ActivityLevel.MODERATE,
-        climate=Climate.HOT,
+        activity_level=ActivityLevel.ACTIVE
     )
-    target = calc.calculate_daily_target()
     
-    # 70 * 30 * 1.2 * 1.2 = 3024ml
-    assert target == 3000  # 取整到100ml
-    print("✅ test_water_intake_calculator_hot_climate passed")
-
-
-def test_water_intake_calculator_cold_climate():
-    """测试寒冷气候"""
-    calc = WaterIntakeCalculator(
+    # 非常活跃人群
+    very_active = calc.calculate_daily_intake(
         weight_kg=70,
-        activity_level=ActivityLevel.MODERATE,
-        climate=Climate.COLD,
+        activity_level=ActivityLevel.VERY_ACTIVE
     )
-    target = calc.calculate_daily_target()
     
-    # 70 * 30 * 1.2 * 0.9 = 2268ml
-    assert target == 2300  # 取整到100ml
-    print("✅ test_water_intake_calculator_cold_climate passed")
+    # 验证活动水平影响
+    assert sedentary['total_intake_ml'] < active['total_intake_ml']
+    assert active['total_intake_ml'] < very_active['total_intake_ml']
+    assert sedentary['activity_multiplier'] == 1.0
+    assert very_active['activity_multiplier'] == 1.5
+    print("✅ test_calculate_daily_intake_activity_levels")
 
 
-def test_water_intake_calculator_elderly():
-    """测试老年人"""
-    calc = WaterIntakeCalculator(
+def test_calculate_daily_intake_climate():
+    """测试不同气候的饮水量"""
+    calc = WaterIntakeCalculator()
+    
+    # 寒冷气候
+    cold = calc.calculate_daily_intake(
         weight_kg=70,
-        activity_level=ActivityLevel.LIGHT,
-        climate=Climate.MILD,
-        age=70,
+        climate=ClimateType.COLD
     )
-    target = calc.calculate_daily_target()
     
-    # 70 * 30 * 1.1 * 1.0 * 0.9 = 2079ml
-    assert target == 2100  # 取整到100ml
-    print("✅ test_water_intake_calculator_elderly passed")
+    # 炎热气候
+    hot = calc.calculate_daily_intake(
+        weight_kg=70,
+        climate=ClimateType.HOT
+    )
+    
+    # 酷热气候
+    very_hot = calc.calculate_daily_intake(
+        weight_kg=70,
+        climate=ClimateType.VERY_HOT
+    )
+    
+    # 验证气候影响
+    assert cold['total_intake_ml'] < hot['total_intake_ml']
+    assert hot['total_intake_ml'] < very_hot['total_intake_ml']
+    assert cold['climate_multiplier'] == 0.9
+    assert very_hot['climate_multiplier'] == 1.4
+    print("✅ test_calculate_daily_intake_climate")
 
 
-def test_water_intake_calculator_teenager():
-    """测试青少年"""
-    calc = WaterIntakeCalculator(
+def test_calculate_daily_intake_exercise():
+    """测试运动对饮水量的影响"""
+    calc = WaterIntakeCalculator()
+    
+    # 无运动
+    no_exercise = calc.calculate_daily_intake(
+        weight_kg=70,
+        exercise_minutes=0
+    )
+    
+    # 30分钟运动
+    exercise_30 = calc.calculate_daily_intake(
+        weight_kg=70,
+        exercise_minutes=30
+    )
+    
+    # 60分钟运动
+    exercise_60 = calc.calculate_daily_intake(
+        weight_kg=70,
+        exercise_minutes=60
+    )
+    
+    # 验证运动影响
+    assert no_exercise['exercise_addition_ml'] == 0
+    assert exercise_30['exercise_addition_ml'] == 350  # 每30分钟350ml
+    assert exercise_60['exercise_addition_ml'] == 700
+    assert exercise_30['total_intake_ml'] > no_exercise['total_intake_ml']
+    print("✅ test_calculate_daily_intake_exercise")
+
+
+def test_calculate_daily_intake_special_conditions():
+    """测试特殊情况对饮水量的影响"""
+    calc = WaterIntakeCalculator()
+    
+    # 无特殊情况
+    normal = calc.calculate_daily_intake(weight_kg=70)
+    
+    # 孕期
+    pregnancy = calc.calculate_daily_intake(
+        weight_kg=70,
+        special_conditions=['pregnancy']
+    )
+    
+    # 哺乳期
+    breastfeeding = calc.calculate_daily_intake(
+        weight_kg=70,
+        special_conditions=['breastfeeding']
+    )
+    
+    # 发烧
+    fever = calc.calculate_daily_intake(
+        weight_kg=70,
+        special_conditions=['illness_fever']
+    )
+    
+    # 多种特殊情况
+    multiple = calc.calculate_daily_intake(
+        weight_kg=70,
+        special_conditions=['pregnancy', 'altitude_high']
+    )
+    
+    # 验证特殊情况调整
+    assert pregnancy['special_addition_ml'] == 300
+    assert breastfeeding['special_addition_ml'] == 700
+    assert fever['special_addition_ml'] == 500
+    assert multiple['special_addition_ml'] == 800  # 300 + 500
+    assert pregnancy['total_intake_ml'] > normal['total_intake_ml']
+    print("✅ test_calculate_daily_intake_special_conditions")
+
+
+def test_calculate_daily_intake_age():
+    """测试年龄对饮水量的影响"""
+    calc = WaterIntakeCalculator()
+    
+    # 青少年（需要更多水）
+    teen = calc.calculate_daily_intake(
         weight_kg=50,
-        activity_level=ActivityLevel.ACTIVE,
-        climate=Climate.MILD,
-        age=15,
+        age=15
     )
-    target = calc.calculate_daily_target()
     
-    # 50 * 30 * 1.3 * 1.0 * 0.85 = 1657.5ml
-    assert target == 1700  # 取整到100ml
-    print("✅ test_water_intake_calculator_teenager passed")
-
-
-def test_water_intake_calculator_pregnant():
-    """测试孕妇"""
-    calc = WaterIntakeCalculator(
-        weight_kg=60,
-        activity_level=ActivityLevel.LIGHT,
-        climate=Climate.MILD,
-        is_pregnant=True,
+    # 成年人
+    adult = calc.calculate_daily_intake(
+        weight_kg=70,
+        age=35
     )
-    target = calc.calculate_daily_target()
     
-    # 60 * 30 * 1.1 * 1.0 + 300 = 2280ml
-    assert target == 2300
-    print("✅ test_water_intake_calculator_pregnant passed")
-
-
-def test_water_intake_calculator_breastfeeding():
-    """测试哺乳期"""
-    calc = WaterIntakeCalculator(
-        weight_kg=60,
-        activity_level=ActivityLevel.LIGHT,
-        climate=Climate.MILD,
-        is_breastfeeding=True,
+    # 老年人（可能需要更少）
+    elderly = calc.calculate_daily_intake(
+        weight_kg=70,
+        age=75
     )
-    target = calc.calculate_daily_target()
     
-    # 60 * 30 * 1.1 * 1.0 + 700 = 2680ml
-    assert target == 2700
-    print("✅ test_water_intake_calculator_breastfeeding passed")
+    # 验证年龄调整
+    assert teen['age_adjustment_ml'] > 0
+    assert elderly['age_adjustment_ml'] < 0
+    print("✅ test_calculate_daily_intake_age")
 
 
-def test_drink_schedule():
+def test_calculate_daily_intake_bounds():
+    """测试饮水量边界值"""
+    calc = WaterIntakeCalculator()
+    
+    # 极轻体重
+    very_light = calc.calculate_daily_intake(weight_kg=30)
+    assert very_light['total_intake_ml'] >= 1500  # 最小值
+    
+    # 极重体重
+    very_heavy = calc.calculate_daily_intake(weight_kg=150)
+    assert very_heavy['total_intake_ml'] <= 4500  # 最大值
+    
+    # 无效体重
+    try:
+        calc.calculate_daily_intake(weight_kg=0)
+        assert False, "应该抛出异常"
+    except ValueError:
+        pass
+    
+    try:
+        calc.calculate_daily_intake(weight_kg=-10)
+        assert False, "应该抛出异常"
+    except ValueError:
+        pass
+    print("✅ test_calculate_daily_intake_bounds")
+
+
+def test_calculate_hourly_intake():
+    """测试每小时饮水量计算"""
+    calc = WaterIntakeCalculator()
+    
+    result = calc.calculate_hourly_intake(
+        daily_intake_ml=2000,
+        waking_hours=16
+    )
+    
+    assert result['daily_intake_ml'] == 2000
+    assert result['waking_hours'] == 16
+    assert result['hourly_intake_ml'] == 125  # 2000 / 16
+    assert result['sips_per_hour'] == 4  # 125 / 30
+    assert result['bottles_500ml'] == 4.0
+    
+    # 无效输入
+    try:
+        calc.calculate_hourly_intake(daily_intake_ml=0)
+        assert False, "应该抛出异常"
+    except ValueError:
+        pass
+    print("✅ test_calculate_hourly_intake")
+
+
+def test_generate_drinking_schedule():
     """测试饮水时间表生成"""
-    calc = WaterIntakeCalculator(
+    calc = WaterIntakeCalculator()
+    
+    schedule = calc.generate_drinking_schedule(
+        daily_intake_ml=2000,
+        wake_time=(7, 0),
+        sleep_time=(23, 0),
+        num_reminders=8
+    )
+    
+    assert len(schedule) == 8
+    
+    # 验证累计量
+    for i, s in enumerate(schedule):
+        assert s['reminder_number'] == i + 1
+        assert 'time' in s
+        assert s['amount_ml'] > 0
+        assert s['cumulative_ml'] >= s['amount_ml']
+        assert 0 <= s['percentage'] <= 100
+    
+    # 验证最后一条记录百分比
+    assert schedule[-1]['percentage'] == 100.0
+    
+    # 验证睡前减少饮水
+    late_night = [s for s in schedule if s['hours'] >= 21]
+    for s in late_night:
+        # 睡前饮水量应该减少
+        assert s['amount_ml'] <= 250
+    print("✅ test_generate_drinking_schedule")
+
+
+def test_generate_drinking_schedule_custom_times():
+    """测试自定义时间饮水时间表"""
+    calc = WaterIntakeCalculator()
+    
+    # 夜班工作者
+    night_schedule = calc.generate_drinking_schedule(
+        daily_intake_ml=2000,
+        wake_time=(18, 0),  # 傍晚起床
+        sleep_time=(8, 0),   # 早上睡觉
+        num_reminders=6
+    )
+    
+    assert len(night_schedule) == 6
+    
+    # 验证时间范围
+    for s in night_schedule:
+        assert 'time' in s
+        assert s['amount_ml'] > 0
+    print("✅ test_generate_drinking_schedule_custom_times")
+
+
+def test_record_intake():
+    """测试饮水记录"""
+    calc = WaterIntakeCalculator()
+    
+    # 记录饮水
+    record1 = calc.record_intake(
+        amount_ml=250,
+        beverage_type="water",
+        note="早晨"
+    )
+    
+    assert record1['id'] == 1
+    assert record1['amount_ml'] == 250
+    assert record1['beverage_type'] == "water"
+    assert 'timestamp' in record1
+    
+    # 记录更多
+    record2 = calc.record_intake(amount_ml=500, beverage_type="tea")
+    record3 = calc.record_intake(amount_ml=300, beverage_type="coffee")
+    
+    assert record2['id'] == 2
+    assert record3['id'] == 3
+    assert len(calc.records) == 3
+    
+    # 无效输入
+    try:
+        calc.record_intake(amount_ml=0)
+        assert False, "应该抛出异常"
+    except ValueError:
+        pass
+    
+    try:
+        calc.record_intake(amount_ml=-100)
+        assert False, "应该抛出异常"
+    except ValueError:
+        pass
+    print("✅ test_record_intake")
+
+
+def test_get_daily_summary():
+    """测试每日摘要"""
+    calc = WaterIntakeCalculator()
+    
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    # 记录饮水
+    calc.record_intake(amount_ml=250, beverage_type="water")
+    calc.record_intake(amount_ml=300, beverage_type="tea")
+    calc.record_intake(amount_ml=200, beverage_type="water")
+    
+    # 获取摘要
+    summary = calc.get_daily_summary(target_intake_ml=2000)
+    
+    assert summary['date'] == today
+    assert summary['total_intake_ml'] == 750
+    assert summary['record_count'] == 3
+    assert 'water' in summary['by_beverage_type']
+    assert 'tea' in summary['by_beverage_type']
+    assert summary['target_intake_ml'] == 2000
+    assert summary['progress_percentage'] == 37.5
+    assert summary['remaining_ml'] == 1250
+    assert not summary['target_met']
+    
+    # 无目标的情况
+    summary_no_target = calc.get_daily_summary()
+    assert 'target_intake_ml' not in summary_no_target
+    print("✅ test_get_daily_summary")
+
+
+def test_assess_hydration():
+    """测试补水状态评估"""
+    calc = WaterIntakeCalculator()
+    
+    # 严重脱水
+    severe = calc.assess_hydration(
+        current_intake_ml=500,
+        target_intake_ml=2000
+    )
+    assert severe['status'] == 'dehydrated_severe'
+    assert severe['progress_ratio'] == 0.25
+    assert len(severe['recommendations']) > 0
+    
+    # 脱水
+    dehydrated = calc.assess_hydration(
+        current_intake_ml=1200,
+        target_intake_ml=2000
+    )
+    assert dehydrated['status'] == 'dehydrated'
+    
+    # 轻度脱水
+    slight = calc.assess_hydration(
+        current_intake_ml=1600,
+        target_intake_ml=2000
+    )
+    assert slight['status'] == 'slightly_dehydrated'
+    
+    # 最佳状态
+    optimal = calc.assess_hydration(
+        current_intake_ml=2000,
+        target_intake_ml=2000
+    )
+    assert optimal['status'] == 'optimal'
+    
+    # 补水良好
+    well = calc.assess_hydration(
+        current_intake_ml=2400,
+        target_intake_ml=2000
+    )
+    assert well['status'] == 'well_hydrated'
+    
+    # 饮水过量
+    over = calc.assess_hydration(
+        current_intake_ml=3000,
+        target_intake_ml=2000
+    )
+    assert over['status'] == 'overhydrated'
+    print("✅ test_assess_hydration")
+
+
+def test_assess_hydration_with_urine_color():
+    """测试尿液颜色辅助评估"""
+    calc = WaterIntakeCalculator()
+    
+    # 淡黄色 - 正常
+    pale = calc.assess_hydration(
+        current_intake_ml=2000,
+        target_intake_ml=2000,
+        urine_color='pale_yellow'
+    )
+    assert pale['urine_color_assessment']['normal'] == True
+    assert pale['urine_color_assessment']['assessment'] == '补水良好'
+    
+    # 深黄色 - 脱水
+    dark = calc.assess_hydration(
+        current_intake_ml=2000,
+        target_intake_ml=2000,
+        urine_color='dark_yellow'
+    )
+    assert dark['urine_color_assessment']['normal'] == False
+    
+    # 透明 - 饮水过量
+    clear = calc.assess_hydration(
+        current_intake_ml=2000,
+        target_intake_ml=2000,
+        urine_color='clear'
+    )
+    assert clear['urine_color_assessment']['assessment'] == '饮水过量'
+    print("✅ test_assess_hydration_with_urine_color")
+
+
+def test_calculate_sweat_loss():
+    """测试出汗量计算"""
+    calc = WaterIntakeCalculator()
+    
+    result = calc.calculate_sweat_loss(
+        weight_before_kg=70,
+        weight_after_kg=69.5,
+        fluid_intake_ml=500,
+        urine_output_ml=0,
+        duration_minutes=60
+    )
+    
+    assert result['weight_loss_kg'] == 0.5
+    assert result['weight_loss_percent'] > 0
+    assert result['sweat_loss_ml'] == 1000  # 0.5kg + 500ml
+    assert result['sweat_rate_ml_per_hour'] == 1000
+    assert result['rehydration_needed_ml'] > 0
+    assert len(result['recommendations']) > 0
+    
+    # 不同脱水程度
+    severe_dehydration = calc.calculate_sweat_loss(
+        weight_before_kg=70,
+        weight_after_kg=66,  # 4kg 丢失，约5.7%
+        fluid_intake_ml=0,
+        duration_minutes=120
+    )
+    assert '严重脱水' in severe_dehydration['dehydration_severity'] or \
+           severe_dehydration['weight_loss_percent'] > 4
+    print("✅ test_calculate_sweat_loss")
+
+
+def test_get_beverage_equivalent():
+    """测试饮料等效量"""
+    calc = WaterIntakeCalculator()
+    
+    equivalents = calc.get_beverage_equivalent(1000)
+    
+    # 水的等效量应该等于原量
+    assert equivalents['water']['equivalent_ml'] == 1000
+    assert equivalents['water']['hydration_factor'] == 1.0
+    
+    # 咖啡需要更多
+    assert equivalents['coffee']['equivalent_ml'] > 1000
+    assert equivalents['coffee']['hydration_factor'] == 0.85
+    
+    # 啤酒需要更多
+    assert equivalents['beer']['equivalent_ml'] > equivalents['water']['equivalent_ml']
+    assert equivalents['beer']['hydration_factor'] == 0.6
+    
+    # 验证所有饮料都有备注
+    for beverage, info in equivalents.items():
+        assert 'equivalent_ml' in info
+        assert 'hydration_factor' in info
+        assert 'note' in info
+    print("✅ test_get_beverage_equivalent")
+
+
+def test_calculate_for_sport():
+    """测试运动补水方案"""
+    calc = WaterIntakeCalculator()
+    
+    # 跑步 - 高强度
+    running = calc.calculate_for_sport(
+        sport_type='running',
+        duration_minutes=60,
+        intensity='high',
         weight_kg=70,
-        activity_level=ActivityLevel.SEDENTARY,
-        climate=Climate.MILD,
-    )
-    schedule = calc.get_drink_schedule(
-        start_time=time(8, 0),
-        end_time=time(20, 0),
-        interval_minutes=120,
-        drink_size_ml=250,
+        temperature_c=25
     )
     
-    # 应该有多个时间点
-    assert len(schedule) > 0
+    assert running['sport_type'] == 'running'
+    assert running['duration_minutes'] == 60
+    assert running['intensity'] == 'high'
+    assert running['estimated_sweat_loss_ml'] > 0
+    assert 'hydration_plan' in running
+    assert 'before_exercise_ml' in running['hydration_plan']
+    assert 'during_exercise' in running['hydration_plan']
+    assert 'after_exercise_ml' in running['hydration_plan']
+    assert len(running['tips']) > 0
     
-    # 检查时间间隔
-    for i in range(len(schedule) - 1):
-        t1 = schedule[i][0]
-        t2 = schedule[i + 1][0]
-        delta = (datetime.combine(datetime.today(), t2) - 
-                 datetime.combine(datetime.today(), t1)).seconds / 60
-        assert delta == 120
-    
-    # 第一个时间应该是8:00
-    assert schedule[0][0] == time(8, 0)
-    print("✅ test_drink_schedule passed")
-
-
-def test_drink_schedule_total():
-    """测试饮水时间表总量不超过目标"""
-    calc = WaterIntakeCalculator(
-        weight_kg=50,
-        activity_level=ActivityLevel.SEDENTARY,
-        climate=Climate.MILD,
-    )
-    target = calc.calculate_daily_target()
-    schedule = calc.get_drink_schedule(
-        start_time=time(8, 0),
-        end_time=time(20, 0),
-        interval_minutes=60,
-        drink_size_ml=250,
+    # 游泳 - 出汗较少
+    swimming = calc.calculate_for_sport(
+        sport_type='swimming',
+        duration_minutes=60,
+        intensity='moderate',
+        weight_kg=70
     )
     
-    total = sum(amount for _, amount in schedule)
-    assert total <= target + 250  # 允许一次饮水的误差
-    print("✅ test_drink_schedule_total passed")
-
-
-def test_water_tracker_basic():
-    """测试饮水追踪器基础功能"""
-    calc = WaterIntakeCalculator(
+    assert swimming['estimated_sweat_loss_ml'] < running['estimated_sweat_loss_ml']
+    
+    # 高温环境
+    hot_running = calc.calculate_for_sport(
+        sport_type='running',
+        duration_minutes=60,
+        intensity='moderate',
         weight_kg=70,
-        activity_level=ActivityLevel.MODERATE,
-        climate=Climate.MILD,
+        temperature_c=35
     )
-    tracker = WaterTracker(calc)
     
-    # 添加饮水记录
-    tracker.add_drink(250, DrinkType.WATER)
-    tracker.add_drink(200, DrinkType.COFFEE)
-    tracker.add_drink(300, DrinkType.WATER)
-    
-    # 检查总饮水量
-    today_total = tracker.get_total_today()
-    assert today_total == 250 + 170 + 300  # 250 + (200*0.85) + 300
-    print("✅ test_water_tracker_basic passed")
-
-
-def test_water_tracker_today_records():
-    """测试获取今日记录"""
-    tracker = WaterTracker()
-    
-    now = datetime.now()
-    tracker.add_drink(250, DrinkType.WATER, timestamp=now - timedelta(hours=2))
-    tracker.add_drink(300, DrinkType.WATER, timestamp=now - timedelta(hours=1))
-    tracker.add_drink(200, DrinkType.TEA, timestamp=now)
-    
-    today_records = tracker.get_today_records()
-    assert len(today_records) == 3
-    print("✅ test_water_tracker_today_records passed")
-
-
-def test_water_tracker_hydration_status():
-    """测试获取水分状态"""
-    calc = WaterIntakeCalculator(
+    cool_running = calc.calculate_for_sport(
+        sport_type='running',
+        duration_minutes=60,
+        intensity='moderate',
         weight_kg=70,
-        activity_level=ActivityLevel.MODERATE,
-        climate=Climate.MILD,
-    )
-    tracker = WaterTracker(calc)
-    
-    tracker.add_drink(500, DrinkType.WATER)
-    tracker.add_drink(300, DrinkType.TEA)
-    
-    status = tracker.get_hydration_status()
-    assert status.current_ml == 500 + 285  # 300 * 0.95
-    assert status.target_ml == calc.calculate_daily_target()
-    assert status.last_drink_time is not None
-    print("✅ test_water_tracker_hydration_status passed")
-
-
-def test_water_tracker_daily_summary():
-    """测试每日汇总"""
-    calc = WaterIntakeCalculator(
-        weight_kg=70,
-        activity_level=ActivityLevel.SEDENTARY,
-        climate=Climate.MILD,
-    )
-    tracker = WaterTracker(calc)
-    
-    tracker.add_drink(250, DrinkType.WATER)
-    tracker.add_drink(200, DrinkType.COFFEE)
-    
-    summary = tracker.get_daily_summary()
-    assert summary.total_ml == 450
-    assert summary.effective_ml == 250 + 170  # 420
-    assert summary.target_ml == calc.calculate_daily_target()
-    assert len(summary.records) == 2
-    print("✅ test_water_tracker_daily_summary passed")
-
-
-def test_water_tracker_weekly_summary():
-    """测试周汇总"""
-    tracker = WaterTracker()
-    
-    # 添加多天的记录
-    today = datetime.now()
-    for i in range(7):
-        date = today - timedelta(days=i)
-        for j in range(3):
-            tracker.add_drink(250, DrinkType.WATER, timestamp=date.replace(hour=8+j*4))
-    
-    summaries = tracker.get_weekly_summary()
-    assert len(summaries) == 7
-    print("✅ test_water_tracker_weekly_summary passed")
-
-
-def test_water_tracker_statistics():
-    """测试统计数据"""
-    calc = WaterIntakeCalculator(
-        weight_kg=70,
-        activity_level=ActivityLevel.SEDENTARY,
-        climate=Climate.MILD,
-    )
-    tracker = WaterTracker(calc)
-    
-    # 添加几天的记录（久坐者目标约2100ml，每天喝2000ml可能未达标）
-    today = datetime.now()
-    for i in range(5):
-        date = today - timedelta(days=i)
-        for j in range(9):  # 增加一杯确保达标
-            hour = 8 + j * 2
-            if hour > 22:
-                hour = 22
-            tracker.add_drink(250, DrinkType.WATER, timestamp=date.replace(hour=hour, minute=j))
-    
-    stats = tracker.get_statistics(days=7)
-    assert stats["days_tracked"] == 5
-    assert stats["days_goal_met"] > 0  # 每天9杯共2250ml应该达标
-    assert stats["average_ml"] > 0
-    print("✅ test_water_tracker_statistics passed")
-
-
-def test_water_tracker_clear_today():
-    """测试清空今日记录"""
-    tracker = WaterTracker()
-    
-    tracker.add_drink(250, DrinkType.WATER)
-    tracker.add_drink(300, DrinkType.WATER)
-    
-    assert len(tracker.get_today_records()) == 2
-    
-    tracker.clear_today()
-    assert len(tracker.get_today_records()) == 0
-    print("✅ test_water_tracker_clear_today passed")
-
-
-def test_water_tracker_json_serialization():
-    """测试JSON序列化"""
-    calc = WaterIntakeCalculator(
-        weight_kg=70,
-        activity_level=ActivityLevel.MODERATE,
-        climate=Climate.HOT,
-        age=30,
-    )
-    tracker = WaterTracker(calc)
-    
-    tracker.add_drink(250, DrinkType.WATER)
-    tracker.add_drink(200, DrinkType.COFFEE, note="Morning coffee")
-    
-    # 序列化
-    json_str = tracker.to_json()
-    
-    # 反序列化
-    restored = WaterTracker.from_json(json_str)
-    
-    assert restored.calculator.weight_kg == 70
-    assert restored.calculator.activity_level == ActivityLevel.MODERATE
-    assert restored.calculator.climate == Climate.HOT
-    assert len(restored.records) == 2
-    assert restored.records[1].note == "Morning coffee"
-    print("✅ test_water_tracker_json_serialization passed")
-
-
-def test_drink_reminder_check():
-    """测试饮水提醒检查"""
-    calc = WaterIntakeCalculator(
-        weight_kg=70,
-        activity_level=ActivityLevel.SEDENTARY,
-        climate=Climate.MILD,
-    )
-    tracker = WaterTracker(calc)
-    reminder = DrinkReminder(
-        tracker=tracker,
-        interval_minutes=60,
-        start_time=time(7, 0),
-        end_time=time(22, 0),
+        temperature_c=15
     )
     
-    # 没有记录时应该提醒
-    msg = reminder.check_reminder()
-    assert msg is not None
-    assert "早上好" in msg or "喝水" in msg
+    assert hot_running['estimated_sweat_loss_ml'] > cool_running['estimated_sweat_loss_ml']
+    print("✅ test_calculate_for_sport")
+
+
+def test_clear_records():
+    """测试清除记录"""
+    calc = WaterIntakeCalculator()
     
-    # 添加记录后，短时间内不应该提醒
-    tracker.add_drink(250, DrinkType.WATER)
-    msg = reminder.check_reminder()
-    # 刚喝过水，不应该提醒
-    # 注意：这个测试可能会因为执行速度而失败，所以放宽条件
-    print("✅ test_drink_reminder_check passed")
-
-
-def test_drink_reminder_next_time():
-    """测试下次提醒时间"""
-    calc = WaterIntakeCalculator(
-        weight_kg=70,
-        activity_level=ActivityLevel.SEDENTARY,
-        climate=Climate.MILD,
-    )
-    tracker = WaterTracker(calc)
-    reminder = DrinkReminder(
-        tracker=tracker,
-        interval_minutes=60,
-        start_time=time(7, 0),
-        end_time=time(22, 0),
-    )
+    # 添加记录
+    calc.record_intake(amount_ml=250)
+    calc.record_intake(amount_ml=300)
     
-    # 添加一个记录
-    now = datetime.now()
-    tracker.add_drink(250, DrinkType.WATER, timestamp=now)
+    assert len(calc.records) == 2
     
-    next_time = reminder.get_next_reminder_time()
-    if next_time:
-        expected = now + timedelta(minutes=60)
-        # 允许1分钟的误差
-        assert abs((next_time - expected).total_seconds()) < 60
-    print("✅ test_drink_reminder_next_time passed")
-
-
-def test_drink_reminder_remaining():
-    """测试剩余提醒次数"""
-    calc = WaterIntakeCalculator(
-        weight_kg=70,
-        activity_level=ActivityLevel.SEDENTARY,
-        climate=Climate.MILD,
-    )
-    tracker = WaterTracker(calc)
-    reminder = DrinkReminder(
-        tracker=tracker,
-        interval_minutes=60,
-        start_time=time(7, 0),
-        end_time=time(23, 59),  # 确保在时间范围内
-    )
+    # 清除今天的记录
+    today = datetime.now().strftime('%Y-%m-%d')
+    calc.clear_records(date=today)
     
-    remaining = reminder.get_remaining_reminders_today()
-    assert remaining >= 0
-    print("✅ test_drink_reminder_remaining passed")
+    # 如果记录是今天的，应该被清除
+    assert len(calc.records) == 0
+    
+    # 添加记录并清除全部
+    calc.record_intake(amount_ml=250)
+    calc.record_intake(amount_ml=300)
+    calc.clear_records()
+    
+    assert len(calc.records) == 0
+    print("✅ test_clear_records")
 
 
-def test_calculate_water_needs_convenience():
+def test_export_records():
+    """测试导出记录"""
+    calc = WaterIntakeCalculator()
+    
+    calc.record_intake(amount_ml=250, beverage_type="water")
+    calc.record_intake(amount_ml=300, beverage_type="tea")
+    
+    # 导出为字典
+    dict_export = calc.export_records(format="dict")
+    assert isinstance(dict_export, list)
+    assert len(dict_export) == 2
+    
+    # 导出为JSON
+    json_export = calc.export_records(format="json")
+    assert isinstance(json_export, str)
+    assert "water" in json_export
+    assert "tea" in json_export
+    print("✅ test_export_records")
+
+
+def test_convenience_functions():
     """测试便捷函数"""
-    target = calculate_water_needs(
+    # 快速计算每日饮水量
+    result = calculate_daily_water(
         weight_kg=70,
-        activity_level="moderate",
-        climate="mild",
+        activity_level='active',
+        climate='hot',
+        exercise_minutes=30
     )
-    assert target == 2500
     
-    # 怀孕
-    target_pregnant = calculate_water_needs(
-        weight_kg=60,
-        activity_level="light",
-        climate="mild",
-        is_pregnant=True,
-    )
-    assert target_pregnant == 2300  # 60*30*1.1 + 300
+    assert 'total_intake_ml' in result
+    assert result['weight_kg'] == 70
+    assert result['exercise_addition_ml'] == 350
     
-    # 哺乳
-    target_breastfeeding = calculate_water_needs(
-        weight_kg=60,
-        activity_level="light",
-        climate="mild",
-        is_breastfeeding=True,
-    )
-    assert target_breastfeeding == 2700  # 60*30*1.1 + 700
-    print("✅ test_calculate_water_needs_convenience passed")
-
-
-def test_format_water_amount():
-    """测试水量格式化"""
-    assert format_water_amount(500) == "500ml"
-    assert format_water_amount(1000) == "1.0L"
-    assert format_water_amount(1500) == "1.5L"
-    assert format_water_amount(2000) == "2.0L"
-    assert format_water_amount(250) == "250ml"
-    print("✅ test_format_water_amount passed")
-
-
-def test_get_water_percentage():
-    """测试饮水进度条"""
-    bar1 = get_water_percentage(500, 2000)
-    assert "25%" in bar1
+    # 快速生成时间表
+    schedule = get_quick_schedule(total_ml=2000, wake_hour=6)
     
-    bar2 = get_water_percentage(1000, 2000)
-    assert "50%" in bar2
+    assert len(schedule) > 0
+    assert all('time' in s for s in schedule)
+    assert all('amount_ml' in s for s in schedule)
+    print("✅ test_convenience_functions")
+
+
+def test_comprehensive_scenario():
+    """测试综合场景"""
+    calc = WaterIntakeCalculator()
     
-    bar3 = get_water_percentage(2000, 2000)
-    assert "100%" in bar3 or "100.0%" in bar3
-    
-    # 超过100%的情况
-    bar4 = get_water_percentage(2500, 2000)
-    assert "100%" in bar4 or "100.0%" in bar4
-    print("✅ test_get_water_percentage passed")
-
-
-def test_edge_case_zero_weight():
-    """测试边界值：零体重"""
-    calc = WaterIntakeCalculator(
-        weight_kg=0,
-        activity_level=ActivityLevel.SEDENTARY,
-        climate=Climate.MILD,
-    )
-    target = calc.calculate_daily_target()
-    assert target == 0
-    print("✅ test_edge_case_zero_weight passed")
-
-
-def test_edge_case_very_high_weight():
-    """测试边界值：超大体重"""
-    calc = WaterIntakeCalculator(
-        weight_kg=150,
-        activity_level=ActivityLevel.VERY_ACTIVE,
-        climate=Climate.VERY_HOT,
-    )
-    target = calc.calculate_daily_target()
-    # 150 * 30 * 1.4 * 1.3 = 8190ml
-    assert target == 8200  # 取整到100ml
-    print("✅ test_edge_case_very_high_weight passed")
-
-
-def test_edge_case_empty_tracker():
-    """测试边界值：空追踪器"""
-    tracker = WaterTracker()
-    
-    assert tracker.get_total_today() == 0
-    assert len(tracker.get_today_records()) == 0
-    
-    status = tracker.get_hydration_status()
-    assert status.current_ml == 0
-    assert status.target_ml == 2000  # 默认目标
-    
-    stats = tracker.get_statistics()
-    assert stats["days_tracked"] == 0
-    assert stats["average_ml"] == 0
-    print("✅ test_edge_case_empty_tracker passed")
-
-
-def test_edge_case_negative_water():
-    """测试边界值：负水量"""
-    tracker = WaterTracker()
-    tracker.add_drink(-100, DrinkType.WATER)
-    
-    # 应该正常记录（虽然不合理）
-    assert tracker.get_total_today() == -100
-    print("✅ test_edge_case_negative_water passed")
-
-
-def test_multiple_drink_types():
-    """测试多种饮品类型"""
-    tracker = WaterTracker()
-    
-    tracker.add_drink(250, DrinkType.WATER)      # 250 * 1.0 = 250
-    tracker.add_drink(200, DrinkType.COFFEE)     # 200 * 0.85 = 170
-    tracker.add_drink(300, DrinkType.TEA)        # 300 * 0.95 = 285
-    tracker.add_drink(150, DrinkType.JUICE)      # 150 * 0.9 = 135
-    tracker.add_drink(400, DrinkType.SPORTS_DRINK) # 400 * 1.0 = 400
-    tracker.add_drink(200, DrinkType.MILK)       # 200 * 0.9 = 180
-    tracker.add_drink(300, DrinkType.SOUP)       # 300 * 0.85 = 255
-    
-    total_ml = sum(r.amount_ml for r in tracker.get_today_records())
-    effective_ml = tracker.get_total_today()
-    
-    assert total_ml == 1800
-    assert effective_ml == 250 + 170 + 285 + 135 + 400 + 180 + 255
-    print("✅ test_multiple_drink_types passed")
-
-
-def test_recommendations():
-    """测试饮水建议"""
-    calc = WaterIntakeCalculator(
+    # 场景：70kg 活跃成年人，夏天，运动1小时
+    daily = calc.calculate_daily_intake(
         weight_kg=70,
         activity_level=ActivityLevel.ACTIVE,
-        climate=Climate.HOT,
-        is_pregnant=True,
+        climate=ClimateType.HOT,
+        exercise_minutes=60
     )
     
-    recommendations = calc.get_recommendations()
+    # 生成时间表
+    schedule = calc.generate_drinking_schedule(
+        daily_intake_ml=daily['total_intake_ml'],
+        num_reminders=8
+    )
     
-    assert len(recommendations) > 0
-    assert any("运动" in r for r in recommendations)
-    assert any("炎热" in r for r in recommendations)
-    assert any("孕期" in r for r in recommendations)
-    print("✅ test_recommendations passed")
+    # 模拟一天的饮水
+    for i, s in enumerate(schedule[:4]):
+        calc.record_intake(
+            amount_ml=s['amount_ml'],
+            beverage_type="water" if i % 2 == 0 else "tea"
+        )
+    
+    # 检查进度
+    summary = calc.get_daily_summary(target_intake_ml=daily['total_intake_ml'])
+    
+    assert summary['progress_percentage'] > 0
+    assert summary['total_intake_ml'] > 0
+    
+    # 评估状态
+    hydration = calc.assess_hydration(
+        current_intake_ml=summary['total_intake_ml'],
+        target_intake_ml=daily['total_intake_ml']
+    )
+    
+    assert 'status' in hydration
+    assert 'recommendations' in hydration
+    print("✅ test_comprehensive_scenario")
+
+
+def test_extreme_values():
+    """测试极端值"""
+    calc = WaterIntakeCalculator()
+    
+    # 非常小的体重
+    tiny = calc.calculate_daily_intake(weight_kg=20)
+    assert tiny['total_intake_ml'] >= 1500  # 最小值限制
+    
+    # 非常大的体重
+    huge = calc.calculate_daily_intake(weight_kg=200)
+    assert huge['total_intake_ml'] <= 4500  # 最大值限制
+    
+    # 极端运动量
+    extreme_exercise = calc.calculate_daily_intake(
+        weight_kg=70,
+        exercise_minutes=300  # 5小时
+    )
+    assert extreme_exercise['exercise_addition_ml'] == 3500  # 10 * 350
+    
+    # 极端热量
+    extreme_heat = calc.calculate_daily_intake(
+        weight_kg=70,
+        climate=ClimateType.VERY_HOT,
+        activity_level=ActivityLevel.VERY_ACTIVE,
+        exercise_minutes=120
+    )
+    assert extreme_heat['total_intake_ml'] >= 1500
+    print("✅ test_extreme_values")
 
 
 def run_all_tests():
     """运行所有测试"""
-    print("=" * 60)
-    print("Water Intake Utils - 测试开始")
-    print("=" * 60)
+    tests = [
+        test_calculate_daily_intake_basic,
+        test_calculate_daily_intake_activity_levels,
+        test_calculate_daily_intake_climate,
+        test_calculate_daily_intake_exercise,
+        test_calculate_daily_intake_special_conditions,
+        test_calculate_daily_intake_age,
+        test_calculate_daily_intake_bounds,
+        test_calculate_hourly_intake,
+        test_generate_drinking_schedule,
+        test_generate_drinking_schedule_custom_times,
+        test_record_intake,
+        test_get_daily_summary,
+        test_assess_hydration,
+        test_assess_hydration_with_urine_color,
+        test_calculate_sweat_loss,
+        test_get_beverage_equivalent,
+        test_calculate_for_sport,
+        test_clear_records,
+        test_export_records,
+        test_convenience_functions,
+        test_comprehensive_scenario,
+        test_extreme_values
+    ]
     
-    # 饮品类型测试
-    test_drink_type_hydration_factors()
+    passed = 0
+    failed = 0
     
-    # 饮水记录测试
-    test_drink_record_creation()
-    test_drink_record_coffee()
-    test_drink_record_serialization()
+    for test in tests:
+        try:
+            test()
+            passed += 1
+        except Exception as e:
+            print(f"❌ {test.__name__}: {e}")
+            failed += 1
     
-    # 每日汇总测试
-    test_daily_summary()
-    test_daily_summary_goal_met()
+    print(f"\n{'='*50}")
+    print(f"测试结果: {passed} 通过, {failed} 失败")
+    print(f"{'='*50}")
     
-    # 水分状态测试
-    test_hydration_status()
-    test_hydration_status_levels()
-    
-    # 饮水量计算器测试
-    test_water_intake_calculator_basic()
-    test_water_intake_calculator_sedentary()
-    test_water_intake_calculator_very_active()
-    test_water_intake_calculator_hot_climate()
-    test_water_intake_calculator_cold_climate()
-    test_water_intake_calculator_elderly()
-    test_water_intake_calculator_teenager()
-    test_water_intake_calculator_pregnant()
-    test_water_intake_calculator_breastfeeding()
-    
-    # 饮水时间表测试
-    test_drink_schedule()
-    test_drink_schedule_total()
-    
-    # 饮水追踪器测试
-    test_water_tracker_basic()
-    test_water_tracker_today_records()
-    test_water_tracker_hydration_status()
-    test_water_tracker_daily_summary()
-    test_water_tracker_weekly_summary()
-    test_water_tracker_statistics()
-    test_water_tracker_clear_today()
-    test_water_tracker_json_serialization()
-    
-    # 饮水提醒测试
-    test_drink_reminder_check()
-    test_drink_reminder_next_time()
-    test_drink_reminder_remaining()
-    
-    # 便捷函数测试
-    test_calculate_water_needs_convenience()
-    test_format_water_amount()
-    test_get_water_percentage()
-    
-    # 边界值测试
-    test_edge_case_zero_weight()
-    test_edge_case_very_high_weight()
-    test_edge_case_empty_tracker()
-    test_edge_case_negative_water()
-    
-    # 其他测试
-    test_multiple_drink_types()
-    test_recommendations()
-    
-    print("=" * 60)
-    print("✅ 所有测试通过！(57 tests)")
-    print("=" * 60)
+    return failed == 0
 
 
 if __name__ == "__main__":
-    run_all_tests()
+    success = run_all_tests()
+    sys.exit(0 if success else 1)

@@ -1,358 +1,331 @@
-# Water Intake Utils - 饮水量追踪工具 🚰
+# Water Intake Utils - 饮水量计算工具
 
-[![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+💧 提供全面的饮水量计算、记录和追踪功能，帮助您保持健康的水分摄入。
 
-智能饮水追踪工具，根据体重、活动水平、气候等条件计算每日建议饮水量，支持饮水记录管理、时间表生成、习惯分析等功能。
+## 功能列表
 
-## ✨ 特性
+### 📊 每日饮水量计算
+- 基于体重计算基础饮水量（30ml/kg）
+- 活动水平调整（久坐 → 非常活跃）
+- 气候环境调整（寒冷 → 酷热）
+- 运动量调整
+- 年龄调整
+- 特殊情况调整（孕期、哺乳期、发烧等）
 
-- 🧮 **智能计算** - 根据体重、活动水平、气候、年龄、孕期/哺乳状态计算每日建议饮水量
-- 📊 **追踪管理** - 记录饮水历史，支持多种饮品类型
-- ⏰ **时间表生成** - 自动生成每日饮水时间表
-- 📈 **统计分析** - 每日/周汇总、完成率统计、目标达成率
-- 🔔 **智能提醒** - 基于时间和目标的饮水提醒
-- 💾 **数据持久化** - JSON 序列化支持
-- 🌡️ **气候适应** - 支持 5 种气候类型的调整系数
-- 🏃 **活动适配** - 支持 5 种活动水平的调整系数
-- 🤰 **特殊状态** - 支持怀孕和哺乳期的额外需求
-- 🍵 **多种饮品** - 支持 8 种饮品类型，自动计算有效水量
-- 🚫 **零依赖** - 仅使用 Python 标准库
+### ⏰ 饮水时间管理
+- 生成个性化饮水时间表
+- 自定义起床/睡眠时间
+- 智能时段调整（睡前减少饮水）
+- 每小时饮水建议
 
-## 📦 安装
+### 📝 饮水记录追踪
+- 记录每次饮水量和饮料类型
+- 每日饮水汇总统计
+- 按饮料类型分组统计
+- 进度跟踪和目标达成判断
+
+### 🔍 补水状态评估
+- 6级补水状态判断
+- 尿液颜色辅助评估
+- 个性化补水建议
+- 警告提醒
+
+### 🏃 运动补水方案
+- 运动出汗量估算
+- 运动前/中/后补水计划
+- 多种运动类型支持
+- 温度和强度影响计算
+
+### 🥤 饮料等效计算
+- 各种饮料的补水效果系数
+- 含水率换算
+- 健康饮水建议
+
+## 快速开始
+
+### 安装
 
 ```python
-from water_intake_utils.mod import (
-    WaterIntakeCalculator,
-    WaterTracker,
-    DrinkReminder,
-    ActivityLevel,
-    Climate,
-    DrinkType,
-)
+from water_intake_utils import WaterIntakeCalculator, ActivityLevel, ClimateType
 ```
 
-## 🚀 快速开始
-
-### 1. 计算每日建议饮水量
+### 基础使用
 
 ```python
-from water_intake_utils.mod import WaterIntakeCalculator, ActivityLevel, Climate
+calc = WaterIntakeCalculator()
 
-# 创建计算器
-calculator = WaterIntakeCalculator(
+# 计算每日饮水量
+result = calc.calculate_daily_intake(
     weight_kg=70,
-    activity_level=ActivityLevel.MODERATE,
-    climate=Climate.MILD,
+    activity_level=ActivityLevel.ACTIVE,
+    climate=ClimateType.HOT,
+    exercise_minutes=60
 )
 
-# 获取每日建议饮水量
-target = calculator.calculate_daily_target()
-print(f"每日建议饮水量: {target}ml")  # 输出: 2500ml
+print(f"每日建议饮水量: {result['total_intake_ml']} ml")
+# 输出: 每日建议饮水量: 2800 ml
 
-# 获取饮水建议
-recommendations = calculator.get_recommendations()
-for rec in recommendations:
-    print(f"- {rec}")
-```
-
-### 2. 追踪饮水量
-
-```python
-from water_intake_utils.mod import WaterTracker, DrinkType
-
-# 创建追踪器
-tracker = WaterTracker(calculator)
-
-# 添加饮水记录
-tracker.add_drink(250, DrinkType.WATER, note="起床第一杯")
-tracker.add_drink(200, DrinkType.COFFEE)  # 咖啡因有轻微利尿作用
-tracker.add_drink(300, DrinkType.TEA)
-tracker.add_drink(500, DrinkType.WATER)
-
-# 获取今日状态
-status = tracker.get_hydration_status()
-print(f"今日饮水: {status.current_ml}ml / {status.target_ml}ml")
-print(f"完成率: {status.completion_rate * 100:.1f}%")
-print(f"状态: {status.status_text}")
-```
-
-### 3. 生成饮水时间表
-
-```python
-from datetime import time
-
-# 获取饮水时间表
-schedule = calculator.get_drink_schedule(
-    start_time=time(8, 0),
-    end_time=time(22, 0),
-    interval_minutes=120,
-    drink_size_ml=250,
+# 生成饮水时间表
+schedule = calc.generate_drinking_schedule(
+    daily_intake_ml=result['total_intake_ml'],
+    num_reminders=8
 )
 
-for drink_time, amount in schedule:
-    print(f"{drink_time.strftime('%H:%M')} - 饮水 {amount}ml")
+for s in schedule:
+    print(f"{s['time']} - {s['amount_ml']}ml ({s['note']})")
 ```
-
-### 4. 统计分析
-
-```python
-# 获取每日汇总
-summary = tracker.get_daily_summary()
-print(f"日期: {summary.date}")
-print(f"总饮水量: {summary.total_ml}ml")
-print(f"有效水量: {summary.effective_ml}ml")
-print(f"完成率: {summary.completion_rate * 100:.1f}%")
-print(f"是否达标: {'是' if summary.is_goal_met else '否'}")
-
-# 获取周汇总
-weekly = tracker.get_weekly_summary()
-for day in weekly:
-    print(f"{day.date}: {day.effective_ml}ml ({day.completion_rate * 100:.0f}%)")
-
-# 获取统计数据
-stats = tracker.get_statistics(days=7)
-print(f"平均饮水量: {stats['average_ml']:.0f}ml")
-print(f"平均完成率: {stats['average_completion_rate'] * 100:.1f}%")
-print(f"目标达成天数: {stats['days_goal_met']}/{stats['days_tracked']}")
-```
-
-### 5. 饮水提醒
-
-```python
-from water_intake_utils.mod import DrinkReminder
-from datetime import time
-
-# 创建提醒器
-reminder = DrinkReminder(
-    tracker=tracker,
-    interval_minutes=60,
-    start_time=time(7, 0),
-    end_time=time(22, 0),
-)
-
-# 检查是否需要提醒
-message = reminder.check_reminder()
-if message:
-    print(message)  # 例如: "💧 该喝水啦！今日还差 1200ml 达标"
-
-# 获取下次提醒时间
-next_time = reminder.get_next_reminder_time()
-print(f"下次提醒: {next_time}")
-
-# 获取今日剩余提醒次数
-remaining = reminder.get_remaining_reminders_today()
-print(f"今日还需提醒 {remaining} 次")
-```
-
-### 6. 数据持久化
-
-```python
-# 导出为 JSON
-json_data = tracker.to_json()
-
-# 从 JSON 导入
-restored = WaterTracker.from_json(json_data)
-```
-
-## 📚 API 文档
-
-### WaterIntakeCalculator
-
-饮水量计算器，根据个人情况计算每日建议饮水量。
-
-#### 参数
-
-| 参数 | 类型 | 默认值 | 描述 |
-|------|------|--------|------|
-| `weight_kg` | float | - | 体重（公斤） |
-| `activity_level` | ActivityLevel | MODERATE | 活动水平 |
-| `climate` | Climate | MILD | 气候类型 |
-| `age` | int, optional | None | 年龄 |
-| `is_pregnant` | bool | False | 是否怀孕 |
-| `is_breastfeeding` | bool | False | 是否哺乳 |
-
-#### 活动水平 (ActivityLevel)
-
-| 值 | 描述 | 调整系数 |
-|----|------|----------|
-| SEDENTARY | 久坐不动 | 1.0 |
-| LIGHT | 轻度活动 | 1.1 |
-| MODERATE | 中度活动 | 1.2 |
-| ACTIVE | 活跃 | 1.3 |
-| VERY_ACTIVE | 非常活跃 | 1.4 |
-
-#### 气候类型 (Climate)
-
-| 值 | 描述 | 调整系数 |
-|----|------|----------|
-| COLD | 寒冷 (< 10°C) | 0.9 |
-| MILD | 温和 (10-20°C) | 1.0 |
-| WARM | 温暖 (20-25°C) | 1.1 |
-| HOT | 炎热 (25-30°C) | 1.2 |
-| VERY_HOT | 酷热 (> 30°C) | 1.3 |
-
-#### 方法
-
-- `calculate_daily_target()` - 计算每日建议饮水量（毫升）
-- `get_drink_schedule(start_time, end_time, interval_minutes, drink_size_ml)` - 生成饮水时间表
-- `get_recommendations()` - 获取饮水建议
-
-### WaterTracker
-
-饮水追踪器，管理饮水记录和统计。
-
-#### 方法
-
-- `add_drink(amount_ml, drink_type, timestamp, note)` - 添加饮水记录
-- `get_today_records()` - 获取今日记录
-- `get_records_by_date(date)` - 获取指定日期记录
-- `get_total_today()` - 获取今日有效饮水量
-- `get_hydration_status()` - 获取当前水分状态
-- `get_daily_summary(date)` - 获取每日汇总
-- `get_weekly_summary()` - 获取本周汇总
-- `get_statistics(days)` - 获取统计数据
-- `clear_today()` - 清空今日记录
-- `to_json()` - 导出为 JSON
-- `from_json(json_str)` - 从 JSON 导入
-
-### DrinkType
-
-饮品类型枚举。
-
-| 值 | 描述 | 有效水量系数 |
-|----|------|--------------|
-| WATER | 纯净水 | 1.0 |
-| SPARKLING_WATER | 气泡水 | 1.0 |
-| TEA | 茶 | 0.95 |
-| COFFEE | 咖啡 | 0.85 |
-| JUICE | 果汁 | 0.9 |
-| SPORTS_DRINK | 运动饮料 | 1.0 |
-| MILK | 牛奶 | 0.9 |
-| SOUP | 汤 | 0.85 |
-
-### DrinkReminder
-
-饮水提醒器。
-
-#### 参数
-
-| 参数 | 类型 | 默认值 | 描述 |
-|------|------|--------|------|
-| `tracker` | WaterTracker | - | 饮水追踪器 |
-| `interval_minutes` | int | 60 | 提醒间隔（分钟） |
-| `start_time` | time | 07:00 | 开始时间 |
-| `end_time` | time | 22:00 | 结束时间 |
-
-#### 方法
-
-- `check_reminder()` - 检查是否需要提醒
-- `get_next_reminder_time()` - 获取下次提醒时间
-- `get_remaining_reminders_today()` - 获取今日剩余提醒次数
 
 ### 便捷函数
 
 ```python
-# 快速计算每日建议饮水量
-from water_intake_utils.mod import calculate_water_needs
+from water_intake_utils import calculate_daily_water, get_quick_schedule
 
-target = calculate_water_needs(
-    weight_kg=70,
-    activity_level="moderate",
-    climate="hot",
-    age=30,
-)
+# 快速计算
+result = calculate_daily_water(weight_kg=70, activity_level='active')
+print(f"每日建议: {result['total_intake_ml']} ml")
+
+# 快速时间表
+schedule = get_quick_schedule(total_ml=2000, wake_hour=7)
 ```
+
+## API 参考
+
+### WaterIntakeCalculator 类
+
+#### `calculate_daily_intake(weight_kg, activity_level, climate, ...)`
+
+计算每日建议饮水量。
+
+**参数:**
+- `weight_kg` (float): 体重（公斤）
+- `activity_level` (ActivityLevel): 活动水平
+- `climate` (ClimateType): 气候类型
+- `exercise_minutes` (int): 运动时间（分钟）
+- `special_conditions` (list): 特殊情况列表
+- `age` (int): 年龄（可选）
+
+**返回:**
+```python
+{
+    'base_intake_ml': 2100,
+    'total_intake_ml': 2800,
+    'activity_multiplier': 1.3,
+    'climate_multiplier': 1.2,
+    'exercise_addition_ml': 700,
+    'glasses_of_water': 11,
+    ...
+}
+```
+
+#### `generate_drinking_schedule(daily_intake_ml, ...)`
+
+生成饮水时间表。
+
+**参数:**
+- `daily_intake_ml` (float): 每日总饮水量
+- `wake_time` (tuple): 起床时间（小时, 分钟）
+- `sleep_time` (tuple): 睡眠时间
+- `num_reminders` (int): 提醒次数
+
+**返回:**
+```python
+[
+    {
+        'time': '08:30',
+        'amount_ml': 350,
+        'cumulative_ml': 350,
+        'percentage': 12.5,
+        'note': '早晨补水，唤醒身体'
+    },
+    ...
+]
+```
+
+#### `record_intake(amount_ml, beverage_type, ...)`
+
+记录饮水量。
+
+**参数:**
+- `amount_ml` (float): 饮水量（毫升）
+- `beverage_type` (str): 饭料类型
+- `note` (str): 备注
+
+#### `get_daily_summary(date, target_intake_ml)`
+
+获取每日饮水摘要。
+
+**返回:**
+```python
+{
+    'total_intake_ml': 1500,
+    'progress_percentage': 75.0,
+    'remaining_ml': 500,
+    'target_met': False,
+    'by_beverage_type': {'water': 1000, 'tea': 500}
+}
+```
+
+#### `assess_hydration(current_intake_ml, target_intake_ml, urine_color)`
+
+评估补水状态。
+
+**返回:**
+```python
+{
+    'status': 'slightly_dehydrated',
+    'status_display': '轻度脱水',
+    'progress_ratio': 0.8,
+    'recommendations': ['继续补水，保持饮水节奏', ...]
+}
+```
+
+#### `calculate_for_sport(sport_type, duration_minutes, ...)`
+
+计算运动补水方案。
+
+**返回:**
+```python
+{
+    'estimated_sweat_loss_ml': 800,
+    'hydration_plan': {
+        'before_exercise_ml': 750,
+        'during_exercise': {'per_15_minutes_ml': 280, 'total_ml': 560},
+        'after_exercise_ml': 1000
+    },
+    'tips': ['运动前2小时补水...', ...]
+}
+```
+
+### 枚举类型
+
+#### ActivityLevel
+- `SEDENTARY`: 久坐（很少或无运动）
+- `LIGHT`: 轻度活动（每周1-3天轻度运动）
+- `MODERATE`: 中度活动（每周3-5天中度运动）
+- `ACTIVE`: 活跃（每周6-7天运动）
+- `VERY_ACTIVE`: 非常活跃（剧烈运动或体力劳动）
+
+#### ClimateType
+- `COLD`: 寒冷（<10°C）
+- `MILD`: 温和（10-20°C）
+- `WARM`: 温暖（20-25°C）
+- `HOT`: 炎热（25-35°C）
+- `VERY_HOT`: 酷热（>35°C）
+- `HUMID`: 潮湿（高湿度）
+
+#### HydrationStatus
+- `DEHYDRATED_SEVERE`: 严重脱水
+- `DEHYDRATED`: 脱水
+- `SLIGHTLY_DEHYDRATED`: 轻度脱水
+- `OPTIMAL`: 最佳状态
+- `WELL_HYDRATED`: 补水良好
+- `OVERHYDRATED`: 饮水过量
+
+## 常见使用场景
+
+### 场景 1：办公室工作人员
 
 ```python
-# 格式化水量显示
-from water_intake_utils.mod import format_water_amount
+calc = WaterIntakeCalculator()
 
-print(format_water_amount(1500))  # "1.5L"
-print(format_water_amount(250))   # "250ml"
-```
-
-```python
-# 获取饮水进度条
-from water_intake_utils.mod import get_water_percentage
-
-print(get_water_percentage(1500, 2000))
-# "[💧💧💧💧💧💧💧💧⬜⬜⬜⬜] 75%"
-```
-
-## 📊 计算公式
-
-### 基础公式
-
-```
-每日建议饮水量 = 体重(kg) × 30ml × 活动系数 × 气候系数 + 特殊状态调整
-```
-
-### 特殊状态调整
-
-- 老年人（>65岁）：总水量 × 0.9
-- 青少年（<18岁）：总水量 × 0.85
-- 怀孕：+300ml
-- 哺乳：+700ml
-
-### 有效水量
-
-不同饮品的补水效果不同，咖啡和茶有轻微利尿作用：
-
-```
-有效水量 = 实际饮用量 × 饮品系数
-```
-
-## 🧪 测试
-
-```bash
-python water_intake_utils_test.py
-```
-
-## 📝 示例场景
-
-### 场景 1: 办公室工作者
-
-```python
-calculator = WaterIntakeCalculator(
+# 久坐、室内环境
+result = calc.calculate_daily_intake(
     weight_kg=65,
     activity_level=ActivityLevel.SEDENTARY,
-    climate=Climate.MILD,  # 空调环境
+    climate=ClimateType.MILD
 )
-# 建议饮水量: 1950ml
+
+# 简单时间表
+schedule = calc.generate_drinking_schedule(result['total_intake_ml'])
+# 建议: 每天约 1950ml，分8次饮用
 ```
 
-### 场景 2: 户外运动爱好者
+### 场景 2：运动爱好者
 
 ```python
-calculator = WaterIntakeCalculator(
-    weight_kg=75,
-    activity_level=ActivityLevel.VERY_ACTIVE,
-    climate=Climate.HOT,  # 夏季户外
+# 高强度运动补水方案
+sport_plan = calc.calculate_for_sport(
+    sport_type='running',
+    duration_minutes=90,
+    intensity='high',
+    weight_kg=70,
+    temperature_c=28
 )
-# 建议饮水量: 3780ml
+
+print(f"预计出汗量: {sport_plan['estimated_sweat_loss_ml']} ml")
+print(f"运动前补水: {sport_plan['hydration_plan']['before_exercise_ml']} ml")
+print(f"运动中每15分钟: {sport_plan['hydration_plan']['during_exercise']['per_15_minutes_ml']} ml")
+print(f"运动后补水: {sport_plan['hydration_plan']['after_exercise_ml']} ml")
 ```
 
-### 场景 3: 哺乳期妈妈
+### 场景 3：孕期补水
 
 ```python
-calculator = WaterIntakeCalculator(
-    weight_kg=58,
+result = calc.calculate_daily_intake(
+    weight_kg=60,
     activity_level=ActivityLevel.LIGHT,
-    climate=Climate.MILD,
-    is_breastfeeding=True,
+    special_conditions=['pregnancy']
 )
-# 建议饮水量: 2620ml
+
+# 孕期需要额外300ml
+print(f"每日建议: {result['total_intake_ml']} ml")
 ```
 
-## 📄 许可证
+### 场景 4：追踪每日饮水
 
-MIT License - 详见 [LICENSE](LICENSE)
+```python
+calc = WaterIntakeCalculator()
 
-## 🤝 贡献
+# 计算目标
+target = calc.calculate_daily_intake(weight_kg=70)['total_intake_ml']
 
-欢迎提交 Issue 和 Pull Request！
+# 记录饮水
+calc.record_intake(250, 'water', '起床后')
+calc.record_intake(300, 'tea', '上午')
+calc.record_intake(500, 'water', '午餐后')
 
----
+# 查看进度
+summary = calc.get_daily_summary(target_intake_ml=target)
+print(f"进度: {summary['progress_percentage']}%")
+print(f"还需: {summary['remaining_ml']} ml")
+```
 
-**注意**: 本工具提供的饮水量建议仅供参考，实际饮水需求因人而异，如有健康问题请咨询医生。
+## 健康提示
+
+### 💧 饮水原则
+- 均匀分布在整个白天
+- 避免一次性大量饮水
+- 睡前减少饮水避免夜起
+- 运动前后注意补水
+
+### 🚨 警告信号
+- 尿液深黄色 → 需要补水
+- 尿液透明 → 可能饮水过量
+- 头痛、疲劳 → 可能脱水
+
+### 🥤 饮料选择
+| 饮料 | 补水系数 | 备注 |
+|------|---------|------|
+| 纯水 | 1.0 | 最佳选择 |
+| 茶 | 0.98 | 补水效果好 |
+| 椰子水 | 0.95 | 天然电解质 |
+| 运动饮料 | 0.95 | 运动时适用 |
+| 果汁 | 0.9 | 注意糖分 |
+| 咖啡 | 0.85 | 轻微利尿 |
+| 啤酒 | 0.6 | 脱水效果 |
+
+## 测试
+
+```bash
+python Python/water_intake_utils/water_intake_utils_test.py
+```
+
+测试覆盖 22 个测试用例，100% 通过。
+
+## 作者
+
+AllToolkit 自动化生成
+
+## 更新日期
+
+2026-05-23
