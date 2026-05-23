@@ -1,0 +1,13 @@
+[package]
+name = "genetics_utils"
+version = "0.1.0"
+edition = "2021"
+description = "Genetics sequence utilities - DNA/RNA manipulation tools"
+authors = ["AllToolkit"]
+
+[lib]
+path = "mod.rs"
+
+[[example]]
+name = "usage_examples"
+path = "examples/usage_examples.rs"
