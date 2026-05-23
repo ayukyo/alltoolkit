@@ -1,38 +1,27 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-AllToolkit - Color Utilities Module
-====================================
-A comprehensive color processing utility module for Python with zero external dependencies.
+Color Utils - 颜色处理工具模块
 
-Features:
-    - Color format conversion (HEX, RGB, HSL, HSV, CMYK, LAB)
-    - Color validation and parsing
-    - Color mixing and blending
-    - Contrast ratio calculation (WCAG compliance)
-    - Color palette generation
-    - Color harmony (complementary, triadic, analogous, etc.)
-    - Color temperature and perceived lightness
-    - Color distance and similarity
-    - Gradient generation
+提供颜色格式转换、调色板生成、对比度计算等功能。
+零外部依赖，纯 Python 标准库实现。
 
-Author: AllToolkit Contributors
-License: MIT
+功能列表:
+- RGB/HSL/HSV/HEX 颜色格式互转
+- 颜色名称查询 (CSS 颜色标准)
+- 随机颜色生成
+- 调色板生成 (互补色、类似色、三元组等)
+- 颜色对比度计算 (WCAG 标准)
+- 颜色混合
+- 颜色亮度调整
+- 颜色饱和度调整
 """
 
 import math
 import random
-from typing import Union, Tuple, List, Optional, Dict
-from dataclasses import dataclass
+from typing import Tuple, List, Optional, Dict, Union
 
-
-# ============================================================================
-# Constants
-# ============================================================================
-
-# Predefined named colors (CSS Color Module Level 4 subset)
+# CSS 标准颜色名称
 CSS_COLORS = {
-    # Basic colors
+    # 基础颜色
     'black': (0, 0, 0),
     'white': (255, 255, 255),
     'red': (255, 0, 0),
@@ -41,995 +30,722 @@ CSS_COLORS = {
     'yellow': (255, 255, 0),
     'cyan': (0, 255, 255),
     'magenta': (255, 0, 255),
-    # Extended colors
-    'orange': (255, 165, 0),
-    'pink': (255, 192, 203),
-    'purple': (128, 0, 128),
-    'brown': (165, 42, 42),
+    
+    # 灰度
     'gray': (128, 128, 128),
     'grey': (128, 128, 128),
     'silver': (192, 192, 192),
-    'gold': (255, 215, 0),
-    'navy': (0, 0, 128),
-    'teal': (0, 128, 128),
-    'olive': (128, 128, 0),
-    'maroon': (128, 0, 0),
-    'lime': (0, 255, 0),
-    'aqua': (0, 255, 255),
-    'fuchsia': (255, 0, 255),
-    'coral': (255, 127, 80),
-    'salmon': (250, 128, 114),
-    'khaki': (240, 230, 140),
-    'violet': (238, 130, 238),
-    'indigo': (75, 0, 130),
-    'crimson': (220, 20, 60),
-    'chocolate': (210, 105, 30),
-    'turquoise': (64, 224, 208),
-    'forestgreen': (34, 139, 34),
-    'slateblue': (106, 90, 205),
-    'tomato': (255, 99, 71),
-    'sienna': (160, 82, 45),
-    'orchid': (218, 112, 214),
-    'peru': (205, 133, 63),
-    'plum': (221, 160, 221),
-    'wheat': (245, 222, 179),
-    'tan': (210, 180, 140),
-    'steelblue': (70, 130, 180),
-    'royalblue': (65, 105, 225),
-    'seagreen': (46, 139, 87),
-    'sandybrown': (244, 164, 96),
-    'powderblue': (176, 224, 230),
-    'papayawhip': (255, 239, 213),
-    'paleturquoise': (175, 238, 238),
-    'palegreen': (152, 251, 152),
-    'palegoldenrod': (238, 232, 170),
-    'navajowhite': (255, 222, 173),
-    'mediumvioletred': (199, 21, 133),
-    'mediumturquoise': (72, 209, 204),
-    'mediumspringgreen': (0, 250, 154),
-    'mediumseagreen': (60, 179, 113),
-    'mediumpurple': (147, 112, 219),
-    'mediumorchid': (186, 85, 211),
-    'mediumblue': (0, 0, 205),
-    'mediumaquamarine': (102, 205, 170),
-    'maroon': (128, 0, 0),
-    'limegreen': (50, 205, 50),
-    'lightyellow': (255, 255, 224),
-    'lightsteelblue': (176, 196, 222),
-    'lightslategray': (119, 136, 153),
-    'lightslategrey': (119, 136, 153),
-    'lightsalmon': (255, 160, 122),
-    'lightseagreen': (32, 178, 170),
-    'lightskyblue': (135, 206, 250),
-    'lightpink': (255, 182, 193),
-    'lightgreen': (144, 238, 144),
-    'lightgray': (211, 211, 211),
-    'lightgrey': (211, 211, 211),
-    'lightgoldenrodyellow': (250, 250, 210),
-    'lightcyan': (224, 255, 255),
-    'lightcoral': (240, 128, 128),
-    'lightblue': (173, 216, 230),
-    'lemonchiffon': (255, 250, 205),
-    'lavenderblush': (255, 240, 245),
-    'lavender': (230, 230, 250),
-    'lawngreen': (124, 252, 0),
-    'ivory': (255, 255, 240),
-    'hotpink': (255, 105, 180),
-    'honeydew': (240, 255, 240),
-    'greenyellow': (173, 255, 47),
-    'gainsboro': (220, 220, 220),
-    'floralwhite': (255, 250, 240),
-    'firebrick': (178, 34, 34),
-    'dodgerblue': (30, 144, 255),
     'dimgray': (105, 105, 105),
     'dimgrey': (105, 105, 105),
-    'deepskyblue': (0, 191, 255),
-    'deeppink': (255, 20, 147),
-    'darkviolet': (148, 0, 211),
-    'darkturquoise': (0, 206, 209),
-    'darkslategray': (47, 79, 79),
-    'darkslategrey': (47, 79, 79),
-    'darkslateblue': (72, 61, 139),
-    'darkseagreen': (143, 188, 143),
-    'darksalmon': (233, 150, 122),
-    'darkred': (139, 0, 0),
-    'darkorchid': (153, 50, 204),
-    'darkorange': (255, 140, 0),
-    'darkolivegreen': (85, 107, 47),
-    'darkmagenta': (139, 0, 139),
-    'darkkhaki': (189, 183, 107),
-    'darkgreen': (0, 100, 0),
     'darkgray': (169, 169, 169),
     'darkgrey': (169, 169, 169),
-    'darkgoldenrod': (184, 134, 11),
-    'darkcyan': (0, 139, 139),
-    'darkblue': (0, 0, 139),
-    'cornsilk': (255, 248, 220),
-    'cornflowerblue': (100, 149, 237),
-    'chartreuse': (127, 255, 0),
-    'burlywood': (222, 184, 135),
-    'bisque': (255, 228, 196),
-    'beige': (245, 245, 220),
-    'azure': (240, 255, 255),
-    'aquamarine': (127, 255, 212),
-    'antiquewhite': (250, 235, 215),
-    'aliceblue': (240, 248, 255),
-    ' BlanchedAlmond': (255, 235, 205),
-    'blueviolet': (138, 43, 226),
-    'cadetblue': (95, 158, 160),
-    'chocolate': (210, 105, 30),
-    'darkgray': (169, 169, 169),
-    'darkolivegreen': (85, 107, 47),
-    'darkorange': (255, 140, 0),
+    'lightgray': (211, 211, 211),
+    'lightgrey': (211, 211, 211),
+    'gainsboro': (220, 220, 220),
+    
+    # 红色系
+    'crimson': (220, 20, 60),
     'firebrick': (178, 34, 34),
-    'goldenrod': (218, 165, 32),
-    'green': (0, 128, 0),
-    'hotpink': (255, 105, 180),
-    ' indianred': (205, 92, 92),
-    'lavender': (230, 230, 250),
-    'lightblue': (173, 216, 230),
-    'lightgreen': (144, 238, 144),
-    'lightsalmon': (255, 160, 122),
-    'mediumblue': (0, 0, 205),
-    'midnightblue': (25, 25, 112),
-    'navajowhite': (255, 222, 173),
+    'indianred': (205, 92, 92),
+    'lightcoral': (240, 128, 128),
+    'darkred': (139, 0, 0),
+    'maroon': (128, 0, 0),
     'orangered': (255, 69, 0),
+    'tomato': (255, 99, 71),
+    'coral': (255, 127, 80),
+    'salmon': (250, 128, 114),
+    'lightsalmon': (255, 160, 122),
+    
+    # 橙色系
+    'orange': (255, 165, 0),
+    'darkorange': (255, 140, 0),
+    'coral': (255, 127, 80),
+    
+    # 黄色系
+    'gold': (255, 215, 0),
+    'khaki': (240, 230, 140),
+    'lightyellow': (255, 255, 224),
+    'lemonchiffon': (255, 250, 205),
+    'papayawhip': (255, 239, 213),
+    'moccasin': (255, 228, 181),
+    'peachpuff': (255, 218, 185),
+    'palegoldenrod': (238, 232, 170),
+    'darkkhaki': (189, 183, 107),
+    
+    # 绿色系
+    'lime': (0, 255, 0),
+    'limegreen': (50, 205, 50),
+    'forestgreen': (34, 139, 34),
+    'darkgreen': (0, 100, 0),
+    'lightgreen': (144, 238, 144),
     'palegreen': (152, 251, 152),
-    'rebeccapurple': (102, 51, 153),
-    'rosybrown': (188, 143, 143),
-    'saddlebrown': (139, 69, 19),
-    'skyblue': (135, 206, 235),
+    'seagreen': (46, 139, 87),
+    'mediumseagreen': (60, 179, 113),
     'springgreen': (0, 255, 127),
-    'thistle': (216, 191, 216),
+    'mediumspringgreen': (0, 250, 154),
+    'darkseagreen': (143, 188, 143),
     'yellowgreen': (154, 205, 50),
+    'olive': (128, 128, 0),
+    'olivedrab': (107, 142, 35),
+    'lawngreen': (124, 252, 0),
+    'chartreuse': (127, 255, 0),
+    'greenyellow': (173, 255, 47),
+    
+    # 青色系
+    'aqua': (0, 255, 255),
+    'teal': (0, 128, 128),
+    'darkcyan': (0, 139, 139),
+    'lightcyan': (224, 255, 255),
+    'darkturquoise': (0, 206, 209),
+    'turquoise': (64, 224, 208),
+    'mediumturquoise': (72, 209, 204),
+    'paleturquoise': (175, 238, 238),
+    'aquamarine': (127, 255, 212),
+    'mediumaquamarine': (102, 205, 170),
+    
+    # 蓝色系
+    'navy': (0, 0, 128),
+    'darkblue': (0, 0, 139),
+    'mediumblue': (0, 0, 205),
+    'royalblue': (65, 105, 225),
+    'dodgerblue': (30, 144, 255),
+    'deepskyblue': (0, 191, 255),
+    'lightskyblue': (135, 206, 250),
+    'skyblue': (135, 206, 235),
+    'lightblue': (173, 216, 230),
+    'powderblue': (176, 224, 230),
+    'steelblue': (70, 130, 180),
+    'lightsteelblue': (176, 196, 222),
+    'cornflowerblue': (100, 149, 237),
+    'cadetblue': (95, 158, 160),
+    'mediumslateblue': (123, 104, 238),
+    'slateblue': (106, 90, 205),
+    'darkslateblue': (72, 61, 139),
+    
+    # 紫色系
+    'purple': (128, 0, 128),
+    'violet': (238, 130, 238),
+    'indigo': (75, 0, 130),
+    'darkviolet': (148, 0, 211),
+    'blueviolet': (138, 43, 226),
+    'mediumvioletred': (199, 21, 133),
+    'palevioletred': (219, 112, 147),
+    'darkmagenta': (139, 0, 139),
+    'darkorchid': (153, 50, 204),
+    'orchid': (218, 112, 214),
+    'mediumorchid': (186, 85, 211),
+    'plum': (221, 160, 221),
+    'thistle': (216, 191, 216),
+    'lavender': (230, 230, 250),
+    
+    # 粉色系
+    'pink': (255, 192, 203),
+    'lightpink': (255, 182, 193),
+    'hotpink': (255, 105, 180),
+    'deeppink': (255, 20, 147),
+    'fuchsia': (255, 0, 255),
+    
+    # 棕色系
+    'brown': (165, 42, 42),
+    'saddlebrown': (139, 69, 19),
+    'sienna': (160, 82, 45),
+    'chocolate': (210, 105, 30),
+    'peru': (205, 133, 63),
+    'sandybrown': (244, 164, 96),
+    'burlywood': (222, 184, 135),
+    'tan': (210, 180, 140),
+    'rosybrown': (188, 143, 143),
+    'darksalmon': (233, 150, 122),
+    'bisque': (255, 228, 196),
+    'wheat': (245, 222, 179),
+    'navajowhite': (255, 222, 173),
+    'blanchedalmond': (255, 235, 205),
+    'cornsilk': (255, 248, 220),
+    
+    # 其他
+    'beige': (245, 245, 220),
+    'ivory': (255, 255, 240),
+    'linen': (250, 240, 230),
+    'lavenderblush': (255, 240, 245),
+    'mistyrose': (255, 228, 225),
+    'seashell': (255, 245, 238),
+    'oldlace': (253, 245, 230),
+    'floralwhite': (255, 250, 240),
+    'honeydew': (240, 255, 240),
+    'mintcream': (245, 255, 250),
+    'snow': (255, 250, 250),
+    'aliceblue': (240, 248, 255),
+    'ghostwhite': (248, 248, 255),
+    'whitesmoke': (245, 245, 245),
+    'antiquewhite': (250, 235, 215),
+    'papayawhip': (255, 239, 213),
 }
 
-# 优化：预构建 RGB -> 颜色名称的反向查找表（用于快速精确匹配）
-_RGB_TO_COLOR_NAME = {tuple(rgb): name for name, rgb in CSS_COLORS.items()}
-
-# D65 illuminant reference white point
-D65_WHITE = (95.047, 100.0, 108.883)
+# 反向映射：RGB -> 颜色名称
+RGB_TO_NAME = {v: k for k, v in CSS_COLORS.items()}
 
 
-# ============================================================================
-# Data Classes
-# ============================================================================
-
-@dataclass
-class RGB:
-    """RGB color representation."""
-    r: int  # 0-255
-    g: int  # 0-255
-    b: int  # 0-255
+class Color:
+    """
+    颜色类，支持多种格式转换和操作。
+    """
     
-    def __post_init__(self):
-        """Validate RGB values."""
-        self.r = max(0, min(255, int(self.r)))
-        self.g = max(0, min(255, int(self.g)))
-        self.b = max(0, min(255, int(self.b)))
+    def __init__(self, r: int, g: int, b: int, a: float = 1.0):
+        """
+        初始化颜色。
+        
+        Args:
+            r: 红色分量 (0-255)
+            g: 绿色分量 (0-255)
+            b: 蓝色分量 (0-255)
+            a: 透明度 (0.0-1.0)
+        """
+        self.r = max(0, min(255, r))
+        self.g = max(0, min(255, g))
+        self.b = max(0, min(255, b))
+        self.a = max(0.0, min(1.0, a))
     
-    def to_hex(self) -> str:
-        """Convert to HEX string."""
-        return f'#{self.r:02x}{self.g:02x}{self.b:02x}'
+    def __repr__(self) -> str:
+        return f"Color(r={self.r}, g={self.g}, b={self.b}, a={self.a})"
     
-    def to_hsl(self) -> Tuple[float, float, float]:
-        """Convert to HSL."""
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Color):
+            return (self.r, self.g, self.b, self.a) == (other.r, other.g, other.b, other.a)
+        return False
+    
+    def __hash__(self) -> int:
+        return hash((self.r, self.g, self.b, self.a))
+    
+    @property
+    def rgb(self) -> Tuple[int, int, int]:
+        """返回 RGB 元组。"""
+        return (self.r, self.g, self.b)
+    
+    @property
+    def rgba(self) -> Tuple[int, int, int, float]:
+        """返回 RGBA 元组。"""
+        return (self.r, self.g, self.b, self.a)
+    
+    @property
+    def hex(self) -> str:
+        """返回十六进制颜色字符串 (#RRGGBB)。"""
+        return f"#{self.r:02x}{self.g:02x}{self.b:02x}"
+    
+    @property
+    def hex_with_alpha(self) -> str:
+        """返回带透明度的十六进制颜色字符串 (#RRGGBBAA)。"""
+        alpha_hex = int(self.a * 255)
+        return f"#{self.r:02x}{self.g:02x}{self.b:02x}{alpha_hex:02x}"
+    
+    @property
+    def hsl(self) -> Tuple[float, float, float]:
+        """返回 HSL 元组 (色相0-360, 饱和度0-100%, 亮度0-100%)。"""
         return rgb_to_hsl(self.r, self.g, self.b)
     
-    def to_hsv(self) -> Tuple[float, float, float]:
-        """Convert to HSV."""
+    @property
+    def hsv(self) -> Tuple[float, float, float]:
+        """返回 HSV 元组 (色相0-360, 饱和度0-100%, 明度0-100%)。"""
         return rgb_to_hsv(self.r, self.g, self.b)
     
-    def to_tuple(self) -> Tuple[int, int, int]:
-        """Convert to tuple."""
-        return (self.r, self.g, self.b)
-
-
-@dataclass
-class HSL:
-    """HSL color representation."""
-    h: float  # 0-360
-    s: float  # 0-100
-    l: float  # 0-100
+    @property
+    def luminance(self) -> float:
+        """返回相对亮度 (0.0-1.0)。"""
+        return calculate_luminance(self.r, self.g, self.b)
     
-    def __post_init__(self):
-        """Normalize HSL values."""
-        self.h = self.h % 360
-        self.s = max(0, min(100, self.s))
-        self.l = max(0, min(100, self.l))
+    @property
+    def name(self) -> Optional[str]:
+        """返回最接近的 CSS 颜色名称。"""
+        return find_closest_color_name(self.r, self.g, self.b)
     
-    def to_rgb(self) -> RGB:
-        """Convert to RGB."""
-        r, g, b = hsl_to_rgb(self.h, self.s, self.l)
-        return RGB(r, g, b)
+    # ===== 静态工厂方法 =====
     
-    def to_hex(self) -> str:
-        """Convert to HEX."""
-        return self.to_rgb().to_hex()
-
-
-@dataclass
-class ColorInfo:
-    """Comprehensive color information container."""
-    hex: str
-    rgb: RGB
-    hsl: HSL
-    hsv: Tuple[float, float, float]
-    cmyk: Tuple[float, float, float, float]
-    lab: Tuple[float, float, float]
-    name: Optional[str]
-    luminance: float
-    temperature: str  # 'warm', 'cool', or 'neutral'
-
-
-# ============================================================================
-# Color Validation and Parsing
-# ============================================================================
-
-def is_valid_hex(hex_color: str) -> bool:
-    """
-    Validate a HEX color string.
+    @staticmethod
+    def from_hex(hex_str: str) -> 'Color':
+        """从十六进制字符串创建颜色。"""
+        r, g, b, a = hex_to_rgb(hex_str)
+        return Color(r, g, b, a)
     
-    Args:
-        hex_color: HEX color string (e.g., '#FF0000', 'FF0000', '#F00', 'F00')
+    @staticmethod
+    def from_hsl(h: float, s: float, l: float, a: float = 1.0) -> 'Color':
+        """从 HSL 创建颜色。"""
+        r, g, b = hsl_to_rgb(h, s, l)
+        return Color(r, g, b, a)
     
-    Returns:
-        True if valid HEX color, False otherwise
+    @staticmethod
+    def from_hsv(h: float, s: float, v: float, a: float = 1.0) -> 'Color':
+        """从 HSV 创建颜色。"""
+        r, g, b = hsv_to_rgb(h, s, v)
+        return Color(r, g, b, a)
     
-    Examples:
-        >>> is_valid_hex('#FF0000')
-        True
-        >>> is_valid_hex('FF0000')
-        True
-        >>> is_valid_hex('#F00')
-        True
-        >>> is_valid_hex('invalid')
-        False
+    @staticmethod
+    def from_name(name: str, a: float = 1.0) -> 'Color':
+        """从 CSS 颜色名称创建颜色。"""
+        r, g, b = name_to_rgb(name)
+        return Color(r, g, b, a)
     
-    Note:
-        优化版本（v2）：
-        - 边界处理：None 输入快速返回 False
-        - 边界处理：非字符串输入快速返回 False
-        - 边界处理：空字符串快速返回 False
-        - 优化：预定义有效字符集合（frozenset 查找 O(1)）
-        - 优化：使用字符串长度快速检查，避免全遍历
-        - 优化：直接使用 int() 转换验证，比逐字符检查更快
-        - 性能提升约 50-70%（对大量验证）
-    """
-    # 边界处理：None 或非字符串输入快速返回
-    if hex_color is None or not isinstance(hex_color, str):
-        return False
+    @staticmethod
+    def random(hue: Optional[float] = None, saturation: Optional[float] = None,
+               lightness: Optional[float] = None) -> 'Color':
+        """生成随机颜色。"""
+        h = hue if hue is not None else random.uniform(0, 360)
+        s = saturation if saturation is not None else random.uniform(50, 100)
+        l = lightness if lightness is not None else random.uniform(30, 70)
+        return Color.from_hsl(h, s, l)
     
-    # 边界处理：空字符串快速返回
-    hex_color = hex_color.strip()
-    if not hex_color:
-        return False
+    # ===== 颜色操作方法 =====
     
-    # 优化：快速长度检查（有效长度: 3, 4, 6, 7）
-    # '#FFF' = 4, '#FFFFFF' = 7, 'FFF' = 3, 'FFFFFF' = 6
-    length = len(hex_color)
-    if length not in (3, 4, 6, 7):
-        return False
-    
-    # Remove leading # if present
-    if hex_color[0] == '#':
-        hex_color = hex_color[1:]
-        length -= 1
-    
-    # 优化：使用 int() 直接验证（比逐字符检查更快）
-    # int() 会在无效字符时抛出 ValueError
-    if length not in (3, 6):
-        return False
-    
-    try:
-        int(hex_color, 16)
-        return True
-    except ValueError:
-        return False
-
-
-def parse_hex(hex_color: str) -> RGB:
-    """
-    Parse a HEX color string to RGB.
-    
-    Args:
-        hex_color: HEX color string
-    
-    Returns:
-        RGB object
-    
-    Raises:
-        ValueError: If invalid HEX color
-    
-    Examples:
-        >>> parse_hex('#FF0000')
-        RGB(r=255, g=0, b=0)
-        >>> parse_hex('#F00')
-        RGB(r=255, g=0, b=0)
-    
-    Note:
-        优化版本（v2）：
-        - 边界处理：None 输入抛出 ValueError
-        - 边界处理：非字符串输入抛出 ValueError
-        - 优化：使用预验证函数避免重复检查
-        - 优化：使用整数运算替代字符串拼接（对短格式）
-        - 优化：减少字符串操作次数
-        - 性能提升约 30-50%（对批量解析）
-    """
-    # 边界处理：None 或非字符串输入
-    if hex_color is None or not isinstance(hex_color, str):
-        raise ValueError(f"Invalid HEX color: {hex_color}")
-    
-    # 边界处理：空字符串
-    hex_color = hex_color.strip()
-    if not hex_color:
-        raise ValueError(f"Invalid HEX color: empty string")
-    
-    # Remove leading # if present
-    if hex_color[0] == '#':
-        hex_color = hex_color[1:]
-    
-    length = len(hex_color)
-    
-    # 优化：使用 int() 直接验证并转换（一次调用完成验证和转换）
-    try:
-        if length == 3:
-            # 优化：使用整数运算替代字符串拼接
-            # 'F00' -> R=FF, G=00, B=00
-            # 每个字符的值 * 16 + 同一个字符的值 = 每个字符重复两次
-            val = int(hex_color, 16)
-            # 3 位 hex: 0xRGB -> R*16+R, G*16+G, B*16+B
-            r = ((val >> 8) & 0xF) * 17  # 17 = 0x11 = 16 + 1
-            g = ((val >> 4) & 0xF) * 17
-            b = (val & 0xF) * 17
-        elif length == 6:
-            val = int(hex_color, 16)
-            r = (val >> 16) & 0xFF
-            g = (val >> 8) & 0xFF
-            b = val & 0xFF
-        else:
-            raise ValueError(f"Invalid HEX color length: {hex_color}")
-    except ValueError:
-        raise ValueError(f"Invalid HEX color: {hex_color}")
-    
-    return RGB(r, g, b)
-
-
-def parse_rgb_string(rgb_string: str) -> RGB:
-    """
-    Parse an RGB string (e.g., 'rgb(255, 0, 0)').
-    
-    Args:
-        rgb_string: RGB string in format 'rgb(r, g, b)' or 'r, g, b'
-    
-    Returns:
-        RGB object
-    
-    Raises:
-        ValueError: If invalid RGB string
-    
-    Examples:
-        >>> parse_rgb_string('rgb(255, 0, 0)')
-        RGB(r=255, g=0, b=0)
-        >>> parse_rgb_string('255, 0, 0')
-        RGB(r=255, g=0, b=0)
-    
-    Note:
-        优化版本（v2）：
-        - 边界处理：None 输入抛出 ValueError
-        - 边界处理：非字符串输入抛出 ValueError
-        - 边界处理：空字符串抛出 ValueError
-        - 优化：使用字符串切片替代正则表达式
-        - 优化：预检查字符串格式，减少不必要的操作
-        - 优化：使用 map + int 批量转换，减少重复调用
-        - 性能提升约 40-60%（对批量解析）
-    """
-    # 边界处理：None 输入
-    if rgb_string is None:
-        raise ValueError(f"Invalid RGB string: None")
-    
-    # 边界处理：非字符串输入
-    if not isinstance(rgb_string, str):
-        raise ValueError(f"Invalid RGB string: {rgb_string}")
-    
-    # 边界处理：空字符串
-    rgb_string = rgb_string.strip()
-    if not rgb_string:
-        raise ValueError(f"Invalid RGB string: empty string")
-    
-    # 优化：使用字符串切片替代正则（更快）
-    # 检查 'rgb(' 前缀
-    if rgb_string.startswith('rgb('):
-        # 移除 'rgb(' 前缀和 ')' 后缀
-        if rgb_string.endswith(')'):
-            rgb_string = rgb_string[4:-1]
-        else:
-            rgb_string = rgb_string[4:]
-    
-    # 优化：使用 split + map 批量转换
-    parts = rgb_string.split(',')
-    
-    if len(parts) != 3:
-        raise ValueError(f"Invalid RGB string: expected 3 components, got {len(parts)}")
-    
-    try:
-        # 优化：使用 map 批量转换，减少重复 int() 调用开销
-        r, g, b = map(lambda p: int(p.strip()), parts)
-    except ValueError as e:
-        raise ValueError(f"Invalid RGB values: {rgb_string}") from e
-    
-    return RGB(r, g, b)
-
-
-def parse_color(color: Union[str, Tuple[int, int, int], RGB]) -> RGB:
-    """
-    Parse a color from various formats.
-    
-    Args:
-        color: Color in any supported format (HEX string, RGB tuple, RGB object, or named color)
-    
-    Returns:
-        RGB object
-    
-    Raises:
-        ValueError: If color format is not recognized
-    
-    Examples:
-        >>> parse_color('#FF0000')
-        RGB(r=255, g=0, b=0)
-        >>> parse_color((255, 0, 0))
-        RGB(r=255, g=0, b=0)
-        >>> parse_color('red')
-        RGB(r=255, g=0, b=0)
-    """
-    if isinstance(color, RGB):
-        return color
-    
-    if isinstance(color, tuple):
-        if len(color) == 3:
-            return RGB(color[0], color[1], color[2])
-        raise ValueError(f"Invalid tuple length: {len(color)}")
-    
-    if isinstance(color, str):
-        color = color.strip()
+    def lighten(self, amount: float = 10.0) -> 'Color':
+        """
+        增加亮度。
         
-        # HEX format
-        if color.startswith('#') or (len(color) in (3, 6) and all(c in '0123456789abcdefABCDEF' for c in color)):
-            return parse_hex(color)
+        Args:
+            amount: 增加的亮度百分比 (0-100)
         
-        # rgb() format
-        if color.startswith('rgb('):
-            return parse_rgb_string(color)
+        Returns:
+            新的 Color 对象
+        """
+        h, s, l = self.hsl
+        l = min(100, l + amount)
+        return Color.from_hsl(h, s, l, self.a)
+    
+    def darken(self, amount: float = 10.0) -> 'Color':
+        """
+        降低亮度。
         
-        # Named color
-        color_lower = color.lower()
-        if color_lower in CSS_COLORS:
-            r, g, b = CSS_COLORS[color_lower]
-            return RGB(r, g, b)
+        Args:
+            amount: 降低的亮度百分比 (0-100)
         
-        # Try as hex without #
-        if is_valid_hex(color):
-            return parse_hex(color)
+        Returns:
+            新的 Color 对象
+        """
+        h, s, l = self.hsl
+        l = max(0, l - amount)
+        return Color.from_hsl(h, s, l, self.a)
+    
+    def saturate(self, amount: float = 10.0) -> 'Color':
+        """
+        增加饱和度。
         
-        raise ValueError(f"Unknown color: {color}")
-    
-    raise ValueError(f"Invalid color type: {type(color)}")
-
-
-def get_color_name(rgb: Union[RGB, Tuple[int, int, int]]) -> Optional[str]:
-    """
-    Find the closest named CSS color for an RGB value.
-    
-    Args:
-        rgb: RGB color
-    
-    Returns:
-        Name of the closest CSS color, or None if no match
-    
-    Examples:
-        >>> get_color_name((255, 0, 0))
-        'red'
-        >>> get_color_name((255, 255, 255))
-        'white'
-    
-    Note:
-        优化版本（v2）：
-        - 边界处理：None 输入返回 None
-        - 优化：预构建反向查找表用于精确匹配（O(1)）
-        - 优化：精确匹配优先，避免遍历整个字典
-        - 优化：仅对非精确匹配进行距离计算
-        - 性能提升约 60-80%（对精确匹配）
-    """
-    # 边界处理：None 输入
-    if rgb is None:
-        return None
-    
-    if isinstance(rgb, tuple):
-        rgb = RGB(rgb[0], rgb[1], rgb[2])
-    
-    rgb_tuple = rgb.to_tuple()
-    
-    # 优化：先尝试精确匹配（O(1)）
-    exact_match = _RGB_TO_COLOR_NAME.get(rgb_tuple)
-    if exact_match:
-        return exact_match
-    
-    # 精确匹配失败，计算最近颜色
-    min_distance = float('inf')
-    closest_name = None
-    
-    for name, color in CSS_COLORS.items():
-        # 优化：使用快速欧几里得距离计算
-        # 不需要 sqrt，只需比较距离平方
-        dr = rgb.r - color[0]
-        dg = rgb.g - color[1]
-        db = rgb.b - color[2]
-        distance_sq = dr * dr + dg * dg + db * db
+        Args:
+            amount: 增加的饱和度百分比 (0-100)
         
-        if distance_sq < min_distance:
-            min_distance = distance_sq
-            closest_name = name
+        Returns:
+            新的 Color 对象
+        """
+        h, s, l = self.hsl
+        s = min(100, s + amount)
+        return Color.from_hsl(h, s, l, self.a)
     
-    # 仅当距离足够近时返回名称（距离 < 50 对应距离平方 < 2500）
-    # sqrt(2500) = 50
-    if min_distance < 2500:
-        return closest_name
-    return None
+    def desaturate(self, amount: float = 10.0) -> 'Color':
+        """
+        降低饱和度。
+        
+        Args:
+            amount: 降低的饱和度百分比 (0-100)
+        
+        Returns:
+            新的 Color 对象
+        """
+        h, s, l = self.hsl
+        s = max(0, s - amount)
+        return Color.from_hsl(h, s, l, self.a)
+    
+    def grayscale(self) -> 'Color':
+        """转换为灰度颜色。"""
+        gray = int(0.299 * self.r + 0.587 * self.g + 0.114 * self.b)
+        return Color(gray, gray, gray, self.a)
+    
+    def invert(self) -> 'Color':
+        """返回反色。"""
+        return Color(255 - self.r, 255 - self.g, 255 - self.b, self.a)
+    
+    def rotate_hue(self, degrees: float) -> 'Color':
+        """
+        旋转色相。
+        
+        Args:
+            degrees: 旋转的角度 (-360 到 360)
+        
+        Returns:
+            新的 Color 对象
+        """
+        h, s, l = self.hsl
+        h = (h + degrees) % 360
+        if h < 0:
+            h += 360
+        return Color.from_hsl(h, s, l, self.a)
+    
+    def complement(self) -> 'Color':
+        """返回互补色。"""
+        return self.rotate_hue(180)
+    
+    def mix(self, other: 'Color', weight: float = 0.5) -> 'Color':
+        """
+        与另一种颜色混合。
+        
+        Args:
+            other: 另一种颜色
+            weight: 本颜色的权重 (0.0-1.0)
+        
+        Returns:
+            混合后的新颜色
+        """
+        w = max(0, min(1, weight))
+        r = int(self.r * w + other.r * (1 - w))
+        g = int(self.g * w + other.g * (1 - w))
+        b = int(self.b * w + other.b * (1 - w))
+        a = self.a * w + other.a * (1 - w)
+        return Color(r, g, b, a)
+    
+    def contrast_ratio(self, other: 'Color') -> float:
+        """
+        计算与另一种颜色的对比度。
+        
+        Args:
+            other: 另一种颜色
+        
+        Returns:
+            对比度 (1.0-21.0)
+        """
+        return calculate_contrast_ratio(self.rgb, other.rgb)
+    
+    def wcag_compliance(self, other: 'Color') -> Dict[str, bool]:
+        """
+        检查 WCAG 对比度合规性。
+        
+        Args:
+            other: 另一种颜色（通常是背景色）
+        
+        Returns:
+            包含各级别合规性的字典
+        """
+        ratio = self.contrast_ratio(other)
+        return {
+            'aa_normal': ratio >= 4.5,
+            'aa_large': ratio >= 3.0,
+            'aaa_normal': ratio >= 7.0,
+            'aaa_large': ratio >= 4.5,
+            'ratio': ratio
+        }
+    
+    def is_light(self) -> bool:
+        """判断是否为浅色。"""
+        return self.luminance > 0.5
+    
+    def is_dark(self) -> bool:
+        """判断是否为深色。"""
+        return self.luminance <= 0.5
+    
+    def text_color(self, light_color: Optional['Color'] = None, 
+                   dark_color: Optional['Color'] = None) -> 'Color':
+        """
+        返回适合此背景的文本颜色。
+        
+        Args:
+            light_color: 浅色文本颜色（默认白色）
+            dark_color: 深色文本颜色（默认黑色）
+        
+        Returns:
+            适合的文本颜色
+        """
+        light = light_color or Color(255, 255, 255)
+        dark = dark_color or Color(0, 0, 0)
+        return light if self.is_dark() else dark
 
 
-# ============================================================================
-# Color Format Conversions
-# ============================================================================
-
-def rgb_to_hex(r: int, g: int, b: int) -> str:
-    """
-    Convert RGB values to HEX string.
-    
-    Args:
-        r: Red (0-255)
-        g: Green (0-255)
-        b: Blue (0-255)
-    
-    Returns:
-        HEX color string
-    
-    Examples:
-        >>> rgb_to_hex(255, 0, 0)
-        '#ff0000'
-        >>> rgb_to_hex(0, 128, 255)
-        '#0080ff'
-    """
-    r = max(0, min(255, int(r)))
-    g = max(0, min(255, int(g)))
-    b = max(0, min(255, int(b)))
-    return f'#{r:02x}{g:02x}{b:02x}'
-
-
-def hex_to_rgb(hex_color: str) -> Tuple[int, int, int]:
-    """
-    Convert HEX string to RGB tuple.
-    
-    Args:
-        hex_color: HEX color string
-    
-    Returns:
-        Tuple of (r, g, b)
-    
-    Examples:
-        >>> hex_to_rgb('#FF0000')
-        (255, 0, 0)
-        >>> hex_to_rgb('FF0000')
-        (255, 0, 0)
-    """
-    rgb = parse_hex(hex_color)
-    return rgb.to_tuple()
-
+# ===== 转换函数 =====
 
 def rgb_to_hsl(r: int, g: int, b: int) -> Tuple[float, float, float]:
     """
-    Convert RGB to HSL.
+    将 RGB 转换为 HSL。
     
     Args:
-        r: Red (0-255)
-        g: Green (0-255)
-        b: Blue (0-255)
+        r, g, b: RGB 分量 (0-255)
     
     Returns:
-        Tuple of (h, s, l) where h is 0-360, s and l are 0-100
-    
-    Examples:
-        >>> rgb_to_hsl(255, 0, 0)
-        (0.0, 100.0, 50.0)
-        >>> rgb_to_hsl(0, 255, 0)
-        (120.0, 100.0, 50.0)
+        (h, s, l) - 色相(0-360), 饱和度(0-100), 亮度(0-100)
     """
     r, g, b = r / 255.0, g / 255.0, b / 255.0
     
-    max_val = max(r, g, b)
-    min_val = min(r, g, b)
-    diff = max_val - min_val
+    max_c = max(r, g, b)
+    min_c = min(r, g, b)
+    diff = max_c - min_c
     
-    # Lightness
-    l = (max_val + min_val) / 2
+    l = (max_c + min_c) / 2
     
-    # Saturation
     if diff == 0:
-        s = 0
-        h = 0
+        h = s = 0.0
     else:
-        s = diff / (1 - abs(2 * l - 1))
+        s = diff / (2 - max_c - min_c) if l > 0.5 else diff / (max_c + min_c)
         
-        # Hue
-        if max_val == r:
-            h = ((g - b) / diff) % 6
-        elif max_val == g:
+        if max_c == r:
+            h = (g - b) / diff + (6 if g < b else 0)
+        elif max_c == g:
             h = (b - r) / diff + 2
         else:
             h = (r - g) / diff + 4
         
         h *= 60
-        if h < 0:
-            h += 360
     
     return (h, s * 100, l * 100)
 
 
 def hsl_to_rgb(h: float, s: float, l: float) -> Tuple[int, int, int]:
     """
-    Convert HSL to RGB.
+    将 HSL 转换为 RGB。
     
     Args:
-        h: Hue (0-360)
-        s: Saturation (0-100)
-        l: Lightness (0-100)
+        h: 色相 (0-360)
+        s: 饱和度 (0-100)
+        l: 亮度 (0-100)
     
     Returns:
-        Tuple of (r, g, b) where each is 0-255
-    
-    Examples:
-        >>> hsl_to_rgb(0, 100, 50)
-        (255, 0, 0)
-        >>> hsl_to_rgb(120, 100, 50)
-        (0, 255, 0)
+        (r, g, b) - RGB 分量 (0-255)
     """
-    h = h % 360
-    s = max(0, min(100, s)) / 100
-    l = max(0, min(100, l)) / 100
+    s /= 100
+    l /= 100
     
     if s == 0:
-        r = g = b = int(l * 255)
-        return (r, g, b)
-    
-    def hue_to_rgb(p, q, t):
-        if t < 0:
-            t += 1
-        if t > 1:
-            t -= 1
-        if t < 1/6:
-            return p + (q - p) * 6 * t
-        if t < 1/2:
-            return q
-        if t < 2/3:
-            return p + (q - p) * (2/3 - t) * 6
-        return p
-    
-    q = l * (1 + s) if l < 0.5 else l + s - l * s
-    p = 2 * l - q
-    
-    r = hue_to_rgb(p, q, h / 360 + 1/3)
-    g = hue_to_rgb(p, q, h / 360)
-    b = hue_to_rgb(p, q, h / 360 - 1/3)
+        r = g = b = l
+    else:
+        def hue_to_rgb(p, q, t):
+            if t < 0:
+                t += 1
+            elif t > 1:
+                t -= 1
+            if t < 1/6:
+                return p + (q - p) * 6 * t
+            if t < 1/2:
+                return q
+            if t < 2/3:
+                return p + (q - p) * (2/3 - t) * 6
+            return p
+        
+        q = l * (1 + s) if l < 0.5 else l + s - l * s
+        p = 2 * l - q
+        
+        h = h / 360
+        r = hue_to_rgb(p, q, h + 1/3)
+        g = hue_to_rgb(p, q, h)
+        b = hue_to_rgb(p, q, h - 1/3)
     
     return (int(round(r * 255)), int(round(g * 255)), int(round(b * 255)))
 
 
 def rgb_to_hsv(r: int, g: int, b: int) -> Tuple[float, float, float]:
     """
-    Convert RGB to HSV.
+    将 RGB 转换为 HSV。
     
     Args:
-        r: Red (0-255)
-        g: Green (0-255)
-        b: Blue (0-255)
+        r, g, b: RGB 分量 (0-255)
     
     Returns:
-        Tuple of (h, s, v) where h is 0-360, s and v are 0-100
-    
-    Examples:
-        >>> rgb_to_hsv(255, 0, 0)
-        (0.0, 100.0, 100.0)
+        (h, s, v) - 色相(0-360), 饱和度(0-100), 明度(0-100)
     """
     r, g, b = r / 255.0, g / 255.0, b / 255.0
     
-    max_val = max(r, g, b)
-    min_val = min(r, g, b)
-    diff = max_val - min_val
+    max_c = max(r, g, b)
+    min_c = min(r, g, b)
+    diff = max_c - min_c
     
-    # Value
-    v = max_val
+    v = max_c
     
-    # Saturation
-    s = 0 if max_val == 0 else diff / max_val
-    
-    # Hue
     if diff == 0:
-        h = 0
+        h = s = 0.0
     else:
-        if max_val == r:
-            h = ((g - b) / diff) % 6
-        elif max_val == g:
+        s = diff / max_c
+        
+        if max_c == r:
+            h = (g - b) / diff + (6 if g < b else 0)
+        elif max_c == g:
             h = (b - r) / diff + 2
         else:
             h = (r - g) / diff + 4
         
         h *= 60
-        if h < 0:
-            h += 360
     
     return (h, s * 100, v * 100)
 
 
 def hsv_to_rgb(h: float, s: float, v: float) -> Tuple[int, int, int]:
     """
-    Convert HSV to RGB.
+    将 HSV 转换为 RGB。
     
     Args:
-        h: Hue (0-360)
-        s: Saturation (0-100)
-        v: Value (0-100)
+        h: 色相 (0-360)
+        s: 饱和度 (0-100)
+        v: 明度 (0-100)
     
     Returns:
-        Tuple of (r, g, b) where each is 0-255
-    
-    Examples:
-        >>> hsv_to_rgb(0, 100, 100)
-        (255, 0, 0)
+        (r, g, b) - RGB 分量 (0-255)
     """
-    h = h % 360
-    s = max(0, min(100, s)) / 100
-    v = max(0, min(100, v)) / 100
+    s /= 100
+    v /= 100
     
-    c = v * s
-    x = c * (1 - abs((h / 60) % 2 - 1))
-    m = v - c
-    
-    if h < 60:
-        r, g, b = c, x, 0
-    elif h < 120:
-        r, g, b = x, c, 0
-    elif h < 180:
-        r, g, b = 0, c, x
-    elif h < 240:
-        r, g, b = 0, x, c
-    elif h < 300:
-        r, g, b = x, 0, c
+    if s == 0:
+        r = g = b = v
     else:
-        r, g, b = c, 0, x
-    
-    return (int(round((r + m) * 255)), int(round((g + m) * 255)), int(round((b + m) * 255)))
-
-
-def rgb_to_cmyk(r: int, g: int, b: int) -> Tuple[float, float, float, float]:
-    """
-    Convert RGB to CMYK.
-    
-    Args:
-        r: Red (0-255)
-        g: Green (0-255)
-        b: Blue (0-255)
-    
-    Returns:
-        Tuple of (c, m, y, k) where each is 0-100
-    
-    Examples:
-        >>> rgb_to_cmyk(255, 255, 255)
-        (0.0, 0.0, 0.0, 0.0)
-        >>> rgb_to_cmyk(0, 0, 0)
-        (0.0, 0.0, 0.0, 100.0)
-    """
-    r, g, b = r / 255.0, g / 255.0, b / 255.0
-    
-    if r == g == b == 0:
-        return (0.0, 0.0, 0.0, 100.0)
-    
-    k = 1 - max(r, g, b)
-    c = (1 - r - k) / (1 - k)
-    m = (1 - g - k) / (1 - k)
-    y = (1 - b - k) / (1 - k)
-    
-    return (c * 100, m * 100, y * 100, k * 100)
-
-
-def cmyk_to_rgb(c: float, m: float, y: float, k: float) -> Tuple[int, int, int]:
-    """
-    Convert CMYK to RGB.
-    
-    Args:
-        c: Cyan (0-100)
-        m: Magenta (0-100)
-        y: Yellow (0-100)
-        k: Black (0-100)
-    
-    Returns:
-        Tuple of (r, g, b) where each is 0-255
-    
-    Examples:
-        >>> cmyk_to_rgb(0, 0, 0, 0)
-        (255, 255, 255)
-        >>> cmyk_to_rgb(0, 0, 0, 100)
-        (0, 0, 0)
-    """
-    c, m, y, k = c / 100, m / 100, y / 100, k / 100
-    
-    r = 255 * (1 - c) * (1 - k)
-    g = 255 * (1 - m) * (1 - k)
-    b = 255 * (1 - y) * (1 - k)
-    
-    return (int(round(r)), int(round(g)), int(round(b)))
-
-
-def rgb_to_lab(r: int, g: int, b: int) -> Tuple[float, float, float]:
-    """
-    Convert RGB to LAB color space.
-    
-    Args:
-        r: Red (0-255)
-        g: Green (0-255)
-        b: Blue (0-255)
-    
-    Returns:
-        Tuple of (L, a, b) where L is 0-100, a and b are typically -128 to 128
-    
-    Examples:
-        >>> rgb_to_lab(255, 255, 255)
-        (100.0, 0.0, 0.0)
-        >>> rgb_to_lab(0, 0, 0)
-        (0.0, 0.0, 0.0)
-    """
-    # RGB to XYZ
-    r, g, b = r / 255.0, g / 255.0, b / 255.0
-    
-    # Apply gamma correction
-    def gamma_correct(c):
-        if c > 0.04045:
-            return ((c + 0.055) / 1.055) ** 2.4
-        return c / 12.92
-    
-    r = gamma_correct(r)
-    g = gamma_correct(g)
-    b = gamma_correct(b)
-    
-    # Multiply by transformation matrix
-    x = r * 0.4124564 + g * 0.3575761 + b * 0.1804375
-    y = r * 0.2126729 + g * 0.7151522 + b * 0.0721750
-    z = r * 0.0193339 + g * 0.1191920 + b * 0.9503041
-    
-    # Normalize by D65 white point
-    x = x * 100 / D65_WHITE[0]
-    y = y * 100 / D65_WHITE[1]
-    z = z * 100 / D65_WHITE[2]
-    
-    # XYZ to LAB
-    def f(t):
-        if t > 0.008856:
-            return t ** (1/3)
-        return (903.3 * t + 16) / 116
-    
-    L = 116 * f(y) - 16
-    a = 500 * (f(x) - f(y))
-    b_val = 200 * (f(y) - f(z))
-    
-    return (L, a, b_val)
-
-
-def lab_to_rgb(L: float, a: float, b_val: float) -> Tuple[int, int, int]:
-    """
-    Convert LAB to RGB color space.
-    
-    Args:
-        L: Lightness (0-100)
-        a: a component (typically -128 to 128)
-        b_val: b component (typically -128 to 128)
-    
-    Returns:
-        Tuple of (r, g, b) where each is 0-255
-    
-    Examples:
-        >>> lab_to_rgb(100, 0, 0)
-        (255, 255, 255)
-        >>> lab_to_rgb(0, 0, 0)
-        (0, 0, 0)
-    """
-    # LAB to XYZ
-    def f_inv(t):
-        if t > 0.206893:
-            return t ** 3
-        return (t - 16/116) / 7.787
-    
-    y = (L + 16) / 116
-    x = a / 500 + y
-    z = y - b_val / 200
-    
-    x = f_inv(x) * D65_WHITE[0] / 100
-    y = f_inv(y) * D65_WHITE[1] / 100
-    z = f_inv(z) * D65_WHITE[2] / 100
-    
-    # XYZ to RGB
-    r = x * 3.2404542 + y * -1.5371385 + z * -0.4985314
-    g = x * -0.9692660 + y * 1.8760108 + z * 0.0415560
-    b = x * 0.0556434 + y * -0.2040259 + z * 1.0572252
-    
-    # Apply inverse gamma correction
-    def gamma_uncorrect(c):
-        if c > 0.0031308:
-            return 1.055 * (c ** (1/2.4)) - 0.055
-        return c * 12.92
-    
-    r = gamma_uncorrect(r)
-    g = gamma_uncorrect(g)
-    b = gamma_uncorrect(b)
-    
-    # Clamp to 0-1 range
-    r = max(0, min(1, r))
-    g = max(0, min(1, g))
-    b = max(0, min(1, b))
+        h = h / 60
+        i = int(h)
+        f = h - i
+        p = v * (1 - s)
+        q = v * (1 - s * f)
+        t = v * (1 - s * (1 - f))
+        
+        if i == 0:
+            r, g, b = v, t, p
+        elif i == 1:
+            r, g, b = q, v, p
+        elif i == 2:
+            r, g, b = p, v, t
+        elif i == 3:
+            r, g, b = p, q, v
+        elif i == 4:
+            r, g, b = t, p, v
+        else:
+            r, g, b = v, p, q
     
     return (int(round(r * 255)), int(round(g * 255)), int(round(b * 255)))
 
 
-# ============================================================================
-# Color Analysis Functions
-# ============================================================================
-
-def get_luminance(color: Union[str, Tuple[int, int, int], RGB]) -> float:
+def hex_to_rgb(hex_str: str) -> Tuple[int, int, int, float]:
     """
-    Calculate relative luminance of a color (WCAG definition).
+    将十六进制字符串转换为 RGB。
     
     Args:
-        color: Color in any supported format
+        hex_str: 十六进制颜色字符串 (#RGB, #RRGGBB, #RRGGBBAA, RGB, RRGGBB, RRGGBBAA)
     
     Returns:
-        Relative luminance (0.0 to 1.0)
-    
-    Examples:
-        >>> get_luminance('#FFFFFF')
-        1.0
-        >>> get_luminance('#000000')
-        0.0
-        >>> round(get_luminance('#FF0000'), 2)
-        0.21
+        (r, g, b, a) - RGB 分量 (0-255) 和透明度 (0.0-1.0)
     """
-    rgb = parse_color(color)
+    hex_str = hex_str.strip().lstrip('#')
     
-    def linearize(c):
-        c = c / 255
+    if len(hex_str) == 3:
+        hex_str = ''.join(c * 2 for c in hex_str)
+    elif len(hex_str) == 4:
+        hex_str = ''.join(c * 2 for c in hex_str)
+    
+    r = int(hex_str[0:2], 16)
+    g = int(hex_str[2:4], 16)
+    b = int(hex_str[4:6], 16)
+    
+    if len(hex_str) >= 8:
+        a = int(hex_str[6:8], 16) / 255.0
+    else:
+        a = 1.0
+    
+    return (r, g, b, a)
+
+
+def rgb_to_hex(r: int, g: int, b: int, include_alpha: bool = False, 
+               a: float = 1.0) -> str:
+    """
+    将 RGB 转换为十六进制字符串。
+    
+    Args:
+        r, g, b: RGB 分量 (0-255)
+        include_alpha: 是否包含透明度
+        a: 透明度 (0.0-1.0)
+    
+    Returns:
+        十六进制颜色字符串
+    """
+    if include_alpha:
+        alpha_hex = int(a * 255)
+        return f"#{r:02x}{g:02x}{b:02x}{alpha_hex:02x}"
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+def name_to_rgb(name: str) -> Tuple[int, int, int]:
+    """
+    将 CSS 颜色名称转换为 RGB。
+    
+    Args:
+        name: CSS 颜色名称
+    
+    Returns:
+        (r, g, b) - RGB 分量
+    
+    Raises:
+        ValueError: 颜色名称不存在
+    """
+    name_lower = name.lower().replace(' ', '')
+    if name_lower not in CSS_COLORS:
+        raise ValueError(f"Unknown color name: {name}")
+    return CSS_COLORS[name_lower]
+
+
+def rgb_to_name(r: int, g: int, b: int, exact: bool = True) -> Optional[str]:
+    """
+    将 RGB 转换为颜色名称。
+    
+    Args:
+        r, g, b: RGB 分量
+        exact: 是否要求精确匹配
+    
+    Returns:
+        颜色名称，如果没有匹配则返回 None
+    """
+    if exact:
+        return RGB_TO_NAME.get((r, g, b))
+    return find_closest_color_name(r, g, b)
+
+
+def find_closest_color_name(r: int, g: int, b: int) -> str:
+    """
+    找到最接近的颜色名称。
+    
+    Args:
+        r, g, b: RGB 分量
+    
+    Returns:
+        最接近的颜色名称
+    """
+    min_distance = float('inf')
+    closest_name = 'gray'
+    
+    for name, (nr, ng, nb) in CSS_COLORS.items():
+        distance = math.sqrt((r - nr) ** 2 + (g - ng) ** 2 + (b - nb) ** 2)
+        if distance < min_distance:
+            min_distance = distance
+            closest_name = name
+    
+    return closest_name
+
+
+# ===== 对比度和亮度计算 =====
+
+def calculate_luminance(r: int, g: int, b: int) -> float:
+    """
+    计算颜色的相对亮度 (WCAG 标准)。
+    
+    Args:
+        r, g, b: RGB 分量 (0-255)
+    
+    Returns:
+        相对亮度 (0.0-1.0)
+    """
+    def adjust(c):
+        c = c / 255.0
         return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
     
-    r, g, b = linearize(rgb.r), linearize(rgb.g), linearize(rgb.b)
-    
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+    return 0.2126 * adjust(r) + 0.7152 * adjust(g) + 0.0722 * adjust(b)
 
 
-def get_contrast_ratio(color1: Union[str, Tuple[int, int, int], RGB],
-                       color2: Union[str, Tuple[int, int, int], RGB]) -> float:
+def calculate_contrast_ratio(rgb1: Tuple[int, int, int], 
+                            rgb2: Tuple[int, int, int]) -> float:
     """
-    Calculate contrast ratio between two colors (WCAG definition).
+    计算两种颜色的对比度 (WCAG 标准)。
     
     Args:
-        color1: First color
-        color2: Second color
+        rgb1: 第一种颜色的 RGB 元组
+        rgb2: 第二种颜色的 RGB 元组
     
     Returns:
-        Contrast ratio (1.0 to 21.0)
-    
-    Examples:
-        >>> get_contrast_ratio('#FFFFFF', '#000000')
-        21.0
-        >>> round(get_contrast_ratio('#FFFFFF', '#FFFF00'), 1)
-        1.1
+        对比度 (1.0-21.0)
     """
-    l1 = get_luminance(color1)
-    l2 = get_luminance(color2)
+    l1 = calculate_luminance(*rgb1)
+    l2 = calculate_luminance(*rgb2)
     
     lighter = max(l1, l2)
     darker = min(l1, l2)
@@ -1037,919 +753,417 @@ def get_contrast_ratio(color1: Union[str, Tuple[int, int, int], RGB],
     return (lighter + 0.05) / (darker + 0.05)
 
 
-def get_wcag_level(contrast_ratio: float) -> Dict[str, str]:
+# ===== 调色板生成 =====
+
+def generate_complementary(color: Color) -> Tuple[Color, Color]:
     """
-    Get WCAG accessibility level for a contrast ratio.
+    生成互补色对。
     
     Args:
-        contrast_ratio: Contrast ratio (1.0 to 21.0)
+        color: 基础颜色
     
     Returns:
-        Dictionary with AA and AAA compliance levels for normal and large text
-    
-    Examples:
-        >>> get_wcag_level(7.0)
-        {'AA_normal': 'Pass', 'AA_large': 'Pass', 'AAA_normal': 'Pass', 'AAA_large': 'Pass'}
-        >>> get_wcag_level(4.5)
-        {'AA_normal': 'Pass', 'AA_large': 'Pass', 'AAA_normal': 'Fail', 'AAA_large': 'Pass'}
+        (原色, 互补色)
     """
-    return {
-        'AA_normal': 'Pass' if contrast_ratio >= 4.5 else 'Fail',
-        'AA_large': 'Pass' if contrast_ratio >= 3 else 'Fail',
-        'AAA_normal': 'Pass' if contrast_ratio >= 7 else 'Fail',
-        'AAA_large': 'Pass' if contrast_ratio >= 4.5 else 'Fail',
+    return (color, color.complement())
+
+
+def generate_analogous(color: Color, angle: float = 30.0) -> List[Color]:
+    """
+    生成类似色 (相邻色)。
+    
+    Args:
+        color: 基础颜色
+        angle: 相邻色之间的角度 (默认 30 度)
+    
+    Returns:
+        [左相邻色, 原色, 右相邻色]
+    """
+    return [
+        color.rotate_hue(-angle),
+        color,
+        color.rotate_hue(angle)
+    ]
+
+
+def generate_triadic(color: Color) -> List[Color]:
+    """
+    生成三元组色 (三角对立色)。
+    
+    Args:
+        color: 基础颜色
+    
+    Returns:
+        [原色, 120度色, 240度色]
+    """
+    return [
+        color,
+        color.rotate_hue(120),
+        color.rotate_hue(240)
+    ]
+
+
+def generate_split_complementary(color: Color, angle: float = 30.0) -> List[Color]:
+    """
+    生成分裂互补色。
+    
+    Args:
+        color: 基础颜色
+        angle: 偏离互补色的角度 (默认 30 度)
+    
+    Returns:
+        [原色, 互补色左侧, 互补色右侧]
+    """
+    complement = color.complement()
+    return [
+        color,
+        complement.rotate_hue(-angle),
+        complement.rotate_hue(angle)
+    ]
+
+
+def generate_tetradic(color: Color) -> List[Color]:
+    """
+    生成四元组色 (方形色)。
+    
+    Args:
+        color: 基础颜色
+    
+    Returns:
+        [原色, 90度色, 180度色, 270度色]
+    """
+    return [
+        color,
+        color.rotate_hue(90),
+        color.rotate_hue(180),
+        color.rotate_hue(270)
+    ]
+
+
+def generate_square(color: Color) -> List[Color]:
+    """
+    生成方形色 (同 tetradic)。
+    
+    Args:
+        color: 基础颜色
+    
+    Returns:
+        四个等距颜色
+    """
+    return generate_tetradic(color)
+
+
+def generate_shades(color: Color, count: int = 5) -> List[Color]:
+    """
+    生成同色系的深浅变化。
+    
+    Args:
+        color: 基础颜色
+        count: 生成的颜色数量
+    
+    Returns:
+        颜色列表 (从浅到深)
+    """
+    h, s, l = color.hsl
+    step = l / (count + 1)
+    
+    return [Color.from_hsl(h, s, step * (i + 1)) for i in range(count)]
+
+
+def generate_tints(color: Color, count: int = 5) -> List[Color]:
+    """
+    生成颜色的浅色调变化 (混入白色)。
+    
+    Args:
+        color: 基础颜色
+        count: 生成的颜色数量
+    
+    Returns:
+        颜色列表 (从原色到白色)
+    """
+    white = Color(255, 255, 255)
+    step = 1.0 / (count + 1)
+    
+    return [color.mix(white, 1 - step * (i + 1)) for i in range(count)]
+
+
+def generate_tones(color: Color, count: int = 5) -> List[Color]:
+    """
+    生成颜色的色调变化 (混入灰色)。
+    
+    Args:
+        color: 基础颜色
+        count: 生成的颜色数量
+    
+    Returns:
+        颜色列表
+    """
+    h, s, l = color.hsl
+    step = s / (count + 1)
+    
+    return [Color.from_hsl(h, s - step * (i + 1), l) for i in range(count)]
+
+
+def generate_gradient(start: Color, end: Color, steps: int) -> List[Color]:
+    """
+    生成两个颜色之间的渐变。
+    
+    Args:
+        start: 起始颜色
+        end: 结束颜色
+        steps: 步数
+    
+    Returns:
+        颜色列表
+    """
+    if steps < 2:
+        return [start]
+    
+    step_size = 1.0 / (steps - 1)
+    return [start.mix(end, 1 - step_size * i) for i in range(steps)]
+
+
+def generate_monochromatic(color: Color, count: int = 5) -> List[Color]:
+    """
+    生成单色调色板 (同色相的不同饱和度和亮度)。
+    
+    Args:
+        color: 基础颜色
+        count: 生成的颜色数量
+    
+    Returns:
+        颜色列表
+    """
+    h, s, l = color.hsl
+    result = []
+    
+    for i in range(count):
+        # 变化饱和度和亮度
+        new_s = max(20, min(100, s + (i - count // 2) * 15))
+        new_l = max(20, min(80, l + (i - count // 2) * 10))
+        result.append(Color.from_hsl(h, new_s, new_l))
+    
+    return result
+
+
+def generate_palette(color: Color, palette_type: str = 'complementary') -> List[Color]:
+    """
+    根据类型生成调色板。
+    
+    Args:
+        color: 基础颜色
+        palette_type: 调色板类型 
+                      ('complementary', 'analogous', 'triadic', 
+                       'split', 'tetradic', 'monochromatic')
+    
+    Returns:
+        颜色列表
+    """
+    generators = {
+        'complementary': lambda c: list(generate_complementary(c)),
+        'analogous': generate_analogous,
+        'triadic': generate_triadic,
+        'split': generate_split_complementary,
+        'tetradic': generate_tetradic,
+        'monochromatic': generate_monochromatic,
     }
-
-
-def get_perceived_brightness(color: Union[str, Tuple[int, int, int], RGB]) -> float:
-    """
-    Calculate perceived brightness of a color.
     
-    Args:
-        color: Color in any supported format
-    
-    Returns:
-        Perceived brightness (0.0 to 255.0)
-    
-    Examples:
-        >>> get_perceived_brightness('#FFFFFF')
-        255.0
-        >>> get_perceived_brightness('#000000')
-        0.0
-    """
-    rgb = parse_color(color)
-    # Using weighted formula (Rec. 709)
-    return math.sqrt(0.299 * rgb.r ** 2 + 0.587 * rgb.g ** 2 + 0.114 * rgb.b ** 2)
-
-
-def is_light_color(color: Union[str, Tuple[int, int, int], RGB]) -> bool:
-    """
-    Determine if a color is considered "light".
-    
-    Args:
-        color: Color in any supported format
-    
-    Returns:
-        True if light, False if dark
-    
-    Examples:
-        >>> is_light_color('#FFFFFF')
-        True
-        >>> is_light_color('#000000')
-        False
-    """
-    return get_perceived_brightness(color) > 127.5
-
-
-def get_color_temperature(color: Union[str, Tuple[int, int, int], RGB]) -> str:
-    """
-    Determine the color temperature (warm, cool, or neutral).
-    
-    Args:
-        color: Color in any supported format
-    
-    Returns:
-        'warm', 'cool', or 'neutral'
-    
-    Examples:
-        >>> get_color_temperature('#FF0000')
-        'warm'
-        >>> get_color_temperature('#0000FF')
-        'cool'
-        >>> get_color_temperature('#808080')
-        'neutral'
-    """
-    rgb = parse_color(color)
-    hsl = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
-    
-    h, s, l = hsl
-    
-    # Low saturation colors are neutral
-    if s < 10:
-        return 'neutral'
-    
-    # Warm colors: red, orange, yellow (0-60), and red-magenta (330-360)
-    if (0 <= h < 60) or (h >= 330):
-        return 'warm'
-    
-    # Cool colors: green, cyan, blue (60-270)
-    if 60 <= h < 270:
-        return 'cool'
-    
-    # Neutral zone: purple, magenta (270-330)
-    return 'neutral'
-
-
-# ============================================================================
-# Color Manipulation Functions
-# ============================================================================
-
-def lighten(color: Union[str, Tuple[int, int, int], RGB], amount: float = 10) -> RGB:
-    """
-    Lighten a color by a given amount.
-    
-    Args:
-        color: Color in any supported format
-        amount: Amount to lighten (0-100)
-    
-    Returns:
-        Lightened RGB color
-    
-    Examples:
-        >>> lighten('#FF0000', 20)
-        RGB(r=255, g=51, b=51)
-    """
-    rgb = parse_color(color)
-    h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
-    l = min(100, l + amount)
-    r, g, b = hsl_to_rgb(h, s, l)
-    return RGB(r, g, b)
-
-
-def darken(color: Union[str, Tuple[int, int, int], RGB], amount: float = 10) -> RGB:
-    """
-    Darken a color by a given amount.
-    
-    Args:
-        color: Color in any supported format
-        amount: Amount to darken (0-100)
-    
-    Returns:
-        Darkened RGB color
-    
-    Examples:
-        >>> darken('#FF0000', 20)
-        RGB(r=204, g=0, b=0)
-    """
-    rgb = parse_color(color)
-    h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
-    l = max(0, l - amount)
-    r, g, b = hsl_to_rgb(h, s, l)
-    return RGB(r, g, b)
-
-
-def saturate(color: Union[str, Tuple[int, int, int], RGB], amount: float = 10) -> RGB:
-    """
-    Increase saturation of a color.
-    
-    Args:
-        color: Color in any supported format
-        amount: Amount to saturate (0-100)
-    
-    Returns:
-        Saturated RGB color
-    
-    Examples:
-        >>> saturate('#CC3333', 20)
-        RGB(r=230, g=26, b=26)
-    """
-    rgb = parse_color(color)
-    h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
-    s = min(100, s + amount)
-    r, g, b = hsl_to_rgb(h, s, l)
-    return RGB(r, g, b)
-
-
-def desaturate(color: Union[str, Tuple[int, int, int], RGB], amount: float = 10) -> RGB:
-    """
-    Decrease saturation of a color.
-    
-    Args:
-        color: Color in any supported format
-        amount: Amount to desaturate (0-100)
-    
-    Returns:
-        Desaturated RGB color
-    
-    Examples:
-        >>> desaturate('#FF0000', 50)
-        RGB(r=255, g=128, b=128)
-    """
-    rgb = parse_color(color)
-    h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
-    s = max(0, s - amount)
-    r, g, b = hsl_to_rgb(h, s, l)
-    return RGB(r, g, b)
-
-
-def grayscale(color: Union[str, Tuple[int, int, int], RGB]) -> RGB:
-    """
-    Convert a color to grayscale.
-    
-    Args:
-        color: Color in any supported format
-    
-    Returns:
-        Grayscale RGB color
-    
-    Examples:
-        >>> grayscale('#FF0000')
-        RGB(r=76, g=76, b=76)
-    """
-    rgb = parse_color(color)
-    h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
-    r, g, b = hsl_to_rgb(h, 0, l)
-    return RGB(r, g, b)
-
-
-def invert(color: Union[str, Tuple[int, int, int], RGB]) -> RGB:
-    """
-    Invert a color.
-    
-    Args:
-        color: Color in any supported format
-    
-    Returns:
-        Inverted RGB color
-    
-    Examples:
-        >>> invert('#FFFFFF')
-        RGB(r=0, g=0, b=0)
-        >>> invert('#FF0000')
-        RGB(r=0, g=255, b=255)
-    """
-    rgb = parse_color(color)
-    return RGB(255 - rgb.r, 255 - rgb.g, 255 - rgb.b)
-
-
-def complement(color: Union[str, Tuple[int, int, int], RGB]) -> RGB:
-    """
-    Get the complementary color (opposite on the color wheel).
-    
-    Args:
-        color: Color in any supported format
-    
-    Returns:
-        Complementary RGB color
-    
-    Examples:
-        >>> complement('#FF0000')
-        RGB(r=0, g=255, b=255)
-    """
-    rgb = parse_color(color)
-    h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
-    h = (h + 180) % 360
-    r, g, b = hsl_to_rgb(h, s, l)
-    return RGB(r, g, b)
-
-
-def mix_colors(color1: Union[str, Tuple[int, int, int], RGB],
-               color2: Union[str, Tuple[int, int, int], RGB],
-               weight: float = 0.5) -> RGB:
-    """
-    Mix two colors together.
-    
-    Args:
-        color1: First color
-        color2: Second color
-        weight: Weight of first color (0.0 to 1.0)
-    
-    Returns:
-        Mixed RGB color
-    
-    Examples:
-        >>> mix_colors('#FF0000', '#0000FF', 0.5)
-        RGB(r=128, g=0, b=128)
-        >>> mix_colors('#FF0000', '#0000FF', 0.0)
-        RGB(r=0, g=0, b=255)
-    """
-    rgb1 = parse_color(color1)
-    rgb2 = parse_color(color2)
-    
-    weight = max(0, min(1, weight))
-    w1 = weight
-    w2 = 1 - weight
-    
-    r = int(round(rgb1.r * w1 + rgb2.r * w2))
-    g = int(round(rgb1.g * w1 + rgb2.g * w2))
-    b = int(round(rgb1.b * w1 + rgb2.b * w2))
-    
-    return RGB(r, g, b)
-
-
-def blend_colors(colors: List[Union[str, Tuple[int, int, int], RGB]]) -> RGB:
-    """
-    Blend multiple colors together (equal weights).
-    
-    Args:
-        colors: List of colors
-    
-    Returns:
-        Blended RGB color
-    
-    Examples:
-        >>> blend_colors(['#FF0000', '#00FF00', '#0000FF'])
-        RGB(r=85, g=85, b=85)
-    
-    Note:
-        优化版本（v2）：
-        - 边界处理：None 输入抛出 ValueError
-        - 边界处理：非列表输入抛出 ValueError
-        - 边界处理：空列表抛出 ValueError
-        - 边界处理：单元素列表直接返回该颜色
-        - 边界处理：跳过无效颜色（None）而非抛出异常
-        - 优化：单元素列表快速返回，避免计算
-        - 性能提升约 10-20%（对小型列表）
-    """
-    # 边界处理：None 输入
-    if colors is None:
-        raise ValueError("Cannot blend None color list")
-    
-    # 边界处理：非列表输入
-    if not isinstance(colors, list):
-        raise ValueError(f"Expected list of colors, got {type(colors).__name__}")
-    
-    # 边界处理：空列表
-    if not colors:
-        raise ValueError("Cannot blend empty color list")
-    
-    # 边界处理：单元素列表快速返回（优化：避免计算）
-    if len(colors) == 1:
-        color = colors[0]
-        if color is not None:
-            return parse_color(color)
-        raise ValueError("Single color in list is None")
-    
-    total_r, total_g, total_b = 0, 0, 0
-    valid_count = 0
-    
-    for color in colors:
-        # 边界处理：跳过无效颜色（None）
-        if color is None:
-            continue
-        
-        try:
-            rgb = parse_color(color)
-            total_r += rgb.r
-            total_g += rgb.g
-            total_b += rgb.b
-            valid_count += 1
-        except (ValueError, TypeError):
-            # 边界处理：跳过无效颜色格式
-            continue
-    
-    # 边界处理：所有颜色都无效
-    if valid_count == 0:
-        raise ValueError("No valid colors to blend")
-    
-    return RGB(
-        int(round(total_r / valid_count)),
-        int(round(total_g / valid_count)),
-        int(round(total_b / valid_count))
-    )
-
-
-# ============================================================================
-# Color Distance and Similarity
-# ============================================================================
-
-def color_distance(color1: Union[str, Tuple[int, int, int], RGB],
-                   color2: Union[str, Tuple[int, int, int], RGB]) -> float:
-    """
-    Calculate Euclidean distance between two colors in RGB space.
-    
-    Args:
-        color1: First color
-        color2: Second color
-    
-    Returns:
-        Distance (0.0 to 441.67 approximately)
-    
-    Examples:
-        >>> color_distance('#000000', '#FFFFFF')
-        441.67295593006337
-        >>> color_distance('#FF0000', '#FF0000')
-        0.0
-    """
-    rgb1 = parse_color(color1)
-    rgb2 = parse_color(color2)
-    
-    return math.sqrt(
-        (rgb1.r - rgb2.r) ** 2 +
-        (rgb1.g - rgb2.g) ** 2 +
-        (rgb1.b - rgb2.b) ** 2
-    )
-
-
-def color_distance_lab(color1: Union[str, Tuple[int, int, int], RGB],
-                       color2: Union[str, Tuple[int, int, int], RGB]) -> float:
-    """
-    Calculate perceptual distance between two colors using LAB space.
-    
-    This is more accurate for human perception than RGB distance.
-    
-    Args:
-        color1: First color
-        color2: Second color
-    
-    Returns:
-        Perceptual distance (lower is more similar)
-    
-    Examples:
-        >>> round(color_distance_lab('#FF0000', '#00FF00'), 1)
-        191.3
-    """
-    rgb1 = parse_color(color1)
-    rgb2 = parse_color(color2)
-    
-    lab1 = rgb_to_lab(rgb1.r, rgb1.g, rgb1.b)
-    lab2 = rgb_to_lab(rgb2.r, rgb2.g, rgb2.b)
-    
-    return math.sqrt(
-        (lab1[0] - lab2[0]) ** 2 +
-        (lab1[1] - lab2[1]) ** 2 +
-        (lab1[2] - lab2[2]) ** 2
-    )
-
-
-def are_colors_similar(color1: Union[str, Tuple[int, int, int], RGB],
-                       color2: Union[str, Tuple[int, int, int], RGB],
-                       threshold: float = 10.0) -> bool:
-    """
-    Check if two colors are perceptually similar.
-    
-    Args:
-        color1: First color
-        color2: Second color
-        threshold: Maximum LAB distance to be considered similar
-    
-    Returns:
-        True if colors are similar, False otherwise
-    
-    Examples:
-        >>> are_colors_similar('#FF0000', '#FF0101')
-        True
-        >>> are_colors_similar('#FF0000', '#00FF00')
-        False
-    """
-    return color_distance_lab(color1, color2) < threshold
-
-
-# ============================================================================
-# Color Harmony Functions
-# ============================================================================
-
-def get_complementary(color: Union[str, Tuple[int, int, int], RGB]) -> RGB:
-    """
-    Get complementary color (opposite on color wheel).
-    
-    Args:
-        color: Base color
-    
-    Returns:
-        Complementary RGB color
-    
-    Examples:
-        >>> get_complementary('#FF0000')
-        RGB(r=0, g=255, b=255)
-    """
-    return complement(color)
-
-
-def get_analogous(color: Union[str, Tuple[int, int, int], RGB],
-                  angle: float = 30) -> Tuple[RGB, RGB]:
-    """
-    Get analogous colors (adjacent on color wheel).
-    
-    Args:
-        color: Base color
-        angle: Angle between colors (default 30 degrees)
-    
-    Returns:
-        Tuple of two analogous RGB colors
-    
-    Examples:
-        >>> get_analogous('#FF0000')
-        (RGB(r=255, g=0, b=128), RGB(r=255, g=128, b=0))
-    """
-    rgb = parse_color(color)
-    h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
-    
-    h1 = (h - angle) % 360
-    h2 = (h + angle) % 360
-    
-    r1, g1, b1 = hsl_to_rgb(h1, s, l)
-    r2, g2, b2 = hsl_to_rgb(h2, s, l)
-    
-    return (RGB(r1, g1, b1), RGB(r2, g2, b2))
-
-
-def get_triadic(color: Union[str, Tuple[int, int, int], RGB]) -> Tuple[RGB, RGB]:
-    """
-    Get triadic colors (evenly spaced on color wheel, 120 degrees apart).
-    
-    Args:
-        color: Base color
-    
-    Returns:
-        Tuple of two triadic RGB colors
-    
-    Examples:
-        >>> get_triadic('#FF0000')
-        (RGB(r=0, g=255, b=0), RGB(r=0, g=0, b=255))
-    """
-    rgb = parse_color(color)
-    h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
-    
-    h1 = (h + 120) % 360
-    h2 = (h + 240) % 360
-    
-    r1, g1, b1 = hsl_to_rgb(h1, s, l)
-    r2, g2, b2 = hsl_to_rgb(h2, s, l)
-    
-    return (RGB(r1, g1, b1), RGB(r2, g2, b2))
-
-
-def get_split_complementary(color: Union[str, Tuple[int, int, int], RGB]) -> Tuple[RGB, RGB]:
-    """
-    Get split-complementary colors (adjacent to complement).
-    
-    Args:
-        color: Base color
-    
-    Returns:
-        Tuple of two split-complementary RGB colors
-    
-    Examples:
-        >>> get_split_complementary('#FF0000')
-        (RGB(r=0, g=255, b=128), RGB(r=0, g=128, b=255))
-    """
-    rgb = parse_color(color)
-    h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
-    
-    complement_h = (h + 180) % 360
-    h1 = (complement_h - 30) % 360
-    h2 = (complement_h + 30) % 360
-    
-    r1, g1, b1 = hsl_to_rgb(h1, s, l)
-    r2, g2, b2 = hsl_to_rgb(h2, s, l)
-    
-    return (RGB(r1, g1, b1), RGB(r2, g2, b2))
-
-
-def get_tetradic(color: Union[str, Tuple[int, int, int], RGB]) -> Tuple[RGB, RGB, RGB]:
-    """
-    Get tetradic colors (four colors, 90 degrees apart).
-    
-    Args:
-        color: Base color
-    
-    Returns:
-        Tuple of three tetradic RGB colors (base color + 3)
-    
-    Examples:
-        >>> get_tetradic('#FF0000')
-        (RGB(r=128, g=255, b=0), RGB(r=0, g=255, b=128), RGB(r=128, g=0, b=255))
-    """
-    rgb = parse_color(color)
-    h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
-    
-    h1 = (h + 90) % 360
-    h2 = (h + 180) % 360
-    h3 = (h + 270) % 360
-    
-    r1, g1, b1 = hsl_to_rgb(h1, s, l)
-    r2, g2, b2 = hsl_to_rgb(h2, s, l)
-    r3, g3, b3 = hsl_to_rgb(h3, s, l)
-    
-    return (RGB(r1, g1, b1), RGB(r2, g2, b2), RGB(r3, g3, b3))
-
-
-def get_square(color: Union[str, Tuple[int, int, int], RGB]) -> Tuple[RGB, RGB, RGB]:
-    """
-    Get square harmony colors (four colors evenly spaced).
-    
-    Same as tetradic.
-    
-    Args:
-        color: Base color
-    
-    Returns:
-        Tuple of three RGB colors
-    """
-    return get_tetradic(color)
-
-
-# ============================================================================
-# Palette Generation
-# ============================================================================
-
-def generate_shades(color: Union[str, Tuple[int, int, int], RGB],
-                    count: int = 5) -> List[RGB]:
-    """
-    Generate shades (darker versions) of a color.
-    
-    Args:
-        color: Base color
-        count: Number of shades to generate
-    
-    Returns:
-        List of RGB shades (from original to darkest)
-    
-    Examples:
-        >>> generate_shades('#FF0000', 3)
-        [RGB(r=255, g=0, b=0), RGB(r=170, g=0, b=0), RGB(r=85, g=0, b=0)]
-    """
-    rgb = parse_color(color)
-    h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
-    
-    shades = []
-    for i in range(count):
-        new_l = l * (1 - i / count)
-        r, g, b = hsl_to_rgb(h, s, max(0, new_l))
-        shades.append(RGB(r, g, b))
-    
-    return shades
-
-
-def generate_tints(color: Union[str, Tuple[int, int, int], RGB],
-                   count: int = 5) -> List[RGB]:
-    """
-    Generate tints (lighter versions) of a color.
-    
-    Args:
-        color: Base color
-        count: Number of tints to generate
-    
-    Returns:
-        List of RGB tints (from original to lightest)
-    
-    Examples:
-        >>> generate_tints('#FF0000', 3)
-        [RGB(r=255, g=0, b=0), RGB(r=255, g=85, b=85), RGB(r=255, g=170, b=170)]
-    """
-    rgb = parse_color(color)
-    h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
-    
-    tints = []
-    for i in range(count):
-        new_l = l + (100 - l) * (i / count)
-        r, g, b = hsl_to_rgb(h, s, min(100, new_l))
-        tints.append(RGB(r, g, b))
-    
-    return tints
-
-
-def generate_tones(color: Union[str, Tuple[int, int, int], RGB],
-                   count: int = 5) -> List[RGB]:
-    """
-    Generate tones (mixed with gray) of a color.
-    
-    Args:
-        color: Base color
-        count: Number of tones to generate
-    
-    Returns:
-        List of RGB tones
-    
-    Examples:
-        >>> generate_tones('#FF0000', 3)
-        [RGB(r=255, g=0, b=0), RGB(r=213, g=42, b=42), RGB(r=170, g=85, b=85)]
-    """
-    rgb = parse_color(color)
-    h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
-    
-    tones = []
-    for i in range(count):
-        new_s = s * (1 - i / count)
-        r, g, b = hsl_to_rgb(h, max(0, new_s), l)
-        tones.append(RGB(r, g, b))
-    
-    return tones
-
-
-def generate_palette(color: Union[str, Tuple[int, int, int], RGB],
-                     count: int = 5,
-                     palette_type: str = 'shades') -> List[RGB]:
-    """
-    Generate a color palette.
-    
-    Args:
-        color: Base color
-        count: Number of colors
-        palette_type: 'shades', 'tints', 'tones', 'analogous', 'complementary'
-    
-    Returns:
-        List of RGB colors
-    
-    Examples:
-        >>> len(generate_palette('#FF0000', 5))
-        5
-    """
-    if palette_type == 'shades':
-        return generate_shades(color, count)
-    elif palette_type == 'tints':
-        return generate_tints(color, count)
-    elif palette_type == 'tones':
-        return generate_tones(color, count)
-    elif palette_type == 'analogous':
-        rgb = parse_color(color)
-        h, s, l = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
-        
-        colors = [rgb]
-        step = 30  # 30 degree steps
-        for i in range(1, count):
-            new_h = (h + i * step) % 360
-            r, g, b = hsl_to_rgb(new_h, s, l)
-            colors.append(RGB(r, g, b))
-        return colors
-    elif palette_type == 'complementary':
-        rgb = parse_color(color)
-        complement_color = complement(color)
-        
-        colors = [rgb]
-        for i in range(1, count):
-            weight = i / count
-            mixed = mix_colors(rgb, complement_color, 1 - weight)
-            colors.append(mixed)
-        return colors
-    else:
+    if palette_type not in generators:
         raise ValueError(f"Unknown palette type: {palette_type}")
+    
+    return generators[palette_type](color)
 
 
-def generate_gradient(start_color: Union[str, Tuple[int, int, int], RGB],
-                      end_color: Union[str, Tuple[int, int, int], RGB],
-                      steps: int = 10) -> List[RGB]:
+# ===== 实用函数 =====
+
+def random_color(hue: Optional[float] = None, saturation: Optional[float] = None,
+                 lightness: Optional[float] = None) -> Color:
     """
-    Generate a gradient between two colors.
+    生成随机颜色。
     
     Args:
-        start_color: Starting color
-        end_color: Ending color
-        steps: Number of colors in gradient
+        hue: 指定色相 (可选)
+        saturation: 指定饱和度 (可选)
+        lightness: 指定亮度 (可选)
     
     Returns:
-        List of RGB colors forming the gradient
-    
-    Examples:
-        >>> gradient = generate_gradient('#FF0000', '#0000FF', 3)
-        >>> len(gradient)
-        3
-    
-    Note:
-        优化版本（v2）：
-        - 边界处理：None 输入抛出 ValueError
-        - 边界处理：无效 steps 使用默认值
-        - 边界处理：steps <= 0 返回空列表
-        - 边界处理：steps == 1 返回单元素列表
-        - 边界处理：steps == 2 返回两端颜色
-        - 优化：预计算颜色差值，避免重复 mix_colors 调用
-        - 性能提升约 25-40%（对大型梯度）
+        Color 对象
     """
-    # 边界处理：None 输入
-    if start_color is None or end_color is None:
-        raise ValueError("Start and end colors cannot be None")
-    
-    # 边界处理：无效 steps 使用默认值
-    if steps is None or not isinstance(steps, int):
-        steps = 10
-    
-    # 边界处理：steps <= 0 返回空列表
-    if steps <= 0:
-        return []
-    
-    rgb1 = parse_color(start_color)
-    rgb2 = parse_color(end_color)
-    
-    # 边界处理：steps == 1 返回起始颜色
-    if steps == 1:
-        return [rgb1]
-    
-    # 边界处理：steps == 2 返回两端颜色
-    if steps == 2:
-        return [rgb1, rgb2]
-    
-    # 优化：预计算颜色差值，避免重复 mix_colors 调用
-    # mix_colors 中的计算可以简化为线性插值
-    delta_r = rgb2.r - rgb1.r
-    delta_g = rgb2.g - rgb1.g
-    delta_b = rgb2.b - rgb1.b
-    
-    gradient = []
-    steps_minus_1 = steps - 1
-    
-    for i in range(steps):
-        # 优化：直接计算线性插值，避免 mix_colors 调用
-        weight = i / steps_minus_1
-        r = int(round(rgb1.r + delta_r * weight))
-        g = int(round(rgb1.g + delta_g * weight))
-        b = int(round(rgb1.b + delta_b * weight))
-        
-        # 边界处理：确保 RGB 值在有效范围内
-        gradient.append(RGB(
-            max(0, min(255, r)),
-            max(0, min(255, g)),
-            max(0, min(255, b))
-        ))
-    
-    return gradient
+    return Color.random(hue, saturation, lightness)
 
 
-def generate_random_palette(count: int = 5,
-                            harmonize: bool = True) -> List[RGB]:
+def random_pastel() -> Color:
+    """生成随机柔和色。"""
+    return Color.random(lightness=70, saturation=60)
+
+
+def random_vibrant() -> Color:
+    """生成随机鲜艳色。"""
+    return Color.random(saturation=90, lightness=50)
+
+
+def random_dark() -> Color:
+    """生成随机深色。"""
+    return Color.random(lightness=30, saturation=70)
+
+
+def random_light() -> Color:
+    """生成随机浅色。"""
+    return Color.random(lightness=80, saturation=50)
+
+
+def blend_colors(colors: List[Color], weights: Optional[List[float]] = None) -> Color:
     """
-    Generate a random color palette.
+    混合多个颜色。
     
     Args:
-        count: Number of colors
-        harmonize: If True, generate harmonious colors (similar saturation/lightness)
+        colors: 颜色列表
+        weights: 权重列表 (可选)
     
     Returns:
-        List of random RGB colors
+        混合后的颜色
+    """
+    if not colors:
+        raise ValueError("Colors list cannot be empty")
     
-    Examples:
-        >>> len(generate_random_palette(5))
-        5
+    if weights is None:
+        weights = [1.0 / len(colors)] * len(colors)
+    
+    if len(colors) != len(weights):
+        raise ValueError("Colors and weights must have the same length")
+    
+    total_weight = sum(weights)
+    weights = [w / total_weight for w in weights]
+    
+    r = sum(c.r * w for c, w in zip(colors, weights))
+    g = sum(c.g * w for c, w in zip(colors, weights))
+    b = sum(c.b * w for c, w in zip(colors, weights))
+    a = sum(c.a * w for c, w in zip(colors, weights))
+    
+    return Color(int(r), int(g), int(b), a)
+
+
+def parse_color(color_str: str) -> Color:
     """
-    if harmonize:
-        # Generate colors with similar saturation and lightness
-        base_s = random.uniform(50, 80)
-        base_l = random.uniform(40, 60)
-        
-        colors = []
-        for i in range(count):
-            h = (i * 360 / count + random.uniform(-15, 15)) % 360
-            s = base_s + random.uniform(-10, 10)
-            l = base_l + random.uniform(-10, 10)
-            r, g, b = hsl_to_rgb(h, max(0, min(100, s)), max(0, min(100, l)))
-            colors.append(RGB(r, g, b))
-        return colors
-    else:
-        return [RGB(random.randint(0, 255),
-                     random.randint(0, 255),
-                     random.randint(0, 255)) for _ in range(count)]
-
-
-# ============================================================================
-# Comprehensive Color Information
-# ============================================================================
-
-def get_color_info(color: Union[str, Tuple[int, int, int], RGB]) -> ColorInfo:
-    """
-    Get comprehensive information about a color.
+    解析颜色字符串。
+    
+    支持格式:
+    - 十六进制: #RGB, #RRGGBB, #RRGGBBAA
+    - CSS 名称: red, blue, etc.
+    - RGB: rgb(255, 0, 0), rgba(255, 0, 0, 0.5)
+    - HSL: hsl(0, 100%, 50%), hsla(0, 100%, 50%, 0.5)
     
     Args:
-        color: Color in any supported format
+        color_str: 颜色字符串
     
     Returns:
-        ColorInfo object with all color details
-    
-    Examples:
-        >>> info = get_color_info('#FF0000')
-        >>> info.hex
-        '#ff0000'
-        >>> info.luminance > 0.2
-        True
+        Color 对象
     """
-    rgb = parse_color(color)
-    hsl = rgb_to_hsl(rgb.r, rgb.g, rgb.b)
-    hsv = rgb_to_hsv(rgb.r, rgb.g, rgb.b)
-    cmyk = rgb_to_cmyk(rgb.r, rgb.g, rgb.b)
-    lab = rgb_to_lab(rgb.r, rgb.g, rgb.b)
+    color_str = color_str.strip().lower()
     
-    return ColorInfo(
-        hex=rgb.to_hex(),
-        rgb=rgb,
-        hsl=HSL(hsl[0], hsl[1], hsl[2]),
-        hsv=hsv,
-        cmyk=cmyk,
-        lab=lab,
-        name=get_color_name(rgb),
-        luminance=get_luminance(rgb),
-        temperature=get_color_temperature(rgb)
-    )
+    # 十六进制
+    if color_str.startswith('#'):
+        return Color.from_hex(color_str)
+    
+    # RGB/RGBA
+    if color_str.startswith('rgb'):
+        import re
+        match = re.match(r'rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)', color_str)
+        if match:
+            r, g, b = int(match.group(1)), int(match.group(2)), int(match.group(3))
+            a = float(match.group(4)) if match.group(4) else 1.0
+            return Color(r, g, b, a)
+    
+    # HSL/HSLA
+    if color_str.startswith('hsl'):
+        import re
+        match = re.match(r'hsla?\s*\(\s*([\d.]+)\s*,\s*([\d.]+)%?\s*,\s*([\d.]+)%?\s*(?:,\s*([\d.]+)\s*)?\)', color_str)
+        if match:
+            h, s, l = float(match.group(1)), float(match.group(2)), float(match.group(3))
+            a = float(match.group(4)) if match.group(4) else 1.0
+            return Color.from_hsl(h, s, l, a)
+    
+    # CSS 名称
+    try:
+        return Color.from_name(color_str)
+    except ValueError:
+        pass
+    
+    raise ValueError(f"Unable to parse color: {color_str}")
 
 
-if __name__ == '__main__':
-    # Quick demo
-    print("=== Color Conversion Examples ===")
-    print(f"rgb_to_hex(255, 0, 0): {rgb_to_hex(255, 0, 0)}")
-    print(f"hex_to_rgb('#FF0000'): {hex_to_rgb('#FF0000')}")
-    print(f"rgb_to_hsl(255, 0, 0): {rgb_to_hsl(255, 0, 0)}")
-    print(f"hsl_to_rgb(0, 100, 50): {hsl_to_rgb(0, 100, 50)}")
+def get_color_suggestions(color: Color, purpose: str = 'ui') -> Dict[str, Color]:
+    """
+    获取颜色建议。
     
-    print("\n=== Color Analysis Examples ===")
-    print(f"get_luminance('#FF0000'): {get_luminance('#FF0000'):.3f}")
-    print(f"get_contrast_ratio('#FFFFFF', '#000000'): {get_contrast_ratio('#FFFFFF', '#000000'):.1f}")
-    print(f"is_light_color('#FFFFFF'): {is_light_color('#FFFFFF')}")
-    print(f"get_color_temperature('#FF0000'): {get_color_temperature('#FF0000')}")
+    Args:
+        color: 基础颜色
+        purpose: 用途 ('ui', 'text', 'background')
     
-    print("\n=== Color Harmony Examples ===")
-    print(f"complement('#FF0000'): {complement('#FF0000')}")
-    print(f"get_triadic('#FF0000'): {get_triadic('#FF0000')}")
+    Returns:
+        包含建议颜色的字典
+    """
+    suggestions = {
+        'original': color,
+        'text_on_bg': color.text_color(),
+        'complement': color.complement(),
+        'lighter': color.lighten(20),
+        'darker': color.darken(20),
+        'saturated': color.saturate(20),
+        'desaturated': color.desaturate(20),
+    }
     
-    print("\n=== Palette Examples ===")
-    shades = generate_shades('#FF0000', 5)
-    print(f"Shades of red: {[s.to_hex() for s in shades]}")
+    if purpose == 'ui':
+        suggestions.update({
+            'hover': color.darken(10),
+            'active': color.darken(20),
+            'disabled': color.desaturate(50).lighten(20),
+            'border': color.darken(30),
+        })
+    elif purpose == 'text':
+        suggestions.update({
+            'primary': color,
+            'secondary': color.desaturate(30),
+            'muted': color.desaturate(50).lighten(10),
+        })
     
-    gradient = generate_gradient('#FF0000', '#0000FF', 5)
-    print(f"Gradient red to blue: {[c.to_hex() for c in gradient]}")
-    
-    print("\n=== Color Info ===")
-    info = get_color_info('#FF5733')
-    print(f"HEX: {info.hex}")
-    print(f"RGB: {info.rgb}")
-    print(f"HSL: H={info.hsl.h:.1f}, S={info.hsl.s:.1f}%, L={info.hsl.l:.1f}%")
-    print(f"Luminance: {info.luminance:.3f}")
-    print(f"Temperature: {info.temperature}")
-    print(f"Closest named color: {info.name}")
+    return suggestions
+
+
+# 导出
+__all__ = [
+    'Color',
+    'CSS_COLORS',
+    'RGB_TO_NAME',
+    'rgb_to_hsl',
+    'hsl_to_rgb',
+    'rgb_to_hsv',
+    'hsv_to_rgb',
+    'hex_to_rgb',
+    'rgb_to_hex',
+    'name_to_rgb',
+    'rgb_to_name',
+    'find_closest_color_name',
+    'calculate_luminance',
+    'calculate_contrast_ratio',
+    'generate_complementary',
+    'generate_analogous',
+    'generate_triadic',
+    'generate_split_complementary',
+    'generate_tetradic',
+    'generate_square',
+    'generate_shades',
+    'generate_tints',
+    'generate_tones',
+    'generate_gradient',
+    'generate_monochromatic',
+    'generate_palette',
+    'random_color',
+    'random_pastel',
+    'random_vibrant',
+    'random_dark',
+    'random_light',
+    'blend_colors',
+    'parse_color',
+    'get_color_suggestions',
+]
