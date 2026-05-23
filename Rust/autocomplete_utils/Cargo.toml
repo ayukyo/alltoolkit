@@ -1,0 +1,14 @@
+[package]
+name = "autocomplete_utils"
+version = "0.1.0"
+edition = "2021"
+description = "Zero-dependency Trie-based text autocomplete library"
+license = "MIT"
+
+[lib]
+name = "autocomplete_utils"
+path = "mod.rs"
+
+[[example]]
+name = "demo"
+path = "examples/demo.rs"
