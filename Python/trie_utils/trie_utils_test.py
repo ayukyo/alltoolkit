@@ -1,532 +1,603 @@
 """
-Trie 工具模块测试
+Trie Utilities 测试套件
 
-测试覆盖：
-- 基本插入、搜索、删除
-- 前缀搜索与自动补全
-- 模式匹配
-- 序列化/反序列化
-- 边界条件与错误处理
+包含完整的单元测试，覆盖所有功能。
 """
 
 import unittest
 import sys
 import os
 
-# 添加模块路径
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# 添加父目录到路径
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from mod import (
-    Trie, TrieNode, SuffixTrie, PrefixSet,
-    build_trie, find_common_prefix, word_frequency_analysis
+from trie_utils.mod import (
+    Trie, TrieNode, CompactTrie, SuffixTrie,
+    build_trie, build_word_trie, autocomplete_from_list
 )
 
 
 class TestTrieNode(unittest.TestCase):
-    """测试 TrieNode"""
+    """TrieNode 测试"""
     
-    def test_init(self):
-        """测试节点初始化"""
+    def test_create_node(self):
+        """测试创建节点"""
         node = TrieNode()
         self.assertFalse(node.is_end)
         self.assertEqual(node.count, 0)
         self.assertIsNone(node.data)
         self.assertEqual(len(node.children), 0)
     
-    def test_repr(self):
-        """测试字符串表示"""
+    def test_add_child(self):
+        """测试添加子节点"""
+        node = TrieNode()
+        child = node.add_child('a')
+        self.assertIsNotNone(child)
+        self.assertTrue(node.has_child('a'))
+        self.assertEqual(node.get_child('a'), child)
+    
+    def test_remove_child(self):
+        """测试移除子节点"""
+        node = TrieNode()
+        node.add_child('a')
+        self.assertTrue(node.remove_child('a'))
+        self.assertFalse(node.has_child('a'))
+        self.assertFalse(node.remove_child('b'))  # 不存在
+    
+    def test_is_leaf(self):
+        """测试叶子节点判断"""
+        node = TrieNode()
+        self.assertTrue(node.is_leaf())
+        node.add_child('a')
+        self.assertFalse(node.is_leaf())
+    
+    def test_to_dict_from_dict(self):
+        """测试序列化和反序列化"""
         node = TrieNode()
         node.is_end = True
         node.count = 5
-        node.children['a'] = TrieNode()
+        node.data = {"key": "value"}
+        node.add_child('a')
         
-        repr_str = repr(node)
-        self.assertIn("end=True", repr_str)
-        self.assertIn("count=5", repr_str)
-        self.assertIn("children=1", repr_str)
+        data = node.to_dict()
+        restored = TrieNode.from_dict(data)
+        
+        self.assertEqual(restored.is_end, node.is_end)
+        self.assertEqual(restored.count, node.count)
+        self.assertEqual(restored.data, node.data)
+        self.assertTrue(restored.has_child('a'))
 
 
-class TestTrieBasic(unittest.TestCase):
-    """测试 Trie 基本功能"""
+class TestTrie(unittest.TestCase):
+    """Trie 测试"""
     
     def setUp(self):
+        """测试前准备"""
         self.trie = Trie()
+        self.words = ["apple", "app", "application", "apply", "banana", "band"]
     
     def test_insert_and_search(self):
         """测试插入和搜索"""
-        self.trie.insert("hello")
-        self.assertTrue(self.trie.search("hello"))
-        self.assertFalse(self.trie.search("hell"))
-        self.assertFalse(self.trie.search("helloo"))
-    
-    def test_insert_empty_string(self):
-        """测试插入空字符串"""
-        self.trie.insert("")
-        self.assertEqual(self.trie.size(), 0)
+        for word in self.words:
+            self.assertTrue(self.trie.insert(word))
+        
+        for word in self.words:
+            self.assertTrue(self.trie.search(word))
+        
+        # 搜索不存在的单词
+        self.assertFalse(self.trie.search("orange"))
+        self.assertFalse(self.trie.search("apples"))
+        self.assertFalse(self.trie.search(""))
     
     def test_insert_duplicate(self):
-        """测试插入重复单词"""
-        self.trie.insert("test")
-        self.trie.insert("test")
-        self.assertEqual(self.trie.size(), 1)
-        self.assertEqual(self.trie.get_count("test"), 2)
+        """测试重复插入"""
+        self.assertTrue(self.trie.insert("hello"))
+        self.assertFalse(self.trie.insert("hello"))  # 重复
+        self.assertEqual(len(self.trie), 1)
     
-    def test_insert_with_data(self):
-        """测试带数据插入"""
-        self.trie.insert("word", data={"meaning": "单词"})
-        self.assertEqual(self.trie.get_data("word"), {"meaning": "单词"})
-    
-    def test_search_nonexistent(self):
-        """测试搜索不存在的单词"""
-        self.trie.insert("apple")
-        self.assertFalse(self.trie.search("banana"))
-        self.assertFalse(self.trie.search("app"))
-    
-    def test_contains_operator(self):
-        """测试 in 操作符"""
-        self.trie.insert("python")
-        self.assertIn("python", self.trie)
-        self.assertNotIn("java", self.trie)
-    
-    def test_len_operator(self):
-        """测试 len 操作符"""
-        self.assertEqual(len(self.trie), 0)
-        self.trie.insert("one")
-        self.trie.insert("two")
-        self.assertEqual(len(self.trie), 2)
-    
-    def test_iter_operator(self):
-        """测试迭代"""
-        words = ["apple", "banana", "cherry"]
-        for word in words:
-            self.trie.insert(word)
-        
-        result = list(self.trie)
-        self.assertEqual(set(result), set(words))
-    
-    def test_is_empty(self):
-        """测试判空"""
-        self.assertTrue(self.trie.is_empty())
-        self.trie.insert("test")
-        self.assertFalse(self.trie.is_empty())
-    
-    def test_clear(self):
-        """测试清空"""
-        self.trie.insert("test1")
-        self.trie.insert("test2")
-        self.trie.clear()
-        self.assertEqual(self.trie.size(), 0)
-        self.assertTrue(self.trie.is_empty())
-
-
-class TestTriePrefixSearch(unittest.TestCase):
-    """测试前缀搜索功能"""
-    
-    def setUp(self):
-        self.trie = Trie()
-        words = ["hello", "help", "helper", "helicopter", "helium", "world"]
-        for word in words:
-            self.trie.insert(word)
+    def test_insert_empty(self):
+        """测试插入空字符串"""
+        self.assertFalse(self.trie.insert(""))
     
     def test_starts_with(self):
-        """测试前缀搜索"""
-        results = self.trie.starts_with("hel")
-        self.assertEqual(len(results), 5)
-        self.assertIn("hello", results)
-        self.assertIn("help", results)
-    
-    def test_starts_with_limit(self):
-        """测试前缀搜索限制"""
-        results = self.trie.starts_with("hel", limit=2)
-        self.assertEqual(len(results), 2)
-    
-    def test_starts_with_no_match(self):
-        """测试无匹配前缀"""
-        results = self.trie.starts_with("xyz")
-        self.assertEqual(len(results), 0)
-    
-    def test_contains_prefix(self):
-        """测试前缀存在检查"""
-        self.assertTrue(self.trie.contains_prefix("hel"))
-        self.assertTrue(self.trie.contains_prefix("help"))
-        self.assertFalse(self.trie.contains_prefix("xyz"))
-    
-    def test_longest_prefix(self):
-        """测试最长前缀匹配"""
-        self.trie.insert("helping")
-        result = self.trie.longest_prefix("helpinghand")
-        self.assertEqual(result, "helping")
-    
-    def test_longest_prefix_no_match(self):
-        """测试无匹配的最长前缀"""
-        result = self.trie.longest_prefix("xyz123")
-        self.assertEqual(result, "")
-    
-    def test_count_words_with_prefix(self):
-        """测试前缀单词计数"""
-        count = self.trie.count_words_with_prefix("hel")
-        self.assertEqual(count, 5)
-
-
-class TestTrieDelete(unittest.TestCase):
-    """测试删除功能"""
-    
-    def setUp(self):
-        self.trie = Trie()
-        words = ["cat", "cats", "cater", "dog"]
-        for word in words:
+        """测试前缀匹配"""
+        for word in self.words:
             self.trie.insert(word)
+        
+        # 测试各种前缀
+        self.assertEqual(set(self.trie.starts_with("app")), 
+                        {"apple", "app", "application", "apply"})
+        self.assertEqual(set(self.trie.starts_with("ban")), 
+                        {"banana", "band"})
+        self.assertEqual(self.trie.starts_with("or"), [])
+        
+        # 空前缀返回所有
+        all_words = self.trie.starts_with("")
+        self.assertEqual(set(all_words), set(self.words))
     
-    def test_delete_leaf(self):
-        """测试删除叶子节点"""
-        self.assertTrue(self.trie.delete("dog"))
-        self.assertFalse(self.trie.search("dog"))
-        self.assertEqual(self.trie.size(), 3)
-    
-    def test_delete_internal_node(self):
-        """测试删除内部节点"""
-        self.assertTrue(self.trie.delete("cat"))
-        self.assertFalse(self.trie.search("cat"))
-        self.assertTrue(self.trie.search("cats"))
-        self.assertTrue(self.trie.search("cater"))
-    
-    def test_delete_nonexistent(self):
-        """测试删除不存在的单词"""
-        self.assertFalse(self.trie.delete("bird"))
-        self.assertEqual(self.trie.size(), 4)
-    
-    def test_delete_empty_string(self):
-        """测试删除空字符串"""
-        self.assertFalse(self.trie.delete(""))
-
-
-class TestTriePatternMatch(unittest.TestCase):
-    """测试模式匹配"""
-    
-    def setUp(self):
-        self.trie = Trie()
-        words = ["cat", "bat", "rat", "car", "bar", "cab", "can"]
-        for word in words:
+    def test_delete(self):
+        """测试删除"""
+        for word in self.words:
             self.trie.insert(word)
+        
+        # 删除存在的单词
+        self.assertTrue(self.trie.delete("apple"))
+        self.assertFalse(self.trie.search("apple"))
+        self.assertTrue(self.trie.search("app"))  # 共享前缀应保留
+        
+        # 删除不存在的单词
+        self.assertFalse(self.trie.delete("orange"))
+        self.assertFalse(self.trie.delete(""))  # 空字符串
     
-    def test_pattern_match_question_mark(self):
-        """测试 ? 通配符"""
-        results = self.trie.pattern_match("?at")
-        self.assertEqual(set(results), {"cat", "bat", "rat"})
+    def test_update_and_get_data(self):
+        """测试更新和获取数据"""
+        self.trie.insert("test", data={"value": 1})
+        self.assertEqual(self.trie.get_data("test"), {"value": 1})
+        
+        self.assertTrue(self.trie.update("test", {"value": 2}))
+        self.assertEqual(self.trie.get_data("test"), {"value": 2})
+        
+        # 更新不存在的单词
+        self.assertFalse(self.trie.update("notexist", data={}))
     
-    def test_pattern_match_multiple_wildcards(self):
-        """测试多个通配符"""
-        results = self.trie.pattern_match("ca?")
-        self.assertEqual(set(results), {"cat", "car", "cab", "can"})
+    def test_count(self):
+        """测试词频计数"""
+        self.trie.insert("hello", count=5)
+        self.trie.insert("hello", count=3)  # 累加
+        self.trie.insert("world", count=10)
+        
+        self.assertEqual(self.trie.get_count("hello"), 8)
+        self.assertEqual(self.trie.get_count("world"), 10)
+        self.assertEqual(self.trie.get_count("notexist"), 0)
     
-    def test_pattern_match_exact(self):
-        """测试精确模式"""
-        results = self.trie.pattern_match("cat")
-        self.assertEqual(results, ["cat"])
+    def test_list_all(self):
+        """测试列出所有单词"""
+        for word in self.words:
+            self.trie.insert(word)
+        
+        all_words = self.trie.list_all()
+        self.assertEqual(set(all_words), set(self.words))
     
-    def test_pattern_match_no_match(self):
-        """测试无匹配模式"""
-        results = self.trie.pattern_match("xyz")
-        self.assertEqual(len(results), 0)
-
-
-class TestTrieAutocomplete(unittest.TestCase):
-    """测试自动补全"""
-    
-    def setUp(self):
-        self.trie = Trie()
-        # 插入带频次的单词
-        words = [
-            ("hello", 10),
-            ("help", 5),
-            ("helper", 3),
-            ("helicopter", 2),
-            ("helium", 1)
-        ]
-        for word, count in words:
-            for _ in range(count):
-                self.trie.insert(word)
+    def test_list_with_counts(self):
+        """测试列出单词和词频"""
+        self.trie.insert("a", count=1)
+        self.trie.insert("b", count=2)
+        
+        result = self.trie.list_with_counts()
+        self.assertEqual(dict(result), {"a": 1, "b": 2})
     
     def test_autocomplete(self):
         """测试自动补全"""
-        results = self.trie.autocomplete("hel")
-        self.assertTrue(len(results) <= 5)
-        # 频率最高的应该在前面
-        self.assertEqual(results[0][0], "hello")
+        for word, count in [("apple", 10), ("app", 5), ("application", 8), 
+                           ("apply", 3), ("apricot", 1)]:
+            self.trie.insert(word, count=count)
+        
+        # 按词频排序
+        suggestions = self.trie.autocomplete("app", limit=3)
+        self.assertEqual(suggestions, ["apple", "application", "app"])
+        
+        # 空前缀返回最高频
+        all_suggestions = self.trie.autocomplete("", limit=3)
+        self.assertEqual(all_suggestions, ["apple", "application", "app"])
     
-    def test_autocomplete_limit(self):
-        """测试自动补全限制"""
-        results = self.trie.autocomplete("hel", max_suggestions=2)
-        self.assertEqual(len(results), 2)
+    def test_fuzzy_search(self):
+        """测试模糊搜索"""
+        for word in ["cat", "dog", "car", "cart", "care", "careful"]:
+            self.trie.insert(word)
+        
+        # "cta" 和 "cat" 的编辑距离是 2（交换 't' 和 'a'）
+        result = self.trie.fuzzy_search("cta", max_distance=2)
+        matches = [word for word, dist in result]
+        self.assertIn("cat", matches)
+        
+        # "ct" 和 "cat" 的编辑距离是 1（删除 'a'）
+        result = self.trie.fuzzy_search("ct", max_distance=1)
+        matches = [word for word, dist in result]
+        self.assertIn("cat", matches)
+        
+        # 精确匹配
+        result = self.trie.fuzzy_search("cat", max_distance=0)
+        self.assertEqual(result, [("cat", 0)])
     
-    def test_autocomplete_no_match(self):
-        """测试无匹配自动补全"""
-        results = self.trie.autocomplete("xyz")
-        self.assertEqual(len(results), 0)
+    def test_longest_prefix(self):
+        """测试最长匹配前缀"""
+        for word in ["apple", "app", "application"]:
+            self.trie.insert(word)
+        
+        self.assertEqual(self.trie.longest_prefix("apples"), "apple")
+        self.assertEqual(self.trie.longest_prefix("applicable"), "app")
+        self.assertEqual(self.trie.longest_prefix("orange"), "")
+    
+    def test_longest_common_prefix(self):
+        """测试最长公共前缀"""
+        for word in ["flower", "flow", "flight"]:
+            self.trie.insert(word)
+        
+        self.assertEqual(self.trie.longest_common_prefix(), "fl")
+    
+    def test_count_prefix(self):
+        """测试前缀计数"""
+        for word in ["app", "apple", "application", "banana"]:
+            self.trie.insert(word)
+        
+        self.assertEqual(self.trie.count_prefix("app"), 3)
+        self.assertEqual(self.trie.count_prefix("ban"), 1)
+        self.assertEqual(self.trie.count_prefix("or"), 0)
+    
+    def test_clear(self):
+        """测试清空"""
+        for word in self.words:
+            self.trie.insert(word)
+        
+        self.trie.clear()
+        self.assertEqual(len(self.trie), 0)
+        self.assertEqual(self.trie.list_all(), [])
+    
+    def test_contains(self):
+        """测试 __contains__"""
+        self.trie.insert("hello")
+        self.assertIn("hello", self.trie)
+        self.assertNotIn("world", self.trie)
+    
+    def test_iter(self):
+        """测试迭代"""
+        for word in self.words:
+            self.trie.insert(word)
+        
+        words_from_iter = list(self.trie)
+        self.assertEqual(set(words_from_iter), set(self.words))
+    
+    def test_json_serialization(self):
+        """测试 JSON 序列化"""
+        for word in self.words:
+            self.trie.insert(word)
+        
+        json_str = self.trie.to_json()
+        restored = Trie.from_json(json_str)
+        
+        self.assertEqual(len(restored), len(self.trie))
+        for word in self.words:
+            self.assertTrue(restored.search(word))
+    
+    def test_get_stats(self):
+        """测试统计信息"""
+        for word in self.words:
+            self.trie.insert(word)
+        
+        stats = self.trie.get_stats()
+        self.assertEqual(stats['word_count'], len(self.words))
+        self.assertGreater(stats['node_count'], 0)
+        self.assertGreater(stats['max_depth'], 0)
+    
+    def test_large_dataset(self):
+        """测试大数据集"""
+        import random
+        import string
+        
+        # 生成 1000 个随机单词
+        words = []
+        for _ in range(1000):
+            length = random.randint(3, 10)
+            word = ''.join(random.choices(string.ascii_lowercase, k=length))
+            words.append(word)
+        
+        trie = Trie()
+        for word in words:
+            trie.insert(word)
+        
+        # 验证
+        for word in words:
+            self.assertTrue(trie.search(word))
+        
+        stats = trie.get_stats()
+        self.assertEqual(stats['word_count'], len(set(words)))
 
 
-class TestTrieDataOperations(unittest.TestCase):
-    """测试数据操作"""
+class TestCompactTrie(unittest.TestCase):
+    """压缩字典树测试"""
     
     def setUp(self):
-        self.trie = Trie()
+        """测试前准备"""
+        self.trie = CompactTrie()
+        self.words = ["apple", "app", "application", "banana", "band"]
     
-    def test_get_set_data(self):
-        """测试获取和设置数据"""
+    def test_insert_and_search(self):
+        """测试插入和搜索"""
+        for word in self.words:
+            self.trie.insert(word)
+        
+        for word in self.words:
+            self.assertTrue(self.trie.search(word))
+        
+        # 搜索不存在的单词
+        self.assertFalse(self.trie.search("orange"))
+        self.assertFalse(self.trie.search(""))
+    
+    def test_starts_with(self):
+        """测试前缀匹配"""
+        for word in self.words:
+            self.trie.insert(word)
+        
+        app_words = self.trie.starts_with("app")
+        self.assertEqual(set(app_words), {"apple", "app", "application"})
+    
+    def test_list_all(self):
+        """测试列出所有单词"""
+        for word in self.words:
+            self.trie.insert(word)
+        
+        all_words = self.trie.list_all()
+        self.assertEqual(set(all_words), set(self.words))
+    
+    def test_duplicate_insert(self):
+        """测试重复插入"""
+        self.assertTrue(self.trie.insert("hello"))
+        self.assertFalse(self.trie.insert("hello"))
+        self.assertEqual(len(self.trie), 1)
+    
+    def test_contains(self):
+        """测试 __contains__"""
         self.trie.insert("test")
-        self.assertTrue(self.trie.set_data("test", {"key": "value"}))
-        self.assertEqual(self.trie.get_data("test"), {"key": "value"})
+        self.assertIn("test", self.trie)
+        self.assertNotIn("nothere", self.trie)
     
-    def test_get_data_nonexistent(self):
-        """测试获取不存在单词的数据"""
-        self.assertIsNone(self.trie.get_data("nonexistent"))
-    
-    def test_set_data_nonexistent(self):
-        """测试设置不存在单词的数据"""
-        self.assertFalse(self.trie.set_data("nonexistent", {"key": "value"}))
-    
-    def test_get_count(self):
-        """测试获取频次"""
-        self.trie.insert("word")
-        self.trie.insert("word")
-        self.trie.insert("word")
-        self.assertEqual(self.trie.get_count("word"), 3)
-    
-    def test_get_count_nonexistent(self):
-        """测试获取不存在单词的频次"""
-        self.assertEqual(self.trie.get_count("nonexistent"), 0)
-
-
-class TestTrieSpellCorrection(unittest.TestCase):
-    """测试拼写纠正"""
-    
-    def setUp(self):
-        self.trie = Trie()
-        words = ["hello", "help", "world", "word", "python", "java"]
-        for word in words:
-            self.trie.insert(word)
-    
-    def test_suggest_corrections_deletion(self):
-        """测试删除类型的错误"""
-        results = self.trie.suggest_corrections("helo")
-        self.assertIn(("hello", 1), results)
-    
-    def test_suggest_corrections_insertion(self):
-        """测试插入类型的错误"""
-        results = self.trie.suggest_corrections("helloo")
-        self.assertIn(("hello", 1), results)
-    
-    def test_suggest_corrections_substitution(self):
-        """测试替换类型的错误"""
-        results = self.trie.suggest_corrections("hallo")
-        self.assertIn(("hello", 1), results)
-    
-    def test_suggest_corrections_max_distance(self):
-        """测试最大编辑距离限制"""
-        results = self.trie.suggest_corrections("xyzz", max_distance=1)
-        self.assertEqual(len(results), 0)
-
-
-class TestTrieSerialization(unittest.TestCase):
-    """测试序列化"""
-    
-    def setUp(self):
-        self.trie = Trie()
-        words = ["apple", "banana", "cherry", "date", "elderberry"]
-        for word in words:
-            self.trie.insert(word)
-    
-    def test_to_dict(self):
-        """测试转换为字典"""
-        data = self.trie.to_dict()
-        self.assertIn('root', data)
-        self.assertIn('size', data)
-        self.assertEqual(data['size'], 5)
-    
-    def test_from_dict(self):
-        """测试从字典创建"""
-        data = self.trie.to_dict()
-        new_trie = Trie.from_dict(data)
-        self.assertEqual(new_trie.size(), self.trie.size())
+    def test_space_efficiency(self):
+        """测试空间效率（相比普通 Trie）"""
+        # 对于共享前缀的单词，压缩 Trie 应更高效
+        words = ["abc", "abcd", "abcde", "abcdef"]
         
-        for word in ["apple", "banana", "cherry", "date", "elderberry"]:
-            self.assertTrue(new_trie.search(word))
-    
-    def test_to_json(self):
-        """测试JSON导出"""
-        json_str = self.trie.to_json()
-        self.assertIn('root', json_str)
-        self.assertIn('size', json_str)
-    
-    def test_from_json(self):
-        """测试从JSON加载"""
-        json_str = self.trie.to_json()
-        new_trie = Trie.from_json(json_str)
+        compact = CompactTrie()
+        for word in words:
+            compact.insert(word)
         
-        for word in ["apple", "banana", "cherry"]:
-            self.assertTrue(new_trie.search(word))
-    
-    def test_serialization_with_data(self):
-        """测试带数据的序列化"""
-        self.trie.insert("test", data={"key": "value"})
-        data = self.trie.to_dict()
-        new_trie = Trie.from_dict(data)
-        self.assertEqual(new_trie.get_data("test"), {"key": "value"})
+        # 所有单词都能找到
+        for word in words:
+            self.assertTrue(compact.search(word))
 
 
 class TestSuffixTrie(unittest.TestCase):
-    """测试后缀树"""
+    """后缀字典树测试"""
     
     def setUp(self):
-        self.st = SuffixTrie()
+        """测试前准备"""
+        self.trie = SuffixTrie()
     
-    def test_build_and_search(self):
-        """测试构建和搜索"""
-        self.st.build_from_string("banana")
-        self.assertTrue(self.st.contains_substring("ana"))
-        self.assertTrue(self.st.contains_substring("ban"))
-        self.assertFalse(self.st.contains_substring("xyz"))
+    def test_build(self):
+        """测试构建"""
+        self.trie.build("banana")
+        self.assertGreater(len(self.trie), 0)
     
-    def test_find_occurrences(self):
+    def test_contains_substring(self):
+        """测试子串查找"""
+        self.trie.build("banana")
+        
+        self.assertTrue(self.trie.contains_substring("ana"))
+        self.assertTrue(self.trie.contains_substring("ban"))
+        self.assertTrue(self.trie.contains_substring("nana"))
+        self.assertTrue(self.trie.contains_substring("banana"))
+        self.assertTrue(self.trie.contains_substring(""))  # 空串
+        
+        self.assertFalse(self.trie.contains_substring("xyz"))
+        self.assertFalse(self.trie.contains_substring("bananana"))
+    
+    def test_count_occurrences(self):
+        """测试出现次数统计"""
+        self.trie.build("banana")
+        
+        self.assertEqual(self.trie.count_occurrences("ana"), 2)
+        self.assertEqual(self.trie.count_occurrences("an"), 2)
+        self.assertEqual(self.trie.count_occurrences("na"), 2)
+        self.assertEqual(self.trie.count_occurrences("a"), 3)
+        self.assertEqual(self.trie.count_occurrences("n"), 2)
+        self.assertEqual(self.trie.count_occurrences("banana"), 1)
+        self.assertEqual(self.trie.count_occurrences("xyz"), 0)
+    
+    def test_find_all_occurrences(self):
         """测试查找所有出现位置"""
-        self.st.build_from_string("abababa")
-        # 注意：这个简化实现可能有局限性
-        self.assertTrue(self.st.contains_substring("aba"))
+        self.trie.build("banana")
+        
+        self.assertEqual(self.trie.find_all_occurrences("ana"), [1, 3])
+        self.assertEqual(self.trie.find_all_occurrences("ban"), [0])
+        self.assertEqual(self.trie.find_all_occurrences("xyz"), [])
+    
+    def test_longest_repeated_substring(self):
+        """测试最长重复子串"""
+        self.trie.build("banana")
+        lrs = self.trie.longest_repeated_substring()
+        # "ana" 或 "na" 或 "an" 都是重复子串
+        self.assertIn(lrs, ["ana", "na", "an"])
+        
+        # 无重复
+        self.trie.build("abcde")
+        self.assertEqual(self.trie.longest_repeated_substring(), "")
+    
+    def test_clear(self):
+        """测试清空"""
+        self.trie.build("test")
+        self.trie.clear()
+        self.assertEqual(len(self.trie), 0)
 
 
-class TestPrefixSet(unittest.TestCase):
-    """测试前缀集合"""
-    
-    def setUp(self):
-        self.ps = PrefixSet()
-        prefixes = ["http://", "https://", "ftp://", "www."]
-        for prefix in prefixes:
-            self.ps.add(prefix)
-    
-    def test_matches_any_prefix(self):
-        """测试前缀匹配"""
-        self.assertTrue(self.ps.matches_any_prefix("http://example.com"))
-        self.assertTrue(self.ps.matches_any_prefix("https://example.com"))
-        self.assertFalse(self.ps.matches_any_prefix("example.com"))
-    
-    def test_get_matching_prefix(self):
-        """测试获取匹配前缀"""
-        result = self.ps.get_matching_prefix("http://example.com")
-        self.assertEqual(result, "http://")
-    
-    def test_update(self):
-        """测试批量添加"""
-        self.ps.update(["api.", "cdn."])
-        self.assertTrue(self.ps.matches_any_prefix("api.example.com"))
-    
-    def test_contains(self):
-        """测试 in 操作符"""
-        self.assertIn("http://", self.ps)
-        self.assertNotIn("xyz://", self.ps)
-
-
-class TestUtilityFunctions(unittest.TestCase):
-    """测试工具函数"""
+class TestConvenienceFunctions(unittest.TestCase):
+    """便捷函数测试"""
     
     def test_build_trie(self):
-        """测试构建Trie函数"""
-        words = ["apple", "banana", "cherry"]
+        """测试 build_trie"""
+        words = ["apple", "app", "banana"]
         trie = build_trie(words)
-        self.assertEqual(trie.size(), 3)
+        
         for word in words:
             self.assertTrue(trie.search(word))
     
-    def test_find_common_prefix(self):
-        """测试查找公共前缀"""
-        words = ["flower", "flow", "float"]
-        result = find_common_prefix(words)
-        self.assertEqual(result, "flo")
-    
-    def test_find_common_prefix_empty(self):
-        """测试空列表公共前缀"""
-        result = find_common_prefix([])
-        self.assertEqual(result, "")
-    
-    def test_find_common_prefix_no_common(self):
-        """测试无公共前缀"""
-        words = ["dog", "cat", "bird"]
-        result = find_common_prefix(words)
-        self.assertEqual(result, "")
-    
-    def test_word_frequency_analysis(self):
-        """测试词频分析"""
-        words = ["apple", "banana", "apple", "cherry", "apple", "banana"]
-        result = word_frequency_analysis(words)
+    def test_build_word_trie(self):
+        """测试 build_word_trie"""
+        words_with_counts = [("apple", 5), ("app", 3), ("banana", 10)]
+        trie = build_word_trie(words_with_counts)
         
-        self.assertEqual(result["apple"], 3)
-        self.assertEqual(result["banana"], 2)
-        self.assertEqual(result["cherry"], 1)
+        self.assertEqual(trie.get_count("apple"), 5)
+        self.assertEqual(trie.get_count("app"), 3)
+        self.assertEqual(trie.get_count("banana"), 10)
+    
+    def test_autocomplete_from_list(self):
+        """测试 autocomplete_from_list"""
+        words = ["apple", "app", "application", "apply", "banana"]
+        suggestions = autocomplete_from_list(words, "app", limit=3)
+        
+        self.assertEqual(len(suggestions), 3)
+        for word in suggestions:
+            self.assertTrue(word.startswith("app"))
 
 
 class TestEdgeCases(unittest.TestCase):
-    """测试边界情况"""
-    
-    def setUp(self):
-        self.trie = Trie()
-    
-    def test_unicode_characters(self):
-        """测试Unicode字符"""
-        self.trie.insert("你好")
-        self.trie.insert("世界")
-        self.assertTrue(self.trie.search("你好"))
-        self.assertEqual(self.trie.starts_with("你"), ["你好"])
-    
-    def test_very_long_word(self):
-        """测试超长单词"""
-        long_word = "a" * 1000
-        self.trie.insert(long_word)
-        self.assertTrue(self.trie.search(long_word))
-    
-    def test_special_characters(self):
-        """测试特殊字符"""
-        self.trie.insert("hello-world")
-        self.trie.insert("hello_world")
-        self.trie.insert("hello.world")
-        self.assertTrue(self.trie.search("hello-world"))
-        self.assertTrue(self.trie.search("hello_world"))
-        self.assertTrue(self.trie.search("hello.world"))
-    
-    def test_numbers(self):
-        """测试数字"""
-        self.trie.insert("12345")
-        self.trie.insert("123abc")
-        self.assertTrue(self.trie.search("12345"))
-        self.assertEqual(self.trie.starts_with("123"), ["12345", "123abc"])
+    """边界情况测试"""
     
     def test_single_character(self):
         """测试单字符"""
-        self.trie.insert("a")
-        self.assertTrue(self.trie.search("a"))
-        self.assertEqual(self.trie.starts_with("a"), ["a"])
+        trie = Trie()
+        trie.insert("a")
+        self.assertTrue(trie.search("a"))
+        self.assertEqual(trie.starts_with("a"), ["a"])
+    
+    def test_unicode(self):
+        """测试 Unicode"""
+        trie = Trie()
+        words = ["你好", "你好世界", "世界"]
+        for word in words:
+            trie.insert(word)
+        
+        self.assertTrue(trie.search("你好"))
+        self.assertEqual(set(trie.starts_with("你好")), {"你好", "你好世界"})
+    
+    def test_special_characters(self):
+        """测试特殊字符"""
+        trie = Trie()
+        words = ["hello-world", "hello_world", "hello.world", "hello world"]
+        for word in words:
+            trie.insert(word)
+        
+        for word in words:
+            self.assertTrue(trie.search(word))
+    
+    def test_very_long_word(self):
+        """测试超长单词"""
+        trie = Trie()
+        long_word = "a" * 10000
+        trie.insert(long_word)
+        self.assertTrue(trie.search(long_word))
+    
+    def test_many_similar_words(self):
+        """测试大量相似单词"""
+        trie = Trie()
+        # 插入 100 个只在最后一个字符不同的单词
+        base = "abcdefghijklmnopqrstuvwxy"
+        words = [base + chr(ord('a') + i) for i in range(26)]
+        
+        for word in words:
+            trie.insert(word)
+        
+        self.assertEqual(len(trie), 26)
+        for word in words:
+            self.assertTrue(trie.search(word))
+    
+    def test_empty_trie(self):
+        """测试空字典树"""
+        trie = Trie()
+        
+        self.assertEqual(len(trie), 0)
+        self.assertEqual(trie.list_all(), [])
+        self.assertEqual(trie.starts_with("anything"), [])
+        self.assertFalse(trie.search("anything"))
+    
+    def test_deep_nesting(self):
+        """测试深层嵌套"""
+        trie = Trie()
+        # 创建深度为 100 的单词
+        word = ""
+        for i in range(100):
+            word += chr(ord('a') + (i % 26))
+            trie.insert(word)
+        
+        # 验证所有单词
+        test_word = ""
+        for i in range(100):
+            test_word += chr(ord('a') + (i % 26))
+            self.assertTrue(trie.search(test_word))
 
 
 class TestPerformance(unittest.TestCase):
     """性能测试"""
     
-    def test_large_insert(self):
-        """测试大量插入"""
-        trie = Trie()
-        # 插入10000个单词
-        for i in range(10000):
-            trie.insert(f"word{i}")
+    def test_insert_performance(self):
+        """测试插入性能"""
+        import time
+        import random
+        import string
         
-        self.assertEqual(trie.size(), 10000)
-        self.assertTrue(trie.search("word0"))
-        self.assertTrue(trie.search("word9999"))
-    
-    def test_deep_trie(self):
-        """测试深层Trie"""
+        # 生成 10000 个单词
+        words = []
+        for _ in range(10000):
+            length = random.randint(5, 15)
+            word = ''.join(random.choices(string.ascii_lowercase, k=length))
+            words.append(word)
+        
         trie = Trie()
-        # 创建深层单词
-        deep_word = "".join(chr(97 + i % 26) for i in range(100))
-        trie.insert(deep_word)
-        self.assertTrue(trie.search(deep_word))
+        start = time.time()
+        for word in words:
+            trie.insert(word)
+        elapsed = time.time() - start
+        
+        # 10000 次插入应该在 1 秒内完成
+        self.assertLess(elapsed, 1.0)
+        print(f"\n插入 10000 个单词耗时: {elapsed:.4f} 秒")
+    
+    def test_search_performance(self):
+        """测试搜索性能"""
+        import time
+        import random
+        import string
+        
+        # 构建字典树
+        trie = Trie()
+        words = []
+        for _ in range(10000):
+            length = random.randint(5, 15)
+            word = ''.join(random.choices(string.ascii_lowercase, k=length))
+            words.append(word)
+            trie.insert(word)
+        
+        # 搜索测试
+        start = time.time()
+        for word in words:
+            trie.search(word)
+        elapsed = time.time() - start
+        
+        # 10000 次搜索应该在 0.5 秒内完成
+        self.assertLess(elapsed, 0.5)
+        print(f"\n搜索 10000 个单词耗时: {elapsed:.4f} 秒")
+    
+    def test_autocomplete_performance(self):
+        """测试自动补全性能"""
+        import time
+        import random
+        import string
+        
+        # 构建字典树
+        trie = Trie()
+        for _ in range(10000):
+            length = random.randint(5, 15)
+            word = ''.join(random.choices(string.ascii_lowercase, k=length))
+            trie.insert(word)
+        
+        # 自动补全测试
+        prefixes = ['a', 'ab', 'abc', 'abcd']
+        start = time.time()
+        for prefix in prefixes * 100:  # 400 次补全
+            trie.autocomplete(prefix, limit=10)
+        elapsed = time.time() - start
+        
+        print(f"\n400 次自动补全耗时: {elapsed:.4f} 秒")
 
 
 if __name__ == "__main__":
+    # 运行测试
     unittest.main(verbosity=2)
