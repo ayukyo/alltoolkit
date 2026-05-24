@@ -48,9 +48,9 @@ def run_tests():
     # Test 1: Luhn checksum calculation
     try:
         checksum = luhn_checksum("7992739871")
-        # The checksum depends on implementation
+        # The checksum for "7992739871" should be 67 (for generating check digit)
         assert isinstance(checksum, int)
-        assert 0 <= checksum <= 9
+        assert checksum == 67
         results.add_pass("Luhn checksum calculation")
     except Exception as e:
         results.add_fail("Luhn checksum calculation", str(e))
