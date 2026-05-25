@@ -5,7 +5,14 @@ Text Chunker Utilities - 测试模块
 测试所有分块策略和功能
 """
 
-import unittest
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     TextChunker,
     SlidingWindowChunker,

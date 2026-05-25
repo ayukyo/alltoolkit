@@ -8,7 +8,13 @@ Comprehensive tests for TOML parser and generator.
 import datetime
 import os
 import tempfile
-import unittest
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     parse, loads, load, dumps, dump, validate,
     merge, get, set_value, flatten, unflatten, diff,

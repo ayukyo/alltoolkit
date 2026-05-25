@@ -2,7 +2,14 @@
 Clothing Size Utils 测试文件
 """
 
-import unittest
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     SizeRegion, ClothingType, SizeInfo, ShoeSize,
     convert_top_size, convert_pants_size, convert_shoe_size,

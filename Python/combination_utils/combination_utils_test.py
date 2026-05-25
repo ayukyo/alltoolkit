@@ -9,7 +9,14 @@ Combination Utilities 测试
 - 特殊数（卡特兰数、斯特林数、贝尔数）
 """
 
-import unittest
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     CombinationCalculator,
     PermutationGenerator,

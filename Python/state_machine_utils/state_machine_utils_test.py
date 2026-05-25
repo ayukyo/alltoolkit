@@ -4,8 +4,14 @@ State Machine Utils 测试用例
 测试有限状态机工具的所有核心功能。
 """
 
-import unittest
-import json
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     State, StateMachine, StateMachineBuilder, StateMachineContext,
     StateType, Transition, Event, ParallelStateMachine,

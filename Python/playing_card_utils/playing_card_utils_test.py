@@ -4,7 +4,14 @@ Playing Card Utilities 测试
 Author: AllToolkit
 """
 
-import unittest
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     Suit, Rank, Card, Deck, HandRank, HandResult,
     HandEvaluator, Blackjack, CardGame,

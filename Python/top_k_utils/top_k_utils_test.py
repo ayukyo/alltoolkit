@@ -9,9 +9,13 @@ Top-K 工具集测试
 - 分布式合并
 """
 
-import unittest
-import random
-from typing import List
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from mod import (
     top_k_heap,

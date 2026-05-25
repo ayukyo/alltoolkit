@@ -17,10 +17,13 @@ import time
 import sys
 import io
 import threading
-import unittest
-from unittest.mock import patch, MagicMock
 
-# 导入被测模块
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     Spinner,
     spinner,

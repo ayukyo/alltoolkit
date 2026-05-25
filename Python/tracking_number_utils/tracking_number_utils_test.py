@@ -2,7 +2,14 @@
 物流追踪号码工具测试用例
 """
 
-import unittest
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     TrackingNumberUtils,
     TrackingResult,

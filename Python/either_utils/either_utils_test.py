@@ -5,8 +5,14 @@ AllToolkit - Either Utils 测试模块
 完整的单元测试，覆盖所有核心功能。
 """
 
-import unittest
-from typing import List, Optional
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     Either, Left, Right, left, right,
     from_optional, from_exception, try_catch,

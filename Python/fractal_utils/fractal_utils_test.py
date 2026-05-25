@@ -5,8 +5,14 @@ Author: AllToolkit
 Date: 2026-05-24
 """
 
-import unittest
-from math import log, sqrt
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     Point, FractalConfig,
     MandelbrotSet, JuliaSet, SierpinskiTriangle, KochCurve,

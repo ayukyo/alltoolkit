@@ -4,8 +4,14 @@
 测试所有百分位数计算功能
 """
 
-import unittest
-import math
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     percentile,
     quartiles,

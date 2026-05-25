@@ -2,7 +2,14 @@
 燃油消耗计算工具测试
 """
 
-import unittest
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     mpg_to_liters_per_100km,
     liters_per_100km_to_mpg,

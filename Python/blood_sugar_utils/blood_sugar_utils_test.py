@@ -4,8 +4,14 @@ Blood Sugar Utils 测试文件
 测试血糖工具的所有功能。
 """
 
-import unittest
-from datetime import datetime, timedelta
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     GlucoseUnit, GlucoseStatus,
     convert_glucose, assess_glucose,

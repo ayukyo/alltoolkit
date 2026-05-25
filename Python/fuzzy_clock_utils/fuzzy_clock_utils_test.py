@@ -2,8 +2,14 @@
 模糊时钟工具模块测试
 """
 
-import unittest
-from datetime import datetime, timedelta
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     FuzzyClock,
     fuzzy_time,

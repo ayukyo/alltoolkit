@@ -4,8 +4,14 @@ Tire Utilities 测试模块
 测试轮胎计算工具的各项功能
 """
 
-import unittest
-from datetime import datetime
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     TireSpec, TireDimensions,
     parse_tire_spec, calculate_dimensions, convert_pressure,

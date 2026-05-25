@@ -5,7 +5,14 @@ Run with: python -m pytest lcs_utils_test.py -v
 Or with: python lcs_utils_test.py
 """
 
-import unittest
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     lcs_length,
     lcs,

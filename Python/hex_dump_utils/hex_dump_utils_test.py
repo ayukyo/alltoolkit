@@ -2,9 +2,14 @@
 Tests for hex_dump_utils module.
 """
 
-import unittest
+
+
+import sys
 import os
-import tempfile
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     hex_dump, xxd_dump, hex_dump_to_bytes, binary_diff,
     hex_search, hex_edit, hex_summary, create_hex_patch,

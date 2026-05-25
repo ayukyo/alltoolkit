@@ -13,7 +13,14 @@ LZ77 Utils Test Suite - LZ77 压缩算法测试
 - 预设配置
 """
 
-import unittest
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     LZ77Token,
     LZ77Result,

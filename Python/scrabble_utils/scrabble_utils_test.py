@@ -4,7 +4,14 @@ scrabble_utils 测试文件
 测试所有 Scrabble 单词评分功能
 """
 
-import unittest
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     letter_score, word_score, calculate_word_with_multipliers,
     get_standard_board, remaining_tiles, can_form_word,

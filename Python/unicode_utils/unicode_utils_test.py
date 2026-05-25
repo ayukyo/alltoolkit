@@ -4,7 +4,14 @@ Unicode Utilities 测试文件
 测试所有 unicode_utils 功能
 """
 
-import unittest
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     get_char_info,
     is_emoji,

@@ -2,7 +2,14 @@
 Verb Conjugation Utils Tests
 """
 
-import unittest
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     Language, Tense, Person, Mood,
     get_verb_info, conjugate, conjugate_all_forms,

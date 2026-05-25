@@ -2,8 +2,14 @@
 Subtitle Utils 单元测试
 """
 
-import unittest
-from datetime import timedelta
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     SubtitleEntry, SRTParser, VTTParser, ASSParser,
     SubtitleUtils, parse_srt, parse_vtt, parse_ass

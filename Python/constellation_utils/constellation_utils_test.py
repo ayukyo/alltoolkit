@@ -4,8 +4,14 @@ Constellation Utilities 测试文件
 测试所有星座和生肖相关功能
 """
 
-import unittest
-from datetime import date
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     Zodiac, Element, Quality, ChineseZodiac,
     get_zodiac, get_zodiac_from_date, get_zodiac_info,

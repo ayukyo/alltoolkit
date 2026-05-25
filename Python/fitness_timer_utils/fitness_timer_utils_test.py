@@ -5,10 +5,14 @@ Comprehensive tests for all timer types and utility functions.
 Run with: python -m pytest fitness_timer_utils_test.py -v
 """
 
-import unittest
-import time
-import threading
-from datetime import datetime
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     TimerState,
     PhaseType,

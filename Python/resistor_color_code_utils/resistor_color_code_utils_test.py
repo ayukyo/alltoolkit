@@ -6,8 +6,14 @@ AllToolkit - Resistor Color Code Utilities Test Module
 Comprehensive tests for resistor color code calculations.
 """
 
-import unittest
-import math
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     decode_3band, decode_4band, decode_5band, decode_6band, decode_resistor,
     encode_4band, encode_5band, encode_6band,

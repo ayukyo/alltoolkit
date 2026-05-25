@@ -4,8 +4,14 @@ Object Path Utils - 单元测试
 测试所有核心功能的正确性和边界情况。
 """
 
-import unittest
-import copy
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     get, set, delete, has, paths, flatten, unflatten,
     pick, omit, merge, ObjectPath,

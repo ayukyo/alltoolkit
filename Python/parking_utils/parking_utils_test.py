@@ -5,11 +5,13 @@ Run with: python parking_utils_test.py
 """
 
 import sys
-import unittest
-from datetime import datetime, timedelta
-import math
 
-# Import the module
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     VehicleType,
     ParkingSpaceType,

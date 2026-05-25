@@ -9,11 +9,13 @@ Author: AllToolkit Contributors
 License: MIT
 """
 
-import unittest
-import math
-import random
+
+
 import sys
-sys.path.insert(0, '.')
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from mod import (
     MonteCarlo,

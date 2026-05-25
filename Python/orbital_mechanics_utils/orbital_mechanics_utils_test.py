@@ -7,7 +7,13 @@ Comprehensive tests for orbital mechanics calculations.
 """
 
 import math
-import unittest
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     # Constants
     G, GM_EARTH, GM_MOON, GM_SUN, R_EARTH, R_MOON, AU, G0,

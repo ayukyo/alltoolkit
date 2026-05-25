@@ -2,9 +2,14 @@
 Unit tests for Genetic Algorithm Utilities
 """
 
-import unittest
-import math
-import random
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     Chromosome, Selection, Crossover, Mutation, GeneticAlgorithm,
     optimize_function, solve_tsp, solve_knapsack, solve_n_queens, solve_scheduling,

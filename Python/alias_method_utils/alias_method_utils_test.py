@@ -4,9 +4,14 @@ Unit Tests for Alias Method Utils
 Tests for Walker's Alias Method implementation for O(1) weighted random sampling.
 """
 
-import unittest
-import random
-from collections import Counter
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     AliasMethod,
     WeightedRandomPicker,

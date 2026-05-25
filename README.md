@@ -243,6 +243,13 @@ perl Perl/csv_utils/csv_utils_test.pl
 - **Python graph_utils**: 新增 23+ 边界值测试，覆盖大量节点、高密度图、星形图、链状图、环形图、负权重极限、孤立节点、超大权重、Unicode 节点等 🕸️
 - **Python tictactoe_utils**: 34 个测试用例，覆盖井字棋游戏、Minimax AI、胜负判断、游戏管理、序列化等 ♟️
 - **Python xor_utils**: 49 个测试用例，覆盖 XOR 加密/解密、校验和、密码分析、位操作、编码解码等 🔐
+- **Python work_hours_utils**: 34 个测试用例，覆盖工作时长计算、加班统计、周工作时间分析、打卡记录处理、工时合规检查等 🕐
+- **Python rotation_utils**: 43 个测试用例，覆盖数组旋转（左旋/右旋）、位旋转、矩阵旋转（90°/180°/270°）、字符串旋转、旋转检测等 🔄
+- **Python frequency_utils**: 80 个测试用例，覆盖频率单位转换、周期/波长计算、音符频率、音分计算、谐波生成、无线电频谱分类等 📻
+- **Python rss_utils**: 35 个测试用例，覆盖 RSS/Atom 解析、生成、验证、链接提取、订阅源合并等 📰
+- **Python medication_utils**: 63 个测试用例，覆盖体重剂量计算、儿童剂量、输液速度、半衰期估算、剂量范围检查等 💊
+- **Python compliment_utils**: 38 个测试用例，覆盖称赞生成、分类称赞、多语言支持、强度分级、个性化称赞等 💬
+- **Python width_utils**: 76 个测试用例，覆盖字符宽度计算、CJK/Emoji处理、字符串截断/填充、多列对齐、ANSI码处理等 📏
 
 ### 测试覆盖详情
 
@@ -339,7 +346,19 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ---
 
-**最后更新**: 2026-05-23
+**最后更新**: 2026-05-26
+
+### 测试和文档更新 (2026-05-26)
+
+- **Python work_hours_utils**: 新增 34 个测试用例，覆盖工作时长计算、加班统计、周工作时间分析、打卡记录处理、工时合规检查等 🕐
+- **Python rotation_utils**: 新增 43 个测试用例，覆盖数组旋转（左旋/右旋）、位旋转、矩阵旋转（90°/180°/270°）、字符串旋转、旋转检测等 🔄
+- **Python frequency_utils**: 新增 80 个测试用例，覆盖频率单位转换、周期/波长计算、音符频率、音分计算、谐波生成、无线电频谱分类等 📻
+- **Python rss_utils**: 新增 35 个测试用例，覆盖 RSS/Atom 解析、生成、验证、链接提取、订阅源合并等 📰
+- **Python medication_utils**: 新增 63 个测试用例，覆盖体重剂量计算、儿童剂量、输液速度、半衰期估算、剂量范围检查等 💊
+- **Python compliment_utils**: 新增 38 个测试用例，覆盖称赞生成、分类称赞、多语言支持、强度分级、个性化称赞等 💬
+- **Python width_utils**: 新增 76 个测试用例，覆盖字符宽度计算、CJK/Emoji处理、字符串截断/填充、多列对齐、ANSI码处理等 📏
+- **pytest配置**: 新增 conftest.py 和 pytest.ini 配置文件，优化测试导入机制 ✅
+- 新增 6 个 README 文档，详细说明 API 使用方法和模块功能
 
 ### 测试和文档更新 (2026-05-23)
 

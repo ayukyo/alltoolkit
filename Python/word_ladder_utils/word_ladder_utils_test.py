@@ -7,8 +7,14 @@ Author: AllToolkit Auto-Generator
 Date: 2026-05-20
 """
 
-import unittest
-from typing import List
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     WordLadderSolver,
     find_shortest_path,

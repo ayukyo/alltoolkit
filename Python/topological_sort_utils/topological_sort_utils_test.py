@@ -3,12 +3,11 @@
 Topological Sort Utils 测试套件
 """
 
-import unittest
-import sys
-import os
 
-# 添加父目录到路径以便导入模块
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from mod import (
     Graph,

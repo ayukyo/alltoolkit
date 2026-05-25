@@ -5,7 +5,14 @@
 全面测试 poker_utils 模块的所有功能。
 """
 
-import unittest
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     Card, Deck, Hand, HandRank, Suit, Rank,
     PokerEvaluator, TexasHoldem, HandAnalyzer,

@@ -8,11 +8,13 @@ Author: AllToolkit
 License: MIT
 """
 
-import unittest
-import struct
+
+
+import sys
 import os
-import tempfile
-from datetime import datetime
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from mod import (
     EXIFParser, EXIFData, GPSLocation, CameraSettings,

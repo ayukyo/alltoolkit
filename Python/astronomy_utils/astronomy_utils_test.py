@@ -5,8 +5,14 @@ Author: AllToolkit
 Date: 2026-05-24
 """
 
-import unittest
-from datetime import datetime, timedelta
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     SolarSystemData, ConstellationData, AstronomyCalculator,
     MoonPhaseCalculator, StarData, CelestialBody, Constellation,

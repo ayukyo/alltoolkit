@@ -2,7 +2,14 @@
 Tests for lexer_utils module.
 """
 
-import unittest
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     Lexer, LexerConfig, Token, TokenType, LexerError,
     tokenize, tokenize_keywords, extract_identifiers, extract_strings,

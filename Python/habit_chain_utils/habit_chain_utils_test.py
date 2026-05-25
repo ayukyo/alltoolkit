@@ -4,10 +4,13 @@ Habit Chain Utils 测试文件
 测试习惯链追踪功能的所有核心功能。
 """
 
-import unittest
-from datetime import date, timedelta
-import tempfile
+
+
+import sys
 import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from mod import (
     HabitChain, HabitChainManager, HabitFrequency,

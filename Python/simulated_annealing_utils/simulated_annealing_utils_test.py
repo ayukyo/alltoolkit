@@ -9,9 +9,14 @@ Author: AllToolkit Contributors
 License: MIT
 """
 
-import unittest
-import math
-import random
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     SimulatedAnnealing,
     SAConfig,

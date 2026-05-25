@@ -4,7 +4,14 @@ Unit tests for varint_utils module.
 Tests all encoding/decoding functions, edge cases, and streaming support.
 """
 
-import unittest
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     # Exceptions
     VarintError, VarintOverflowError, VarintDecodeError,

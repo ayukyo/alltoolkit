@@ -4,8 +4,14 @@ Origami Utils 测试模块
 测试折纸工具的核心功能
 """
 
-import unittest
-import math
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     OrigamiUtils,
     FoldType,

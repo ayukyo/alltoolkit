@@ -4,9 +4,13 @@ Elo Rating Utils - 测试模块
 测试 Elo 等级分系统的各项功能
 """
 
-import unittest
+
+
 import sys
-sys.path.insert(0, '.')
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from mod import (
     EloRating,

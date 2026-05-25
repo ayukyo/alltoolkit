@@ -4,8 +4,14 @@ Cron Utilities 测试
 测试 Cron 表达式解析、验证和计算功能。
 """
 
-import unittest
-from datetime import datetime, timedelta
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     CronExpression,
     CronParseError,

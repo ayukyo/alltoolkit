@@ -5,10 +5,13 @@ Run with: python -m pytest lfu_cache_utils_test.py -v
 Or simply: python lfu_cache_utils_test.py
 """
 
-import unittest
-import threading
-import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from mod import (
     LFUCache, LFUCacheBuilder, CacheStats,

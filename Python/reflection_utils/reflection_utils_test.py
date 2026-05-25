@@ -4,11 +4,13 @@ Tests for Reflection Utilities Module
 Comprehensive tests for all reflection and introspection utilities.
 """
 
-import unittest
-from typing import Optional, List, Dict, Union
-from dataclasses import dataclass, field
-from functools import wraps
-from enum import Enum
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from mod import (
     ReflectionUtils,

@@ -10,11 +10,12 @@
 
 import sys
 import time
-import unittest
-from pathlib import Path
 
-# 添加模块路径
-sys.path.insert(0, str(Path(__file__).parent))
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from mod import (
     Metronome,

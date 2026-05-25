@@ -4,7 +4,14 @@ scale_utils 测试文件
 测试所有音阶工具功能
 """
 
-import unittest
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     parse_note, note_to_semitone, semitone_to_note,
     transpose_note, interval_between, generate_scale,

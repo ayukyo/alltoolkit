@@ -5,7 +5,13 @@ Tone Utilities 测试模块
 """
 
 import math
-import unittest
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     note_to_frequency, frequency_to_note, midi_to_frequency, frequency_to_midi,
     note_to_midi, midi_to_note, generate_scale, generate_chord, identify_chord,

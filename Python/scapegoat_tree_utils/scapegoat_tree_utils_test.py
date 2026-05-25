@@ -2,9 +2,14 @@
 替罪羊树测试模块
 """
 
-import unittest
-import random
-from typing import List
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import ScapegoatTree, ScapegoatTreeSet, ScapegoatTreeMultiSet
 
 

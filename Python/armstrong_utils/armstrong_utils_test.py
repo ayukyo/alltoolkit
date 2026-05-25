@@ -2,7 +2,14 @@
 Unit tests for Armstrong Number Utilities
 """
 
-import unittest
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     is_armstrong, get_armstrong_digits, find_armstrong_numbers,
     generate_armstrong_numbers, get_next_armstrong, count_armstrong_digits,

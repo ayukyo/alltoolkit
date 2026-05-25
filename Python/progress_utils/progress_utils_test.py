@@ -6,11 +6,10 @@ import io
 import sys
 import os
 import time
-import unittest
-from unittest.mock import patch
 
-# 添加模块路径
-sys.path.insert(0, '..')
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from mod import (
     ProgressBar,

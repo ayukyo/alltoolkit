@@ -4,9 +4,13 @@ ticket_utils 测试文件
 测试所有票据生成和解析功能
 """
 
-import unittest
-import time
-from datetime import datetime
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from mod import (
     TicketGenerator,

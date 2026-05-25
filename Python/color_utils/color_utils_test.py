@@ -4,8 +4,14 @@ Color Utils 测试套件
 测试颜色格式转换、调色板生成、对比度计算等功能。
 """
 
-import unittest
-import math
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     Color,
     rgb_to_hsl,

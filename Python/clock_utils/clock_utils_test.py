@@ -3,9 +3,14 @@ clock_utils 测试文件
 测试世界时钟、秒表、计时器、倒计时等功能
 """
 
-import unittest
-import time
-from datetime import datetime, timedelta, timezone
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     WorldClock, Stopwatch, Timer, TimeFormatter, 
     TimeDifference, Countdown, AlarmClock, PomodoroTimer,

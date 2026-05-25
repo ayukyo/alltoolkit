@@ -3,8 +3,14 @@ password_strength_utils 测试文件
 测试密码强度分析、破解时间估算、密码生成等功能
 """
 
-import unittest
-import re
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     PasswordStrength, PasswordGenerator, PasswordValidator,
     PasswordEntropy, PasswordCrackEstimator, CommonPasswordChecker,

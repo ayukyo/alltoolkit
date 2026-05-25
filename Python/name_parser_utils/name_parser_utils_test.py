@@ -5,7 +5,14 @@ Author: AllToolkit
 Date: 2026-05-24
 """
 
-import unittest
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     NameParser, ParsedName, parse_name, parse_names, 
     format_name, compare_names, get_initials

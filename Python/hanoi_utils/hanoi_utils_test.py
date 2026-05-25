@@ -9,7 +9,14 @@
 - 多柱汉诺塔
 """
 
-import unittest
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     HanoiState, Move, MoveError,
     solve_recursive, solve_iterative, solve_generator,

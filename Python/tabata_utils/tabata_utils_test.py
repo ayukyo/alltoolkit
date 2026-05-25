@@ -4,11 +4,14 @@ Tabata Utilities 测试文件
 测试 Tabata 高强度间歇训练工具的所有功能。
 """
 
-import unittest
-import time
-from typing import List, Tuple
 
-# 导入被测试模块
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     PhaseType,
     TabataRound,

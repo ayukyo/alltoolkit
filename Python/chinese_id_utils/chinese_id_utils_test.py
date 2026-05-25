@@ -13,8 +13,14 @@
 - 批量处理
 """
 
-import unittest
-from datetime import date, timedelta
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     validate_format,
     calculate_checksum,

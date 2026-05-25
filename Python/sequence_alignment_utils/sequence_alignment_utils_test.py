@@ -8,7 +8,14 @@ Sequence Alignment Utils 测试文件
 - 其他距离度量
 """
 
-import unittest
+
+
+import sys
+import os
+
+# Ensure the module directory is in sys.path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     needleman_wunsch,
     smith_waterman,
