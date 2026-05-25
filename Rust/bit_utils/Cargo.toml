@@ -1,0 +1,20 @@
+[package]
+name = "bit_utils"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "A comprehensive collection of bit manipulation utilities for Rust"
+license = "MIT"
+keywords = ["bit", "bitwise", "manipulation", "utils", "no-std"]
+categories = ["algorithms", "no-std", "rust-patterns"]
+
+[dependencies]
+
+[features]
+default = []
+
+[lib]
+name = "bit_utils"
+path = "src/lib.rs"
+
+[dev-dependencies]
