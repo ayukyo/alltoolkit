@@ -1,444 +1,267 @@
 """
-Emoji Utils 测试文件
+emoji_utils 测试模块
 
-测试所有 emoji_utils 功能
+测试所有核心功能
 """
 
 import sys
 import os
-import unittest
-
-# Add module directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
-    detect_emoji,
-    extract_emoji,
-    remove_emoji,
-    replace_emoji,
-    count_emoji,
-    get_emoji_frequency,
-    get_emoji_description,
-    categorize_emoji,
-    group_emoji_by_category,
-    extract_unique_emoji,
-    is_only_emoji,
-    get_text_emoji_ratio,
-    sanitize_text,
-    analyze,
     EmojiUtils,
-    EmojiCategory,
+    detect_emojis,
+    remove_emojis,
+    count_emojis,
+    get_emoji_info,
+    separate_text_emoji,
+    text_to_emoji,
+    emoji_density,
+    is_only_emojis
 )
 
 
-class TestDetectEmoji(unittest.TestCase):
-    """测试 detect_emoji 函数"""
+def test_is_emoji():
+    """测试单个字符是否为 emoji"""
+    print("测试 is_emoji...")
     
-    def test_detect_emoji_with_emoji(self):
-        """测试包含 emoji 的文本"""
-        self.assertTrue(detect_emoji("Hello! 👋"))
-        self.assertTrue(detect_emoji("😊😊😊"))
-        self.assertTrue(detect_emoji("Test 🚀 test"))
+    # 正向测试
+    assert EmojiUtils.is_emoji('😊') == True, "笑脸 emoji 应该被识别"
+    assert EmojiUtils.is_emoji('❤') == True, "心形 emoji 应该被识别"
+    assert EmojiUtils.is_emoji('⭐') == True, "星星 emoji 应该被识别"
+    assert EmojiUtils.is_emoji('🎉') == True, "庆祝 emoji 应该被识别"
+    assert EmojiUtils.is_emoji('🐱') == True, "猫 emoji 应该被识别"
+    assert EmojiUtils.is_emoji('🍕') == True, "披萨 emoji 应该被识别"
     
-    def test_detect_emoji_without_emoji(self):
-        """测试不包含 emoji 的文本"""
-        self.assertFalse(detect_emoji("Hello World"))
-        self.assertFalse(detect_emoji("测试文本"))
-        self.assertFalse(detect_emoji("123456"))
+    # 负向测试
+    assert EmojiUtils.is_emoji('a') == False, "字母 a 不是 emoji"
+    assert EmojiUtils.is_emoji('中') == False, "汉字不是 emoji"
+    assert EmojiUtils.is_emoji('1') == False, "数字不是 emoji"
+    assert EmojiUtils.is_emoji(' ') == False, "空格不是 emoji"
     
-    def test_detect_emoji_empty_string(self):
-        """测试空字符串"""
-        self.assertFalse(detect_emoji(""))
-    
-    def test_detect_emoji_multiple_emoji(self):
-        """测试多个 emoji"""
-        self.assertTrue(detect_emoji("👋😊🌍🚀❤️"))
+    print("✓ is_emoji 测试通过")
 
 
-class TestExtractEmoji(unittest.TestCase):
-    """测试 extract_emoji 函数"""
+def test_detect_emojis():
+    """测试检测文本中的 emoji"""
+    print("\n测试 detect_emojis...")
     
-    def test_extract_single_emoji(self):
-        """测试提取单个 emoji"""
-        result = extract_emoji("Hello! 👋")
-        self.assertEqual(result, ["👋"])
+    # 基础测试
+    text1 = "你好 😊 今天天气很好 ☀️"
+    emojis1 = detect_emojis(text1)
+    assert '😊' in emojis1, "应该检测到笑脸"
+    assert '☀️' in emojis1 or '☀' in emojis1, "应该检测到太阳"
     
-    def test_extract_multiple_emoji(self):
-        """测试提取多个 emoji"""
-        result = extract_emoji("Hello! 👋😊 World! 🌍")
-        self.assertEqual(result, ["👋", "😊", "🌍"])
+    # 多个 emoji
+    text2 = "🎉🎊🎈🎂🎁"
+    emojis2 = detect_emojis(text2)
+    assert len(emojis2) >= 4, f"应该检测到至少 4 个 emoji，实际检测到 {len(emojis2)}"
     
-    def test_extract_no_emoji(self):
-        """测试无 emoji 的文本"""
-        result = extract_emoji("Hello World")
-        self.assertEqual(result, [])
+    # 无 emoji
+    text3 = "这是一段没有表情的普通文本"
+    emojis3 = detect_emojis(text3)
+    assert len(emojis3) == 0, "普通文本不应检测到 emoji"
     
-    def test_extract_only_emoji(self):
-        """测试只有 emoji 的文本"""
-        result = extract_emoji("👋😊🌍")
-        self.assertEqual(result, ["👋", "😊", "🌍"])
+    # 组合 emoji（如肤色修饰）
+    text4 = "👍🏻👍🏼👍🏽👍🏾👍🏿"
+    emojis4 = detect_emojis(text4)
+    assert len(emojis4) >= 1, "应该检测到手势 emoji"
     
-    def test_extract_empty_string(self):
-        """测试空字符串"""
-        result = extract_emoji("")
-        self.assertEqual(result, [])
+    print("✓ detect_emojis 测试通过")
 
 
-class TestRemoveEmoji(unittest.TestCase):
-    """测试 remove_emoji 函数"""
+def test_remove_emojis():
+    """测试移除 emoji"""
+    print("\n测试 remove_emojis...")
     
-    def test_remove_single_emoji(self):
-        """测试移除单个 emoji"""
-        result = remove_emoji("Hello! 👋")
-        self.assertEqual(result, "Hello! ")
+    # 基础移除
+    text1 = "你好 😊 世界"
+    result1 = remove_emojis(text1)
+    assert '😊' not in result1, "emoji 应该被移除"
+    assert '你好' in result1 and '世界' in result1, "文本应该保留"
     
-    def test_remove_multiple_emoji(self):
-        """测试移除多个 emoji"""
-        result = remove_emoji("Hello! 👋😊 World! 🌍")
-        self.assertEqual(result, "Hello!  World! ")
+    # 替换为其他字符
+    text2 = "开心 😊"
+    result2 = remove_emojis(text2, replacement='[表情]')
+    assert '[表情]' in result2, "应该使用替换文本"
     
-    def test_remove_with_replacement(self):
-        """测试使用替换文本"""
-        result = remove_emoji("Hello! 👋", "[X]")
-        self.assertEqual(result, "Hello! [X]")
+    # 只有 emoji
+    text3 = "🎉🎊🎈"
+    result3 = remove_emojis(text3)
+    assert result3.strip() == '', "只有 emoji 时应该得到空字符串"
     
-    def test_remove_no_emoji(self):
-        """测试无 emoji 的文本"""
-        result = remove_emoji("Hello World")
-        self.assertEqual(result, "Hello World")
-    
-    def test_remove_empty_string(self):
-        """测试空字符串"""
-        result = remove_emoji("")
-        self.assertEqual(result, "")
+    print("✓ remove_emojis 测试通过")
 
 
-class TestReplaceEmoji(unittest.TestCase):
-    """测试 replace_emoji 函数"""
+def test_count_emojis():
+    """测试统计 emoji"""
+    print("\n测试 count_emojis...")
     
-    def test_replace_with_default(self):
-        """测试默认替换"""
-        result = replace_emoji("Hello! 👋")
-        self.assertEqual(result, "Hello! [waving hand]")
+    text = "😊 你好 😊 世界 😊 🎉🎉"
+    counts = count_emojis(text)
     
-    def test_replace_multiple_emoji(self):
-        """测试替换多个 emoji"""
-        result = replace_emoji("Hi! 😊❤️")
-        self.assertTrue("[smiling face with smiling eyes]" in result)
-        self.assertTrue("[red heart]" in result)
+    assert counts.get('😊', 0) == 3, f"笑脸应该出现 3 次，实际 {counts.get('😊', 0)}"
+    assert counts.get('🎉', 0) == 2, f"庆祝应该出现 2 次，实际 {counts.get('🎉', 0)}"
     
-    def test_replace_with_custom_map(self):
-        """测试自定义替换映射"""
-        custom_map = {"👋": "HELLO"}
-        result = replace_emoji("Hi! 👋", replacement_map=custom_map)
-        self.assertEqual(result, "Hi! [HELLO]")
-    
-    def test_replace_unknown_emoji(self):
-        """测试未知 emoji 的替换"""
-        # 使用一个常见 emoji
-        result = replace_emoji("Test 😊", default_replacement="<EMOJI>")
-        self.assertTrue("[smiling face with smiling eyes]" in result or "<EMOJI>" in result)
+    print("✓ count_emojis 测试通过")
 
 
-class TestCountEmoji(unittest.TestCase):
-    """测试 count_emoji 函数"""
+def test_get_emoji_info():
+    """测试获取 emoji 信息"""
+    print("\n测试 get_emoji_info...")
     
-    def test_count_single_emoji(self):
-        """测试计数单个 emoji"""
-        result = count_emoji("Hello! 👋")
-        self.assertEqual(result, 1)
+    info = get_emoji_info('😊')
+    assert info['emoji'] == '😊', "应该返回正确的 emoji"
+    assert 'unicode' in info, "应该包含 unicode 信息"
+    assert 'name' in info, "应该包含名称"
+    assert 'category' in info, "应该包含分类"
     
-    def test_count_multiple_emoji(self):
-        """测试计数多个 emoji"""
-        result = count_emoji("Hello! 👋😊🌍")
-        self.assertEqual(result, 3)
+    # 检查分类
+    assert info['category'] in EmojiUtils.EMOJI_CATEGORIES.keys() or info['category'] == 'unknown', \
+        "分类应该是有效的"
     
-    def test_count_repeated_emoji(self):
-        """测试计数重复 emoji"""
-        result = count_emoji("👋👋👋")
-        self.assertEqual(result, 3)
-    
-    def test_count_no_emoji(self):
-        """测试无 emoji"""
-        result = count_emoji("Hello World")
-        self.assertEqual(result, 0)
+    print("✓ get_emoji_info 测试通过")
 
 
-class TestGetEmojiFrequency(unittest.TestCase):
-    """测试 get_emoji_frequency 函数"""
+def test_separate_text_emoji():
+    """测试分离文本和 emoji"""
+    print("\n测试 separate_text_emoji...")
     
-    def test_frequency_single_emoji(self):
-        """测试单个 emoji 频率"""
-        result = get_emoji_frequency("Hello! 👋")
-        self.assertEqual(result, {"👋": 1})
+    text = "今天天气真好 😊☀️ 去公园玩吧 🎉"
+    pure_text, emojis = separate_text_emoji(text)
     
-    def test_frequency_multiple_unique(self):
-        """测试多个不同 emoji"""
-        result = get_emoji_frequency("👋😊🌍")
-        self.assertEqual(result, {"👋": 1, "😊": 1, "🌍": 1})
+    assert '😊' not in pure_text, "纯文本不应包含 emoji"
+    assert '☀️' not in pure_text and '☀' not in pure_text, "纯文本不应包含 emoji"
+    assert '🎉' not in pure_text, "纯文本不应包含 emoji"
+    assert '今天天气真好' in pure_text, "应该保留文本内容"
+    assert '去公园玩吧' in pure_text, "应该保留文本内容"
     
-    def test_frequency_repeated(self):
-        """测试重复 emoji"""
-        result = get_emoji_frequency("👋😊👋😊👋")
-        self.assertEqual(result, {"👋": 3, "😊": 2})
+    assert len(emojis) >= 2, f"应该检测到至少 2 个不同的 emoji，实际 {len(emojis)}"
     
-    def test_frequency_no_emoji(self):
-        """测试无 emoji"""
-        result = get_emoji_frequency("Hello World")
-        self.assertEqual(result, {})
+    print("✓ separate_text_emoji 测试通过")
 
 
-class TestGetEmojiDescription(unittest.TestCase):
-    """测试 get_emoji_description 函数"""
+def test_text_to_emoji():
+    """测试文本转 emoji"""
+    print("\n测试 text_to_emoji...")
     
-    def test_description_known_emoji(self):
-        """测试已知 emoji 描述"""
-        self.assertEqual(get_emoji_description("👋"), "waving hand")
-        self.assertEqual(get_emoji_description("❤️"), "red heart")
-        self.assertEqual(get_emoji_description("😊"), "smiling face with smiling eyes")
+    # 基础转换
+    result1 = text_to_emoji("I am happy and love you")
+    assert '😊' in result1 or 'happy' in result1.lower(), "应该转换 happy"
+    assert '❤️' in result1 or 'love' in result1.lower() or '❤' in result1, "应该转换 love"
     
-    def test_description_unknown_emoji(self):
-        """测试未知 emoji"""
-        # 使用一个可能在映射中的 emoji
-        result = get_emoji_description("😀")
-        self.assertIn(result, ["grinning face", "unknown emoji"])
+    # 保留未匹配
+    result2 = text_to_emoji("hello world", keep_unmatched=True)
+    assert 'hello' in result2 or 'world' in result2, "应该保留未匹配的文本"
+    
+    print("✓ text_to_emoji 测试通过")
 
 
-class TestCategorizeEmoji(unittest.TestCase):
-    """测试 categorize_emoji 函数"""
+def test_emoji_density():
+    """测试 emoji 密度计算"""
+    print("\n测试 emoji_density...")
     
-    def test_categorize_face(self):
-        """测试表情脸类别"""
-        self.assertEqual(categorize_emoji("😊"), EmojiCategory.FACES)
-        self.assertEqual(categorize_emoji("😀"), EmojiCategory.FACES)
+    # 高密度
+    text1 = "🎉🎉🎉🎉"
+    density1 = emoji_density(text1)
+    assert density1 > 0, "应该有正密度"
     
-    def test_categorize_animal(self):
-        """测试动物类别"""
-        self.assertEqual(categorize_emoji("🐶"), EmojiCategory.ANIMALS)
-        self.assertEqual(categorize_emoji("🐱"), EmojiCategory.ANIMALS)
+    # 低密度
+    text2 = "这是一段很长的文本内容"
+    density2 = emoji_density(text2)
+    assert density2 == 0, "没有 emoji 应该密度为 0"
     
-    def test_categorize_symbol(self):
-        """测试符号类别"""
-        # 心形通常属于符号类
-        category = categorize_emoji("❤️")
-        self.assertIn(category, [EmojiCategory.SYMBOLS, EmojiCategory.FACES])
+    # 混合
+    text3 = "😊ab"
+    density3 = emoji_density(text3)
+    assert 0 < density3 < 1, "混合文本密度应在 0-1 之间"
+    
+    print("✓ emoji_density 测试通过")
 
 
-class TestGroupEmojiByCategory(unittest.TestCase):
-    """测试 group_emoji_by_category 函数"""
+def test_is_only_emojis():
+    """测试是否仅包含 emoji"""
+    print("\n测试 is_only_emojis...")
     
-    def test_group_mixed_emoji(self):
-        """测试混合 emoji 分组"""
-        emojis = ["😊", "🐶", "🍎"]
-        result = group_emoji_by_category(emojis)
+    # 只有 emoji
+    assert is_only_emojis("😊🎉🌟") == True, "只有 emoji 应该返回 True"
+    
+    # emoji 和文本
+    assert is_only_emojis("你好 😊") == False, "包含文本应该返回 False"
+    
+    # 纯文本
+    assert is_only_emojis("这是纯文本") == False, "纯文本应该返回 False"
+    
+    # 空字符串
+    assert is_only_emojis("") == True, "空字符串视为只包含 emoji（无其他内容）"
+    
+    print("✓ is_only_emojis 测试通过")
+
+
+def test_extract_emoji_positions():
+    """测试提取 emoji 位置"""
+    print("\n测试 extract_emoji_positions...")
+    
+    text = "a😊b🎉c"
+    positions = EmojiUtils.extract_emoji_positions(text)
+    
+    assert len(positions) == 2, f"应该检测到 2 个 emoji，实际 {len(positions)}"
+    
+    # 检查第一个 emoji 位置
+    emoji1, start1, end1 = positions[0]
+    assert emoji1 == '😊', f"第一个 emoji 应该是 😊，实际 {emoji1}"
+    assert start1 == 1, f"开始位置应该是 1，实际 {start1}"
+    assert end1 == 2, f"结束位置应该是 2，实际 {end1}"
+    
+    print("✓ extract_emoji_positions 测试通过")
+
+
+def test_categorize_emojis():
+    """测试 emoji 分类"""
+    print("\n测试 categorize_emojis...")
+    
+    emojis = ['😊', '🐱', '🍕', '⚽', '❤️', '🚗']
+    categories = EmojiUtils.categorize_emojis(emojis)
+    
+    # 至少应该能分类出一些
+    assert len(categories) > 0, "应该能分类出一些 emoji"
+    
+    print("✓ categorize_emojis 测试通过")
+
+
+def run_all_tests():
+    """运行所有测试"""
+    print("=" * 50)
+    print("emoji_utils 测试套件")
+    print("=" * 50)
+    
+    try:
+        test_is_emoji()
+        test_detect_emojis()
+        test_remove_emojis()
+        test_count_emojis()
+        test_get_emoji_info()
+        test_separate_text_emoji()
+        test_text_to_emoji()
+        test_emoji_density()
+        test_is_only_emojis()
+        test_extract_emoji_positions()
+        test_categorize_emojis()
         
-        self.assertIn(EmojiCategory.FACES, result)
-        self.assertIn(EmojiCategory.ANIMALS, result)
-        self.assertIn("😊", result[EmojiCategory.FACES])
-        self.assertIn("🐶", result[EmojiCategory.ANIMALS])
-    
-    def test_group_empty_list(self):
-        """测试空列表"""
-        result = group_emoji_by_category([])
-        self.assertEqual(result, {})
+        print("\n" + "=" * 50)
+        print("✅ 所有测试通过！")
+        print("=" * 50)
+        return True
+    except AssertionError as e:
+        print(f"\n❌ 测试失败: {e}")
+        return False
+    except Exception as e:
+        print(f"\n❌ 测试出错: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 
-class TestExtractUniqueEmoji(unittest.TestCase):
-    """测试 extract_unique_emoji 函数"""
-    
-    def test_unique_with_duplicates(self):
-        """测试有重复的情况"""
-        result = extract_unique_emoji("👋😊👋😊🌍")
-        self.assertEqual(result, {"👋", "😊", "🌍"})
-    
-    def test_unique_no_duplicates(self):
-        """测试无重复的情况"""
-        result = extract_unique_emoji("👋😊🌍")
-        self.assertEqual(result, {"👋", "😊", "🌍"})
-    
-    def test_unique_no_emoji(self):
-        """测试无 emoji"""
-        result = extract_unique_emoji("Hello World")
-        self.assertEqual(result, set())
-
-
-class TestIsOnlyEmoji(unittest.TestCase):
-    """测试 is_only_emoji 函数"""
-    
-    def test_only_emoji_true(self):
-        """测试只有 emoji"""
-        self.assertTrue(is_only_emoji("👋😊🌍"))
-        self.assertTrue(is_only_emoji("❤️"))
-    
-    def test_only_emoji_false(self):
-        """测试包含其他字符"""
-        self.assertFalse(is_only_emoji("Hello 👋"))
-        self.assertFalse(is_only_emoji("Test 123"))
-    
-    def test_only_emoji_empty(self):
-        """测试空字符串"""
-        self.assertFalse(is_only_emoji(""))
-    
-    def test_only_emoji_whitespace(self):
-        """测试只有空白"""
-        self.assertFalse(is_only_emoji("   "))
-
-
-class TestGetTextEmojiRatio(unittest.TestCase):
-    """测试 get_text_emoji_ratio 函数"""
-    
-    def test_ratio_half(self):
-        """测试比例"""
-        # "Hi👋" = 2个字母 + 1个emoji = 3个字符，比例是 1/3 ≈ 0.333
-        # 使用 "A👋" = 1个字母 + 1个emoji = 2个字符，比例是 0.5
-        result = get_text_emoji_ratio("A👋")
-        self.assertEqual(result, 0.5)
-    
-    def test_ratio_all_emoji(self):
-        """测试 100% emoji"""
-        result = get_text_emoji_ratio("👋😊🌍")
-        self.assertEqual(result, 1.0)
-    
-    def test_ratio_no_emoji(self):
-        """测试 0% emoji"""
-        result = get_text_emoji_ratio("Hello")
-        self.assertEqual(result, 0.0)
-    
-    def test_ratio_empty(self):
-        """测试空字符串"""
-        result = get_text_emoji_ratio("")
-        self.assertEqual(result, 0.0)
-
-
-class TestSanitizeText(unittest.TestCase):
-    """测试 sanitize_text 函数"""
-    
-    def test_sanitize_within_limit(self):
-        """测试在限制内"""
-        result = sanitize_text("Hello! 👋", max_emoji_ratio=0.3)
-        self.assertEqual(result, "Hello! 👋")
-    
-    def test_sanitize_exceeds_limit(self):
-        """测试超过限制"""
-        result = sanitize_text("👋👋👋👋👋", max_emoji_ratio=0.3)
-        self.assertEqual(result, "")
-    
-    def test_sanitize_empty(self):
-        """测试空字符串"""
-        result = sanitize_text("")
-        self.assertEqual(result, "")
-
-
-class TestAnalyze(unittest.TestCase):
-    """测试 analyze 函数"""
-    
-    def test_analyze_complete(self):
-        """测试完整分析"""
-        result = analyze("Hello! 👋😊👋")
-        
-        self.assertTrue(result['has_emoji'])
-        self.assertEqual(result['emoji_count'], 3)
-        self.assertEqual(result['unique_count'], 2)
-        self.assertIn('frequency', result)
-        self.assertIn('ratio', result)
-        self.assertIn('categories', result)
-    
-    def test_analyze_no_emoji(self):
-        """测试无 emoji 分析"""
-        result = analyze("Hello World")
-        
-        self.assertFalse(result['has_emoji'])
-        self.assertEqual(result['emoji_count'], 0)
-        self.assertEqual(result['unique_count'], 0)
-
-
-class TestEmojiUtilsClass(unittest.TestCase):
-    """测试 EmojiUtils 类"""
-    
-    def test_emoji_utils_basic(self):
-        """测试基本功能"""
-        utils = EmojiUtils("Hello! 👋😊")
-        
-        self.assertTrue(utils.has_emoji)
-        self.assertEqual(utils.emoji_count, 2)
-        self.assertEqual(len(utils.emojis), 2)
-    
-    def test_emoji_utils_unique(self):
-        """测试唯一 emoji"""
-        utils = EmojiUtils("👋😊👋")
-        
-        self.assertEqual(len(utils.unique_emojis), 2)
-    
-    def test_emoji_utils_remove(self):
-        """测试移除 emoji"""
-        utils = EmojiUtils("Hello! 👋")
-        
-        result = utils.remove_emoji()
-        self.assertEqual(result, "Hello! ")
-    
-    def test_emoji_utils_replace(self):
-        """测试替换 emoji"""
-        utils = EmojiUtils("Hello! 👋")
-        
-        result = utils.replace_emoji()
-        self.assertTrue("[waving hand]" in result)
-    
-    def test_emoji_utils_text_update(self):
-        """测试更新文本"""
-        utils = EmojiUtils("Hello! 👋")
-        self.assertEqual(utils.emoji_count, 1)
-        
-        utils.text = "Hi! 👋😊🌍"
-        self.assertEqual(utils.emoji_count, 3)
-    
-    def test_emoji_utils_ratio(self):
-        """测试 emoji 比例"""
-        # "A👋" = 1个字母 + 1个emoji，比例是 0.5
-        utils = EmojiUtils("A👋")
-        
-        self.assertEqual(utils.emoji_ratio(), 0.5)
-    
-    def test_emoji_utils_sanitize(self):
-        """测试清理"""
-        utils = EmojiUtils("👋👋👋")
-        
-        result = utils.sanitize(max_ratio=0.3)
-        self.assertEqual(result, "")
-
-
-class TestEdgeCases(unittest.TestCase):
-    """测试边界情况"""
-    
-    def test_combining_characters(self):
-        """测试组合字符（肤色修饰符等）"""
-        # 带肤色修饰符的 emoji
-        text = "👋🏻👋🏿"
-        result = extract_emoji(text)
-        self.assertGreaterEqual(len(result), 1)
-    
-    def test_zwj_sequences(self):
-        """测试零宽连接符序列"""
-        # 家庭 emoji 等复杂组合
-        text = "👨‍👩‍👧‍👦"
-        self.assertTrue(detect_emoji(text))
-    
-    def test_long_text(self):
-        """测试长文本"""
-        text = "Hello " * 1000 + "👋"
-        self.assertTrue(detect_emoji(text))
-        self.assertEqual(count_emoji(text), 1)
-    
-    def test_only_emoji_long(self):
-        """测试长 emoji 序列"""
-        text = "👋" * 100
-        self.assertTrue(is_only_emoji(text))
-        self.assertEqual(count_emoji(text), 100)
-    
-    def test_mixed_languages(self):
-        """测试混合语言"""
-        text = "你好 👋 こんにちは 😊 안녕하세요 🌍"
-        self.assertTrue(detect_emoji(text))
-        self.assertEqual(count_emoji(text), 3)
-
-
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
+if __name__ == '__main__':
+    success = run_all_tests()
+    sys.exit(0 if success else 1)

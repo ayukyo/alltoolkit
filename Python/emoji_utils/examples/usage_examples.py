@@ -1,331 +1,229 @@
 """
-Emoji Utils 使用示例
+emoji_utils 使用示例
 
-演示 emoji_utils 模块的主要功能
+展示各种功能的使用方法
 """
 
 import sys
 import os
-
-# 添加父目录到路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from mod import (
-    detect_emoji,
-    extract_emoji,
-    remove_emoji,
-    replace_emoji,
-    count_emoji,
-    get_emoji_frequency,
-    get_emoji_description,
-    categorize_emoji,
-    group_emoji_by_category,
-    extract_unique_emoji,
-    is_only_emoji,
-    get_text_emoji_ratio,
-    sanitize_text,
-    analyze,
     EmojiUtils,
-    EmojiCategory,
+    detect_emojis,
+    remove_emojis,
+    count_emojis,
+    get_emoji_info,
+    separate_text_emoji,
+    text_to_emoji,
+    emoji_density,
+    is_only_emojis
 )
 
 
-def print_separator(title: str):
-    """打印分隔线"""
-    print(f"\n{'=' * 50}")
-    print(f"  {title}")
-    print(f"{'=' * 50}\n")
+def example_basic_detection():
+    """基础检测示例"""
+    print("\n" + "=" * 50)
+    print("示例 1: 基础 Emoji 检测")
+    print("=" * 50)
+    
+    text = "今天天气真好 😊☀️ 适合出去玩 🎉"
+    
+    print(f"文本: {text}")
+    print(f"检测到的 emoji: {detect_emojis(text)}")
+    
+    # 统计
+    counts = count_emojis(text)
+    print(f"emoji 统计: {counts}")
 
 
-def example_detect():
-    """示例：检测 emoji"""
-    print_separator("检测 emoji")
+def example_remove_replace():
+    """移除和替换示例"""
+    print("\n" + "=" * 50)
+    print("示例 2: 移除和替换 Emoji")
+    print("=" * 50)
     
-    texts = [
-        "Hello! 👋",
-        "I'm feeling 😊 today!",
-        "No emojis here!",
-        "🚀🎉❤️🔥💯",
-    ]
+    text = "你好 👋 世界 🌍 开心 😊"
     
-    for text in texts:
-        has_emoji = detect_emoji(text)
-        print(f"'{text}' -> 包含 emoji: {has_emoji}")
-
-
-def example_extract():
-    """示例：提取 emoji"""
-    print_separator("提取 emoji")
-    
-    text = "Hello! 👋 I'm feeling 😊 today! 🌍🚀❤️"
-    
-    emojis = extract_emoji(text)
+    # 移除
+    cleaned = remove_emojis(text)
     print(f"原文: {text}")
-    print(f"提取的 emoji: {emojis}")
-    print(f"数量: {len(emojis)}")
+    print(f"移除后: {cleaned}")
+    
+    # 替换为占位符
+    replaced = remove_emojis(text, replacement='[表情]')
+    print(f"替换后: {replaced}")
+    
+    # 使用映射替换
+    mapping = {'👋': '你好', '🌍': '地球', '😊': '开心'}
+    mapped = EmojiUtils.replace_emojis(text, mapping, default='[?]')
+    print(f"映射替换: {mapped}")
 
 
-def example_remove():
-    """示例：移除 emoji"""
-    print_separator("移除 emoji")
+def example_emoji_info():
+    """获取 emoji 信息"""
+    print("\n" + "=" * 50)
+    print("示例 3: 获取 Emoji 详细信息")
+    print("=" * 50)
     
-    text = "Hello! 👋😊 World! 🌍🚀"
-    
-    # 默认移除
-    result1 = remove_emoji(text)
-    print(f"原文: {text}")
-    print(f"移除后: '{result1}'")
-    
-    # 使用空格替换
-    result2 = remove_emoji(text, replacement=" ")
-    print(f"替换为空格: '{result2}'")
-    
-    # 使用标记替换
-    result3 = remove_emoji(text, replacement="[EMOJI]")
-    print(f"替换为标记: '{result3}'")
-
-
-def example_replace():
-    """示例：替换 emoji 为描述"""
-    print_separator("替换 emoji 为描述")
-    
-    text = "Hello! 👋 I ❤️ Python! 🐍🚀"
-    
-    result = replace_emoji(text)
-    print(f"原文: {text}")
-    print(f"替换后: {result}")
-    
-    # 自定义替换
-    custom_map = {
-        "👋": "HI",
-        "❤️": "LOVE",
-        "🐍": "PYTHON",
-        "🚀": "ROCKET"
-    }
-    result2 = replace_emoji(text, replacement_map=custom_map)
-    print(f"自定义替换: {result2}")
-
-
-def example_count():
-    """示例：统计 emoji"""
-    print_separator("统计 emoji")
-    
-    text = "Hello! 👋😊👋🌍🚀👋"
-    
-    count = count_emoji(text)
-    frequency = get_emoji_frequency(text)
-    
-    print(f"原文: {text}")
-    print(f"总数: {count}")
-    print(f"频率统计: {frequency}")
-
-
-def example_description():
-    """示例：获取 emoji 描述"""
-    print_separator("获取 emoji 描述")
-    
-    emojis = ["👋", "❤️", "😊", "🚀", "🌍"]
+    emojis = ['😊', '❤️', '🐱', '🍕', '🎉']
     
     for emoji in emojis:
-        desc = get_emoji_description(emoji)
-        print(f"{emoji} -> {desc}")
+        info = get_emoji_info(emoji)
+        print(f"\nEmoji: {info['emoji']}")
+        print(f"  Unicode: {info['unicode']}")
+        print(f"  名称: {info['name']}")
+        print(f"  分类: {info['category']}")
+
+
+def example_separate():
+    """分离文本和 emoji"""
+    print("\n" + "=" * 50)
+    print("示例 4: 分离文本和 Emoji")
+    print("=" * 50)
+    
+    text = "今天心情 😊 很好，想去 🏖️ 玩，然后吃 🍕"
+    
+    pure_text, emojis = separate_text_emoji(text)
+    
+    print(f"原文: {text}")
+    print(f"纯文本: {pure_text}")
+    print(f"Emoji 列表: {emojis}")
 
 
 def example_categorize():
-    """示例：emoji 分类"""
-    print_separator("emoji 分类")
+    """emoji 分类示例"""
+    print("\n" + "=" * 50)
+    print("示例 5: Emoji 分类")
+    print("=" * 50)
     
-    emojis = ["😊", "😂", "🐶", "🐱", "🍎", "🍕", "🚗", "🚀", "❤️", "👍"]
+    emojis = ['😊', '😢', '🐱', '🐶', '🍕', '🍔', '⚽', '🎮', '❤️', '👍']
     
-    print("单个 emoji 分类:")
-    for emoji in emojis:
-        category = categorize_emoji(emoji)
-        print(f"  {emoji} -> {category.value}")
+    print(f"Emoji 列表: {emojis}")
     
-    print("\n批量分组:")
-    grouped = group_emoji_by_category(emojis)
-    for category, emoji_list in grouped.items():
-        print(f"  {category.value}: {emoji_list}")
+    categories = EmojiUtils.categorize_emojis(emojis)
+    print("\n分类结果:")
+    for category, emoji_list in categories.items():
+        print(f"  {category}: {emoji_list}")
 
 
-def example_unique():
-    """示例：唯一 emoji"""
-    print_separator("唯一 emoji")
-    
-    text = "Hello! 👋😊👋🌍🚀👋"
-    
-    unique = extract_unique_emoji(text)
-    all_emojis = extract_emoji(text)
-    
-    print(f"原文: {text}")
-    print(f"所有 emoji: {all_emojis}")
-    print(f"唯一 emoji: {unique}")
-    print(f"总数: {len(all_emojis)}, 唯一数: {len(unique)}")
-
-
-def example_only_emoji():
-    """示例：检测是否只有 emoji"""
-    print_separator("检测是否只有 emoji")
+def example_text_to_emoji():
+    """文本转 emoji"""
+    print("\n" + "=" * 50)
+    print("示例 6: 文本转 Emoji")
+    print("=" * 50)
     
     texts = [
-        "👋😊🌍🚀",
-        "Hello 👋",
-        "   ",  # 只有空格
-        "😊😊😊",
-        "Test 123",
+        "I am happy today",
+        "I love cats and dogs",
+        "The weather is sunny and I want coffee",
+        "Good job! Keep going!",
     ]
     
     for text in texts:
-        result = is_only_emoji(text)
-        print(f"'{text}' -> 只有 emoji: {result}")
+        converted = text_to_emoji(text)
+        print(f"{text}")
+        print(f"  → {converted}")
 
 
-def example_ratio():
-    """示例：emoji 比例"""
-    print_separator("emoji 比例")
+def example_density():
+    """emoji 密度分析"""
+    print("\n" + "=" * 50)
+    print("示例 7: Emoji 密度分析")
+    print("=" * 50)
     
     texts = [
-        "Hello 👋",          # 50%
-        "Hi! 👋😊",          # 50%
-        "👋😊🌍",            # 100%
-        "Hello World",       # 0%
-        "Test 👋 Test Test", # 25%
+        "今天心情很好",
+        "😊🎉🌟✨🎊🎈",
+        "你好 👋 世界 🌍 很开心 😊",
+        "这是一个包含一些 emoji 的普通文本段落 📝",
     ]
     
     for text in texts:
-        ratio = get_text_emoji_ratio(text)
-        print(f"'{text}' -> 比例: {ratio:.2%}")
+        density = emoji_density(text)
+        print(f"密度 {density:.2%}: {text}")
 
 
-def example_sanitize():
-    """示例：清理过多 emoji"""
-    print_separator("清理过多 emoji")
+def example_positions():
+    """位置提取示例"""
+    print("\n" + "=" * 50)
+    print("示例 8: Emoji 位置提取")
+    print("=" * 50)
+    
+    text = "你好😊世界🎉开心🌟"
+    
+    print(f"文本: {text}")
+    positions = EmojiUtils.extract_emoji_positions(text)
+    
+    for emoji, start, end in positions:
+        print(f"  '{emoji}' 位于 [{start}:{end}]")
+
+
+def example_only_emojis():
+    """检查是否只包含 emoji"""
+    print("\n" + "=" * 50)
+    print("示例 9: 检查是否仅包含 Emoji")
+    print("=" * 50)
     
     texts = [
-        ("Hello! 👋", 0.3),           # 正常，在限制内
-        ("👋👋👋👋👋", 0.3),            # 超过限制
-        ("Test 👋 Test 👋 Test", 0.3), # 正常
-        ("👋🎉❤️🔥💯👋", 0.2),          # 超过限制
+        "🎉🎊🎈",
+        "你好 😊",
+        "这是一段纯文本",
+        "👍🏻👍🏼👍🏽",
     ]
     
-    for text, max_ratio in texts:
-        result = sanitize_text(text, max_emoji_ratio=max_ratio)
-        ratio = get_text_emoji_ratio(text)
-        print(f"原文: '{text}' (比例: {ratio:.0%})")
-        print(f"  限制: {max_ratio:.0%}, 结果: '{result}'\n")
+    for text in texts:
+        result = is_only_emojis(text)
+        print(f"{result}: '{text}'")
 
 
-def example_analyze():
-    """示例：完整分析"""
-    print_separator("完整分析")
+def example_practical_use():
+    """实际应用示例"""
+    print("\n" + "=" * 50)
+    print("示例 10: 实际应用 - 社交媒体文本分析")
+    print("=" * 50)
     
-    text = "Hello! 👋😊👋 I ❤️ Python! 🐍🚀🌍"
-    
-    result = analyze(text)
-    
-    print(f"原文: {text}")
-    print(f"\n分析结果:")
-    print(f"  包含 emoji: {result['has_emoji']}")
-    print(f"  emoji 数量: {result['emoji_count']}")
-    print(f"  唯一 emoji 数量: {result['unique_count']}")
-    print(f"  emoji 列表: {result['emojis']}")
-    print(f"  唯一 emoji: {result['unique_emojis']}")
-    print(f"  频率统计: {result['frequency']}")
-    print(f"  emoji 比例: {result['ratio']:.2%}")
-    print(f"  是否只有 emoji: {result['is_only_emoji']}")
-    print(f"  类别分布: {result['categories']}")
-
-
-def example_class():
-    """示例：使用 EmojiUtils 类"""
-    print_separator("使用 EmojiUtils 类")
-    
-    text = "Hello! 👋😊❤️ Python! 🐍🚀"
-    utils = EmojiUtils(text)
-    
-    print(f"原文: {text}")
-    print(f"\n属性:")
-    print(f"  包含 emoji: {utils.has_emoji}")
-    print(f"  emoji 数量: {utils.emoji_count}")
-    print(f"  emoji 列表: {utils.emojis}")
-    print(f"  唯一 emoji: {utils.unique_emojis}")
-    print(f"  emoji 频率: {utils.emoji_frequency}")
-    print(f"  emoji 比例: {utils.emoji_ratio():.2%}")
-    
-    print(f"\n方法:")
-    print(f"  移除 emoji: '{utils.remove_emoji()}'")
-    print(f"  替换 emoji: '{utils.replace_emoji()}'")
-    print(f"  只有 emoji: {utils.is_only_emoji()}")
-    print(f"  类别分组: {utils.categorize()}")
-    
-    # 更新文本
-    print(f"\n更新文本:")
-    utils.text = "Hi! 🚀🎉🔥"
-    print(f"  新文本: {utils.text}")
-    print(f"  emoji 数量: {utils.emoji_count}")
-    print(f"  emoji 列表: {utils.emojis}")
-
-
-def example_practical():
-    """示例：实际应用场景"""
-    print_separator("实际应用场景")
-    
-    # 场景1：社交媒体文本清理
-    print("场景1：社交媒体文本清理")
-    user_input = "OMG!!! 😂😂😂😂😂😂😂😂😂😂 SO FUNNY!!! 😂😂😂"
-    clean_text = sanitize_text(user_input, max_emoji_ratio=0.2)
-    print(f"  原文: {user_input}")
-    print(f"  清理后: {clean_text}")
-    
-    # 场景2：评论 emoji 分析
-    print("\n场景2：评论 emoji 分析")
-    comments = [
-        "Great product! ❤️❤️❤️",
-        "Not bad 👍",
-        "Terrible experience 👎👎👎",
-        "Love it! 😍🥰💖💕",
+    # 模拟社交媒体帖子
+    posts = [
+        "今天去公园玩了 🎉 遇到了一只可爱的 🐱 真开心 😊",
+        "工作好累 😫 需要咖啡 ☕ 和休息 😴",
+        "美食时刻 🍕🍔🍟 和朋友聚餐真开心 👫",
     ]
     
-    for comment in comments:
-        emojis = extract_emoji(comment)
-        freq = get_emoji_frequency(comment)
-        print(f"  '{comment}' -> emoji: {emojis}, 频率: {freq}")
+    print("社交媒体帖子分析:\n")
     
-    # 场景3：生成 emoji 报告
-    print("\n场景3：emoji 分析报告")
-    text = "Today was amazing! 😊 I met so many cool people 👋❤️ " \
-           "We had great food 🍕🍔 and the weather was perfect 🌞 " \
-           "Can't wait for tomorrow! 🚀🎉"
-    
-    report = analyze(text)
-    print(f"  文本: {text[:50]}...")
-    print(f"  共 {report['emoji_count']} 个 emoji")
-    print(f"  {report['unique_count']} 种不同的 emoji")
-    print(f"  emoji 比例: {report['ratio']:.1%}")
-    print(f"  类别分布:")
-    for cat, emojis in report['categories'].items():
-        print(f"    - {cat}: {emojis}")
+    for i, post in enumerate(posts, 1):
+        print(f"帖子 {i}: {post}")
+        
+        # 分析
+        emojis = detect_emojis(post)
+        density = emoji_density(post)
+        counts = count_emojis(post)
+        
+        print(f"  Emoji 种类: {len(emojis)}")
+        print(f"  Emoji 数量: {sum(counts.values())}")
+        print(f"  Emoji 密度: {density:.1%}")
+        print(f"  分类: {EmojiUtils.categorize_emojis(emojis)}")
+        print()
 
 
 def main():
     """运行所有示例"""
-    example_detect()
-    example_extract()
-    example_remove()
-    example_replace()
-    example_count()
-    example_description()
+    example_basic_detection()
+    example_remove_replace()
+    example_emoji_info()
+    example_separate()
     example_categorize()
-    example_unique()
-    example_only_emoji()
-    example_ratio()
-    example_sanitize()
-    example_analyze()
-    example_class()
-    example_practical()
+    example_text_to_emoji()
+    example_density()
+    example_positions()
+    example_only_emojis()
+    example_practical_use()
     
-    print_separator("示例运行完成!")
+    print("\n" + "=" * 50)
+    print("所有示例演示完成！")
+    print("=" * 50)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
