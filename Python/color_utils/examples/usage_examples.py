@@ -1,419 +1,331 @@
 """
 Color Utils 使用示例
 
-展示颜色工具模块的各种用法。
+展示颜色工具的各种应用场景
 """
 
 import sys
 import os
-# 添加 Python 目录到路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from mod import (
-    Color,
-    rgb_to_hsl,
-    hsl_to_rgb,
-    hex_to_rgb,
-    rgb_to_hex,
-    name_to_rgb,
-    parse_color,
-    generate_complementary,
-    generate_analogous,
-    generate_triadic,
-    generate_split_complementary,
-    generate_tetradic,
-    generate_shades,
-    generate_tints,
-    generate_gradient,
-    generate_monochromatic,
-    generate_palette,
-    random_color,
-    random_pastel,
-    random_vibrant,
-    random_dark,
-    random_light,
-    blend_colors,
-    get_color_suggestions,
+from color_utils.mod import (
+    Color, ColorPalette, ColorBlindness, ColorConverter, Colors
 )
 
 
-def example_basic_color_creation():
-    """示例1: 基本颜色创建"""
-    print("=" * 50)
-    print("示例1: 基本颜色创建")
-    print("=" * 50)
-    
-    # RGB 创建
-    color1 = Color(255, 128, 0)
-    print(f"RGB 创建: {color1}")
-    
-    # 十六进制创建
-    color2 = Color.from_hex('#ff8000')
-    print(f"十六进制创建: {color2}")
-    
-    # HSL 创建 (色相, 饱和度, 亮度)
-    color3 = Color.from_hsl(30, 100, 50)  # 橙色
-    print(f"HSL 创建: {color3}")
-    
-    # HSV 创建 (色相, 饱和度, 明度)
-    color4 = Color.from_hsv(120, 100, 100)  # 绿色
-    print(f"HSV 创建: {color4}")
-    
-    # 颜色名称创建
-    color5 = Color.from_name('coral')
-    print(f"名称创建: {color5}")
-    
-    # 带透明度
-    color6 = Color(255, 128, 0, 0.5)
-    print(f"带透明度: {color6}")
-    print(f"十六进制(含透明度): {color6.hex_with_alpha}")
-
-
-def example_color_properties():
-    """示例2: 颜色属性"""
+def example_basic_color_manipulation():
+    """示例1: 基础颜色操作"""
     print("\n" + "=" * 50)
-    print("示例2: 颜色属性")
+    print("示例1: 基础颜色操作")
     print("=" * 50)
     
-    color = Color.from_hex('#ff8000')
+    # 创建颜色
+    orange = Color.from_hex("#FF6B35")
+    print(f"原始颜色: {orange.hex}")
     
-    print(f"颜色: {color}")
-    print(f"RGB: {color.rgb}")
-    print(f"RGBA: {color.rgba}")
-    print(f"HEX: {color.hex}")
-    print(f"HSL: {color.hsl}")
-    print(f"HSV: {color.hsv}")
-    print(f"亮度: {color.luminance:.3f}")
-    print(f"颜色名称: {color.name}")
-    print(f"是否浅色: {color.is_light()}")
-    print(f"是否深色: {color.is_dark()}")
+    # 颜色变体
+    print(f"变亮: {orange.lighten(20).hex}")
+    print(f"变暗: {orange.darken(20).hex}")
+    print(f"增加饱和度: {orange.saturate(20).hex}")
+    print(f"降低饱和度: {orange.desaturate(20).hex}")
+    print(f"互补色: {orange.complement().hex}")
+    print(f"反色: {orange.invert().hex}")
+    print(f"灰度: {orange.to_grayscale().hex}")
+    
+    # 颜色混合
+    blue = Color.from_hex("#4ECDC4")
+    mixed = orange.mix(blue, 0.5)
+    print(f"\n橙色 {orange.hex} + 蓝绿 {blue.hex} = {mixed.hex}")
 
 
 def example_color_conversion():
-    """示例3: 颜色格式转换"""
+    """示例2: 颜色格式转换"""
     print("\n" + "=" * 50)
-    print("示例3: 颜色格式转换")
+    print("示例2: 颜色格式转换")
     print("=" * 50)
     
-    # RGB <-> HSL
-    r, g, b = 255, 128, 0
-    h, s, l = rgb_to_hsl(r, g, b)
-    print(f"RGB({r}, {g}, {b}) -> HSL({h:.1f}°, {s:.1f}%, {l:.1f}%)")
+    hex_color = "#3498DB"
+    print(f"HEX: {hex_color}")
     
-    r2, g2, b2 = hsl_to_rgb(h, s, l)
-    print(f"HSL({h:.1f}°, {s:.1f}%, {l:.1f}%) -> RGB({r2}, {g2}, {b2})")
+    # 创建颜色对象
+    color = Color.from_hex(hex_color)
     
-    # RGB <-> HEX
-    hex_str = rgb_to_hex(255, 0, 0)
-    print(f"RGB(255, 0, 0) -> HEX: {hex_str}")
+    # 转换为各种格式
+    print(f"RGB: rgb{color.rgb}")
+    h, s, l = color.hsl
+    print(f"HSL: hsl({h:.1f}, {s:.1f}%, {l:.1f}%)")
+    h, s, v = color.hsv
+    print(f"HSV: hsv({h:.1f}, {s:.1f}%, {v:.1f}%)")
+    c, m, y, k = color.cmyk
+    print(f"CMYK: cmyk({c:.1f}%, {m:.1f}%, {y:.1f}%, {k:.1f}%)")
     
-    r, g, b, a = hex_to_rgb('#ff8000')
-    print(f"HEX #ff8000 -> RGB({r}, {g}, {b}), alpha={a}")
-    
-    # 名称 <-> RGB
-    r, g, b = name_to_rgb('coral')
-    print(f"名称 'coral' -> RGB({r}, {g}, {b})")
-    
-    # 解析各种格式
-    color1 = parse_color('#ff0000')
-    color2 = parse_color('rgb(255, 0, 0)')
-    color3 = parse_color('red')
-    color4 = parse_color('hsl(0, 100%, 50%)')
-    print(f"解析 #ff0000: {color1}")
-    print(f"解析 rgb(255, 0, 0): {color2}")
-    print(f"解析 'red': {color3}")
-    print(f"解析 hsl(0, 100%, 50%): {color4}")
-
-
-def example_color_operations():
-    """示例4: 颜色操作"""
-    print("\n" + "=" * 50)
-    print("示例4: 颜色操作")
-    print("=" * 50)
-    
-    color = Color.from_hex('#ff8000')
-    
-    # 增加亮度
-    lighter = color.lighten(20)
-    print(f"原色: {color.hex}")
-    print(f"增加亮度 20%: {lighter.hex}")
-    
-    # 降低亮度
-    darker = color.darken(20)
-    print(f"降低亮度 20%: {darker.hex}")
-    
-    # 增加饱和度
-    saturated = color.saturate(30)
-    print(f"增加饱和度 30%: {saturated.hex}")
-    
-    # 降低饱和度
-    desaturated = color.desaturate(30)
-    print(f"降低饱和度 30%: {desaturated.hex}")
-    
-    # 灰度化
-    gray = color.grayscale()
-    print(f"灰度化: {gray.hex}")
-    
-    # 反色
-    inverted = color.invert()
-    print(f"反色: {inverted.hex}")
-    
-    # 色相旋转
-    rotated = color.rotate_hue(60)
-    print(f"色相旋转 60°: {rotated.hex}")
-    
-    # 互补色
-    complement = color.complement()
-    print(f"互补色: {complement.hex}")
-    
-    # 颜色混合
-    blue = Color.from_hex('#0000ff')
-    mixed = color.mix(blue, 0.5)
-    print(f"与蓝色 50% 混合: {mixed.hex}")
-
-
-def example_contrast_calculation():
-    """示例5: 对比度计算"""
-    print("\n" + "=" * 50)
-    print("示例5: 对比度计算")
-    print("=" * 50)
-    
-    # 黑白对比
-    black = Color(0, 0, 0)
-    white = Color(255, 255, 255)
-    ratio = black.contrast_ratio(white)
-    print(f"黑白对比度: {ratio:.1f}:1")
-    
-    # WCAG 合规性检查
-    compliance = white.wcag_compliance(black)
-    print(f"WCAG AA 正常文本: {'✓' if compliance['aa_normal'] else '✗'}")
-    print(f"WCAG AA 大文本: {'✓' if compliance['aa_large'] else '✗'}")
-    print(f"WCAG AAA 正常文本: {'✓' if compliance['aaa_normal'] else '✗'}")
-    print(f"WCAG AAA 大文本: {'✓' if compliance['aaa_large'] else '✗'}")
-    
-    # 推荐文本颜色
-    bg_color = Color(30, 30, 30)
-    text_color = bg_color.text_color()
-    print(f"\n深色背景 {bg_color.hex} 推荐文本颜色: {text_color.hex}")
-    
-    bg_color = Color(240, 240, 240)
-    text_color = bg_color.text_color()
-    print(f"浅色背景 {bg_color.hex} 推荐文本颜色: {text_color.hex}")
+    # 使用转换器工具函数
+    print("\n使用工具函数:")
+    print(f"HEX转RGB: {ColorConverter.hex_to_rgb('#E74C3C')}")
+    print(f"RGB转HEX: {ColorConverter.rgb_to_hex(231, 76, 60)}")
+    print(f"HSL转RGB: {ColorConverter.hsl_to_rgb(210, 100, 60)}")
 
 
 def example_palette_generation():
-    """示例6: 调色板生成"""
+    """示例3: 调色板生成"""
     print("\n" + "=" * 50)
-    print("示例6: 调色板生成")
+    print("示例3: 调色板生成")
     print("=" * 50)
     
-    base_color = Color.from_hex('#ff6b6b')  # 红色
+    base_color = Color.from_hex("#9B59B6")  # 紫色
+    print(f"基础色: {base_color.hex}\n")
     
-    # 互补色
-    comp = generate_complementary(base_color)
-    print(f"互补色: {[c.hex for c in comp]}")
+    # 各种调色板
+    print("互补色调色板:")
+    for c in ColorPalette.complementary(base_color):
+        print(f"  {c.hex}")
     
-    # 类似色
-    anal = generate_analogous(base_color)
-    print(f"类似色: {[c.hex for c in anal]}")
+    print("\n类似色调色板:")
+    for c in ColorPalette.analogous(base_color):
+        print(f"  {c.hex}")
     
-    # 三元组色
-    tri = generate_triadic(base_color)
-    print(f"三元组色: {[c.hex for c in tri]}")
+    print("\n三角色调色板:")
+    for c in ColorPalette.triadic(base_color):
+        print(f"  {c.hex}")
     
-    # 分裂互补色
-    split = generate_split_complementary(base_color)
-    print(f"分裂互补色: {[c.hex for c in split]}")
+    print("\n分裂互补色调色板:")
+    for c in ColorPalette.split_complementary(base_color):
+        print(f"  {c.hex}")
     
-    # 四元组色
-    tetra = generate_tetradic(base_color)
-    print(f"四元组色: {[c.hex for c in tetra]}")
-    
-    # 单色调色板
-    mono = generate_monochromatic(base_color, count=5)
-    print(f"单色调色板: {[c.hex for c in mono]}")
-    
-    # 渐变
-    start = Color.from_hex('#ff6b6b')
-    end = Color.from_hex('#4ecdc4')
-    gradient = generate_gradient(start, end, steps=5)
-    print(f"渐变 (红到青): {[c.hex for c in gradient]}")
-    
-    # 深浅变化
-    shades = generate_shades(base_color, count=5)
-    print(f"深浅变化: {[c.hex for c in shades]}")
-    
-    # 浅色调变化
-    tints = generate_tints(base_color, count=5)
-    print(f"浅色调变化: {[c.hex for c in tints]}")
+    print("\n单色调色板:")
+    for c in ColorPalette.monochromatic(base_color):
+        print(f"  {c.hex}")
 
 
-def example_random_colors():
-    """示例7: 随机颜色生成"""
+def example_ui_color_system():
+    """示例4: UI颜色系统设计"""
     print("\n" + "=" * 50)
-    print("示例7: 随机颜色生成")
+    print("示例4: UI颜色系统设计")
     print("=" * 50)
     
-    # 随机颜色
-    random_colors = [random_color() for _ in range(5)]
-    print(f"随机颜色: {[c.hex for c in random_colors]}")
+    # 品牌主色
+    primary = Color.from_hex("#4A90D9")
+    print(f"品牌主色: {primary.hex}")
     
-    # 柔和色
-    pastels = [random_pastel() for _ in range(5)]
-    print(f"柔和色: {[c.hex for c in pastels]}")
+    # 自动生成色阶
+    print("\n色阶 (用于UI状态):")
+    tints = ColorPalette.tints(primary, 5)
+    shades = ColorPalette.shades(primary, 5)
     
-    # 鲜艳色
-    vibrant = [random_vibrant() for _ in range(5)]
-    print(f"鲜艳色: {[c.hex for c in vibrant]}")
+    print("  亮色调 (hover等):")
+    for i, c in enumerate(tints):
+        print(f"    tint-{i+1}: {c.hex}")
     
-    # 深色
-    dark = [random_dark() for _ in range(5)]
-    print(f"深色: {[c.hex for c in dark]}")
+    print("  暗色调 (active等):")
+    for i, c in enumerate(shades):
+        print(f"    shade-{i+1}: {c.hex}")
     
-    # 浅色
-    light = [random_light() for _ in range(5)]
-    print(f"浅色: {[c.hex for c in light]}")
+    # 状态色
+    print("\n状态色示例:")
+    success = Color.from_hex("#27AE60")
+    warning = Color.from_hex("#F39C12")
+    error = Color.from_hex("#E74C3C")
+    info = Color.from_hex("#3498DB")
     
-    # 指定色相的随机色
-    blue_hue = [Color.random(hue=210) for _ in range(5)]
-    print(f"蓝色系随机色: {[c.hex for c in blue_hue]}")
+    for name, color in [("成功", success), ("警告", warning), ("错误", error), ("信息", info)]:
+        text_color = color.best_text_color()
+        ratio = color.contrast_ratio(text_color)
+        print(f"  {name}: 背景色 {color.hex}, 文字色 {text_color.hex}, 对比度 {ratio:.2f}:1")
 
 
-def example_blend_colors():
-    """示例8: 多色混合"""
+def example_accessibility_check():
+    """示例5: 无障碍访问检查"""
     print("\n" + "=" * 50)
-    print("示例8: 多色混合")
+    print("示例5: 无障碍访问检查")
     print("=" * 50)
     
-    # 三色等权重混合
-    red = Color(255, 0, 0)
-    green = Color(0, 255, 0)
-    blue = Color(0, 0, 255)
-    
-    blended = blend_colors([red, green, blue])
-    print(f"红/绿/蓝 等权重混合: {blended.hex}")
-    
-    # 自定义权重混合
-    colors = [red, green, blue]
-    weights = [0.5, 0.3, 0.2]
-    blended = blend_colors(colors, weights=weights)
-    print(f"红(50%)/绿(30%)/蓝(20%) 混合: {blended.hex}")
-
-
-def example_ui_color_suggestions():
-    """示例9: UI 设计颜色建议"""
-    print("\n" + "=" * 50)
-    print("示例9: UI 设计颜色建议")
-    print("=" * 50)
-    
-    primary_color = Color.from_hex('#3498db')  # 蓝色
-    
-    suggestions = get_color_suggestions(primary_color, 'ui')
-    
-    print(f"主色: {suggestions['original'].hex}")
-    print(f"悬停色: {suggestions['hover'].hex}")
-    print(f"激活色: {suggestions['active'].hex}")
-    print(f"禁用色: {suggestions['disabled'].hex}")
-    print(f"边框色: {suggestions['border'].hex}")
-    print(f"文本色: {suggestions['text_on_bg'].hex}")
-    print(f"浅色调: {suggestions['lighter'].hex}")
-    print(f"深色调: {suggestions['darker'].hex}")
-
-
-def example_design_palette():
-    """示例10: 创建完整设计调色板"""
-    print("\n" + "=" * 50)
-    print("示例10: 创建完整设计调色板")
-    print("=" * 50)
-    
-    # 主品牌色
-    brand_color = Color.from_hex('#6c5ce7')
-    
-    # 生成各种调色板
-    print("品牌调色板:")
-    print("-" * 30)
-    
-    # 主色系列
-    print(f"主色: {brand_color.hex}")
-    print(f"浅主色: {brand_color.lighten(15).hex}")
-    print(f"深主色: {brand_color.darken(15).hex}")
-    
-    # 强调色 (互补色)
-    accent = brand_color.complement()
-    print(f"强调色: {accent.hex}")
-    
-    # 成功/警告/错误色
-    success = Color.from_hex('#00b894')
-    warning = Color.from_hex('#fdcb6e')
-    error = Color.from_hex('#e17055')
-    print(f"成功色: {success.hex}")
-    print(f"警告色: {warning.hex}")
-    print(f"错误色: {error.hex}")
-    
-    # 灰度色阶
-    gray_scale = [
-        Color(255, 255, 255),  # 白
-        Color(250, 250, 250),
-        Color(245, 245, 245),
-        Color(230, 230, 230),
-        Color(200, 200, 200),
-        Color(150, 150, 150),
-        Color(100, 100, 100),
-        Color(50, 50, 50),
-        Color(0, 0, 0),        # 黑
+    # 模拟一个按钮的颜色方案
+    backgrounds = [
+        ("深蓝按钮", "#1A5276"),
+        ("红色警告", "#C0392B"),
+        ("绿色成功", "#1E8449"),
+        ("浅灰背景", "#ECF0F1"),
+        ("深色模式", "#2C3E50"),
     ]
-    print(f"灰度色阶: {[c.hex for c in gray_scale]}")
     
-    # 检查文本对比度
-    print("\n文本对比度检查:")
-    text_on_brand = brand_color.text_color()
-    ratio = brand_color.contrast_ratio(text_on_brand)
-    print(f"品牌背景上的文本对比度: {ratio:.1f}:1")
+    print("按钮文字对比度检查:\n")
+    for name, bg_hex in backgrounds:
+        bg = Color.from_hex(bg_hex)
+        white = Colors.WHITE
+        black = Colors.BLACK
+        
+        white_ratio = bg.contrast_ratio(white)
+        black_ratio = bg.contrast_ratio(black)
+        
+        best = bg.best_text_color()
+        compliance = bg.wcag_compliance(best)
+        
+        print(f"{name} ({bg.hex}):")
+        print(f"  白字对比度: {white_ratio:.2f}:1 {'✓' if white_ratio >= 4.5 else '✗'}")
+        print(f"  黑字对比度: {black_ratio:.2f}:1 {'✓' if black_ratio >= 4.5 else '✗'}")
+        print(f"  推荐文字色: {best.hex}")
+        print(f"  WCAG AA合规: {'✓' if compliance['AA_normal'] else '✗'}")
+        print()
 
 
-def example_html_color_output():
-    """示例11: 生成 HTML 颜色展示"""
+def example_gradient_generator():
+    """示例6: 渐变色生成"""
     print("\n" + "=" * 50)
-    print("示例11: 生成 HTML 颜色展示代码")
+    print("示例6: 渐变色生成")
     print("=" * 50)
     
-    # 生成一个调色板并输出 HTML
-    base_color = Color.from_name('coral')
-    palette = generate_triadic(base_color)
+    # 线性渐变
+    start = Color.from_hex("#FF6B6B")
+    end = Color.from_hex("#4ECDC4")
     
-    html = """
-<div style="display: flex; gap: 10px;">
-"""
-    for color in palette:
-        html += f"""  <div style="width: 100px; height: 100px; background-color: {color.hex}; border-radius: 8px;">
-    <div style="color: {color.text_color().hex}; padding: 10px; font-size: 12px;">
-      {color.hex}
-    </div>
-  </div>
-"""
-    html += "</div>"
+    print(f"渐变: {start.hex} -> {end.hex}")
+    gradient = ColorPalette.gradient(start, end, 7)
+    for i, c in enumerate(gradient):
+        print(f"  步骤{i+1}: {c.hex}")
     
-    print(html)
+    # 多色渐变
+    print("\n多色渐变:")
+    colors = [
+        Color.from_hex("#FF0000"),
+        Color.from_hex("#FFFF00"),
+        Color.from_hex("#00FF00"),
+        Color.from_hex("#00FFFF"),
+        Color.from_hex("#0000FF"),
+    ]
+    multi = ColorPalette.multi_gradient(colors, 3)
+    print(f"  彩虹渐变: {[c.hex for c in multi]}")
+
+
+def example_color_blindness():
+    """示例7: 色盲友好设计"""
+    print("\n" + "=" * 50)
+    print("示例7: 色盲友好设计")
+    print("=" * 50)
+    
+    # 色盲安全调色板
+    safe_palette = ColorBlindness.colorblind_safe_palette()
+    print("色盲安全调色板 (推荐用于图表):")
+    for c in safe_palette:
+        print(f"  {c.hex}")
+    
+    # 检查颜色区分性
+    print("\n颜色对区分性检查:")
+    red = Color.from_hex("#E74C3C")
+    green = Color.from_hex("#2ECC71")
+    
+    print(f"红色 {red.hex} vs 绿色 {green.hex}:")
+    for cb_type in ['protanopia', 'deuteranopia', 'tritanopia']:
+        distinguishable = ColorBlindness.is_distinguishable(red, green, cb_type)
+        print(f"  {cb_type}: {'可区分 ✓' if distinguishable else '不可区分 ✗'}")
+    
+    # 色盲模拟
+    print(f"\n色盲模拟 (红色 {red.hex}):")
+    simulated = ColorBlindness.simulate_all(red)
+    for name, color in simulated.items():
+        if name != 'normal':
+            print(f"  {name}: {color.hex}")
+
+
+def example_css_color_parser():
+    """示例8: CSS颜色解析"""
+    print("\n" + "=" * 50)
+    print("示例8: CSS颜色解析")
+    print("=" * 50)
+    
+    css_colors = [
+        "#FF6B6B",
+        "rgb(255, 107, 107)",
+        "rgba(255, 107, 107, 0.8)",
+        "hsl(0, 100%, 71%)",
+        "hsla(0, 100%, 71%, 0.8)",
+        "red",
+        "coral",
+        "turquoise",
+    ]
+    
+    print("解析各种CSS颜色格式:\n")
+    for css in css_colors:
+        color = ColorConverter.parse_color(css)
+        if color:
+            print(f"  {css:30} -> {color.hex} {color.rgb}")
+
+
+def example_random_palette_generation():
+    """示例9: 随机调色板生成"""
+    print("\n" + "=" * 50)
+    print("示例9: 随机调色板生成")
+    print("=" * 50)
+    
+    print("不同风格的随机调色板:\n")
+    
+    styles = ['pastel', 'vibrant', 'earth', 'cool', 'warm']
+    for style in styles:
+        palette = ColorPalette.random_palette(5, style)
+        print(f"{style.capitalize()}: {[c.hex for c in palette]}")
+
+
+def example_data_visualization_colors():
+    """示例10: 数据可视化配色"""
+    print("\n" + "=" * 50)
+    print("示例10: 数据可视化配色")
+    print("=" * 50)
+    
+    # 分类数据配色
+    print("分类数据配色 (10色):")
+    categorical = ColorPalette.random_palette(10, 'vibrant')
+    for i, c in enumerate(categorical):
+        print(f"  类别{i+1}: {c.hex}")
+    
+    # 顺序数据配色
+    print("\n顺序数据配色 (蓝色系):")
+    sequential = ColorPalette.gradient(
+        Color.from_hex("#E3F2FD"),
+        Color.from_hex("#0D47A1"),
+        7
+    )
+    for i, c in enumerate(sequential):
+        print(f"  级别{i+1}: {c.hex}")
+    
+    # 发散数据配色
+    print("\n发散数据配色 (红-白-蓝):")
+    diverging = ColorPalette.multi_gradient([
+        Color.from_hex("#D32F2F"),
+        Color.from_hex("#FFFFFF"),
+        Color.from_hex("#1976D2")
+    ], 4)
+    for i, c in enumerate(diverging):
+        print(f"  级别{i+1}: {c.hex}")
 
 
 def main():
     """运行所有示例"""
-    example_basic_color_creation()
-    example_color_properties()
-    example_color_conversion()
-    example_color_operations()
-    example_contrast_calculation()
-    example_palette_generation()
-    example_random_colors()
-    example_blend_colors()
-    example_ui_color_suggestions()
-    example_design_palette()
-    example_html_color_output()
+    examples = [
+        example_basic_color_manipulation,
+        example_color_conversion,
+        example_palette_generation,
+        example_ui_color_system,
+        example_accessibility_check,
+        example_gradient_generator,
+        example_color_blindness,
+        example_css_color_parser,
+        example_random_palette_generation,
+        example_data_visualization_colors,
+    ]
     
-    print("\n" + "=" * 50)
-    print("所有示例完成!")
-    print("=" * 50)
+    print("\n" + "=" * 60)
+    print("  Color Utils 使用示例")
+    print("=" * 60)
+    
+    for example in examples:
+        try:
+            example()
+        except Exception as e:
+            print(f"\n示例执行出错: {e}")
+    
+    print("\n" + "=" * 60)
+    print("  示例演示完成!")
+    print("=" * 60 + "\n")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
