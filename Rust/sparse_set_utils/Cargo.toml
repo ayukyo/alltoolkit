@@ -1,0 +1,14 @@
+[package]
+name = "sparse_set_utils"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "高性能稀疏集合实现 - O(1) 插入、删除、查找，零外部依赖"
+license = "MIT"
+keywords = ["sparse-set", "data-structure", "ecs", "no-std", "embedded"]
+categories = ["data-structures", "algorithms", "no-std"]
+
+[dependencies]
+
+[features]
+default = []
