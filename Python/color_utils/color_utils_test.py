@@ -4,8 +4,7 @@ Color Utils 测试套件
 测试颜色格式转换、调色板生成、对比度计算等功能。
 """
 
-
-
+import unittest
 import sys
 import os
 

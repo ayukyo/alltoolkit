@@ -10,8 +10,7 @@ Candlestick Pattern Recognition Utilities Test Suite
 - 综合形态扫描
 """
 
-
-
+import unittest
 import sys
 import os
 

@@ -1,3 +1,4 @@
+import unittest
 """
 Clothing Size Utils 测试文件
 """

@@ -3,8 +3,8 @@
 Time Series Utilities Tests
 """
 
+import unittest
 import math
-
 import sys
 import os
 

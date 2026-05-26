@@ -6,8 +6,7 @@ AllToolkit - Nutrition Utilities Test Module
 Unit tests for nutrition_utils module.
 """
 
-
-
+import unittest
 import sys
 import os
 

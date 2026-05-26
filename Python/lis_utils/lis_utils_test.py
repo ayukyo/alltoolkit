@@ -2,8 +2,7 @@
 Tests for LIS (Longest Increasing Subsequence) Utils
 """
 
-
-
+import unittest
 import sys
 import os
 

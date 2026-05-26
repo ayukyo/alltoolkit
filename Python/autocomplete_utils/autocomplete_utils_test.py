@@ -3,8 +3,8 @@
 Autocomplete Utilities Test Suite
 """
 
-
-
+import unittest
+import json
 import sys
 import os
 

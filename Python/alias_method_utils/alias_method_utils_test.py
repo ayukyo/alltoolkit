@@ -4,8 +4,7 @@ Unit Tests for Alias Method Utils
 Tests for Walker's Alias Method implementation for O(1) weighted random sampling.
 """
 
-
-
+import unittest
 import sys
 import os
 

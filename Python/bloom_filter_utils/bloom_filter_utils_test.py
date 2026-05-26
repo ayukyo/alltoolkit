@@ -252,7 +252,9 @@ class TestCountingBloomFilter:
         
         # 添加相同元素多次
         assert cbf.add("item") is True
-        # 第二次添加相同元素时，由于哈希值相同，计数器达到上限，返回 False
+        # 第二次添加相同元素时，计数器从 1 增加到 2，仍然可以添加
+        assert cbf.add("item") is True
+        # 第三次添加相同元素时，计数器已达到上限 2，返回 False
         assert cbf.add("item") is False
         
         # 验证元素仍然存在
