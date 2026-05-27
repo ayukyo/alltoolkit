@@ -1,0 +1,13 @@
+[package]
+name = "memoization_utils"
+version = "0.1.0"
+edition = "2021"
+description = "Memoization utilities for Rust - caching function results for efficiency"
+license = "MIT"
+authors = ["AllToolkit"]
+
+[dependencies]
+# No external dependencies - pure std implementation
+
+[dev-dependencies]
+# No external dev dependencies
