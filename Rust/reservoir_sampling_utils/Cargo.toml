@@ -1,0 +1,13 @@
+[package]
+name = "reservoir_sampling_utils"
+version = "1.0.0"
+edition = "2021"
+description = "水塘采样（Reservoir Sampling）算法工具库 - 支持算法 R、算法 L、加权采样"
+authors = ["AllToolkit"]
+license = "MIT"
+
+[lib]
+name = "reservoir_sampling_utils"
+path = "mod.rs"
+
+[dependencies]
