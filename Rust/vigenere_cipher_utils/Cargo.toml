@@ -1,0 +1,23 @@
+[package]
+name = "vigenere_cipher_utils"
+version = "1.0.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "A comprehensive Vigenère cipher implementation with encryption, decryption, and cryptanalysis tools"
+license = "MIT"
+keywords = ["vigenere", "cipher", "encryption", "cryptography", "classical-cipher"]
+categories = ["cryptography", "algorithms"]
+
+[lib]
+name = "vigenere_cipher_utils"
+path = "src/lib.rs"
+
+[dependencies]
+# No external dependencies
+
+[dev-dependencies]
+# No external dev dependencies
+
+[[example]]
+name = "basic"
+path = "examples/basic.rs"
