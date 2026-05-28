@@ -3,767 +3,259 @@
 """
 AllToolkit - Credit Card Utilities Module
 ==========================================
-A comprehensive credit card utility module for Python with zero external dependencies.
+A comprehensive credit card processing utility module for Python with zero external dependencies.
 
 Features:
-    - Credit card number validation using Luhn algorithm
-    - Card type detection (Visa, MasterCard, Amex, Discover, etc.)
+    - Luhn algorithm validation
+    - Credit card type detection (Visa, Mastercard, Amex, etc.)
     - Card number formatting and masking
-    - Test card number generation
-    - CVV and expiry date validation
-    - BIN/IIN lookup support
+    - CVV validation
+    - Expiry date validation
+    - Card number generation for testing (valid Luhn)
+    - IIN/BIN range lookup
 
 Author: AllToolkit Contributors
 License: MIT
 """
 
 import re
-from typing import Optional, Tuple, Dict, List, Union
-from datetime import datetime
-from random import randint, choice
+from typing import Optional, Tuple, List, Dict
+from dataclasses import dataclass
+from datetime import datetime, date
+from random import randint
+
 
 # ============================================================================
-# Card Type Definitions
+# Constants
 # ============================================================================
 
-CARD_PATTERNS: Dict[str, Dict] = {
+# Card type patterns (IIN ranges)
+CARD_PATTERNS = {
     'visa': {
-        'pattern': r'^4[0-9]{12,18}$',
-        'name': 'Visa',
+        'patterns': [r'^4'],
         'lengths': [13, 16, 19],
         'cvv_length': 3,
-        'prefixes': ['4']
+        'name': 'Visa',
     },
     'mastercard': {
-        'pattern': r'^(?:5[1-5][0-9]{2}|2[2-7][0-9]{2})[0-9]{12}$',
-        'name': 'MasterCard',
+        'patterns': [r'^5[1-5]', r'^2[2-7][1-9]'],
         'lengths': [16],
         'cvv_length': 3,
-        'prefixes': ['51', '52', '53', '54', '55', '2221', '2222', '2223', '2224', '2225',
-                    '2226', '2227', '2228', '2229', '223', '224', '225', '226', '227',
-                    '228', '229', '23', '24', '25', '26', '270', '271', '2720']
+        'name': 'Mastercard',
     },
     'amex': {
-        'pattern': r'^3[47][0-9]{13}$',
-        'name': 'American Express',
+        'patterns': [r'^3[47]'],
         'lengths': [15],
         'cvv_length': 4,
-        'prefixes': ['34', '37']
+        'name': 'American Express',
     },
     'discover': {
-        'pattern': r'^6(?:011|5[0-9]{2})[0-9]{12}$',
+        'patterns': [r'^6011', r'^65', r'^64[4-9]', r'^622(?:12[6-9]|1[3-9][0-9]|[2-8][0-9]{2}|9[0-1][0-9]|92[0-5])'],
+        'lengths': [16, 19],
+        'cvv_length': 3,
         'name': 'Discover',
-        'lengths': [16, 19],
-        'cvv_length': 3,
-        'prefixes': ['6011', '644', '645', '646', '647', '648', '649', '65']
-    },
-    'jcb': {
-        'pattern': r'^(?:2131|1800|35\d{3})\d{11}$',
-        'name': 'JCB',
-        'lengths': [16, 19],
-        'cvv_length': 3,
-        'prefixes': ['2131', '1800', '35']
     },
     'diners_club': {
-        'pattern': r'^3(?:0[0-5]|[68][0-9])[0-9]{11,14}$',
-        'name': 'Diners Club',
-        'lengths': [14, 16, 17, 18, 19],
+        'patterns': [r'^3(?:0[0-5]|[68][0-9])'],
+        'lengths': [14, 16, 19],
         'cvv_length': 3,
-        'prefixes': ['300', '301', '302', '303', '304', '305', '36', '38', '39']
+        'name': 'Diners Club',
     },
-    'unionpay': {
-        'pattern': r'^62[0-9]{14,17}$',
-        'name': 'UnionPay',
+    'jcb': {
+        'patterns': [r'^(?:2131|1800|35(?:2[8-9]|[3-8][0-9]))'],
         'lengths': [16, 17, 18, 19],
         'cvv_length': 3,
-        'prefixes': ['62']
+        'name': 'JCB',
     },
-    'mir': {
-        'pattern': r'^220[0-4][0-9]{12,15}$',
-        'name': 'Mir',
-        'lengths': [16],
+    'unionpay': {
+        'patterns': [r'^62', r'^81'],
+        'lengths': [16, 17, 18, 19],
         'cvv_length': 3,
-        'prefixes': ['2200', '2201', '2202', '2203', '2204']
+        'name': 'UnionPay',
     },
     'maestro': {
-        'pattern': r'^(?:5[0678]\d\d|6\d\d)[0-9]{10,17}$',
-        'name': 'Maestro',
+        'patterns': [r'^(?:5018|5020|5038|56[0-9]{2}|67[0-9]{2})'],
         'lengths': [12, 13, 14, 15, 16, 17, 18, 19],
         'cvv_length': 3,
-        'prefixes': ['5018', '5020', '5038', '5893', '6304', '6759', '6761', '6762', '6763']
-    }
+        'name': 'Maestro',
+    },
+    'mir': {
+        'patterns': [r'^220[0-4]'],
+        'lengths': [16],
+        'cvv_length': 3,
+        'name': 'Mir',
+    },
 }
 
-# Test card numbers for development (these are standard test cards)
-TEST_CARDS: Dict[str, List[str]] = {
-    'visa': ['4111111111111111', '4012888888881881', '4222222222222'],
-    'mastercard': ['5555555555554444', '2223000048400011', '5105105105105100'],
-    'amex': ['378282246310005', '371449635398431'],
-    'discover': ['6011111111111117', '6011000990139424'],
-    'jcb': ['3530111333300000', '3566002020360505'],
-    'diners_club': ['3056930009020004', '36006666333344'],
-    'unionpay': ['6200000000000005', '6216651000000000'],
-    'mir': ['2200123456789012'],
-    'maestro': ['6759649826438453', '5641820000000005']
+# Card type display names
+CARD_TYPE_NAMES = {
+    'visa': 'Visa',
+    'mastercard': 'Mastercard',
+    'amex': 'American Express',
+    'discover': 'Discover',
+    'diners_club': 'Diners Club',
+    'jcb': 'JCB',
+    'unionpay': 'UnionPay',
+    'maestro': 'Maestro',
+    'mir': 'Mir',
+    'unknown': 'Unknown',
 }
 
 
 # ============================================================================
-# Validation Functions
+# Data Classes
 # ============================================================================
 
-def luhn_check(card_number: str) -> bool:
-    """
-    Validate a card number using the Luhn algorithm.
-    
-    The Luhn algorithm is a simple checksum formula used to validate
-    a variety of identification numbers, especially credit card numbers.
-    
-    Args:
-        card_number: The card number to validate (digits only or with spaces/dashes)
-    
-    Returns:
-        True if the card number passes the Luhn check, False otherwise
-    
-    Example:
-        >>> luhn_check('4111111111111111')
-        True
-        >>> luhn_check('4111111111111112')
-        False
-    """
-    # Remove non-digit characters
-    digits = re.sub(r'\D', '', card_number)
-    
-    if not digits or len(digits) < 2:
-        return False
-    
-    # Luhn algorithm
-    total = 0
-    reverse_digits = digits[::-1]
-    
-    for i, digit in enumerate(reverse_digits):
-        n = int(digit)
-        # Double every second digit (starting from the right)
-        if i % 2 == 1:
-            n *= 2
-            if n > 9:
-                n -= 9
-        total += n
-    
-    return total % 10 == 0
+@dataclass
+class CardInfo:
+    """Credit card information."""
+    card_type: str
+    card_type_name: str
+    is_valid: bool
+    is_valid_luhn: bool
+    formatted_number: str
+    masked_number: str
+    cvv_length: int
+    expected_lengths: List[int]
+    is_length_valid: bool
 
 
-def calculate_luhn_check_digit(partial_number: str) -> int:
+@dataclass
+class ExpiryCheck:
+    """Expiry date validation result."""
+    is_valid: bool
+    is_expired: bool
+    is_future: bool
+    days_until_expiry: Optional[int]
+    formatted: str
+    error: Optional[str] = None
+
+
+# ============================================================================
+# Luhn Algorithm
+# ============================================================================
+
+def luhn_checksum(card_number: str) -> int:
     """
-    Calculate the Luhn check digit for a partial card number.
+    Calculate the Luhn checksum digit for a partial card number.
+    
+    This computes what the check digit should be for the given
+    partial card number (without the check digit).
     
     Args:
-        partial_number: The card number without check digit
+        card_number: The card number string without check digit (digits only)
     
     Returns:
-        The check digit (0-9)
+        The Luhn check digit (0-9)
     
     Example:
-        >>> calculate_luhn_check_digit('411111111111111')
-        1
+        >>> luhn_checksum('45320151128303')
+        6
     """
-    digits = re.sub(r'\D', '', partial_number)
-    
+    digits = [int(d) for d in card_number]
     total = 0
-    reverse_digits = digits[::-1]
     
-    for i, digit in enumerate(reverse_digits):
-        n = int(digit)
-        # Position offset: we're adding a check digit at the end
-        if i % 2 == 0:
-            n *= 2
-            if n > 9:
-                n -= 9
-        total += n
+    # Process from right to left, doubling every second digit
+    # Since we're computing checksum for the number without check digit,
+    # we double digits at even positions from the right
+    for i, d in enumerate(reversed(digits)):
+        if i % 2 == 0:  # Double digits at positions 0, 2, 4... from right
+            doubled = d * 2
+            total += doubled if doubled < 10 else doubled - 9
+        else:
+            total += d
     
     return (10 - (total % 10)) % 10
 
 
-def validate_card(card_number: str) -> Dict:
+def validate_luhn(card_number: str) -> bool:
     """
-    Comprehensive validation of a credit card number.
+    Validate a card number using the Luhn algorithm.
     
     Args:
-        card_number: The card number to validate
+        card_number: The card number string (can include spaces/dashes)
     
     Returns:
-        Dictionary with validation results:
-        - valid: Overall validity
-        - luhn_valid: Luhn check result
-        - card_type: Detected card type or None
-        - card_name: Human-readable card name
-        - length_valid: Whether length is valid for card type
-        - formatted: Formatted card number
-        - message: Validation message
+        True if the card number passes Luhn validation
     
     Example:
-        >>> result = validate_card('4111111111111111')
-        >>> result['valid']
+        >>> validate_luhn('4532015112830366')
         True
-        >>> result['card_type']
-        'visa'
+        >>> validate_luhn('4532015112830367')
+        False
     """
     # Clean the card number
-    clean_number = re.sub(r'\D', '', card_number)
+    clean_number = re.sub(r'[^0-9]', '', card_number)
     
-    result = {
-        'valid': False,
-        'luhn_valid': False,
-        'card_type': None,
-        'card_name': None,
-        'length_valid': False,
-        'formatted': format_card(clean_number),
-        'message': ''
-    }
+    if not clean_number or len(clean_number) < 2:
+        return False
     
-    # Basic validation
-    if not clean_number:
-        result['message'] = 'Empty card number'
-        return result
+    # Standard Luhn algorithm: sum all digits, doubling every second digit from right
+    digits = [int(d) for d in clean_number]
+    total = 0
     
-    if not clean_number.isdigit():
-        result['message'] = 'Card number contains non-digit characters'
-        return result
-    
-    if len(clean_number) < 13 or len(clean_number) > 19:
-        result['message'] = 'Invalid card number length'
-        return result
-    
-    # Luhn check
-    result['luhn_valid'] = luhn_check(clean_number)
-    if not result['luhn_valid']:
-        result['message'] = 'Failed Luhn checksum'
-        return result
-    
-    # Detect card type
-    card_type = detect_card_type(clean_number)
-    result['card_type'] = card_type
-    
-    if card_type:
-        card_info = CARD_PATTERNS[card_type]
-        result['card_name'] = card_info['name']
-        result['length_valid'] = len(clean_number) in card_info['lengths']
-        
-        if result['length_valid'] and result['luhn_valid']:
-            result['valid'] = True
-            result['message'] = f'Valid {card_info["name"]} card'
+    for i, d in enumerate(reversed(digits)):
+        if i % 2 == 1:  # Double every second digit from the right
+            doubled = d * 2
+            total += doubled if doubled < 10 else doubled - 9
         else:
-            result['message'] = f'Invalid length for {card_info["name"]}'
-    else:
-        # Unknown card type but passes Luhn
-        result['length_valid'] = True
-        result['valid'] = result['luhn_valid']
-        result['message'] = 'Valid card (unknown type)'
+            total += d
     
-    return result
-
-
-def is_valid_card(card_number: str) -> bool:
-    """
-    Quick check if a card number is valid.
-    
-    Args:
-        card_number: The card number to validate
-    
-    Returns:
-        True if valid, False otherwise
-    
-    Example:
-        >>> is_valid_card('4111111111111111')
-        True
-    """
-    return validate_card(card_number)['valid']
+    return total % 10 == 0
 
 
 # ============================================================================
 # Card Type Detection
 # ============================================================================
 
-def detect_card_type(card_number: str) -> Optional[str]:
+def detect_card_type(card_number: str) -> Tuple[str, dict]:
     """
-    Detect the card type from a card number.
+    Detect the credit card type from the card number.
     
     Args:
-        card_number: The card number (can contain spaces/dashes)
+        card_number: The card number string (can include spaces/dashes)
     
     Returns:
-        Card type key (e.g., 'visa', 'mastercard') or None if unknown
+        Tuple of (card_type_key, card_info_dict)
+        Returns ('unknown', {}) if type cannot be determined
     
     Example:
-        >>> detect_card_type('4111111111111111')
-        'visa'
-        >>> detect_card_type('5555555555554444')
-        'mastercard'
+        >>> detect_card_type('4532015112830366')
+        ('visa', {'patterns': [...], 'lengths': [13, 16, 19], ...})
     """
-    clean_number = re.sub(r'\D', '', card_number)
+    clean_number = re.sub(r'[^0-9]', '', card_number)
+    
+    if not clean_number:
+        return ('unknown', {})
     
     for card_type, info in CARD_PATTERNS.items():
-        if re.match(info['pattern'], clean_number):
-            return card_type
+        for pattern in info['patterns']:
+            if re.match(pattern, clean_number):
+                return (card_type, info)
     
-    return None
+    return ('unknown', {})
 
 
-def get_card_info(card_type: str) -> Optional[Dict]:
+def get_card_type_name(card_number: str) -> str:
     """
-    Get detailed information about a card type.
+    Get the display name for a card number's type.
     
     Args:
-        card_type: The card type key (e.g., 'visa', 'mastercard')
+        card_number: The card number string
     
     Returns:
-        Dictionary with card type information or None if not found
+        The card type display name (e.g., 'Visa', 'Mastercard')
     
     Example:
-        >>> get_card_info('visa')
-        {'name': 'Visa', 'lengths': [13, 16, 19], 'cvv_length': 3, ...}
+        >>> get_card_type_name('4532015112830366')
+        'Visa'
     """
-    return CARD_PATTERNS.get(card_type)
-
-
-def get_all_card_types() -> List[str]:
-    """
-    Get a list of all supported card types.
-    
-    Returns:
-        List of card type keys
-    
-    Example:
-        >>> 'visa' in get_all_card_types()
-        True
-    """
-    return list(CARD_PATTERNS.keys())
+    card_type, _ = detect_card_type(card_number)
+    return CARD_TYPE_NAMES.get(card_type, 'Unknown')
 
 
 # ============================================================================
-# Formatting Functions
-# ============================================================================
-
-def format_card(card_number: str, separator: str = ' ') -> str:
-    """
-    Format a card number with separators for readability.
-    
-    Automatically detects card type and applies appropriate formatting.
-    
-    Args:
-        card_number: The card number to format
-        separator: The separator to use (default: space)
-    
-    Returns:
-        Formatted card number
-    
-    Example:
-        >>> format_card('4111111111111111')
-        '4111 1111 1111 1111'
-        >>> format_card('378282246310005')
-        '3782 822463 10005'
-    """
-    clean_number = re.sub(r'\D', '', card_number)
-    
-    if not clean_number:
-        return ''
-    
-    # Detect card type for special formatting
-    card_type = detect_card_type(clean_number)
-    
-    if card_type == 'amex':
-        # American Express: 4-6-5 format
-        if len(clean_number) >= 15:
-            return separator.join([
-                clean_number[:4],
-                clean_number[4:10],
-                clean_number[10:15]
-            ])
-    elif card_type == 'diners_club' and len(clean_number) == 14:
-        # Diners Club: 4-6-4 format
-        return separator.join([
-            clean_number[:4],
-            clean_number[4:10],
-            clean_number[10:14]
-        ])
-    
-    # Default: groups of 4
-    chunks = [clean_number[i:i+4] for i in range(0, len(clean_number), 4)]
-    return separator.join(chunks)
-
-
-def mask_card(card_number: str, show_first: int = 4, show_last: int = 4, 
-              mask_char: str = '*') -> str:
-    """
-    Mask a card number for secure display.
-    
-    Args:
-        card_number: The card number to mask
-        show_first: Number of digits to show at start (default: 4)
-        show_last: Number of digits to show at end (default: 4)
-        mask_char: Character to use for masking (default: '*')
-    
-    Returns:
-        Masked card number
-    
-    Example:
-        >>> mask_card('4111111111111111')
-        '4111************1111'
-        >>> mask_card('378282246310005', show_first=0, show_last=4)
-        '***********0005'
-    """
-    clean_number = re.sub(r'\D', '', card_number)
-    
-    if not clean_number:
-        return ''
-    
-    length = len(clean_number)
-    
-    if show_first + show_last >= length:
-        # If we're showing more than we have, just show the number
-        return clean_number
-    
-    first_part = clean_number[:show_first] if show_first > 0 else ''
-    last_part = clean_number[-show_last:] if show_last > 0 else ''
-    middle_length = length - show_first - show_last
-    
-    return first_part + (mask_char * middle_length) + last_part
-
-
-def mask_card_formatted(card_number: str, show_first: int = 4, 
-                        show_last: int = 4, mask_char: str = '*', 
-                        separator: str = ' ') -> str:
-    """
-    Mask a card number with formatting.
-    
-    Combines masking with formatting for a readable but secure display.
-    
-    Args:
-        card_number: The card number to mask and format
-        show_first: Number of digits to show at start
-        show_last: Number of digits to show at end
-        mask_char: Character to use for masking
-        separator: Separator character between groups
-    
-    Returns:
-        Masked and formatted card number
-    
-    Example:
-        >>> mask_card_formatted('4111111111111111')
-        '4111 **** **** 1111'
-    """
-    clean_number = re.sub(r'\D', '', card_number)
-    
-    if not clean_number:
-        return ''
-    
-    length = len(clean_number)
-    
-    # Build the masked number with formatting in mind
-    # For standard 16-digit cards with show_first=4, show_last=4:
-    # Result should be like '4111 **** **** 1111'
-    
-    # Detect card type for special formatting
-    card_type = detect_card_type(clean_number)
-    
-    if card_type == 'amex' and length == 15:
-        # Amex format: 4-6-5
-        first = clean_number[:show_first] if show_first > 0 else ''
-        last = clean_number[-show_last:] if show_last > 0 else ''
-        middle_count = length - show_first - show_last
-        
-        # For Amex, the middle part spans positions 4-10 (6 digits)
-        # Mask those positions
-        if show_first >= 4:
-            middle_mask = mask_char * 6
-            return first + separator + middle_mask + separator + last
-        else:
-            return mask_card(clean_number, show_first, show_last, mask_char)
-    
-    # For standard cards (16 digits), format as groups of 4
-    # Show first 4 digits, mask middle 8, show last 4
-    if length == 16 and show_first == 4 and show_last == 4:
-        first_part = clean_number[:4]
-        middle_mask = mask_char * 4
-        last_part = clean_number[-4:]
-        return first_part + separator + middle_mask + separator + middle_mask + separator + last_part
-    
-    # General case: mask and format with groups of 4
-    first_part = clean_number[:show_first] if show_first > 0 else ''
-    last_part = clean_number[-show_last:] if show_last > 0 else ''
-    middle_count = length - show_first - show_last
-    
-    # Build the full masked string
-    masked_full = first_part + (mask_char * middle_count) + last_part
-    
-    # Now format it in groups of 4, preserving mask characters
-    chunks = []
-    for i in range(0, len(masked_full), 4):
-        chunks.append(masked_full[i:i+4])
-    
-    return separator.join(chunks)
-
-
-# ============================================================================
-# CVV and Expiry Validation
-# ============================================================================
-
-def is_valid_cvv(cvv: str, card_type: Optional[str] = None) -> bool:
-    """
-    Validate a CVV/CVC code.
-    
-    Args:
-        cvv: The CVV to validate
-        card_type: Optional card type for specific length validation
-    
-    Returns:
-        True if valid, False otherwise
-    
-    Example:
-        >>> is_valid_cvv('123')
-        True
-        >>> is_valid_cvv('1234', 'amex')
-        True
-    """
-    if not cvv or not cvv.isdigit():
-        return False
-    
-    # Get expected CVV length for card type
-    expected_length = None
-    if card_type and card_type in CARD_PATTERNS:
-        expected_length = CARD_PATTERNS[card_type]['cvv_length']
-    
-    if expected_length:
-        return len(cvv) == expected_length
-    
-    # Default: 3 or 4 digits
-    return len(cvv) in [3, 4]
-
-
-def is_valid_expiry(month: int, year: int) -> bool:
-    """
-    Check if an expiry date is valid and not expired.
-    
-    Args:
-        month: Expiry month (1-12)
-        year: Expiry year (4-digit or 2-digit)
-    
-    Returns:
-        True if valid and not expired, False otherwise
-    
-    Example:
-        >>> is_valid_expiry(12, datetime.now().year + 1)
-        True
-        >>> is_valid_expiry(1, 2020)  # Past date
-        False
-    """
-    # Convert 2-digit year to 4-digit
-    if year < 100:
-        current_year = datetime.now().year
-        century = (current_year // 100) * 100
-        year = century + year
-        # Handle Y2K-style rollover
-        if year < current_year - 10:
-            year += 100
-    
-    # Validate month
-    if month < 1 or month > 12:
-        return False
-    
-    # Check if expired
-    now = datetime.now()
-    expiry_date = datetime(year, month, 1)
-    
-    # Card is valid until the end of the expiry month
-    # So if current month/year <= expiry month/year, it's valid
-    return (year > now.year) or (year == now.year and month >= now.month)
-
-
-def validate_expiry(month: Union[str, int], year: Union[str, int]) -> Dict:
-    """
-    Comprehensive expiry date validation.
-    
-    Args:
-        month: Expiry month (string or int)
-        year: Expiry year (string or int, 2 or 4 digits)
-    
-    Returns:
-        Dictionary with validation results
-    
-    Example:
-        >>> result = validate_expiry('12', '25')
-        >>> result['valid']
-        True
-    """
-    try:
-        month = int(str(month).strip())
-        year = int(str(year).strip())
-    except ValueError:
-        return {
-            'valid': False,
-            'month': None,
-            'year': None,
-            'expired': False,
-            'message': 'Invalid month or year format'
-        }
-    
-    # Convert 2-digit year
-    if year < 100:
-        current_year = datetime.now().year
-        century = (current_year // 100) * 100
-        year = century + year
-        if year < current_year - 10:
-            year += 100
-    
-    if month < 1 or month > 12:
-        return {
-            'valid': False,
-            'month': month,
-            'year': year,
-            'expired': False,
-            'message': 'Month must be between 1 and 12'
-        }
-    
-    now = datetime.now()
-    is_expired = (year < now.year) or (year == now.year and month < now.month)
-    
-    return {
-        'valid': not is_expired,
-        'month': month,
-        'year': year,
-        'expired': is_expired,
-        'message': 'Card expired' if is_expired else 'Valid expiry date'
-    }
-
-
-# ============================================================================
-# Card Number Generation (for testing)
-# ============================================================================
-
-def generate_test_card(card_type: str = 'visa') -> str:
-    """
-    Generate a valid test card number for a specific card type.
-    
-    Note: These are standard test card numbers used in development.
-    They will NOT work for real transactions.
-    
-    Args:
-        card_type: The type of card to generate (default: 'visa')
-    
-    Returns:
-        A test card number
-    
-    Example:
-        >>> card = generate_test_card('visa')
-        >>> is_valid_card(card)
-        True
-    """
-    card_type = card_type.lower()
-    
-    if card_type in TEST_CARDS:
-        return choice(TEST_CARDS[card_type])
-    
-    # Fallback to Visa
-    return choice(TEST_CARDS['visa'])
-
-
-def generate_random_card(card_type: str = 'visa', length: Optional[int] = None) -> str:
-    """
-    Generate a random valid card number for testing.
-    
-    Uses proper prefix for card type and valid Luhn checksum.
-    WARNING: For testing only! These are NOT real card numbers.
-    
-    Args:
-        card_type: The type of card to generate (default: 'visa')
-        length: Desired length (uses card type default if not specified)
-    
-    Returns:
-        A valid-looking card number (for testing only!)
-    
-    Example:
-        >>> card = generate_random_card('mastercard')
-        >>> is_valid_card(card)
-        True
-    """
-    card_type = card_type.lower()
-    
-    if card_type not in CARD_PATTERNS:
-        card_type = 'visa'
-    
-    info = CARD_PATTERNS[card_type]
-    
-    # Choose length
-    if length is None:
-        length = choice(info['lengths'])
-    elif length not in info['lengths']:
-        length = info['lengths'][0]
-    
-    # Choose a prefix
-    prefix = choice(info['prefixes'])
-    
-    # Generate random digits for remaining length (minus 1 for check digit)
-    remaining = length - len(prefix) - 1
-    random_digits = ''.join(str(randint(0, 9)) for _ in range(remaining))
-    
-    # Combine prefix and random digits
-    partial = prefix + random_digits
-    
-    # Calculate check digit
-    check_digit = calculate_luhn_check_digit(partial)
-    
-    return partial + str(check_digit)
-
-
-# ============================================================================
-# BIN/IIN Utilities
-# ============================================================================
-
-def get_bin(card_number: str, length: int = 6) -> str:
-    """
-    Extract the BIN (Bank Identification Number) from a card number.
-    
-    The BIN (also called IIN) identifies the issuer of the card.
-    
-    Args:
-        card_number: The card number
-        length: Length of BIN to extract (default: 6)
-    
-    Returns:
-        The BIN digits
-    
-    Example:
-        >>> get_bin('4111111111111111')
-        '411111'
-        >>> get_bin('4111111111111111', length=8)
-        '41111111'
-    """
-    clean_number = re.sub(r'\D', '', card_number)
-    return clean_number[:length]
-
-
-def is_issuer(card_number: str, issuer: str) -> bool:
-    """
-    Check if a card number belongs to a specific issuer.
-    
-    Args:
-        card_number: The card number to check
-        issuer: The issuer to check for (case-insensitive)
-    
-    Returns:
-        True if the card belongs to the issuer
-    
-    Example:
-        >>> is_issuer('4111111111111111', 'visa')
-        True
-        >>> is_issuer('4111111111111111', 'mastercard')
-        False
-    """
-    return detect_card_type(card_number) == issuer.lower()
-
-
-# ============================================================================
-# Utility Functions
+# Card Number Operations
 # ============================================================================
 
 def clean_card_number(card_number: str) -> str:
@@ -771,95 +263,596 @@ def clean_card_number(card_number: str) -> str:
     Remove all non-digit characters from a card number.
     
     Args:
-        card_number: The card number (may contain spaces, dashes, etc.)
+        card_number: The card number string
     
     Returns:
         Clean card number with only digits
     
     Example:
-        >>> clean_card_number('4111-1111-1111-1111')
-        '4111111111111111'
+        >>> clean_card_number('4532-0151-1283-0366')
+        '4532015112830366'
     """
-    return re.sub(r'\D', '', card_number)
+    return re.sub(r'[^0-9]', '', card_number)
 
 
-def get_card_length_range() -> Tuple[int, int]:
+def format_card_number(card_number: str, card_type: Optional[str] = None) -> str:
     """
-    Get the valid length range for card numbers.
-    
-    Returns:
-        Tuple of (min_length, max_length)
-    
-    Example:
-        >>> get_card_length_range()
-        (13, 19)
-    """
-    min_len = min(min(info['lengths']) for info in CARD_PATTERNS.values())
-    max_len = max(max(info['lengths']) for info in CARD_PATTERNS.values())
-    return (min_len, max_len)
-
-
-def summarize_card(card_number: str) -> Dict:
-    """
-    Get a comprehensive summary of a card number.
+    Format a card number with appropriate spacing.
     
     Args:
-        card_number: The card number to analyze
+        card_number: The card number string
+        card_type: Optional card type hint (auto-detected if not provided)
     
     Returns:
-        Dictionary with all card information
+        Formatted card number string
     
     Example:
-        >>> summary = summarize_card('4111111111111111')
-        >>> summary['type']
+        >>> format_card_number('4532015112830366')
+        '4532 0151 1283 0366'
+        >>> format_card_number('378282246310005')  # Amex
+        '3782 822463 10005'
+    """
+    clean_number = clean_card_number(card_number)
+    
+    if not card_type:
+        card_type, _ = detect_card_type(clean_number)
+    
+    # American Express: 4-6-5 format
+    if card_type == 'amex' and len(clean_number) == 15:
+        return f"{clean_number[:4]} {clean_number[4:10]} {clean_number[10:]}"
+    
+    # Diners Club (14 digits): 4-6-4 format
+    if card_type == 'diners_club' and len(clean_number) == 14:
+        return f"{clean_number[:4]} {clean_number[4:10]} {clean_number[10:]}"
+    
+    # Default: 4-digit groups
+    groups = [clean_number[i:i+4] for i in range(0, len(clean_number), 4)]
+    return ' '.join(groups)
+
+
+def mask_card_number(card_number: str, mask_char: str = '*', visible_start: int = 4, 
+                      visible_end: int = 4) -> str:
+    """
+    Mask a card number, showing only the first and last few digits.
+    
+    Args:
+        card_number: The card number string
+        mask_char: Character to use for masking (default '*')
+        visible_start: Number of digits to show at start (default 4)
+        visible_end: Number of digits to show at end (default 4)
+    
+    Returns:
+        Masked card number string
+    
+    Example:
+        >>> mask_card_number('4532015112830366')
+        '4532********0366'
+    """
+    clean_number = clean_card_number(card_number)
+    
+    if len(clean_number) <= visible_start + visible_end:
+        return clean_number
+    
+    masked_length = len(clean_number) - visible_start - visible_end
+    masked = mask_char * masked_length
+    
+    return clean_number[:visible_start] + masked + clean_number[-visible_end:]
+
+
+def validate_card_length(card_number: str) -> Tuple[bool, List[int]]:
+    """
+    Validate if the card number has a valid length for its type.
+    
+    Args:
+        card_number: The card number string
+    
+    Returns:
+        Tuple of (is_valid, expected_lengths)
+    
+    Example:
+        >>> validate_card_length('4532015112830366')
+        (True, [13, 16, 19])
+    """
+    clean_number = clean_card_number(card_number)
+    card_type, info = detect_card_type(clean_number)
+    
+    if card_type == 'unknown':
+        # Unknown types: accept 13-19 digits
+        return (13 <= len(clean_number) <= 19, list(range(13, 20)))
+    
+    expected_lengths = info.get('lengths', [16])
+    is_valid = len(clean_number) in expected_lengths
+    
+    return (is_valid, expected_lengths)
+
+
+# ============================================================================
+# CVV Validation
+# ============================================================================
+
+def validate_cvv(cvv: str, card_type: Optional[str] = None) -> bool:
+    """
+    Validate a CVV/CVC code.
+    
+    Args:
+        cvv: The CVV string
+        card_type: Optional card type to check expected length
+    
+    Returns:
+        True if the CVV appears valid
+    
+    Example:
+        >>> validate_cvv('123')
+        True
+        >>> validate_cvv('1234', 'amex')
+        True
+    """
+    clean_cvv = re.sub(r'[^0-9]', '', cvv)
+    
+    if not clean_cvv:
+        return False
+    
+    # Check if all digits
+    if not clean_cvv.isdigit():
+        return False
+    
+    # Without card type, accept 3 or 4 digits
+    if not card_type:
+        return len(clean_cvv) in [3, 4]
+    
+    # Check against expected length for card type
+    if card_type in CARD_PATTERNS:
+        expected_length = CARD_PATTERNS[card_type]['cvv_length']
+        return len(clean_cvv) == expected_length
+    
+    return len(clean_cvv) in [3, 4]
+
+
+# ============================================================================
+# Expiry Date Validation
+# ============================================================================
+
+def validate_expiry(month: int, year: int) -> ExpiryCheck:
+    """
+    Validate a credit card expiry date.
+    
+    Args:
+        month: Expiry month (1-12)
+        year: Expiry year (2-digit or 4-digit)
+    
+    Returns:
+        ExpiryCheck dataclass with validation results
+    
+    Example:
+        >>> result = validate_expiry(12, 2025)
+        >>> result.is_valid
+        True
+    """
+    now = datetime.now()
+    current_year = now.year
+    current_month = now.month
+    
+    # Normalize year
+    if year < 100:
+        year += 2000 if year < 50 else 1900
+    
+    errors = []
+    
+    # Validate month
+    if month < 1 or month > 12:
+        errors.append("Invalid month (must be 1-12)")
+    
+    # Check if expired
+    is_expired = False
+    if year < current_year or (year == current_year and month < current_month):
+        is_expired = True
+    
+    # Check if too far in future (more than 20 years)
+    is_future = year > current_year + 20
+    
+    # Calculate days until expiry
+    days_until_expiry = None
+    if not is_expired and month >= 1 and month <= 12:
+        try:
+            # Last day of expiry month
+            if month == 12:
+                expiry_date = date(year + 1, 1, 1)
+            else:
+                expiry_date = date(year, month + 1, 1)
+            days_until_expiry = (expiry_date - date.today()).days
+        except ValueError:
+            pass
+    
+    formatted = f"{month:02d}/{str(year)[-2:]}"
+    
+    is_valid = len(errors) == 0 and not is_expired and not is_future
+    
+    return ExpiryCheck(
+        is_valid=is_valid,
+        is_expired=is_expired,
+        is_future=is_future,
+        days_until_expiry=days_until_expiry,
+        formatted=formatted,
+        error='; '.join(errors) if errors else None
+    )
+
+
+def parse_expiry_string(expiry_str: str) -> Tuple[Optional[int], Optional[int]]:
+    """
+    Parse an expiry date string (MM/YY or MM/YYYY format).
+    
+    Args:
+        expiry_str: Expiry date string
+    
+    Returns:
+        Tuple of (month, year) or (None, None) if parsing fails
+    
+    Example:
+        >>> parse_expiry_string('12/25')
+        (12, 2025)
+    """
+    # Clean the string
+    expiry_str = expiry_str.strip().replace(' ', '')
+    
+    # Try different formats
+    patterns = [
+        (r'^(\d{1,2})/(\d{2})$', 2),   # MM/YY
+        (r'^(\d{1,2})/(\d{4})$', 4),   # MM/YYYY
+        (r'^(\d{2})(\d{2})$', 2),      # MMYY
+        (r'^(\d{2})(\d{4})$', 4),      # MMYYYY
+    ]
+    
+    for pattern, year_digits in patterns:
+        match = re.match(pattern, expiry_str)
+        if match:
+            month = int(match.group(1))
+            year = int(match.group(2))
+            if year_digits == 2:
+                year += 2000 if year < 50 else 1900
+            return (month, year)
+    
+    return (None, None)
+
+
+# ============================================================================
+# Comprehensive Validation
+# ============================================================================
+
+def get_card_info(card_number: str) -> CardInfo:
+    """
+    Get comprehensive information about a card number.
+    
+    Args:
+        card_number: The card number string
+    
+    Returns:
+        CardInfo dataclass with all validation results
+    
+    Example:
+        >>> info = get_card_info('4532015112830366')
+        >>> info.card_type
         'visa'
-        >>> summary['valid']
+        >>> info.is_valid
         True
     """
     clean_number = clean_card_number(card_number)
-    validation = validate_card(clean_number)
+    card_type, card_info = detect_card_type(clean_number)
+    
+    is_valid_luhn = validate_luhn(clean_number)
+    is_length_valid, expected_lengths = validate_card_length(clean_number)
+    
+    cvv_length = card_info.get('cvv_length', 3) if card_info else 3
+    
+    formatted = format_card_number(clean_number, card_type)
+    masked = mask_card_number(clean_number)
+    
+    is_valid = is_valid_luhn and is_length_valid
+    
+    return CardInfo(
+        card_type=card_type,
+        card_type_name=CARD_TYPE_NAMES.get(card_type, 'Unknown'),
+        is_valid=is_valid,
+        is_valid_luhn=is_valid_luhn,
+        formatted_number=formatted,
+        masked_number=masked,
+        cvv_length=cvv_length,
+        expected_lengths=expected_lengths,
+        is_length_valid=is_length_valid
+    )
+
+
+def validate_card(card_number: str, cvv: Optional[str] = None, 
+                   expiry_month: Optional[int] = None, 
+                   expiry_year: Optional[int] = None) -> Tuple[bool, List[str]]:
+    """
+    Comprehensive card validation.
+    
+    Args:
+        card_number: The card number string
+        cvv: Optional CVV to validate
+        expiry_month: Optional expiry month
+        expiry_year: Optional expiry year
+    
+    Returns:
+        Tuple of (is_valid, list_of_errors)
+    
+    Example:
+        >>> validate_card('4532015112830366')
+        (True, [])
+        >>> validate_card('1234567890123456')
+        (False, ['Invalid Luhn checksum'])
+    """
+    errors = []
+    clean_number = clean_card_number(card_number)
+    
+    # Check card number
+    if not clean_number:
+        errors.append("Empty card number")
+        return (False, errors)
+    
+    if not clean_number.isdigit():
+        errors.append("Card number contains non-digit characters")
+        return (False, errors)
+    
+    card_type, card_info = detect_card_type(clean_number)
+    
+    # Validate Luhn
+    if not validate_luhn(clean_number):
+        errors.append("Invalid Luhn checksum")
+    
+    # Validate length
+    is_length_valid, expected_lengths = validate_card_length(clean_number)
+    if not is_length_valid:
+        errors.append(f"Invalid length. Expected: {expected_lengths}, got: {len(clean_number)}")
+    
+    # Validate CVV if provided
+    if cvv:
+        if not validate_cvv(cvv, card_type):
+            expected_cvv_length = card_info.get('cvv_length', 3) if card_info else 3
+            errors.append(f"Invalid CVV. Expected {expected_cvv_length} digits for {card_type}")
+    
+    # Validate expiry if provided
+    if expiry_month and expiry_year:
+        expiry_check = validate_expiry(expiry_month, expiry_year)
+        if expiry_check.is_expired:
+            errors.append("Card is expired")
+        if expiry_check.is_future:
+            errors.append("Expiry date is too far in the future")
+        if expiry_check.error:
+            errors.append(expiry_check.error)
+    
+    return (len(errors) == 0, errors)
+
+
+# ============================================================================
+# Test Card Generation
+# ============================================================================
+
+def generate_test_card(card_type: str = 'visa', length: Optional[int] = None) -> str:
+    """
+    Generate a valid test card number for the specified type.
+    Note: These are for testing purposes only and are not real card numbers.
+    
+    Args:
+        card_type: The card type to generate (visa, mastercard, amex, etc.)
+        length: Desired length (must be valid for the card type)
+    
+    Returns:
+        A valid Luhn test card number
+    
+    Example:
+        >>> card = generate_test_card('visa')
+        >>> validate_luhn(card)
+        True
+    """
+    card_type = card_type.lower()
+    
+    if card_type not in CARD_PATTERNS:
+        raise ValueError(f"Unknown card type: {card_type}")
+    
+    info = CARD_PATTERNS[card_type]
+    valid_lengths = info['lengths']
+    
+    if length and length not in valid_lengths:
+        raise ValueError(f"Invalid length {length} for {card_type}. Valid lengths: {valid_lengths}")
+    
+    target_length = length or valid_lengths[0]
+    
+    # Get the IIN prefix pattern
+    pattern = info['patterns'][0]
+    
+    # Generate prefix based on pattern
+    if card_type == 'visa':
+        prefix = '4'
+    elif card_type == 'mastercard':
+        prefix = '5' + str(randint(1, 5))
+    elif card_type == 'amex':
+        prefix = '3' + ('4' if randint(0, 1) else '7')
+    elif card_type == 'discover':
+        prefix = '6011'
+    elif card_type == 'diners_club':
+        prefix = '300'
+    elif card_type == 'jcb':
+        prefix = '35'
+    elif card_type == 'unionpay':
+        prefix = '62'
+    elif card_type == 'maestro':
+        prefix = '5018'
+    elif card_type == 'mir':
+        prefix = '220' + str(randint(0, 4))
+    else:
+        prefix = '4'  # Default to Visa-like
+    
+    # Generate random digits to fill the rest (except check digit)
+    remaining_length = target_length - len(prefix) - 1
+    random_digits = ''.join(str(randint(0, 9)) for _ in range(remaining_length))
+    
+    # Combine prefix and random digits
+    card_without_check = prefix + random_digits
+    
+    # Calculate and append check digit
+    check_digit = luhn_checksum(card_without_check)
+    
+    return card_without_check + str(check_digit)
+
+
+def generate_test_cards(count: int = 5, card_type: Optional[str] = None) -> List[str]:
+    """
+    Generate multiple test card numbers.
+    
+    Args:
+        count: Number of cards to generate
+        card_type: Optional specific card type
+    
+    Returns:
+        List of valid Luhn test card numbers
+    
+    Example:
+        >>> cards = generate_test_cards(3)
+        >>> all(validate_luhn(c) for c in cards)
+        True
+    """
+    if card_type:
+        return [generate_test_card(card_type) for _ in range(count)]
+    
+    # Generate variety of card types
+    card_types = list(CARD_PATTERNS.keys())
+    cards = []
+    for i in range(count):
+        ct = card_types[i % len(card_types)]
+        cards.append(generate_test_card(ct))
+    
+    return cards
+
+
+# ============================================================================
+# BIN/IIN Lookup
+# ============================================================================
+
+def get_iin_info(iin: str) -> Dict:
+    """
+    Get information about an Issuer Identification Number (IIN/BIN).
+    The IIN is the first 6-8 digits of a card number.
+    
+    Args:
+        iin: The IIN (6-8 digits)
+    
+    Returns:
+        Dictionary with IIN information
+    
+    Example:
+        >>> info = get_iin_info('453201')
+        >>> info['card_type']
+        'visa'
+    """
+    clean_iin = re.sub(r'[^0-9]', '', str(iin))[:8]
+    
+    if len(clean_iin) < 6:
+        return {'error': 'IIN must be at least 6 digits'}
+    
+    card_type, info = detect_card_type(clean_iin)
     
     return {
-        'number': mask_card(clean_number),
-        'formatted': format_card(clean_number),
-        'bin': get_bin(clean_number),
-        'type': validation['card_type'],
-        'name': validation['card_name'],
-        'valid': validation['valid'],
-        'luhn_valid': validation['luhn_valid'],
-        'length': len(clean_number),
-        'length_valid': validation['length_valid'],
-        'message': validation['message']
+        'iin': clean_iin,
+        'card_type': card_type,
+        'card_type_name': CARD_TYPE_NAMES.get(card_type, 'Unknown'),
+        'expected_lengths': info.get('lengths', []) if info else [],
+        'cvv_length': info.get('cvv_length', 3) if info else 3,
     }
 
 
 # ============================================================================
-# Main Entry Point
+# Card Number Comparison and Utilities
+# ============================================================================
+
+def compare_cards(card1: str, card2: str) -> int:
+    """
+    Compare two card numbers numerically.
+    
+    Args:
+        card1: First card number
+        card2: Second card number
+    
+    Returns:
+        -1 if card1 < card2, 0 if equal, 1 if card1 > card2
+    
+    Example:
+        >>> compare_cards('4000000000000001', '4000000000000002')
+        -1
+    """
+    num1 = int(clean_card_number(card1) or '0')
+    num2 = int(clean_card_number(card2) or '0')
+    
+    if num1 < num2:
+        return -1
+    elif num1 > num2:
+        return 1
+    return 0
+
+
+def card_to_int(card_number: str) -> int:
+    """
+    Convert a card number to an integer for numeric operations.
+    
+    Args:
+        card_number: The card number string
+    
+    Returns:
+        Integer representation of the card number
+    
+    Example:
+        >>> card_to_int('4532015112830366')
+        4532015112830366
+    """
+    clean = clean_card_number(card_number)
+    return int(clean) if clean else 0
+
+
+def int_to_card(num: int) -> str:
+    """
+    Convert an integer to a card number string.
+    
+    Args:
+        num: Integer card number
+    
+    Returns:
+        Card number string
+    
+    Example:
+        >>> int_to_card(4532015112830366)
+        '4532015112830366'
+    """
+    return str(num)
+
+
+# ============================================================================
+# Main
 # ============================================================================
 
 if __name__ == '__main__':
-    # Demo usage
+    # Demo
     print("Credit Card Utilities Demo")
     print("=" * 50)
     
-    # Test cards
+    # Test known card numbers
     test_cards = [
-        '4111111111111111',  # Visa
-        '5555555555554444',  # MasterCard
-        '378282246310005',   # Amex
-        '6011111111111117',  # Discover
+        ('4532015112830366', 'Visa'),
+        ('5425233430109903', 'Mastercard'),
+        ('374245455400126', 'Amex'),
+        ('6011000990139424', 'Discover'),
     ]
     
-    for card in test_cards:
-        summary = summarize_card(card)
-        print(f"\nCard: {format_card(card)}")
-        print(f"  Type: {summary['name'] or 'Unknown'}")
-        print(f"  Valid: {summary['valid']}")
-        print(f"  Masked: {mask_card_formatted(card)}")
+    print("\nCard Validation Tests:")
+    for card, expected_type in test_cards:
+        info = get_card_info(card)
+        status = "✓" if info.is_valid else "✗"
+        print(f"  {status} {card} -> {info.card_type_name} (Luhn: {info.is_valid_luhn})")
     
-    # Generate test cards
-    print("\n" + "=" * 50)
-    print("Generated Test Cards:")
-    for card_type in ['visa', 'mastercard', 'amex']:
-        card = generate_random_card(card_type)
-        print(f"  {card_type}: {format_card(card)}")
+    print("\nGenerated Test Cards:")
+    for card in generate_test_cards(5):
+        info = get_card_info(card)
+        print(f"  {info.formatted_number} -> {info.card_type_name}")
+    
+    print("\nCard Masking:")
+    print(f"  {mask_card_number('4532015112830366')}")
+    print(f"  {mask_card_number('378282246310005')}")
