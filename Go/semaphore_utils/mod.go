@@ -1,649 +1,638 @@
-// Package semaphore_utils provides a semaphore implementation for Go
-// with support for weighted semaphores, timeout operations, and context cancellation.
-//
-// A semaphore is a synchronization primitive that limits the number of concurrent
-// operations. It's useful for rate limiting, connection pooling, and resource management.
-//
-// Example usage:
-//
-//	// Create a semaphore with capacity of 10
-//	sem := semaphore_utils.New(10)
-//
-//	// Acquire a permit
-//	if err := sem.Acquire(ctx); err != nil {
-//	    // Handle error (context cancelled or timeout)
-//	}
-//
-//	// Do work...
-//
-//	// Release the permit
-//	sem.Release()
-//
-//	// Weighted semaphore example
-//	weighted := semaphore_utils.NewWeighted(100)
-//	if err := weighted.Acquire(ctx, 20); err != nil {
-//	    // Handle error
-//	}
-//	// Do work that requires 20 units of resource...
-//	weighted.Release(20)
-//
-// Features:
-//   - Standard semaphore with fixed capacity
-//   - Weighted semaphore for variable resource allocation
-//   - Context-aware operations with cancellation support
-//   - Timeout support for acquire operations
-//   - Non-blocking try-acquire operations
-//   - Thread-safe implementation
-//   - Zero external dependencies (uses only Go standard library)
-//
-// @module semaphore_utils
-// @version 1.0.0
-// @license MIT
+// Package semaphore_utils 提供信号量并发控制工具
+// 支持加权信号量、超时获取、公平调度等特性
 package semaphore_utils
 
 import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
-// ErrTimeout is returned when an acquire operation times out
-var ErrTimeout = errors.New("semaphore acquire timeout")
+var (
+	ErrSemaphoreClosed  = errors.New("semaphore is closed")
+	ErrInvalidWeight    = errors.New("weight must be positive")
+	ErrExceedsCapacity  = errors.New("weight exceeds semaphore capacity")
+	ErrNegativeCapacity = errors.New("capacity must be positive")
+	ErrContextCanceled  = errors.New("context canceled")
+)
 
-// ErrCancelled is returned when the context is cancelled
-var ErrCancelled = errors.New("semaphore acquire cancelled")
+// Semaphore 信号量接口
+type Semaphore interface {
+	// Acquire 获取指定权重的信号量
+	Acquire(ctx context.Context, weight int64) error
 
-// Semaphore is a counting semaphore with context support.
-// It limits the number of concurrent operations to a fixed capacity.
-type Semaphore struct {
-	capacity int
-	current  int
-	mu       sync.Mutex
-	waiters  []chan struct{}
+	// TryAcquire 尝试获取信号量，不阻塞
+	TryAcquire(weight int64) bool
+
+	// TryAcquireWithTimeout 尝试在超时时间内获取信号量
+	TryAcquireWithTimeout(weight int64, timeout time.Duration) bool
+
+	// Release 释放指定权重的信号量
+	Release(weight int64)
+
+	// Available 返回当前可用的信号量数量
+	Available() int64
+
+	// Capacity 返回信号量的总容量
+	Capacity() int64
+
+	// Waiters 返回当前等待的数量
+	Waiters() int32
+
+	// Close 关闭信号量，释放所有等待者
+	Close()
+
+	// IsClosed 返回信号量是否已关闭
+	IsClosed() bool
 }
 
-// New creates a new Semaphore with the given capacity.
-//
-// Parameters:
-//   - capacity: maximum number of concurrent permits (must be > 0)
-//
-// Returns:
-//   - *Semaphore: a new semaphore instance
-//
-// Example:
-//
-//	sem := semaphore_utils.New(10) // Allow up to 10 concurrent operations
-func New(capacity int) *Semaphore {
+// semaphore 基础信号量实现
+type semaphore struct {
+	capacity  int64
+	available int64
+	waiters   int32
+	closed    int32
+	mu        sync.Mutex
+	notify    chan struct{}
+}
+
+// NewSemaphore 创建一个新的信号量
+func NewSemaphore(capacity int64) (Semaphore, error) {
 	if capacity <= 0 {
-		capacity = 1
+		return nil, ErrNegativeCapacity
 	}
-	return &Semaphore{
-		capacity: capacity,
-		current:  0,
-		waiters:  make([]chan struct{}, 0),
+
+	s := &semaphore{
+		capacity:  capacity,
+		available: capacity,
+		notify:    make(chan struct{}, 1),
 	}
+	return s, nil
 }
 
-// Acquire acquires a permit from the semaphore, blocking until one is available
-// or the context is cancelled.
-//
-// Parameters:
-//   - ctx: context for cancellation support
-//
-// Returns:
-//   - error: nil on success, ErrCancelled if context is cancelled
-//
-// Example:
-//
-//	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-//	defer cancel()
-//
-//	if err := sem.Acquire(ctx); err != nil {
-//	    log.Printf("Failed to acquire: %v", err)
-//	    return
-//	}
-//	defer sem.Release()
-//	// Do work...
-func (s *Semaphore) Acquire(ctx context.Context) error {
-	s.mu.Lock()
-
-	// Fast path: semaphore has available capacity
-	if s.current < s.capacity {
-		s.current++
-		s.mu.Unlock()
-		return nil
+// Acquire 获取指定权重的信号量
+func (s *semaphore) Acquire(ctx context.Context, weight int64) error {
+	if weight <= 0 {
+		return ErrInvalidWeight
+	}
+	if weight > s.capacity {
+		return ErrExceedsCapacity
+	}
+	if atomic.LoadInt32(&s.closed) == 1 {
+		return ErrSemaphoreClosed
 	}
 
-	// Slow path: need to wait
-	ch := make(chan struct{})
-	s.waiters = append(s.waiters, ch)
-	s.mu.Unlock()
+	atomic.AddInt32(&s.waiters, 1)
+	defer atomic.AddInt32(&s.waiters, -1)
 
-	// Wait for signal or context cancellation
-	select {
-	case <-ch:
-		return nil
-	case <-ctx.Done():
+	for {
 		s.mu.Lock()
-		// Remove ourselves from waiters
-		for i, waiter := range s.waiters {
-			if waiter == ch {
-				s.waiters = append(s.waiters[:i], s.waiters[i+1:]...)
-				break
-			}
+		if s.available >= weight {
+			s.available -= weight
+			s.mu.Unlock()
+			return nil
 		}
 		s.mu.Unlock()
-		return ErrCancelled
-	}
-}
 
-// AcquireTimeout acquires a permit with a timeout.
-//
-// Parameters:
-//   - timeout: maximum time to wait for a permit
-//
-// Returns:
-//   - error: nil on success, ErrTimeout if timeout exceeded
-//
-// Example:
-//
-//	if err := sem.AcquireTimeout(3 * time.Second); err != nil {
-//	    log.Printf("Timeout waiting for permit: %v", err)
-//	    return
-//	}
-//	defer sem.Release()
-func (s *Semaphore) AcquireTimeout(timeout time.Duration) error {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	err := s.Acquire(ctx)
-	if err == ErrCancelled {
-		return ErrTimeout
-	}
-	return err
-}
-
-// TryAcquire attempts to acquire a permit without blocking.
-//
-// Returns:
-//   - bool: true if permit acquired, false if semaphore is at capacity
-//
-// Example:
-//
-//	if !sem.TryAcquire() {
-//	    log.Println("Semaphore is full, skipping work")
-//	    return
-//	}
-//	defer sem.Release()
-//	// Do work...
-func (s *Semaphore) TryAcquire() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.current < s.capacity {
-		s.current++
-		return true
-	}
-	return false
-}
-
-// Release releases a permit back to the semaphore.
-//
-// Example:
-//
-//	sem.Acquire(context.Background())
-//	defer sem.Release()
-//	// Do work...
-func (s *Semaphore) Release() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.current > 0 {
-		s.current--
-
-		// Notify next waiter if any
-		if len(s.waiters) > 0 {
-			ch := s.waiters[0]
-			s.waiters = s.waiters[1:]
-			close(ch)
-		}
-	}
-}
-
-// Available returns the number of available permits.
-//
-// Returns:
-//   - int: number of permits currently available
-func (s *Semaphore) Available() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.capacity - s.current
-}
-
-// Capacity returns the total capacity of the semaphore.
-//
-// Returns:
-//   - int: total capacity (maximum permits)
-func (s *Semaphore) Capacity() int {
-	return s.capacity
-}
-
-// InUse returns the number of permits currently in use.
-//
-// Returns:
-//   - int: number of acquired permits
-func (s *Semaphore) InUse() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.current
-}
-
-// Waiters returns the number of goroutines waiting for a permit.
-//
-// Returns:
-//   - int: number of waiting goroutines
-func (s *Semaphore) Waiters() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return len(s.waiters)
-}
-
-// WeightedSemaphore is a weighted semaphore that allows acquiring
-// multiple units at once. Useful when operations require different
-// amounts of resources.
-type WeightedSemaphore struct {
-	capacity int64
-	current  int64
-	mu       sync.Mutex
-	waiters  []weightedWaiter
-}
-
-type weightedWaiter struct {
-	n   int64
-	ch  chan struct{}
-}
-
-// NewWeighted creates a new WeightedSemaphore with the given capacity.
-//
-// Parameters:
-//   - capacity: total weight capacity (must be > 0)
-//
-// Returns:
-//   - *WeightedSemaphore: a new weighted semaphore instance
-//
-// Example:
-//
-//	// Create a semaphore with total capacity of 100 units
-//	weighted := semaphore_utils.NewWeighted(100)
-func NewWeighted(capacity int64) *WeightedSemaphore {
-	if capacity <= 0 {
-		capacity = 1
-	}
-	return &WeightedSemaphore{
-		capacity: capacity,
-		current:  0,
-		waiters:  make([]weightedWaiter, 0),
-	}
-}
-
-// Acquire acquires n units from the semaphore.
-//
-// Parameters:
-//   - ctx: context for cancellation support
-//   - n: number of units to acquire (must be > 0 and <= capacity)
-//
-// Returns:
-//   - error: nil on success, ErrCancelled if context is cancelled
-//
-// Example:
-//
-//	// Acquire 20 units of resource
-//	if err := weighted.Acquire(ctx, 20); err != nil {
-//	    log.Printf("Failed to acquire: %v", err)
-//	    return
-//	}
-//	defer weighted.Release(20)
-func (w *WeightedSemaphore) Acquire(ctx context.Context, n int64) error {
-	if n <= 0 {
-		return errors.New("acquire count must be positive")
-	}
-	if n > w.capacity {
-		return errors.New("acquire count exceeds capacity")
-	}
-
-	w.mu.Lock()
-
-	// Fast path: enough capacity available
-	if w.current+n <= w.capacity {
-		w.current += n
-		w.mu.Unlock()
-		return nil
-	}
-
-	// Slow path: need to wait
-	ch := make(chan struct{})
-	w.waiters = append(w.waiters, weightedWaiter{n: n, ch: ch})
-	w.mu.Unlock()
-
-	// Wait for signal or context cancellation
-	select {
-	case <-ch:
-		return nil
-	case <-ctx.Done():
-		w.mu.Lock()
-		// Remove ourselves from waiters
-		for i, waiter := range w.waiters {
-			if waiter.ch == ch {
-				w.waiters = append(w.waiters[:i], w.waiters[i+1:]...)
-				break
+		select {
+		case <-ctx.Done():
+			return ErrContextCanceled
+		case <-s.notify:
+			if atomic.LoadInt32(&s.closed) == 1 {
+				return ErrSemaphoreClosed
 			}
 		}
-		w.mu.Unlock()
-		return ErrCancelled
 	}
 }
 
-// AcquireTimeout acquires n units with a timeout.
-//
-// Parameters:
-//   - timeout: maximum time to wait
-//   - n: number of units to acquire
-//
-// Returns:
-//   - error: nil on success, ErrTimeout if timeout exceeded
-func (w *WeightedSemaphore) AcquireTimeout(timeout time.Duration, n int64) error {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	err := w.Acquire(ctx, n)
-	if err == ErrCancelled {
-		return ErrTimeout
+// TryAcquire 尝试获取信号量，不阻塞
+func (s *semaphore) TryAcquire(weight int64) bool {
+	if weight <= 0 || weight > s.capacity {
+		return false
 	}
-	return err
-}
-
-// TryAcquire attempts to acquire n units without blocking.
-//
-// Parameters:
-//   - n: number of units to acquire
-//
-// Returns:
-//   - bool: true if units acquired, false if not enough capacity
-func (w *WeightedSemaphore) TryAcquire(n int64) bool {
-	if n <= 0 || n > w.capacity {
+	if atomic.LoadInt32(&s.closed) == 1 {
 		return false
 	}
 
-	w.mu.Lock()
-	defer w.mu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	if w.current+n <= w.capacity {
-		w.current += n
+	if s.available >= weight {
+		s.available -= weight
 		return true
 	}
 	return false
 }
 
-// Release releases n units back to the semaphore.
-//
-// Parameters:
-//   - n: number of units to release
-func (w *WeightedSemaphore) Release(n int64) {
-	if n <= 0 {
+// TryAcquireWithTimeout 尝试在超时时间内获取信号量
+func (s *semaphore) TryAcquireWithTimeout(weight int64, timeout time.Duration) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	return s.Acquire(ctx, weight) == nil
+}
+
+// Release 释放指定权重的信号量
+func (s *semaphore) Release(weight int64) {
+	if weight <= 0 {
 		return
 	}
 
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	if w.current >= n {
-		w.current -= n
-	} else {
-		w.current = 0
+	s.mu.Lock()
+	s.available += weight
+	if s.available > s.capacity {
+		s.available = s.capacity
 	}
+	s.mu.Unlock()
 
-	// Notify waiting goroutines if possible
-	for len(w.waiters) > 0 {
-		waiter := w.waiters[0]
-		if w.current+waiter.n <= w.capacity {
-			w.waiters = w.waiters[1:]
-			w.current += waiter.n
-			close(waiter.ch)
+	// 通知等待者
+	select {
+	case s.notify <- struct{}{}:
+	default:
+	}
+}
+
+// Available 返回当前可用的信号量数量
+func (s *semaphore) Available() int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.available
+}
+
+// Capacity 返回信号量的总容量
+func (s *semaphore) Capacity() int64 {
+	return s.capacity
+}
+
+// Waiters 返回当前等待的数量
+func (s *semaphore) Waiters() int32 {
+	return atomic.LoadInt32(&s.waiters)
+}
+
+// Close 关闭信号量，释放所有等待者
+func (s *semaphore) Close() {
+	atomic.StoreInt32(&s.closed, 1)
+	// 通知所有等待者
+	close(s.notify)
+}
+
+// IsClosed 返回信号量是否已关闭
+func (s *semaphore) IsClosed() bool {
+	return atomic.LoadInt32(&s.closed) == 1
+}
+
+// ============================================
+// 加权信号量（支持优先级队列）
+// ============================================
+
+// PrioritySemaphore 支持优先级的加权信号量
+type PrioritySemaphore struct {
+	capacity  int64
+	available int64
+	closed    int32
+	mu        sync.Mutex
+
+	// 优先级队列（优先级越高，值越小）
+	pq priorityQueue
+}
+
+type waiter struct {
+	priority int
+	weight   int64
+	ch       chan error
+}
+
+type priorityQueue []*waiter
+
+func (pq priorityQueue) Len() int { return len(pq) }
+func (pq priorityQueue) Less(i, j int) bool {
+	return pq[i].priority < pq[j].priority
+}
+func (pq priorityQueue) Swap(i, j int) { pq[i], pq[j] = pq[j], pq[i] }
+
+func (pq *priorityQueue) Push(w *waiter) {
+	*pq = append(*pq, w)
+	// 简单插入排序保持优先级
+	for i := len(*pq) - 1; i > 0; i-- {
+		if (*pq)[i].priority < (*pq)[i-1].priority {
+			(*pq)[i], (*pq)[i-1] = (*pq)[i-1], (*pq)[i]
 		} else {
 			break
 		}
 	}
 }
 
-// Available returns the available capacity.
-//
-// Returns:
-//   - int64: available units
-func (w *WeightedSemaphore) Available() int64 {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.capacity - w.current
+func (pq *priorityQueue) Pop() *waiter {
+	if len(*pq) == 0 {
+		return nil
+	}
+	w := (*pq)[0]
+	*pq = (*pq)[1:]
+	return w
 }
 
-// Capacity returns the total capacity.
-//
-// Returns:
-//   - int64: total capacity
-func (w *WeightedSemaphore) Capacity() int64 {
-	return w.capacity
+// NewPrioritySemaphore 创建支持优先级的信号量
+func NewPrioritySemaphore(capacity int64) (*PrioritySemaphore, error) {
+	if capacity <= 0 {
+		return nil, ErrNegativeCapacity
+	}
+
+	ps := &PrioritySemaphore{
+		capacity:  capacity,
+		available: capacity,
+	}
+	return ps, nil
 }
 
-// InUse returns the number of units currently in use.
-//
-// Returns:
-//   - int64: units in use
-func (w *WeightedSemaphore) InUse() int64 {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.current
-}
+// AcquireWithPriority 按优先级获取信号量
+func (ps *PrioritySemaphore) AcquireWithPriority(ctx context.Context, weight int64, priority int) error {
+	if weight <= 0 {
+		return ErrInvalidWeight
+	}
+	if weight > ps.capacity {
+		return ErrExceedsCapacity
+	}
+	if atomic.LoadInt32(&ps.closed) == 1 {
+		return ErrSemaphoreClosed
+	}
 
-// Waiters returns the number of waiting goroutines.
-//
-// Returns:
-//   - int: number of waiters
-func (w *WeightedSemaphore) Waiters() int {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return len(w.waiters)
-}
+	w := &waiter{
+		priority: priority,
+		weight:   weight,
+		ch:       make(chan error, 1),
+	}
 
-// SemaphorePool is a pool of semaphores identified by keys.
-// Useful for managing different resources with separate limits.
-type SemaphorePool struct {
-	semaphores map[string]*Semaphore
-	capacity   int
-	mu         sync.RWMutex
-}
+	ps.mu.Lock()
 
-// NewPool creates a new SemaphorePool with the given default capacity for each semaphore.
-//
-// Parameters:
-//   - defaultCapacity: default capacity for each semaphore in the pool
-//
-// Returns:
-//   - *SemaphorePool: a new semaphore pool
-func NewPool(defaultCapacity int) *SemaphorePool {
-	return &SemaphorePool{
-		semaphores: make(map[string]*Semaphore),
-		capacity:   defaultCapacity,
+	// 如果可用且队列为空，直接获取
+	if ps.available >= weight && len(ps.pq) == 0 {
+		ps.available -= weight
+		ps.mu.Unlock()
+		return nil
+	}
+
+	// 加入等待队列
+	ps.pq.Push(w)
+	ps.mu.Unlock()
+
+	select {
+	case err := <-w.ch:
+		return err
+	case <-ctx.Done():
+		ps.mu.Lock()
+		// 从队列中移除
+		for i, item := range ps.pq {
+			if item == w {
+				ps.pq = append(ps.pq[:i], ps.pq[i+1:]...)
+				break
+			}
+		}
+		ps.mu.Unlock()
+		return ErrContextCanceled
 	}
 }
 
-// Get returns the semaphore for the given key, creating it if necessary.
-//
-// Parameters:
-//   - key: identifier for the semaphore
-//
-// Returns:
-//   - *Semaphore: the semaphore for the key
-func (p *SemaphorePool) Get(key string) *Semaphore {
+// Release 释放信号量
+func (ps *PrioritySemaphore) Release(weight int64) {
+	if weight <= 0 {
+		return
+	}
+
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	ps.available += weight
+	if ps.available > ps.capacity {
+		ps.available = ps.capacity
+	}
+
+	// 尝试唤醒等待者
+	for len(ps.pq) > 0 && ps.available >= ps.pq[0].weight {
+		w := ps.pq.Pop()
+		ps.available -= w.weight
+		w.ch <- nil
+	}
+}
+
+// Available 返回当前可用的信号量数量
+func (ps *PrioritySemaphore) Available() int64 {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+	return ps.available
+}
+
+// Capacity 返回信号量的总容量
+func (ps *PrioritySemaphore) Capacity() int64 {
+	return ps.capacity
+}
+
+// Close 关闭信号量
+func (ps *PrioritySemaphore) Close() {
+	atomic.StoreInt32(&ps.closed, 1)
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	// 通知所有等待者
+	for _, w := range ps.pq {
+		w.ch <- ErrSemaphoreClosed
+	}
+	ps.pq = nil
+}
+
+// IsClosed 返回信号量是否已关闭
+func (ps *PrioritySemaphore) IsClosed() bool {
+	return atomic.LoadInt32(&ps.closed) == 1
+}
+
+// ============================================
+// 读写信号量（支持读写锁语义）
+// ============================================
+
+// RWSemaphore 读写信号量
+type RWSemaphore struct {
+	capacity    int64
+	readers     int64
+	writeLocked int32
+	mu          sync.Mutex
+	notify      chan struct{}
+	closed      int32
+}
+
+// NewRWSemaphore 创建读写信号量
+func NewRWSemaphore(capacity int64) (*RWSemaphore, error) {
+	if capacity <= 0 {
+		return nil, ErrNegativeCapacity
+	}
+
+	rw := &RWSemaphore{
+		capacity: capacity,
+		notify:   make(chan struct{}, 1),
+	}
+	return rw, nil
+}
+
+// AcquireRead 获取读锁
+func (rw *RWSemaphore) AcquireRead(ctx context.Context) error {
+	if atomic.LoadInt32(&rw.closed) == 1 {
+		return ErrSemaphoreClosed
+	}
+
+	for {
+		rw.mu.Lock()
+		if atomic.LoadInt32(&rw.writeLocked) == 0 {
+			rw.readers++
+			rw.mu.Unlock()
+			return nil
+		}
+		rw.mu.Unlock()
+
+		select {
+		case <-ctx.Done():
+			return ErrContextCanceled
+		case <-rw.notify:
+			if atomic.LoadInt32(&rw.closed) == 1 {
+				return ErrSemaphoreClosed
+			}
+		}
+	}
+}
+
+// ReleaseRead 释放读锁
+func (rw *RWSemaphore) ReleaseRead() {
+	rw.mu.Lock()
+	rw.readers--
+	if rw.readers < 0 {
+		rw.readers = 0
+	}
+	rw.mu.Unlock()
+
+	// 通知等待者
+	select {
+	case rw.notify <- struct{}{}:
+	default:
+	}
+}
+
+// AcquireWrite 获取写锁
+func (rw *RWSemaphore) AcquireWrite(ctx context.Context) error {
+	if atomic.LoadInt32(&rw.closed) == 1 {
+		return ErrSemaphoreClosed
+	}
+
+	for {
+		rw.mu.Lock()
+		if rw.readers == 0 && atomic.LoadInt32(&rw.writeLocked) == 0 {
+			atomic.StoreInt32(&rw.writeLocked, 1)
+			rw.mu.Unlock()
+			return nil
+		}
+		rw.mu.Unlock()
+
+		select {
+		case <-ctx.Done():
+			return ErrContextCanceled
+		case <-rw.notify:
+			if atomic.LoadInt32(&rw.closed) == 1 {
+				return ErrSemaphoreClosed
+			}
+		}
+	}
+}
+
+// ReleaseWrite 释放写锁
+func (rw *RWSemaphore) ReleaseWrite() {
+	atomic.StoreInt32(&rw.writeLocked, 0)
+	// 通知所有等待者
+	select {
+	case rw.notify <- struct{}{}:
+	default:
+	}
+}
+
+// Close 关闭信号量
+func (rw *RWSemaphore) Close() {
+	atomic.StoreInt32(&rw.closed, 1)
+	close(rw.notify)
+}
+
+// IsClosed 返回是否已关闭
+func (rw *RWSemaphore) IsClosed() bool {
+	return atomic.LoadInt32(&rw.closed) == 1
+}
+
+// ============================================
+// 信号量池
+// ============================================
+
+// SemaphorePool 信号量池
+type SemaphorePool struct {
+	semaphores map[string]Semaphore
+	mu         sync.RWMutex
+}
+
+// NewSemaphorePool 创建信号量池
+func NewSemaphorePool() *SemaphorePool {
+	return &SemaphorePool{
+		semaphores: make(map[string]Semaphore),
+	}
+}
+
+// GetOrCreate 获取或创建信号量
+func (p *SemaphorePool) GetOrCreate(name string, capacity int64) (Semaphore, error) {
 	p.mu.RLock()
-	if sem, ok := p.semaphores[key]; ok {
+	if s, ok := p.semaphores[name]; ok {
 		p.mu.RUnlock()
-		return sem
+		return s, nil
 	}
 	p.mu.RUnlock()
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// Double-check after acquiring write lock
-	if sem, ok := p.semaphores[key]; ok {
-		return sem
+	if s, ok := p.semaphores[name]; ok {
+		return s, nil
 	}
 
-	sem := New(p.capacity)
-	p.semaphores[key] = sem
-	return sem
+	s, err := NewSemaphore(capacity)
+	if err != nil {
+		return nil, err
+	}
+
+	p.semaphores[name] = s
+	return s, nil
 }
 
-// Remove removes a semaphore from the pool.
-//
-// Parameters:
-//   - key: identifier for the semaphore to remove
-func (p *SemaphorePool) Remove(key string) {
+// Get 获取信号量
+func (p *SemaphorePool) Get(name string) Semaphore {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.semaphores[name]
+}
+
+// Remove 移除信号量
+func (p *SemaphorePool) Remove(name string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	delete(p.semaphores, key)
+
+	if s, ok := p.semaphores[name]; ok {
+		s.Close()
+		delete(p.semaphores, name)
+	}
 }
 
-// Keys returns all keys in the pool.
-//
-// Returns:
-//   - []string: all semaphore keys
-func (p *SemaphorePool) Keys() []string {
+// CloseAll 关闭所有信号量
+func (p *SemaphorePool) CloseAll() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	for _, s := range p.semaphores {
+		s.Close()
+	}
+	p.semaphores = make(map[string]Semaphore)
+}
+
+// Names 返回所有信号量名称
+func (p *SemaphorePool) Names() []string {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	keys := make([]string, 0, len(p.semaphores))
-	for k := range p.semaphores {
-		keys = append(keys, k)
+	names := make([]string, 0, len(p.semaphores))
+	for name := range p.semaphores {
+		names = append(names, name)
 	}
-	return keys
+	return names
 }
 
-// Size returns the number of semaphores in the pool.
-//
-// Returns:
-//   - int: number of semaphores
-func (p *SemaphorePool) Size() int {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	return len(p.semaphores)
+// ============================================
+// 限流器
+// ============================================
+
+// RateLimiter 简单的令牌桶限流器
+type RateLimiter struct {
+	capacity   int64
+	available  int64
+	refillRate int64 // 每秒补充的数量
+	lastRefill time.Time
+	mu         sync.Mutex
 }
 
-// RunWithSemaphore runs a function with a semaphore acquired.
-// The semaphore is automatically released after the function completes.
-//
-// Parameters:
-//   - ctx: context for cancellation
-//   - sem: semaphore to use
-//   - fn: function to run
-//
-// Returns:
-//   - error: error from acquire or from the function
-//
-// Example:
-//
-//	err := semaphore_utils.RunWithSemaphore(ctx, sem, func() error {
-//	    // Do work with semaphore held
-//	    return doSomething()
-//	})
-func RunWithSemaphore(ctx context.Context, sem *Semaphore, fn func() error) error {
-	if err := sem.Acquire(ctx); err != nil {
-		return err
-	}
-	defer sem.Release()
-	return fn()
-}
-
-// RunWithTimeout runs a function with a semaphore acquired and timeout.
-//
-// Parameters:
-//   - timeout: maximum time to wait for semaphore
-//   - sem: semaphore to use
-//   - fn: function to run
-//
-// Returns:
-//   - error: error from acquire timeout or from the function
-func RunWithTimeout(timeout time.Duration, sem *Semaphore, fn func() error) error {
-	if err := sem.AcquireTimeout(timeout); err != nil {
-		return err
-	}
-	defer sem.Release()
-	return fn()
-}
-
-// RunWeightedWithSemaphore runs a function with a weighted semaphore acquired.
-//
-// Parameters:
-//   - ctx: context for cancellation
-//   - sem: weighted semaphore to use
-//   - n: number of units to acquire
-//   - fn: function to run
-//
-// Returns:
-//   - error: error from acquire or from the function
-func RunWeightedWithSemaphore(ctx context.Context, sem *WeightedSemaphore, n int64, fn func() error) error {
-	if err := sem.Acquire(ctx, n); err != nil {
-		return err
-	}
-	defer sem.Release(n)
-	return fn()
-}
-
-// BatchAcquire acquires permits for multiple operations at once.
-// Either all permits are acquired or none (all-or-nothing).
-//
-// Parameters:
-//   - ctx: context for cancellation
-//   - semaphores: map of semaphores to number of permits needed
-//
-// Returns:
-//   - func(): release function to call when done
-//   - error: error if any acquire fails
-//
-// Example:
-//
-//	release, err := semaphore_utils.BatchAcquire(ctx, map[*semaphore_utils.WeightedSemaphore]int64{
-//	    semA: 10,
-//	    semB: 5,
-//	})
-//	if err != nil {
-//	    return err
-//	}
-//	defer release()
-//	// Do work with both semaphores held
-func BatchAcquire(ctx context.Context, semaphores map[*WeightedSemaphore]int64) (func(), error) {
-	type acquired struct {
-		sem *WeightedSemaphore
-		n   int64
+// NewRateLimiter 创建限流器
+// capacity: 最大容量
+// refillRate: 每秒补充的数量
+func NewRateLimiter(capacity, refillRate int64) (*RateLimiter, error) {
+	if capacity <= 0 || refillRate <= 0 {
+		return nil, ErrNegativeCapacity
 	}
 
-	var acquiredList []acquired
-
-	for sem, n := range semaphores {
-		if err := sem.Acquire(ctx, n); err != nil {
-			// Release what we've acquired so far
-			for _, a := range acquiredList {
-				a.sem.Release(a.n)
-			}
-			return nil, err
-		}
-		acquiredList = append(acquiredList, acquired{sem: sem, n: n})
-	}
-
-	return func() {
-		for _, a := range acquiredList {
-			a.sem.Release(a.n)
-		}
+	return &RateLimiter{
+		capacity:   capacity,
+		available:  capacity,
+		refillRate: refillRate,
+		lastRefill: time.Now(),
 	}, nil
 }
-	
+
+// refill 补充令牌
+func (r *RateLimiter) refill() {
+	now := time.Now()
+	elapsed := now.Sub(r.lastRefill).Seconds()
+	if elapsed > 0 {
+		refill := int64(elapsed * float64(r.refillRate))
+		r.available += refill
+		if r.available > r.capacity {
+			r.available = r.capacity
+		}
+		r.lastRefill = now
+	}
+}
+
+// TryAcquire 尝试获取令牌
+func (r *RateLimiter) TryAcquire(tokens int64) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.refill()
+
+	if r.available >= tokens {
+		r.available -= tokens
+		return true
+	}
+	return false
+}
+
+// Wait 等待获取令牌
+func (r *RateLimiter) Wait(ctx context.Context, tokens int64) error {
+	for {
+		r.mu.Lock()
+		r.refill()
+
+		if r.available >= tokens {
+			r.available -= tokens
+			r.mu.Unlock()
+			return nil
+		}
+		r.mu.Unlock()
+
+		select {
+		case <-ctx.Done():
+			return ErrContextCanceled
+		case <-time.After(100 * time.Millisecond):
+			continue
+		}
+	}
+}
+
+// Available 返回可用令牌数
+func (r *RateLimiter) Available() int64 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.refill()
+	return r.available
+}
+
+// Capacity 返回容量
+func (r *RateLimiter) Capacity() int64 {
+	return r.capacity
+}
