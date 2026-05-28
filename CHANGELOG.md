@@ -3,6 +3,21 @@
 ## [2026-05-28]
 
 ### 新增
+- **Rust: count_min_sketch_utils (25 单元测试，完整概率频率估计数据结构)** 📊
+  - Count-Min Sketch：次线性空间频率估计，O(d) 时间复杂度
+  - 高精度频率查询：无低估特性，误差 ≤ ε × N
+  - 多种构造方式：误差参数法、指定维度法、容量误差法
+  - 元素操作：add（计数+1）、add_n（计数+n）、count（查询频率）、contains（存在性）
+  - 数据结构操作：merge（合并两个Sketch）、similarity（相似度计算）
+  - 统计信息：total_count、memory_usage、error_bound、estimate_cardinality
+  - 快照功能：snapshot/from_snapshot 支持序列化和恢复
+  - HeavyHitters：高频元素追踪器，实时追踪Top-K高频项
+  - FrequencyCounter：阈值频率计数器，筛选满足阈值的元素
+  - 泛型支持：支持任意 Hash 类型（字符串、整数、元组等）
+  - 零外部依赖，纯 Rust 标准库实现
+  - 测试覆盖：25 测试全部通过
+  - 应用场景：网站访问统计、网络流量监控、实时热门内容、分布式计数、异常检测
+
 - **Rust: red_black_tree_utils (32 单元测试，完整红黑树数据结构)** 🔴⚫
   - 自平衡二叉搜索树：红黑树算法实现，保证 O(log n) 时间复杂度
   - 五大性质验证：根节点黑、红色节点子节点黑、黑高度一致等
