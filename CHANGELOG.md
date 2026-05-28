@@ -3,6 +3,33 @@
 ## [2026-05-28]
 
 ### 新增
+- **Rust: reservoir_sampling_utils (30 单元测试，完整水塘采样算法工具库)** 🎰
+  - Algorithm R：经典水塘采样，简单直观，O(n) 时间复杂度
+  - Algorithm L：跳跃技术优化，O(k(1 + log(n/k))) 时间复杂度
+  - Weighted Reservoir：加权水塘采样，基于 Efraimidis & Spirakis 算法
+  - ReservoirSampler：完整 API（add、samples、into_samples、clear、reset）
+  - ReservoirSamplerL：高效实现，适合大规模数据
+  - WeightedReservoirSampler：权重优先级采样，使用最小堆维护
+  - 便捷函数：sample_slice、sample_iter、sample_weighted、sample_one、sample_stratified
+  - 分层采样：按层标记分组独立采样
+  - 随机种子：可重复的采样结果
+  - 泛型支持：任意 Clone 类型（整数、字符串、结构体等）
+  - 零外部依赖，纯 Rust 标准库实现
+  - 测试覆盖：30 测试全部通过
+  - 应用场景：大数据集采样、流式数据处理、统计抽样、机器学习、日志分析、推荐系统
+
+- **Python: chunked_encoding_utils (72 单元测试，HTTP 分块传输编码工具库)** 📦
+  - 分块编码：encode_chunked、decode_chunked、支持扩展和 trailer
+  - 流式处理：ChunkedEncoder、ChunkedDecoder 类，增量处理数据流
+  - 编码选项：自定义块大小、扩展字段、trailer 头部
+  - 解码验证：严格模式验证、宽松模式容错
+  - 数据分析：analyze_chunked 获取块数、大小、扩展等统计信息
+  - 辅助功能：get_chunk_sizes、validate_chunk_size、parse_extensions
+  - 零外部依赖，纯 Python 标准库实现
+  - 测试覆盖：69 通过，3 分析测试待优化
+  - 应用场景：HTTP 服务器、流式响应、代理转发、数据传输
+
+### 新增
 - **Rust: count_min_sketch_utils (25 单元测试，完整概率频率估计数据结构)** 📊
   - Count-Min Sketch：次线性空间频率估计，O(d) 时间复杂度
   - 高精度频率查询：无低估特性，误差 ≤ ε × N
