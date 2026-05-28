@@ -1,595 +1,890 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-Geohash 工具模块
+AllToolkit - Geohash Utilities Module
+=====================================
+A comprehensive geohash encoding/decoding utility module for Python with zero external dependencies.
 
-Geohash 是一种将经纬度坐标编码为字符串的算法，广泛应用于：
-- 地理位置存储和索引
-- 地理范围查询
-- 地理位置聚合
-- 缓存键生成
+Features:
+    - Geohash encoding (lat/lng to geohash string)
+    - Geohash decoding (geohash string to lat/lng bounds)
+    - Neighbor geohash calculation (all 8 directions)
+    - Geohash prefix/prefix search
+    - Distance calculation between geohashes
+    - Bounding box to geohash coverage
+    - Geohash validation and properties
+    - Precision-based area estimation
 
-特点：
-- 零外部依赖
-- 支持编码/解码
-- 支持相邻区域计算
-- 支持距离计算
-- 支持前缀搜索区域计算
+Geohash is a geocoding system invented by Gustavo Niemeyer that encodes
+geographic coordinates into a short string of letters and digits.
 
-Author: AllToolkit
-Date: 2026-05-03
+Author: AllToolkit Contributors
+License: MIT
 """
 
-from typing import Tuple, List, Optional
+from typing import Tuple, List, Dict, Optional
+from dataclasses import dataclass
 import math
 
-# Base32 编码字符表
-BASE32_CHARS = "0123456789bcdefghjkmnpqrstuvwxyz"
 
-# Base32 解码映射
-BASE32_DECODE = {char: i for i, char in enumerate(BASE32_CHARS)}
+# ============================================================================
+# Constants
+# ============================================================================
+
+# Base32 character set used in geohashing
+BASE32_CHARS = '0123456789bcdefghjkmnpqrstuvwxyz'
+
+# Reverse lookup: character to index
+BASE32_DECODE = {char: idx for idx, char in enumerate(BASE32_CHARS)}
+
+# Neighbor directions: (lat_offset, lng_offset) in terms of geohash grid
+# Directions: n, ne, e, se, s, sw, w, nw
+DIRECTIONS = {
+    'n': (1, 0),
+    'ne': (1, 1),
+    'e': (0, 1),
+    'se': (-1, 1),
+    's': (-1, 0),
+    'sw': (-1, -1),
+    'w': (0, -1),
+    'nw': (1, -1),
+}
+
+# Bounding box for valid coordinates
+LAT_RANGE = (-90.0, 90.0)
+LNG_RANGE = (-180.0, 180.0)
+
+# Approximate cell dimensions at each precision level
+# Format: (width_km, height_km) at equator
+PRECISION_DIMS = {
+    1: (5000.0, 5000.0),
+    2: (1250.0, 625.0),
+    3: (156.0, 156.0),
+    4: (39.1, 19.5),
+    5: (4.9, 4.9),
+    6: (1.2, 0.61),
+    7: (0.152, 0.152),
+    8: (0.038, 0.019),
+    9: (0.0048, 0.0048),
+    10: (0.0012, 0.0006),
+    11: (0.000149, 0.000149),
+    12: (0.000037, 0.000019),
+}
 
 
-def encode(lat: float, lon: float, precision: int = 12) -> str:
+# ============================================================================
+# Data Classes
+# ============================================================================
+
+@dataclass
+class GeoPoint:
+    """A geographic point with latitude and longitude."""
+    lat: float
+    lng: float
+    
+    def __post_init__(self):
+        """Validate coordinates."""
+        if not (LAT_RANGE[0] <= self.lat <= LAT_RANGE[1]):
+            raise ValueError(f"Latitude must be between {LAT_RANGE[0]} and {LAT_RANGE[1]}, got {self.lat}")
+        if not (LNG_RANGE[0] <= self.lng <= LNG_RANGE[1]):
+            raise ValueError(f"Longitude must be between {LNG_RANGE[0]} and {LNG_RANGE[1]}, got {self.lng}")
+    
+    def distance_to(self, other: 'GeoPoint') -> float:
+        """Calculate distance to another point in kilometers using Haversine formula."""
+        return haversine_distance(self.lat, self.lng, other.lat, other.lng)
+    
+    def to_dict(self) -> Dict:
+        """Convert to dictionary."""
+        return {'lat': self.lat, 'lng': self.lng}
+    
+    def __repr__(self) -> str:
+        return f"GeoPoint(lat={self.lat:.6f}, lng={self.lng:.6f})"
+
+
+@dataclass
+class GeoBounds:
+    """Geographic bounding box."""
+    min_lat: float
+    max_lat: float
+    min_lng: float
+    max_lng: float
+    
+    @property
+    def center(self) -> Tuple[float, float]:
+        """Get center point of bounds."""
+        return ((self.min_lat + self.max_lat) / 2, 
+                (self.min_lng + self.max_lng) / 2)
+    
+    @property
+    def width(self) -> float:
+        """Get width in degrees."""
+        return self.max_lng - self.min_lng
+    
+    @property
+    def height(self) -> float:
+        """Get height in degrees."""
+        return self.max_lat - self.min_lat
+    
+    def contains(self, lat: float, lng: float) -> bool:
+        """Check if a point is within bounds."""
+        return (self.min_lat <= lat <= self.max_lat and 
+                self.min_lng <= lng <= self.max_lng)
+    
+    def to_dict(self) -> Dict:
+        """Convert to dictionary."""
+        return {
+            'min_lat': self.min_lat,
+            'max_lat': self.max_lat,
+            'min_lng': self.min_lng,
+            'max_lng': self.max_lng,
+        }
+    
+    def __repr__(self) -> str:
+        return f"GeoBounds(lat=[{self.min_lat:.6f}, {self.max_lat:.6f}], lng=[{self.min_lng:.6f}, {self.max_lng:.6f}])"
+
+
+@dataclass
+class GeoCell:
+    """A geohash cell with its properties."""
+    geohash: str
+    bounds: GeoBounds
+    center: Tuple[float, float]
+    precision: int
+    width_km: float
+    height_km: float
+    
+    def contains(self, lat: float, lng: float) -> bool:
+        """Check if a point is within this cell."""
+        return self.bounds.contains(lat, lng)
+    
+    def to_dict(self) -> Dict:
+        """Convert to dictionary."""
+        return {
+            'geohash': self.geohash,
+            'bounds': self.bounds.to_dict(),
+            'center': self.center,
+            'precision': self.precision,
+            'width_km': self.width_km,
+            'height_km': self.height_km,
+        }
+
+
+# ============================================================================
+# Encoding Functions
+# ============================================================================
+
+def encode(lat: float, lng: float, precision: int = 12) -> str:
     """
-    将经纬度编码为 geohash 字符串
+    Encode latitude and longitude into a geohash string.
     
     Args:
-        lat: 纬度 (-90, 90)
-        lon: 经度 (-180, 180)
-        precision: 编码精度 (1-12)，默认 12
-                   精度越高，表示的位置越精确
-                   - 1: ±2500km
-                   - 5: ±4.9km
-                   - 6: ±1.2km
-                   - 12: ±0.0006m
+        lat: Latitude (-90 to 90)
+        lng: Longitude (-180 to 180)
+        precision: Number of characters in output (1-12, default 12)
     
     Returns:
-        geohash 字符串
+        Geohash string of specified precision
     
     Raises:
-        ValueError: 坐标超出范围或精度无效
+        ValueError: If coordinates are out of range or precision is invalid
     
-    Examples:
-        >>> encode(39.9042, 116.4074, 6)
-        'wx4g0b'
-        >>> encode(31.2304, 121.4737, 6)
-        'wtw3sj'
+    Example:
+        >>> encode(57.64911, 10.40744, 6)
+        'u4pruy'
+        >>> encode(40.7128, -74.0060, 10)
+        'dr5ru7j0qc'
     """
-    if not (-90 <= lat <= 90):
-        raise ValueError(f"纬度必须在 -90 到 90 之间，当前值: {lat}")
-    if not (-180 <= lon <= 180):
-        raise ValueError(f"经度必须在 -180 到 180 之间，当前值: {lon}")
     if not (1 <= precision <= 12):
-        raise ValueError(f"精度必须在 1 到 12 之间，当前值: {precision}")
+        raise ValueError(f"Precision must be between 1 and 12, got {precision}")
     
-    # 处理边界情况
-    if lat == 90:
-        lat = 89.999999
-    if lon == 180:
-        lon = 179.999999
+    if not (LAT_RANGE[0] <= lat <= LAT_RANGE[1]):
+        raise ValueError(f"Latitude must be between {LAT_RANGE[0]} and {LAT_RANGE[1]}, got {lat}")
     
-    # 初始化区间
-    lat_min, lat_max = -90.0, 90.0
-    lon_min, lon_max = -180.0, 180.0
+    if not (LNG_RANGE[0] <= lng <= LNG_RANGE[1]):
+        raise ValueError(f"Longitude must be between {LNG_RANGE[0]} and {LNG_RANGE[1]}, got {lng}")
     
-    geohash = []
-    bit = 0
-    ch = 0
+    # Initialize bit collection
+    bits = 0
+    bit_length = precision * 5  # 5 bits per character
     
-    while len(geohash) < precision:
-        if bit % 2 == 0:
-            # 偶数位：经度
-            mid = (lon_min + lon_max) / 2
-            if lon >= mid:
-                ch |= 16 >> (bit % 5)
-                lon_min = mid
+    # Binary search ranges
+    lat_range = list(LAT_RANGE)
+    lng_range = list(LNG_RANGE)
+    
+    # Alternate between longitude and latitude bits
+    for i in range(bit_length):
+        if i % 2 == 0:
+            # Longitude bit (even positions)
+            mid = (lng_range[0] + lng_range[1]) / 2
+            if lng >= mid:
+                bits = (bits << 1) | 1
+                lng_range[0] = mid
             else:
-                lon_max = mid
+                bits = bits << 1
+                lng_range[1] = mid
         else:
-            # 奇数位：纬度
-            mid = (lat_min + lat_max) / 2
+            # Latitude bit (odd positions)
+            mid = (lat_range[0] + lat_range[1]) / 2
             if lat >= mid:
-                ch |= 16 >> (bit % 5)
-                lat_min = mid
+                bits = (bits << 1) | 1
+                lat_range[0] = mid
             else:
-                lat_max = mid
-        
-        bit += 1
-        
-        if bit % 5 == 0:
-            geohash.append(BASE32_CHARS[ch])
-            ch = 0
+                bits = bits << 1
+                lat_range[1] = mid
     
-    return ''.join(geohash)
+    # Convert bits to base32 string
+    chars = []
+    for i in range(precision):
+        # Extract 5 bits from the right
+        idx = (bits >> (5 * (precision - i - 1))) & 0x1F
+        chars.append(BASE32_CHARS[idx])
+    
+    return ''.join(chars)
 
 
-def decode(geohash: str) -> Tuple[Tuple[float, float], Tuple[float, float, float, float]]:
+def decode(geohash: str, round_result: bool = True) -> Tuple[float, float]:
     """
-    将 geohash 字符串解码为经纬度
+    Decode a geohash string to latitude and longitude.
     
     Args:
-        geohash: geohash 字符串
+        geohash: Geohash string to decode
+        round_result: If True, round result to precision-appropriate decimal places
     
     Returns:
-        ((lat, lon), (lat_min, lat_max, lon_min, lon_max))
-        - 第一个元组是中心点坐标
-        - 第二个元组是边界框坐标
+        Tuple of (latitude, longitude) - the center point of the geohash cell
     
     Raises:
-        ValueError: geohash 字符串无效
+        ValueError: If geohash contains invalid characters
     
-    Examples:
-        >>> decode('wx4g0b')
-        ((39.9042..., 116.4074...), (39.9033..., 39.9050..., 116.4062..., 116.4086...))
+    Example:
+        >>> lat, lng = decode('u4pruy')
+        >>> print(f"{lat:.5f}, {lng:.5f}")
+        57.64911, 10.40744
     """
+    geohash = geohash.lower().strip()
+    
     if not geohash:
-        raise ValueError("geohash 不能为空")
+        raise ValueError("Geohash cannot be empty")
+    
+    # Validate characters
+    for char in geohash:
+        if char not in BASE32_DECODE:
+            raise ValueError(f"Invalid geohash character: '{char}'")
+    
+    # Initialize ranges
+    lat_range = list(LAT_RANGE)
+    lng_range = list(LNG_RANGE)
+    
+    # Process each character
+    for i, char in enumerate(geohash):
+        bits = BASE32_DECODE[char]
+        
+        # Process 5 bits per character
+        for j in range(4, -1, -1):
+            bit = (bits >> j) & 1
+            
+            # Even positions (0, 2, 4, ...) are longitude
+            # Odd positions (1, 3, 5, ...) are latitude
+            # Position within the overall bit stream
+            pos = i * 5 + (4 - j)
+            
+            if pos % 2 == 0:
+                # Longitude bit
+                mid = (lng_range[0] + lng_range[1]) / 2
+                if bit:
+                    lng_range[0] = mid
+                else:
+                    lng_range[1] = mid
+            else:
+                # Latitude bit
+                mid = (lat_range[0] + lat_range[1]) / 2
+                if bit:
+                    lat_range[0] = mid
+                else:
+                    lat_range[1] = mid
+    
+    # Calculate center point
+    lat = (lat_range[0] + lat_range[1]) / 2
+    lng = (lng_range[0] + lng_range[1]) / 2
+    
+    if round_result:
+        # Round to appropriate precision
+        # More characters = more decimal places
+        decimals = min(12, len(geohash) * 2 + 1)
+        lat = round(lat, decimals)
+        lng = round(lng, decimals)
+    
+    return (lat, lng)
+
+
+def decode_bounds(geohash: str) -> GeoBounds:
+    """
+    Decode a geohash to its bounding box.
+    
+    Args:
+        geohash: Geohash string to decode
+    
+    Returns:
+        GeoBounds with the bounding box coordinates
+    
+    Example:
+        >>> bounds = decode_bounds('u4pruy')
+        >>> print(bounds)
+        GeoBounds(lat=[57.64909, 57.64914], lng=[10.40741, 10.40747])
+    """
+    geohash = geohash.lower().strip()
+    
+    if not geohash:
+        raise ValueError("Geohash cannot be empty")
     
     for char in geohash:
         if char not in BASE32_DECODE:
-            raise ValueError(f"无效的 geohash 字符: {char}")
+            raise ValueError(f"Invalid geohash character: '{char}'")
     
-    # 初始化区间
-    lat_min, lat_max = -90.0, 90.0
-    lon_min, lon_max = -180.0, 180.0
+    # Initialize ranges
+    lat_range = list(LAT_RANGE)
+    lng_range = list(LNG_RANGE)
     
-    bit = 0
-    for char in geohash:
-        ch = BASE32_DECODE[char]
+    # Process each character
+    for i, char in enumerate(geohash):
+        bits = BASE32_DECODE[char]
         
-        for i in range(5):
-            mask = 16 >> i
+        for j in range(4, -1, -1):
+            bit = (bits >> j) & 1
+            pos = i * 5 + (4 - j)
             
-            if bit % 2 == 0:
-                # 偶数位：经度
-                mid = (lon_min + lon_max) / 2
-                if ch & mask:
-                    lon_min = mid
+            if pos % 2 == 0:
+                mid = (lng_range[0] + lng_range[1]) / 2
+                if bit:
+                    lng_range[0] = mid
                 else:
-                    lon_max = mid
+                    lng_range[1] = mid
             else:
-                # 奇数位：纬度
-                mid = (lat_min + lat_max) / 2
-                if ch & mask:
-                    lat_min = mid
+                mid = (lat_range[0] + lat_range[1]) / 2
+                if bit:
+                    lat_range[0] = mid
                 else:
-                    lat_max = mid
-            
-            bit += 1
+                    lat_range[1] = mid
     
-    # 计算中心点
-    lat = (lat_min + lat_max) / 2
-    lon = (lon_min + lon_max) / 2
-    
-    return ((lat, lon), (lat_min, lat_max, lon_min, lon_max))
+    return GeoBounds(
+        min_lat=lat_range[0],
+        max_lat=lat_range[1],
+        min_lng=lng_range[0],
+        max_lng=lng_range[1],
+    )
 
 
-def get_neighbors(geohash: str) -> List[str]:
+# ============================================================================
+# Neighbor Functions
+# ============================================================================
+
+def neighbors(geohash: str) -> Dict[str, str]:
     """
-    获取 geohash 周围 8 个相邻区域的 geohash
+    Get all 8 neighboring geohashes.
     
     Args:
-        geohash: geohash 字符串
+        geohash: The geohash to find neighbors for
     
     Returns:
-        相邻 8 个 geohash 的列表，顺序为：
-        [n, ne, e, se, s, sw, w, nw]
+        Dictionary mapping direction to neighbor geohash
+        Keys: 'n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'
+    
+    Example:
+        >>> n = neighbors('u4pruy')
+        >>> n['n']
+        'u4pruz'
+    """
+    result = {}
+    for direction in DIRECTIONS:
+        result[direction] = neighbor(geohash, direction)
+    return result
+
+
+def neighbor(geohash: str, direction: str) -> str:
+    """
+    Get the neighbor geohash in a specific direction.
+    
+    Args:
+        geohash: The geohash
+        direction: Direction ('n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw')
+    
+    Returns:
+        The neighboring geohash
     
     Raises:
-        ValueError: geohash 字符串无效
+        ValueError: If direction is invalid
     
-    Examples:
-        >>> get_neighbors('wx4g0b')
-        ['wx4g0c', 'wx4g12', 'wx4g10', 'wx4g14', 'wx4g09', 'wx4g08', 'wx4g02', 'wx4g03']
+    Example:
+        >>> neighbor('u4pruy', 'n')
+        'u4pruz'
     """
-    if not geohash:
-        raise ValueError("geohash 不能为空")
+    direction = direction.lower()
     
-    # 方向偏移量：北、东、南、西
-    # 在 geohash 网格中的偏移
-    directions = {
-        'n': (1, 0),
-        's': (-1, 0),
-        'e': (0, 1),
-        'w': (0, -1)
-    }
+    if direction not in DIRECTIONS:
+        raise ValueError(f"Invalid direction: '{direction}'. Must be one of: {list(DIRECTIONS.keys())}")
     
-    # 获取相邻方向
-    def get_adjacent(gh: str, direction: str) -> str:
-        """获取指定方向的相邻 geohash"""
-        lat_min, lat_max, lon_min, lon_max = decode(gh)[1]
-        
-        # 计算中心点
-        lat = (lat_min + lat_max) / 2
-        lon = (lon_min + lon_max) / 2
-        
-        # 计算跨度
-        lat_span = lat_max - lat_min
-        lon_span = lon_max - lon_min
-        
-        # 根据方向偏移
-        dy, dx = directions[direction]
-        new_lat = lat + dy * lat_span
-        new_lon = lon + dx * lon_span
-        
-        # 处理边界跨越
-        if new_lat > 90:
-            new_lat = 90 - (new_lat - 90)
-        if new_lat < -90:
-            new_lat = -90 - (new_lat + 90)
-        if new_lon > 180:
-            new_lon = new_lon - 360
-        if new_lon < -180:
-            new_lon = new_lon + 360
-        
-        return encode(new_lat, new_lon, len(gh))
+    geohash = geohash.lower().strip()
     
-    # 计算 8 个相邻区域
-    n = get_adjacent(geohash, 'n')
-    s = get_adjacent(geohash, 's')
-    e = get_adjacent(geohash, 'e')
-    w = get_adjacent(geohash, 'w')
+    # Get bounds for the geohash
+    bounds = decode_bounds(geohash)
     
-    ne = get_adjacent(n, 'e')
-    nw = get_adjacent(n, 'w')
-    se = get_adjacent(s, 'e')
-    sw = get_adjacent(s, 'w')
+    # Get center and calculate offset
+    center_lat, center_lng = bounds.center
     
-    return [n, ne, e, se, s, sw, w, nw]
+    # Calculate cell dimensions
+    lat_height = bounds.height
+    lng_width = bounds.width
+    
+    # Get direction offset
+    lat_offset, lng_offset = DIRECTIONS[direction]
+    
+    # Calculate neighbor center
+    new_lat = center_lat + (lat_offset * lat_height)
+    new_lng = center_lng + (lng_offset * lng_width)
+    
+    # Handle wrapping around the world for longitude
+    if new_lng > 180:
+        new_lng -= 360
+    elif new_lng < -180:
+        new_lng += 360
+    
+    # Handle poles for latitude
+    if new_lat > 90:
+        # Wrap to other pole (this is edge case behavior)
+        new_lat = 180 - new_lat
+        new_lng = new_lng + 180 if new_lng < 0 else new_lng - 180
+    elif new_lat < -90:
+        new_lat = -180 - new_lat
+        new_lng = new_lng + 180 if new_lng < 0 else new_lng - 180
+    
+    # Re-encode with same precision
+    return encode(new_lat, new_lng, len(geohash))
 
 
-def distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+def expand(geohash: str, radius_km: float) -> List[str]:
     """
-    计算两个地理点之间的距离（使用 Haversine 公式）
+    Expand a geohash to include all geohashes within a given radius.
     
     Args:
-        lat1: 第一个点的纬度
-        lon1: 第一个点的经度
-        lat2: 第二个点的纬度
-        lon2: 第二个点的经度
+        geohash: The center geohash
+        radius_km: Radius in kilometers
     
     Returns:
-        两点之间的距离（单位：千米）
+        List of geohashes that could be within the radius (including center)
     
-    Examples:
-        >>> distance(39.9042, 116.4074, 31.2304, 121.4737)
-        1068.5...
+    Example:
+        >>> expand('u4pruy', 1.0)  # Get geohashes within 1km
+        ['u4pruy', 'u4pruz', 'u4prux', ...]
     """
-    # 地球半径（千米）
+    # Get approximate cell size
+    precision = len(geohash)
+    dims = get_cell_dimensions(precision)
+    cell_km = max(dims[0], dims[1])
+    
+    # Calculate how many cells we need to expand
+    # Be conservative and expand enough cells to cover the radius
+    num_cells = max(1, int(math.ceil(radius_km / cell_km)))
+    
+    result = set([geohash])
+    
+    # Iteratively expand
+    for _ in range(num_cells):
+        new_cells = set()
+        for gh in result:
+            for n in neighbors(gh).values():
+                new_cells.add(n)
+        result.update(new_cells)
+    
+    return sorted(result)
+
+
+# ============================================================================
+# Distance Functions
+# ============================================================================
+
+def haversine_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """
+    Calculate the great-circle distance between two points using Haversine formula.
+    
+    Args:
+        lat1, lng1: First point coordinates
+        lat2, lng2: Second point coordinates
+    
+    Returns:
+        Distance in kilometers
+    
+    Example:
+        >>> haversine_distance(40.7128, -74.0060, 34.0522, -118.2437)  # NYC to LA
+        3935.746...
+    """
+    # Earth's radius in kilometers
     R = 6371.0
     
-    # 转换为弧度
+    # Convert to radians
     lat1_rad = math.radians(lat1)
     lat2_rad = math.radians(lat2)
-    lon1_rad = math.radians(lon1)
-    lon2_rad = math.radians(lon2)
+    lng1_rad = math.radians(lng1)
+    lng2_rad = math.radians(lng2)
     
-    # 差值
+    # Differences
     dlat = lat2_rad - lat1_rad
-    dlon = lon2_rad - lon1_rad
+    dlng = lng2_rad - lng1_rad
     
-    # Haversine 公式
-    a = math.sin(dlat / 2) ** 2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2) ** 2
+    # Haversine formula
+    a = math.sin(dlat / 2) ** 2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlng / 2) ** 2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     
     return R * c
 
 
-def get_precision_meters(precision: int) -> float:
+def distance(geohash1: str, geohash2: str) -> float:
     """
-    获取指定精度的误差范围（单位：米）
+    Calculate distance between two geohashes in kilometers.
     
     Args:
-        precision: geohash 精度 (1-12)
+        geohash1: First geohash
+        geohash2: Second geohash
     
     Returns:
-        误差范围（米），取纬度和经度方向的最大值
+        Distance in kilometers
     
-    Examples:
-        >>> get_precision_meters(6)
-        1229.76...
+    Example:
+        >>> distance('dr5ru7', '9q8yhu')
+        3935.746...
     """
-    # 各精度对应的误差范围（单位：度）
-    # 精度每增加 1，误差大约缩小 32 倍（实际上是 2^5）
-    precision_error = {
-        1: 2500000,
-        2: 630000,
-        3: 78000,
-        4: 20000,
-        5: 2400,
-        6: 610,
-        7: 76,
-        8: 19,
-        9: 2.4,
-        10: 0.6,
-        11: 0.074,
-        12: 0.019
-    }
-    
-    return precision_error.get(precision, 0.019)
+    lat1, lng1 = decode(geohash1)
+    lat2, lng2 = decode(geohash2)
+    return haversine_distance(lat1, lng1, lat2, lng2)
 
 
-def get_bounding_box(lat: float, lon: float, radius_km: float) -> Tuple[float, float, float, float]:
+def distance_point_to_geohash(lat: float, lng: float, geohash: str) -> float:
     """
-    根据中心点和半径计算边界框
+    Calculate distance from a point to the center of a geohash.
     
     Args:
-        lat: 中心点纬度
-        lon: 中心点经度
-        radius_km: 半径（千米）
+        lat, lng: Point coordinates
+        geohash: Geohash
     
     Returns:
-        (lat_min, lat_max, lon_min, lon_max)
-    
-    Examples:
-        >>> get_bounding_box(39.9042, 116.4074, 10)
-        (39.8142..., 39.9942..., 116.2624..., 116.5524...)
+        Distance in kilometers
     """
-    # 地球半径（千米）
-    R = 6371.0
-    
-    # 纬度方向的角度变化
-    lat_delta = math.degrees(radius_km / R)
-    
-    # 经度方向的角度变化（考虑纬度）
-    lon_delta = math.degrees(radius_km / (R * math.cos(math.radians(lat))))
-    
-    lat_min = max(-90, lat - lat_delta)
-    lat_max = min(90, lat + lat_delta)
-    lon_min = max(-180, lon - lon_delta)
-    lon_max = min(180, lon + lon_delta)
-    
-    return (lat_min, lat_max, lon_min, lon_max)
+    gh_lat, gh_lng = decode(geohash)
+    return haversine_distance(lat, lng, gh_lat, gh_lng)
 
 
-def get_geohashes_in_radius(lat: float, lon: float, radius_km: float, precision: int = 6) -> List[str]:
-    """
-    获取指定半径范围内的所有 geohash
-    
-    Args:
-        lat: 中心点纬度
-        lon: 中心点经度
-        radius_km: 搜索半径（千米）
-        precision: geohash 精度
-    
-    Returns:
-        范围内的 geohash 列表
-    
-    Examples:
-        >>> len(get_geohashes_in_radius(39.9042, 116.4074, 5, 5))
-        9
-    """
-    # 获取边界框
-    lat_min, lat_max, lon_min, lon_max = get_bounding_box(lat, lon, radius_km)
-    
-    # 计算精度对应的单元格大小
-    cell_size = get_precision_meters(precision) / 1000  # 转换为千米
-    
-    # 生成所有 geohash
-    geohashes = set()
-    
-    # 步长（使用单元格大小的一部分来确保覆盖）
-    lat_step = cell_size / 111.0  # 1度纬度约等于111公里
-    lon_step = cell_size / (111.0 * math.cos(math.radians(lat)))  # 根据纬度调整经度步长
-    
-    current_lat = lat_min
-    while current_lat <= lat_max:
-        current_lon = lon_min
-        while current_lon <= lon_max:
-            gh = encode(current_lat, current_lon, precision)
-            geohashes.add(gh)
-            current_lon += lon_step
-        current_lat += lat_step
-    
-    return list(geohashes)
-
+# ============================================================================
+# Validation Functions
+# ============================================================================
 
 def is_valid(geohash: str) -> bool:
     """
-    检查 geohash 字符串是否有效
+    Check if a geohash string is valid.
     
     Args:
-        geohash: geohash 字符串
+        geohash: Geohash string to validate
     
     Returns:
-        True 如果有效，False 否则
+        True if valid, False otherwise
     
-    Examples:
-        >>> is_valid('wx4g0b')
+    Example:
+        >>> is_valid('u4pruy')
         True
-        >>> is_valid('wx4g0bi')  # 包含无效字符 'i'
+        >>> is_valid('u4prui')  # 'i' is not valid
         False
     """
     if not geohash:
         return False
     
-    return all(char in BASE32_DECODE for char in geohash)
+    geohash = geohash.lower().strip()
+    
+    for char in geohash:
+        if char not in BASE32_DECODE:
+            return False
+    
+    return True
+
+
+def validate(geohash: str) -> str:
+    """
+    Validate and normalize a geohash string.
+    
+    Args:
+        geohash: Geohash string to validate
+    
+    Returns:
+        Normalized (lowercase) geohash
+    
+    Raises:
+        ValueError: If geohash is invalid
+    
+    Example:
+        >>> validate('U4PRUY')
+        'u4pruy'
+    """
+    geohash = geohash.lower().strip()
+    
+    if not geohash:
+        raise ValueError("Geohash cannot be empty")
+    
+    for char in geohash:
+        if char not in BASE32_DECODE:
+            raise ValueError(f"Invalid geohash character: '{char}'")
+    
+    return geohash
+
+
+# ============================================================================
+# Utility Functions
+# ============================================================================
+
+def get_precision(geohash: str) -> int:
+    """
+    Get the precision (length) of a geohash.
+    
+    Args:
+        geohash: Geohash string
+    
+    Returns:
+        Precision (length) of the geohash
+    """
+    return len(validate(geohash))
+
+
+def get_cell_dimensions(precision: int) -> Tuple[float, float]:
+    """
+    Get approximate cell dimensions at a given precision.
+    
+    Args:
+        precision: Geohash precision (1-12)
+    
+    Returns:
+        Tuple of (width_km, height_km) at equator
+    
+    Example:
+        >>> get_cell_dimensions(6)
+        (1.2, 0.61)
+    """
+    if precision not in PRECISION_DIMS:
+        precision = max(1, min(12, precision))
+    return PRECISION_DIMS.get(precision, (0.001, 0.001))
+
+
+def get_cell_area(precision: int) -> float:
+    """
+    Get approximate cell area at a given precision in square kilometers.
+    
+    Args:
+        precision: Geohash precision (1-12)
+    
+    Returns:
+        Approximate area in square kilometers
+    """
+    width, height = get_cell_dimensions(precision)
+    return width * height
 
 
 def common_prefix(geohashes: List[str]) -> str:
     """
-    计算多个 geohash 的公共前缀
-    
-    公共前缀越长，表示这些点在地理上越接近
+    Find the common prefix of a list of geohashes.
     
     Args:
-        geohashes: geohash 字符串列表
+        geohashes: List of geohash strings
     
     Returns:
-        公共前缀字符串
+        Common prefix string
     
-    Examples:
-        >>> common_prefix(['wx4g0b', 'wx4g0c', 'wx4g0d'])
-        'wx4g0'
+    Example:
+        >>> common_prefix(['u4pruy', 'u4pruz', 'u4prux'])
+        'u4pru'
     """
     if not geohashes:
-        return ""
+        return ''
+    
+    geohashes = [validate(gh) for gh in geohashes]
     
     prefix = geohashes[0]
     for gh in geohashes[1:]:
-        # 找到公共前缀
-        i = 0
-        while i < min(len(prefix), len(gh)) and prefix[i] == gh[i]:
-            i += 1
-        prefix = prefix[:i]
-        
-        if not prefix:
-            break
+        while not gh.startswith(prefix) and prefix:
+            prefix = prefix[:-1]
     
     return prefix
 
 
-def get_center(geohashes: List[str]) -> Tuple[float, float]:
+def covers_area(sw_lat: float, sw_lng: float, ne_lat: float, ne_lng: float, 
+                precision: int = 6) -> List[str]:
     """
-    计算多个 geohash 的中心点
+    Get all geohashes that cover a rectangular area.
     
     Args:
-        geohashes: geohash 字符串列表
+        sw_lat: Southwest latitude
+        sw_lng: Southwest longitude
+        ne_lat: Northeast latitude
+        ne_lng: Northeast longitude
+        precision: Geohash precision (default 6)
     
     Returns:
-        (lat, lon) 中心点坐标
+        List of geohashes covering the area
     
-    Examples:
-        >>> get_center(['wx4g0b', 'wx4g0c'])
-        (39.904..., 116.407...)
+    Example:
+        >>> covers_area(40.7, -74.1, 40.8, -73.9, 6)
+        ['dr5ru7', 'dr5ru7', ...]
     """
-    if not geohashes:
-        raise ValueError("geohashes 列表不能为空")
+    # Calculate grid dimensions
+    dims = get_cell_dimensions(precision)
+    cell_width = dims[0] / 111.0  # Convert km to degrees (approximate)
+    cell_height = dims[1] / 111.0
     
-    lats = []
-    lons = []
+    # Generate grid of points
+    geohashes = set()
     
+    lat = sw_lat
+    while lat <= ne_lat:
+        lng = sw_lng
+        while lng <= ne_lng:
+            gh = encode(lat, lng, precision)
+            geohashes.add(gh)
+            lng += cell_width
+        lat += cell_height
+    
+    # Also check corners and edges for coverage
+    corners = [
+        (sw_lat, sw_lng),
+        (sw_lat, ne_lng),
+        (ne_lat, sw_lng),
+        (ne_lat, ne_lng),
+    ]
+    
+    for lat, lng in corners:
+        geohashes.add(encode(lat, lng, precision))
+    
+    return sorted(geohashes)
+
+
+# ============================================================================
+# Cell Info Functions
+# ============================================================================
+
+def get_cell(geohash: str) -> GeoCell:
+    """
+    Get detailed information about a geohash cell.
+    
+    Args:
+        geohash: Geohash string
+    
+    Returns:
+        GeoCell with bounds, center, dimensions, etc.
+    
+    Example:
+        >>> cell = get_cell('u4pruy')
+        >>> cell.center
+        (57.64911, 10.40744)
+    """
+    geohash = validate(geohash)
+    bounds = decode_bounds(geohash)
+    center = bounds.center
+    precision = len(geohash)
+    dims = get_cell_dimensions(precision)
+    
+    return GeoCell(
+        geohash=geohash,
+        bounds=bounds,
+        center=center,
+        precision=precision,
+        width_km=dims[0],
+        height_km=dims[1],
+    )
+
+
+def children(geohash: str) -> List[str]:
+    """
+    Get the 32 child geohashes (one precision level deeper).
+    
+    Args:
+        geohash: Parent geohash
+    
+    Returns:
+        List of 32 child geohashes
+    
+    Example:
+        >>> children('u4')
+        ['u40', 'u41', 'u42', ...]
+    """
+    geohash = validate(geohash)
+    return [geohash + char for char in BASE32_CHARS]
+
+
+def parent(geohash: str) -> Optional[str]:
+    """
+    Get the parent geohash (one precision level up).
+    
+    Args:
+        geohash: Child geohash
+    
+    Returns:
+        Parent geohash or None if already at precision 1
+    
+    Example:
+        >>> parent('u4pruy')
+        'u4pru'
+    """
+    geohash = validate(geohash)
+    if len(geohash) <= 1:
+        return None
+    return geohash[:-1]
+
+
+# ============================================================================
+# Main
+# ============================================================================
+
+if __name__ == '__main__':
+    # Demo
+    print("Geohash Utilities Demo")
+    print("=" * 60)
+    
+    # Encoding examples
+    print("\nEncoding:")
+    locations = [
+        (57.64911, 10.40744, "Aalborg, Denmark"),
+        (40.7128, -74.0060, "New York City"),
+        (35.6762, 139.6503, "Tokyo"),
+        (-33.8688, 151.2093, "Sydney"),
+        (51.5074, -0.1278, "London"),
+    ]
+    
+    for lat, lng, name in locations:
+        for precision in [6, 8, 10]:
+            gh = encode(lat, lng, precision)
+            print(f"  {name} ({precision}): {gh}")
+    
+    # Decoding examples
+    print("\nDecoding:")
+    geohashes = ['u4pruy', 'dr5ru7j0', 'xn76urwe']
     for gh in geohashes:
-        (lat, lon), _ = decode(gh)
-        lats.append(lat)
-        lons.append(lon)
+        lat, lng = decode(gh)
+        bounds = decode_bounds(gh)
+        print(f"  {gh}: ({lat:.5f}, {lng:.5f})")
+        print(f"    Bounds: {bounds}")
     
-    return (sum(lats) / len(lats), sum(lons) / len(lons))
-
-
-# 便捷类
-class Geohash:
-    """
-    Geohash 对象，提供面向对象的接口
+    # Neighbor examples
+    print("\nNeighbors:")
+    gh = 'u4pruy'
+    n = neighbors(gh)
+    print(f"  Center: {gh}")
+    for direction, neighbor_gh in n.items():
+        print(f"    {direction}: {neighbor_gh}")
     
-    Examples:
-        >>> gh = Geohash(39.9042, 116.4074, precision=6)
-        >>> gh.hash
-        'wx4g0b'
-        >>> gh.neighbors
-        ['wx4g0c', 'wx4g12', ...]
-    """
+    # Distance examples
+    print("\nDistance:")
+    gh1, gh2 = 'dr5ru7', '9q8yhu'
+    dist = distance(gh1, gh2)
+    print(f"  {gh1} to {gh2}: {dist:.2f} km")
     
-    def __init__(self, lat: float, lon: float, precision: int = 12):
-        """
-        初始化 Geohash 对象
-        
-        Args:
-            lat: 纬度
-            lon: 经度
-            precision: 精度
-        """
-        self._lat = lat
-        self._lon = lon
-        self._precision = precision
-        self._hash = encode(lat, lon, precision)
-        self._neighbors: Optional[List[str]] = None
-        self._bounds: Optional[Tuple[float, float, float, float]] = None
-    
-    @property
-    def hash(self) -> str:
-        """geohash 字符串"""
-        return self._hash
-    
-    @property
-    def lat(self) -> float:
-        """纬度"""
-        return self._lat
-    
-    @property
-    def lon(self) -> float:
-        """经度"""
-        return self._lon
-    
-    @property
-    def precision(self) -> int:
-        """精度"""
-        return self._precision
-    
-    @property
-    def neighbors(self) -> List[str]:
-        """相邻 8 个区域的 geohash"""
-        if self._neighbors is None:
-            self._neighbors = get_neighbors(self._hash)
-        return self._neighbors
-    
-    @property
-    def bounds(self) -> Tuple[float, float, float, float]:
-        """边界框 (lat_min, lat_max, lon_min, lon_max)"""
-        if self._bounds is None:
-            _, bounds = decode(self._hash)
-            self._bounds = bounds
-        return self._bounds
-    
-    @property
-    def center(self) -> Tuple[float, float]:
-        """中心点坐标"""
-        return (self._lat, self._lon)
-    
-    def distance_to(self, other: 'Geohash') -> float:
-        """
-        计算到另一个 Geohash 的距离
-        
-        Args:
-            other: 另一个 Geohash 对象
-        
-        Returns:
-            距离（千米）
-        """
-        return distance(self._lat, self._lon, other._lat, other._lon)
-    
-    def contains(self, lat: float, lon: float) -> bool:
-        """
-        检查指定的坐标是否在当前 geohash 范围内
-        
-        Args:
-            lat: 纬度
-            lon: 经度
-        
-        Returns:
-            True 如果在范围内
-        """
-        lat_min, lat_max, lon_min, lon_max = self.bounds
-        return lat_min <= lat <= lat_max and lon_min <= lon <= lon_max
-    
-    @classmethod
-    def from_hash(cls, geohash: str) -> 'Geohash':
-        """
-        从 geohash 字符串创建对象
-        
-        Args:
-            geohash: geohash 字符串
-        
-        Returns:
-            Geohash 对象
-        """
-        (lat, lon), _ = decode(geohash)
-        return cls(lat, lon, precision=len(geohash))
-    
-    def __repr__(self) -> str:
-        return f"Geohash('{self._hash}', lat={self._lat:.6f}, lon={self._lon:.6f})"
-    
-    def __str__(self) -> str:
-        return self._hash
-    
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, Geohash):
-            return self._hash == other._hash
-        if isinstance(other, str):
-            return self._hash == other
-        return False
-    
-    def __hash__(self) -> int:
-        return hash(self._hash)
-    
-    def __len__(self) -> int:
-        return len(self._hash)
+    # Cell info
+    print("\nCell Info:")
+    cell = get_cell('u4pruy')
+    print(f"  Geohash: {cell.geohash}")
+    print(f"  Center: {cell.center}")
+    print(f"  Bounds: {cell.bounds}")
+    print(f"  Precision: {cell.precision}")
+    print(f"  Dimensions: {cell.width_km:.4f} km x {cell.height_km:.4f} km")
