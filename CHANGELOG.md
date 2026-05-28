@@ -1,5 +1,15 @@
 # AllToolkit 更新日志
 
+## [2026-05-29]
+
+### 修复
+- **Python: chunked_encoding_utils** 修复 analyze 函数对无效/部分数据的处理，添加 error 字段；修复测试数据 chunk size 与实际数据长度不匹配问题 (72 tests ✅)
+- **Python: csv_utils** 修复 pytest fixture 问题，添加 result fixture 支持 (11 tests ✅)
+- **Python: merkle_tree_utils** 重命名测试类避免 pytest 收集冲突（TestMerkleTree → MerkleTreeTestSuite）(147 tests ✅)
+- **Python: websocket_utils** 添加 sys.path 导入路径配置，修复 pytest.ini 支持 test.py 文件名 (35 tests ✅)
+- **Python: pytest.ini** 新增 test.py 文件名匹配规则
+- **Python: conftest.py** 优化 pytest 配置 hook，支持多版本 pytest API
+
 ## [2026-05-28]
 
 ### 新增

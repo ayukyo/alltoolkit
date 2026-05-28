@@ -8,6 +8,12 @@ import unittest
 import struct
 import base64
 import hashlib
+import sys
+import os
+
+# Add module directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from mod import (
     WebSocketUtils, WebSocketFrame, Opcode, CloseCode,
     compute_accept_key, generate_key, encode_frame, decode_frame,

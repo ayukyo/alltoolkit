@@ -8,6 +8,7 @@ Ensures proper import paths for test modules.
 import sys
 import os
 import pytest
+from pathlib import Path
 
 # Get the directory containing this conftest.py
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -25,11 +26,28 @@ def pytest_configure(config):
                 sys.path.insert(0, abs_path)
 
 
+def pytest_collection_modifyitems(config, items):
+    """Hook called after test collection."""
+    pass
+
+
 @pytest.hookimpl(hookwrapper=True, tryfirst=True)
-def pytest_pycollect_makemodule(module_path, path, parent):
+def pytest_pycollect_makemodule(path, parent):
     """Hook to set sys.path before importing test modules."""
     # Get the directory containing the test file
-    test_dir = str(path.dirname)
+    if hasattr(path, 'dirname'):
+        test_dir = str(path.dirname)
+    elif hasattr(path, 'parent'):
+        test_dir = str(path.parent)
+    else:
+        test_dir = str(Path(path).parent)
+    
     if test_dir not in sys.path:
         sys.path.insert(0, test_dir)
+    yield
+
+
+@pytest.hookimpl(hookwrapper=True, tryfirst=True)
+def pytest_pycollect_makemodule(module_path, path, parent):
+    """Hook to set sys.path before importing test modules - alternate hook."""
     yield

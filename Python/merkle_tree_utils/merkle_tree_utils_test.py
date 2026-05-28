@@ -21,7 +21,7 @@ from mod import (
 )
 
 
-class TestMerkleTree:
+class MerkleTreeTestSuite:
     """MerkleTree 测试类"""
     
     def __init__(self):
@@ -631,7 +631,7 @@ class TestMerkleTree:
         self.assert_true(is_valid, "Convenience function works")
 
 
-class TestMerkleProof:
+class MerkleProofTestSuite:
     """MerkleProof 测试类"""
     
     def __init__(self):
@@ -725,10 +725,10 @@ class TestMerkleProof:
 
 def main():
     """运行所有测试"""
-    tree_tests = TestMerkleTree()
+    tree_tests = MerkleTreeTestSuite()
     tree_success = tree_tests.run_all_tests()
     
-    proof_tests = TestMerkleProof()
+    proof_tests = MerkleProofTestSuite()
     proof_success = proof_tests.run_all_tests()
     
     total_passed = tree_tests.passed + proof_tests.passed

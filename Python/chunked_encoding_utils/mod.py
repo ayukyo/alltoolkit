@@ -733,7 +733,7 @@ def analyze(data: Union[str, bytes]) -> Dict[str, Any]:
         decoder = ChunkedDecoder()
         decoder.feed(data)
         
-        return {
+        result = {
             'valid': decoder.is_complete(),
             'complete': decoder.is_complete(),
             'chunk_count': decoder.chunk_count,
@@ -742,6 +742,15 @@ def analyze(data: Union[str, bytes]) -> Dict[str, Any]:
             'trailers': decoder.trailers,
             'remaining_bytes': len(decoder.buffer),
         }
+        
+        # Add error info if not valid/complete
+        if not result['valid'] or not result['complete']:
+            if result['remaining_bytes'] > 0:
+                result['error'] = 'Incomplete or malformed chunked data'
+            elif result['chunk_count'] == 0:
+                result['error'] = 'No valid chunks found'
+        
+        return result
     except ChunkedEncodingError as e:
         return {
             'valid': False,

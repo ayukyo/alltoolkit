@@ -10,6 +10,7 @@ import os
 import sys
 import tempfile
 import shutil
+import pytest
 from pathlib import Path
 
 # 导入被测试模块
@@ -66,6 +67,12 @@ class TestOutcome:
 
 # 创建测试用的临时目录
 TEST_DIR = tempfile.mkdtemp(prefix='csv_utils_test_')
+
+
+@pytest.fixture
+def result():
+    """Pytest fixture for TestOutcome"""
+    return TestOutcome()
 
 
 def setup_module():
