@@ -1,0 +1,18 @@
+[package]
+name = "base64_utils"
+version = "0.1.0"
+edition = "2021"
+description = "A comprehensive Base64 encoding/decoding library with zero external dependencies"
+license = "MIT"
+authors = ["AllToolkit"]
+readme = "README.md"
+keywords = ["base64", "encoding", "decoding", "url-safe", "no-std"]
+categories = ["encoding", "no-std"]
+
+[dependencies]
+
+[dev-dependencies]
+
+[features]
+default = ["std"]
+std = []
