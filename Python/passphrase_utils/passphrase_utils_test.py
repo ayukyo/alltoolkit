@@ -1,407 +1,545 @@
 """
-密码短语生成工具测试 (Passphrase Utils Test)
-测试所有功能以确保正确性和安全性
+Tests for Passphrase Utilities
+
+Comprehensive test suite for password and passphrase generation.
 """
 
 import sys
 import os
-import math
-import re
 
-# 添加父目录到路径
+# Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from passphrase_utils.mod import (
-    PassphraseGenerator,
-    PassphraseResult,
-    Separator,
-    WordCase,
+    generate_password,
     generate_passphrase,
+    generate_pronounceable,
+    generate_pin,
+    generate_token,
+    generate_hex_token,
+    analyze_password,
+    check_password_pwned,
+    calculate_entropy,
     generate_diceware,
-    passphrase_strength,
-    BUILTIN_WORDLIST,
-    DICETIME_WORDLIST
+    suggest_improvements,
+    is_strong_password,
+    generate_password_variants,
+    estimate_crack_time,
+    create_memorable_password,
+    batch_generate,
+    get_word_list_stats,
+    PasswordStyle,
+    PasswordStrength,
 )
 
 
-def test_wordlist_not_empty():
-    """测试单词列表不为空"""
-    assert len(BUILTIN_WORDLIST) > 0, "内置单词列表不应为空"
-    assert len(DICETIME_WORDLIST) > 0, "Diceware 单词列表不应为空"
-    print(f"✓ 内置单词列表: {len(BUILTIN_WORDLIST)} 个单词")
-    print(f"✓ Diceware 单词列表: {len(DICETIME_WORDLIST)} 个单词")
-
-
-def test_generator_initialization():
-    """测试生成器初始化"""
-    gen = PassphraseGenerator()
-    assert gen.wordlist is not None
-    assert len(gen.wordlist) > 0
+def test_generate_password():
+    """Test random password generation."""
+    print("Testing generate_password...")
     
-    # 测试自定义单词列表（至少 10 个单词）
-    custom = ["apple", "banana", "cherry", "date", "elderberry",
-              "fig", "grape", "honeydew", "kiwi", "lemon"]
-    gen_custom = PassphraseGenerator(wordlist=custom, wordlist_name="custom")
-    assert gen_custom.wordlist == custom
-    assert gen_custom.wordlist_name == "custom"
-    print("✓ 生成器初始化测试通过")
-
-
-def test_invalid_wordlist():
-    """测试无效单词列表"""
-    try:
-        PassphraseGenerator(wordlist=[])
-        assert False, "空列表应该抛出异常"
-    except ValueError as e:
-        assert "单词列表不能为空" in str(e)
-        print("✓ 空单词列表正确抛出异常")
+    # Basic generation
+    password = generate_password()
+    assert len(password) == 16
+    print(f"  Default password: {password}")
     
-    try:
-        PassphraseGenerator(wordlist=["a", "b", "c"])  # 太少（少于10）
-        assert False, "太少的单词应该抛出异常"
-    except ValueError as e:
-        assert "单词列表太少" in str(e)
-        print("✓ 太少的单词列表正确抛出异常")
-
-
-def test_generate_basic():
-    """测试基本生成功能"""
-    gen = PassphraseGenerator()
-    result = gen.generate()
+    # Custom length
+    short = generate_password(length=8)
+    assert len(short) == 8
+    print(f"  Short password: {short}")
     
-    assert isinstance(result, PassphraseResult)
-    assert result.word_count == 4
-    assert len(result.words) == 4
-    assert len(result.passphrase) > 0
-    assert result.entropy_bits > 0
-    print(f"✓ 基本生成: {result.passphrase}")
-    print(f"  熵值: {result.entropy_bits} bits")
-
-
-def test_generate_custom_word_count():
-    """测试自定义单词数量"""
-    gen = PassphraseGenerator()
+    long = generate_password(length=32)
+    assert len(long) == 32
+    print(f"  Long password: {long}")
     
-    for count in [1, 3, 5, 7, 10]:
-        result = gen.generate(word_count=count)
-        assert result.word_count == count
-        assert len(result.words) == count
-    print("✓ 自定义单词数量测试通过")
-
-
-def test_generate_invalid_word_count():
-    """测试无效单词数量"""
-    gen = PassphraseGenerator()
+    # No symbols
+    no_symbols = generate_password(length=16, symbols=False)
+    print(f"  No symbols: {no_symbols}")
     
-    try:
-        gen.generate(word_count=0)
-        assert False, "应该抛出异常"
-    except ValueError:
-        print("✓ 单词数量 0 正确抛出异常")
+    # Only lowercase
+    lowercase_only = generate_password(length=16, uppercase=False, digits=False, symbols=False)
+    assert lowercase_only.islower()
+    print(f"  Lowercase only: {lowercase_only}")
     
-    try:
-        gen.generate(word_count=25)
-        assert False, "应该抛出异常"
-    except ValueError:
-        print("✓ 单词数量超过 20 正确抛出异常")
-
-
-def test_separators():
-    """测试各种分隔符"""
-    gen = PassphraseGenerator()
+    # Custom characters
+    custom = generate_password(length=10, custom_chars="abc123")
+    assert all(c in "abc123" for c in custom)
+    print(f"  Custom chars: {custom}")
     
-    # 测试所有分隔符类型
-    separators = [
-        (Separator.SPACE, " "),
-        (Separator.HYPHEN, "-"),
-        (Separator.UNDERSCORE, "_"),
-        (Separator.DOT, "."),
-        (Separator.NONE, ""),
-    ]
-    
-    for sep, expected in separators:
-        result = gen.generate(word_count=3, separator=sep)
-        if expected:
-            assert expected in result.passphrase, f"分隔符 '{expected}' 应该在 '{result.passphrase}' 中"
-        else:
-            # 无分隔符时，检查单词直接连接
-            assert result.separator == expected
-        print(f"✓ 分隔符测试 '{expected or '(无)'}' 通过")
-    
-    # 测试随机分隔符
-    result = gen.generate(separator=Separator.RANDOM)
-    print(f"✓ 随机分隔符: {result.passphrase}")
-
-
-def test_word_case():
-    """测试单词大小写"""
-    gen = PassphraseGenerator()
-    
-    # 小写
-    result = gen.generate(word_count=3, word_case=WordCase.LOWER)
-    assert all(w.islower() for w in result.words), "所有单词应为小写"
-    print(f"✓ 小写测试: {result.passphrase}")
-    
-    # 大写
-    result = gen.generate(word_count=3, word_case=WordCase.UPPER)
-    assert all(w.isupper() for w in result.words), "所有单词应为大写"
-    print(f"✓ 大写测试: {result.passphrase}")
-    
-    # 首字母大写
-    result = gen.generate(word_count=3, word_case=WordCase.CAPITALIZE)
-    assert all(w[0].isupper() for w in result.words), "所有单词应首字母大写"
-    print(f"✓ 首字母大写测试: {result.passphrase}")
-
-
-def test_include_numbers():
-    """测试包含数字"""
-    gen = PassphraseGenerator()
-    result = gen.generate(include_numbers=True)
-    
-    # 检查末尾是否有数字
-    assert re.search(r'\d+$', result.passphrase), "密码短语末尾应包含数字"
-    print(f"✓ 包含数字测试: {result.passphrase}")
-
-
-def test_include_special():
-    """测试包含特殊字符"""
-    gen = PassphraseGenerator()
-    special_chars = "!@#$%^&*"
-    result = gen.generate(include_special=True, special_chars=special_chars)
-    
-    # 检查末尾是否有特殊字符
-    assert result.passphrase[-1] in special_chars, "密码短语末尾应有特殊字符"
-    print(f"✓ 包含特殊字符测试: {result.passphrase}")
-
-
-def test_word_length_filter():
-    """测试单词长度过滤"""
-    gen = PassphraseGenerator()
-    result = gen.generate(
-        word_count=10,
-        min_word_length=4,
-        max_word_length=6
+    # Minimum requirements
+    min_req = generate_password(
+        length=12,
+        min_lowercase=2,
+        min_uppercase=2,
+        min_digits=2,
+        min_symbols=1,
     )
+    print(f"  With min requirements: {min_req}")
     
-    for word in result.words:
-        # 注意：转换大小写后检查原始长度
-        assert 4 <= len(word) <= 6, f"单词 '{word}' 长度应为 4-6，实际为 {len(word)}"
-    print(f"✓ 单词长度过滤测试: {result.passphrase}")
+    # Error cases
+    try:
+        generate_password(length=0)
+        assert False, "Should raise ValueError"
+    except ValueError:
+        print("  ✓ Zero length raises ValueError")
+    
+    try:
+        generate_password(lowercase=False, uppercase=False, digits=False, symbols=False)
+        assert False, "Should raise ValueError"
+    except ValueError:
+        print("  ✓ No character types raises ValueError")
+    
+    print("  ✓ generate_password tests passed\n")
 
 
-def test_entropy_calculation():
-    """测试熵值计算"""
-    gen = PassphraseGenerator()
+def test_generate_passphrase():
+    """Test passphrase generation."""
+    print("Testing generate_passphrase...")
     
-    # 4 个单词，使用默认单词列表
-    entropy = gen.calculate_entropy(4)
-    expected = 4 * math.log2(len(gen.wordlist))
-    assert abs(entropy - round(expected, 2)) < 0.1
-    
-    # 更多的单词应该有更高的熵值
-    entropy_5 = gen.calculate_entropy(5)
-    assert entropy_5 > entropy
-    
-    print(f"✓ 熵值计算测试: 4 词 = {entropy} bits, 5 词 = {entropy_5} bits")
-
-
-def test_generate_multiple():
-    """测试批量生成"""
-    gen = PassphraseGenerator()
-    results = gen.generate_multiple(10)
-    
-    assert len(results) == 10
-    
-    # 检查所有结果都是唯一的
-    passphrases = [r.passphrase for r in results]
-    unique_count = len(set(passphrases))
-    # 由于随机性，大多数应该是唯一的
-    assert unique_count >= 8, f"应该有至少 8 个唯一的密码短语，实际 {unique_count}"
-    
-    print(f"✓ 批量生成 10 个密码短语，{unique_count} 个唯一")
-
-
-def test_crack_time_estimation():
-    """测试破解时间估算"""
-    gen = PassphraseGenerator()
-    
-    # 低熵值
-    time1 = gen.estimate_crack_time(20)
-    assert "秒" in time1 or "分钟" in time1 or "瞬间" in time1
-    print(f"  20 bits: {time1}")
-    
-    # 中等熵值
-    time2 = gen.estimate_crack_time(50)
-    print(f"  50 bits: {time2}")
-    
-    # 高熵值
-    time3 = gen.estimate_crack_time(80)
-    assert "年" in time3 or "亿" in time3
-    print(f"  80 bits: {time3}")
-    
-    # 极高熵值
-    time4 = gen.estimate_crack_time(120)
-    print(f"  120 bits: {time4}")
-    
-    print("✓ 破解时间估算测试通过")
-
-
-def test_analyze_passphrase():
-    """测试密码短语分析"""
-    gen = PassphraseGenerator()
-    
-    # 测试有效的密码短语（使用内置单词列表中存在的单词）
-    analysis = gen.analyze_passphrase("like-work-time-food")
-    # 注意：analyze_passphrase 的识别可能不完全，因为需要单词存在于列表中
-    assert analysis["passphrase"] == "like-work-time-food"
-    assert analysis["has_number"] == False
-    print(f"✓ 分析 'like-work-time-food': {analysis['strength']}")
-    
-    # 测试带数字的
-    analysis = gen.analyze_passphrase("like-work-1234")
-    assert analysis["has_number"] == True
-    print(f"✓ 分析带数字的密码短语")
-    
-    # 测试带特殊字符的
-    analysis = gen.analyze_passphrase("like-work!")
-    assert analysis["has_special"] == True
-    print(f"✓ 分析带特殊字符的密码短语")
-    
-    # 测试未知格式的密码（无法识别分隔符时返回 word_count=0）
-    analysis = gen.analyze_passphrase("unknownformatpassword")
-    # 无论是否能识别，都应该返回分析结果
-    assert analysis["passphrase"] == "unknownformatpassword"
-    assert analysis["strength"] in ["非常弱", "弱", "中等", "强", "非常强"]
-    print(f"✓ 分析未知格式密码: {analysis['strength']}")
-
-
-def test_quick_functions():
-    """测试快捷函数"""
-    # generate_passphrase
+    # Default
     phrase = generate_passphrase()
-    assert len(phrase) > 0
-    assert "-" in phrase
-    print(f"✓ generate_passphrase(): {phrase}")
+    words = phrase.split('-')
+    assert len(words) == 4
+    print(f"  Default passphrase: {phrase}")
     
-    # generate_passphrase with custom separator
-    phrase = generate_passphrase(separator=" ")
-    assert " " in phrase
-    print(f"✓ generate_passphrase(separator=' '): {phrase}")
+    # Custom word count
+    six_words = generate_passphrase(word_count=6)
+    assert len(six_words.split('-')) == 6
+    print(f"  Six words: {six_words}")
     
-    # generate_diceware
-    phrase = generate_diceware()
-    assert len(phrase) > 0
-    print(f"✓ generate_diceware(): {phrase}")
+    # Custom separator
+    space_sep = generate_passphrase(separator=' ')
+    assert len(space_sep.split(' ')) == 4
+    print(f"  Space separator: {space_sep}")
     
-    # passphrase_strength
-    strength = passphrase_strength("correct-horse-battery-staple")
-    assert "strength" in strength
-    assert "entropy_bits" in strength
-    print(f"✓ passphrase_strength(): {strength['strength']}")
+    # Capitalized
+    cap = generate_passphrase(capitalize=True)
+    print(f"  Capitalized: {cap}")
+    
+    # With number
+    with_num = generate_passphrase(include_number=True)
+    print(f"  With number: {with_num}")
+    
+    # Custom word list
+    custom_words = generate_passphrase(word_list=['alpha', 'beta', 'gamma', 'delta'])
+    assert len(custom_words.split('-')) == 4
+    print(f"  Custom word list: {custom_words}")
+    
+    # Error cases
+    try:
+        generate_passphrase(word_count=0)
+        assert False, "Should raise ValueError"
+    except ValueError:
+        print("  ✓ Zero word count raises ValueError")
+    
+    try:
+        generate_passphrase(word_list=[])
+        assert False, "Should raise ValueError"
+    except ValueError:
+        print("  ✓ Empty word list raises ValueError")
+    
+    print("  ✓ generate_passphrase tests passed\n")
 
 
-def test_diceware_generator():
-    """测试 Diceware 生成器"""
-    gen = PassphraseGenerator(wordlist=DICETIME_WORDLIST, wordlist_name="diceware")
-    result = gen.generate(word_count=5)
+def test_generate_pronounceable():
+    """Test pronounceable password generation."""
+    print("Testing generate_pronounceable...")
     
-    assert result.word_count == 5
-    assert result.wordlist_name == "diceware"
-    print(f"✓ Diceware 生成: {result.passphrase}")
+    # Basic
+    pron = generate_pronounceable()
+    assert len(pron) >= 4
+    print(f"  Pronounceable: {pron}")
+    
+    # Custom length
+    pron_20 = generate_pronounceable(length=20)
+    assert len(pron_20) >= 18
+    print(f"  Length 20: {pron_20}")
+    
+    # With digits
+    pron_digit = generate_pronounceable(include_digits=True)
+    print(f"  With digits: {pron_digit}")
+    
+    # With symbols
+    pron_symbol = generate_pronounceable(include_symbols=True)
+    print(f"  With symbols: {pron_symbol}")
+    
+    print("  ✓ generate_pronounceable tests passed\n")
 
 
-def test_custom_wordlist():
-    """测试自定义单词列表"""
-    # 使用至少 10 个单词的自定义列表
-    custom_words = ["apple", "banana", "cherry", "date", "elderberry",
-                    "fig", "grape", "honeydew", "kiwi", "lemon",
-                    "mango", "nectarine", "orange", "papaya", "quince"]
-    gen = PassphraseGenerator(wordlist=custom_words, wordlist_name="fruits")
+def test_generate_pin():
+    """Test PIN generation."""
+    print("Testing generate_pin...")
     
-    result = gen.generate(word_count=3)
-    for word in result.words:
-        assert word.lower() in [w.lower() for w in custom_words]
+    # Default
+    pin = generate_pin()
+    assert len(pin) == 6
+    assert pin.isdigit()
+    print(f"  Default PIN: {pin}")
     
-    print(f"✓ 自定义单词列表: {result.passphrase}")
+    # Custom length
+    pin4 = generate_pin(length=4)
+    assert len(pin4) == 4
+    print(f"  4-digit PIN: {pin4}")
+    
+    pin8 = generate_pin(length=8)
+    assert len(pin8) == 8
+    print(f"  8-digit PIN: {pin8}")
+    
+    print("  ✓ generate_pin tests passed\n")
 
 
-def test_randomness():
-    """测试随机性（生成多个密码短语，验证不会完全相同）"""
-    gen = PassphraseGenerator()
-    results = gen.generate_multiple(100)
+def test_generate_token():
+    """Test token generation."""
+    print("Testing generate_token...")
     
-    passphrases = [r.passphrase for r in results]
-    unique = len(set(passphrases))
+    # Default
+    token = generate_token()
+    assert len(token) == 32
+    assert all(c.isalnum() or c in '-_' for c in token)
+    print(f"  Default token: {token}")
     
-    # 100 个密码短语中，至少应该有 90 个是唯一的
-    assert unique >= 90, f"随机性不足：100 个密码短语只有 {unique} 个唯一"
-    print(f"✓ 随机性测试：100 个密码短语中 {unique} 个唯一")
+    # Custom length
+    token16 = generate_token(length=16)
+    assert len(token16) == 16
+    print(f"  16-char token: {token16}")
+    
+    print("  ✓ generate_token tests passed\n")
 
 
-def test_security():
-    """测试安全性（使用 secrets 模块而非 random）"""
-    # 这个测试确保我们使用的是密码学安全的随机数生成器
-    import passphrase_utils.mod as module
-    import inspect
+def test_generate_hex_token():
+    """Test hexadecimal token generation."""
+    print("Testing generate_hex_token...")
     
-    source = inspect.getsource(module.PassphraseGenerator.generate)
-    assert "secrets.choice" in source or "secrets.randbelow" in source, \
-        "应该使用 secrets 模块而非 random 模块"
-    assert "random.choice" not in source.lower(), \
-        "不应使用 random.choice（不安全）"
+    # Default
+    hex_token = generate_hex_token()
+    assert len(hex_token) == 32
+    assert all(c in '0123456789abcdef' for c in hex_token)
+    print(f"  Hex token: {hex_token}")
     
-    print("✓ 安全性测试：使用密码学安全的随机数生成器")
+    # Custom length
+    hex16 = generate_hex_token(length=16)
+    assert len(hex16) == 16
+    print(f"  16-char hex: {hex16}")
+    
+    print("  ✓ generate_hex_token tests passed\n")
+
+
+def test_analyze_password():
+    """Test password strength analysis."""
+    print("Testing analyze_password...")
+    
+    # Weak password
+    weak = analyze_password("password")
+    assert weak.rating == "weak"
+    assert weak.score < 30
+    assert len(weak.issues) > 0
+    print(f"  Weak password: score={weak.score}, rating={weak.rating}")
+    print(f"    Issues: {weak.issues[:2]}")
+    
+    # Strong password
+    strong = analyze_password("MyVerySecureP@ssw0rd123!")
+    assert strong.rating in ["strong", "excellent"]
+    assert strong.score > 60
+    print(f"  Strong password: score={strong.score}, rating={strong.rating}")
+    print(f"    Entropy: {strong.entropy} bits")
+    print(f"    Crack time: {strong.crack_time}")
+    
+    # Medium password
+    medium = analyze_password("password123")
+    assert medium.rating in ["weak", "fair"]
+    print(f"  Medium password: score={medium.score}, rating={medium.rating}")
+    
+    # Empty password
+    empty = analyze_password("")
+    assert empty.score == 0
+    assert empty.rating == "weak"
+    print(f"  Empty password: score={empty.score}")
+    
+    # Check PasswordStrength dataclass
+    ps = PasswordStrength(
+        score=85,
+        entropy=60.5,
+        crack_time="centuries",
+        rating="excellent",
+        issues=[],
+        suggestions=["Add even more characters"],
+    )
+    assert ps.score == 85
+    print("  ✓ PasswordStrength dataclass works")
+    
+    print("  ✓ analyze_password tests passed\n")
+
+
+def test_check_password_pwned():
+    """Test breached password checking."""
+    print("Testing check_password_pwned...")
+    
+    # Common password (should be flagged)
+    assert check_password_pwned("password") == True
+    assert check_password_pwned("123456") == True
+    print("  ✓ Common passwords are flagged")
+    
+    # Uncommon password (should not be flagged)
+    assert check_password_pwned("xK9#mP2$vL5") == False
+    print("  ✓ Uncommon passwords are not flagged")
+    
+    print("  ✓ check_password_pwned tests passed\n")
+
+
+def test_calculate_entropy():
+    """Test entropy calculation."""
+    print("Testing calculate_entropy...")
+    
+    # Simple password
+    entropy1 = calculate_entropy("password")
+    print(f"  'password' entropy: {entropy1} bits")
+    assert entropy1 > 0
+    
+    # Complex password
+    entropy2 = calculate_entropy("MyP@ssw0rd!")
+    print(f"  'MyP@ssw0rd!' entropy: {entropy2} bits")
+    assert entropy2 > entropy1
+    
+    # Empty
+    entropy_empty = calculate_entropy("")
+    assert entropy_empty == 0
+    print("  ✓ Empty password entropy is 0")
+    
+    print("  ✓ calculate_entropy tests passed\n")
+
+
+def test_generate_diceware():
+    """Test Diceware-style passphrase generation."""
+    print("Testing generate_diceware...")
+    
+    # Default
+    dice = generate_diceware()
+    words = dice.split(' ')
+    assert len(words) == 5
+    print(f"  Diceware: {dice}")
+    
+    # Custom word count
+    dice7 = generate_diceware(word_count=7)
+    assert len(dice7.split(' ')) == 7
+    print(f"  7 words: {dice7}")
+    
+    # Custom separator
+    dice_sep = generate_diceware(separator='-')
+    assert len(dice_sep.split('-')) == 5
+    print(f"  Dash separator: {dice_sep}")
+    
+    print("  ✓ generate_diceware tests passed\n")
+
+
+def test_suggest_improvements():
+    """Test password improvement suggestions."""
+    print("Testing suggest_improvements...")
+    
+    suggestions = suggest_improvements("password")
+    assert len(suggestions) > 0
+    print(f"  Suggestions for 'password': {suggestions[:3]}")
+    
+    # Strong password should have fewer suggestions
+    strong_suggestions = suggest_improvements("MyVeryLongP@ssw0rd123!")
+    print(f"  Suggestions for strong password: {strong_suggestions}")
+    
+    print("  ✓ suggest_improvements tests passed\n")
+
+
+def test_is_strong_password():
+    """Test password strength checking."""
+    print("Testing is_strong_password...")
+    
+    # Should pass
+    is_strong, issues = is_strong_password("MyP@ssw0rd123", min_length=12)
+    assert is_strong == True
+    assert len(issues) == 0
+    print(f"  Strong password: pass={is_strong}")
+    
+    # Should fail (too short)
+    is_strong2, issues2 = is_strong_password("pass", min_length=12)
+    assert is_strong2 == False
+    assert len(issues2) > 0
+    print(f"  Short password: pass={is_strong2}, issues={issues2}")
+    
+    # Should fail (missing requirements)
+    is_strong3, issues3 = is_strong_password("lowercaseonly", min_length=12, require_uppercase=True)
+    assert is_strong3 == False
+    print(f"  Missing uppercase: pass={is_strong3}, issues={issues3}")
+    
+    print("  ✓ is_strong_password tests passed\n")
+
+
+def test_generate_password_variants():
+    """Test password variant generation."""
+    print("Testing generate_password_variants...")
+    
+    variants = generate_password_variants("secure", count=5)
+    assert len(variants) == 5
+    print(f"  Variants from 'secure': {variants}")
+    
+    # Leet style
+    leet = generate_password_variants("pass", count=3, style="leet")
+    print(f"  Leet variants: {leet}")
+    
+    # Numbers style
+    nums = generate_password_variants("test", count=3, style="numbers")
+    print(f"  Number variants: {nums}")
+    
+    # Empty base
+    empty = generate_password_variants("", count=5)
+    assert empty == []
+    print("  ✓ Empty base returns empty list")
+    
+    print("  ✓ generate_password_variants tests passed\n")
+
+
+def test_estimate_crack_time():
+    """Test crack time estimation."""
+    print("Testing estimate_crack_time...")
+    
+    # Weak password
+    time1 = estimate_crack_time("password")
+    print(f"  'password' crack time: {time1}")
+    assert "second" in time1.lower() or time1 == "instant"
+    
+    # Strong password
+    time2 = estimate_crack_time("MyVeryLongSecureP@ssw0rd123!XYZ")
+    print(f"  Strong password crack time: {time2}")
+    assert "year" in time2.lower() or "centur" in time2.lower() or "millennium" in time2.lower()
+    
+    # Custom speed
+    time3 = estimate_crack_time("password", guesses_per_second=1000)
+    print(f"  Slow cracking: {time3}")
+    
+    print("  ✓ estimate_crack_time tests passed\n")
+
+
+def test_create_memorable_password():
+    """Test memorable password creation."""
+    print("Testing create_memorable_password...")
+    
+    mem = create_memorable_password()
+    assert len(mem) > 8
+    print(f"  Memorable password: {mem}")
+    
+    # Without pattern
+    mem2 = create_memorable_password(include_pattern=False)
+    print(f"  Without pattern: {mem2}")
+    
+    # Custom separator
+    mem3 = create_memorable_password(separator='_')
+    print(f"  Underscore separator: {mem3}")
+    
+    print("  ✓ create_memorable_password tests passed\n")
+
+
+def test_batch_generate():
+    """Test batch password generation."""
+    print("Testing batch_generate...")
+    
+    # Random passwords
+    random_batch = batch_generate(5, PasswordStyle.RANDOM, length=12)
+    assert len(random_batch) == 5
+    assert all(len(p) == 12 for p in random_batch)
+    print(f"  Random batch: {random_batch[:2]}...")
+    
+    # Passphrases
+    phrase_batch = batch_generate(3, PasswordStyle.PASSPHRASE, word_count=3)
+    assert len(phrase_batch) == 3
+    print(f"  Passphrase batch: {phrase_batch}")
+    
+    # PINs
+    pin_batch = batch_generate(5, PasswordStyle.PIN, length=4)
+    assert len(pin_batch) == 5
+    assert all(len(p) == 4 for p in pin_batch)
+    print(f"  PIN batch: {pin_batch}")
+    
+    # Tokens
+    token_batch = batch_generate(3, PasswordStyle.TOKEN, length=16)
+    assert len(token_batch) == 3
+    print(f"  Token batch: {token_batch}")
+    
+    # Empty count
+    empty_batch = batch_generate(0)
+    assert empty_batch == []
+    print("  ✓ Zero count returns empty list")
+    
+    print("  ✓ batch_generate tests passed\n")
+
+
+def test_get_word_list_stats():
+    """Test word list statistics."""
+    print("Testing get_word_list_stats...")
+    
+    # Default list
+    stats = get_word_list_stats()
+    assert stats['word_count'] > 1000
+    assert stats['min_length'] >= 2
+    assert stats['max_length'] >= 5
+    print(f"  Default list stats: {stats}")
+    
+    # Custom list
+    custom_stats = get_word_list_stats(['alpha', 'beta', 'gamma', 'delta'])
+    assert custom_stats['word_count'] == 4
+    assert custom_stats['avg_length'] > 0
+    print(f"  Custom list stats: {custom_stats}")
+    
+    # Empty list
+    empty_stats = get_word_list_stats([])
+    assert empty_stats['word_count'] == 0
+    print("  ✓ Empty list handled correctly")
+    
+    print("  ✓ get_word_list_stats tests passed\n")
+
+
+def test_uniqueness():
+    """Test that generated passwords are unique."""
+    print("Testing password uniqueness...")
+    
+    # Generate multiple passwords and check uniqueness
+    passwords = [generate_password() for _ in range(100)]
+    unique_count = len(set(passwords))
+    assert unique_count > 90  # Should have high uniqueness
+    print(f"  100 passwords, {unique_count} unique")
+    
+    # Check passphrases
+    phrases = [generate_passphrase() for _ in range(50)]
+    unique_phrases = len(set(phrases))
+    assert unique_phrases > 40
+    print(f"  50 passphrases, {unique_phrases} unique")
+    
+    print("  ✓ Uniqueness tests passed\n")
 
 
 def run_all_tests():
-    """运行所有测试"""
+    """Run all test functions."""
     print("=" * 60)
-    print("密码短语生成工具测试")
+    print("Running Passphrase Utils Tests")
+    print("=" * 60 + "\n")
+    
+    test_generate_password()
+    test_generate_passphrase()
+    test_generate_pronounceable()
+    test_generate_pin()
+    test_generate_token()
+    test_generate_hex_token()
+    test_analyze_password()
+    test_check_password_pwned()
+    test_calculate_entropy()
+    test_generate_diceware()
+    test_suggest_improvements()
+    test_is_strong_password()
+    test_generate_password_variants()
+    test_estimate_crack_time()
+    test_create_memorable_password()
+    test_batch_generate()
+    test_get_word_list_stats()
+    test_uniqueness()
+    
     print("=" * 60)
-    print()
-    
-    tests = [
-        test_wordlist_not_empty,
-        test_generator_initialization,
-        test_invalid_wordlist,
-        test_generate_basic,
-        test_generate_custom_word_count,
-        test_generate_invalid_word_count,
-        test_separators,
-        test_word_case,
-        test_include_numbers,
-        test_include_special,
-        test_word_length_filter,
-        test_entropy_calculation,
-        test_generate_multiple,
-        test_crack_time_estimation,
-        test_analyze_passphrase,
-        test_quick_functions,
-        test_diceware_generator,
-        test_custom_wordlist,
-        test_randomness,
-        test_security,
-    ]
-    
-    passed = 0
-    failed = 0
-    
-    for test in tests:
-        try:
-            test()
-            passed += 1
-        except Exception as e:
-            print(f"✗ {test.__name__} 失败: {e}")
-            failed += 1
-    
-    print()
+    print("✓ All tests passed successfully!")
     print("=" * 60)
-    print(f"测试结果: {passed} 通过, {failed} 失败")
-    print("=" * 60)
-    
-    return failed == 0
 
 
 if __name__ == "__main__":
-    success = run_all_tests()
-    sys.exit(0 if success else 1)
+    run_all_tests()
