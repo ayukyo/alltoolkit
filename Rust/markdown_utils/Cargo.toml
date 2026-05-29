@@ -1,0 +1,11 @@
+[package]
+name = "markdown_utils"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "零外部依赖的 Markdown 解析和处理工具库"
+license = "MIT"
+keywords = ["markdown", "parser", "toc", "text-processing"]
+categories = ["text-processing", "parsing"]
+
+[dependencies]
