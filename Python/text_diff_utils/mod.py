@@ -1,763 +1,601 @@
 """
-AllToolkit - Python Text Diff Utilities
+text_diff_utils - 文本差异比较工具模块
 
-A zero-dependency, production-ready text comparison and diff utility module.
-Supports line-level diff, character-level diff, similarity calculation, and unified diff output.
+提供文本对比、差异展示、相似度计算等功能。
+零外部依赖，纯 Python 标准库实现。
 
-Author: AllToolkit
-License: MIT
+核心功能：
+- 字符级差异检测
+- 单词级差异检测  
+- 行级差异检测
+- 多种差异展示格式（统一格式、上下文格式、并排格式）
+- 相似度计算
+- 变更统计
 """
 
-from typing import List, Tuple, Optional, NamedTuple
+from difflib import SequenceMatcher, unified_diff as _unified_diff, context_diff as _context_diff
+from typing import List, Tuple, Dict, Optional, NamedTuple
+from dataclasses import dataclass
 from enum import Enum
 import re
 
 
-class DiffOperation(Enum):
-    """Diff operation types."""
-    EQUAL = " "
-    INSERT = "+"
-    DELETE = "-"
-    REPLACE = "~"
+class DiffType(Enum):
+    """差异类型枚举"""
+    EQUAL = "equal"      # 相同
+    INSERT = "insert"    # 插入
+    DELETE = "delete"    # 删除
+    REPLACE = "replace"  # 替换
 
 
-class DiffBlock(NamedTuple):
-    """A single diff block containing operation and text."""
-    operation: DiffOperation
-    text: str
+@dataclass
+class DiffOperation:
+    """差异操作数据类"""
+    diff_type: DiffType
+    old_start: int
+    old_end: int
+    new_start: int
+    new_end: int
+    old_content: str
+    new_content: str
 
 
-class TextDiffUtils:
-    """
-    Text diff and comparison utilities.
+@dataclass
+class DiffStats:
+    """差异统计数据类"""
+    additions: int       # 新增行/字符数
+    deletions: int       # 删除行/字符数
+    modifications: int   # 修改行/字符数
+    unchanged: int       # 未变行/字符数
+    similarity: float    # 相似度 (0.0 - 1.0)
+
+
+class TextDiff:
+    """文本差异比较器"""
     
-    Provides functions for:
-    - Line-level diff comparison
-    - Character-level diff comparison
-    - Similarity calculation (Levenshtein distance, ratio)
-    - Unified diff format output
-    - Diff highlighting
-    - Longest Common Subsequence (LCS)
-    """
-
-    @staticmethod
-    def lcs(text1: str, text2: str) -> str:
+    def __init__(self, text1: str, text2: str):
         """
-        Find the Longest Common Subsequence of two strings.
+        初始化文本差异比较器
         
         Args:
-            text1: First text string
-            text2: Second text string
-            
+            text1: 原始文本
+            text2: 新文本
+        """
+        self.text1 = text1
+        self.text2 = text2
+        self._lines1 = text1.splitlines(keepends=True)
+        self._lines2 = text2.splitlines(keepends=True)
+    
+    def compare_chars(self) -> List[Tuple[DiffType, str]]:
+        """
+        字符级差异比较
+        
         Returns:
-            The longest common subsequence string
-            
-        Example:
-            >>> TextDiffUtils.lcs("ABCBDAB", "BDCABA")
-            'BCBA'
+            差异操作列表，每个元素为 (差异类型, 文本片段)
         """
-        m, n = len(text1), len(text2)
-        
-        # Build LCS table
-        dp = [[0] * (n + 1) for _ in range(m + 1)]
-        
-        for i in range(1, m + 1):
-            for j in range(1, n + 1):
-                if text1[i - 1] == text2[j - 1]:
-                    dp[i][j] = dp[i - 1][j - 1] + 1
-                else:
-                    dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
-        
-        # Backtrack to find the LCS string
-        lcs_chars = []
-        i, j = m, n
-        while i > 0 and j > 0:
-            if text1[i - 1] == text2[j - 1]:
-                lcs_chars.append(text1[i - 1])
-                i -= 1
-                j -= 1
-            elif dp[i - 1][j] > dp[i][j - 1]:
-                i -= 1
-            else:
-                j -= 1
-        
-        return ''.join(reversed(lcs_chars))
-
-    @staticmethod
-    def lcs_length(text1: str, text2: str) -> int:
-        """
-        Calculate the length of the Longest Common Subsequence.
-        
-        Args:
-            text1: First text string
-            text2: Second text string
-            
-        Returns:
-            Length of the LCS
-            
-        Example:
-            >>> TextDiffUtils.lcs_length("ABCBDAB", "BDCABA")
-            4
-        """
-        m, n = len(text1), len(text2)
-        
-        # Space-optimized DP - only keep two rows
-        prev = [0] * (n + 1)
-        curr = [0] * (n + 1)
-        
-        for i in range(1, m + 1):
-            for j in range(1, n + 1):
-                if text1[i - 1] == text2[j - 1]:
-                    curr[j] = prev[j - 1] + 1
-                else:
-                    curr[j] = max(prev[j], curr[j - 1])
-            prev, curr = curr, prev
-        
-        return prev[n]
-
-    @staticmethod
-    def levenshtein_distance(text1: str, text2: str) -> int:
-        """
-        Calculate the Levenshtein (edit) distance between two strings.
-        
-        The minimum number of single-character edits (insertions, deletions,
-        or substitutions) required to change one string into another.
-        
-        Args:
-            text1: First text string
-            text2: Second text string
-            
-        Returns:
-            The edit distance
-            
-        Example:
-            >>> TextDiffUtils.levenshtein_distance("kitten", "sitting")
-            3
-        """
-        m, n = len(text1), len(text2)
-        
-        # Edge cases
-        if m == 0:
-            return n
-        if n == 0:
-            return m
-        
-        # Space-optimized DP - only keep two rows
-        prev = list(range(n + 1))
-        curr = [0] * (n + 1)
-        
-        for i in range(1, m + 1):
-            curr[0] = i
-            for j in range(1, n + 1):
-                if text1[i - 1] == text2[j - 1]:
-                    curr[j] = prev[j - 1]
-                else:
-                    curr[j] = 1 + min(
-                        prev[j],      # deletion
-                        curr[j - 1],  # insertion
-                        prev[j - 1]   # substitution
-                    )
-            prev, curr = curr, prev
-        
-        return prev[n]
-
-    @staticmethod
-    def similarity_ratio(text1: str, text2: str) -> float:
-        """
-        Calculate the similarity ratio between two strings (0.0 to 1.0).
-        
-        Based on Levenshtein distance. 1.0 means identical, 0.0 means completely different.
-        
-        Args:
-            text1: First text string
-            text2: Second text string
-            
-        Returns:
-            Similarity ratio between 0.0 and 1.0
-            
-        Example:
-            >>> TextDiffUtils.similarity_ratio("hello world", "hello earth")
-            0.5454545454545454
-        """
-        if not text1 and not text2:
-            return 1.0
-        
-        total_len = len(text1) + len(text2)
-        if total_len == 0:
-            return 1.0
-        
-        distance = TextDiffUtils.levenshtein_distance(text1, text2)
-        return (total_len - distance) / total_len
-
-    @staticmethod
-    def jaccard_similarity(text1: str, text2: str, ngram: int = 2) -> float:
-        """
-        Calculate Jaccard similarity coefficient based on n-grams.
-        
-        Args:
-            text1: First text string
-            text2: Second text string
-            ngram: N-gram size (default: 2 for bigrams)
-            
-        Returns:
-            Jaccard similarity coefficient between 0.0 and 1.0
-            
-        Example:
-            >>> TextDiffUtils.jaccard_similarity("hello", "hallo")
-            0.5
-        """
-        if ngram < 1:
-            raise ValueError("ngram must be at least 1")
-        
-        def get_ngrams(text: str, n: int) -> set:
-            if len(text) < n:
-                return {text} if text else set()
-            return {text[i:i+n] for i in range(len(text) - n + 1)}
-        
-        set1 = get_ngrams(text1, ngram)
-        set2 = get_ngrams(text2, ngram)
-        
-        if not set1 and not set2:
-            return 1.0
-        
-        intersection = len(set1 & set2)
-        union = len(set1 | set2)
-        
-        return intersection / union if union > 0 else 0.0
-
-    @staticmethod
-    def diff_chars(text1: str, text2: str) -> List[DiffBlock]:
-        """
-        Compute character-level diff between two strings.
-        
-        Uses a modified LCS algorithm to identify insertions, deletions,
-        and unchanged characters.
-        
-        Args:
-            text1: Original text
-            text2: Modified text
-            
-        Returns:
-            List of DiffBlock objects representing the diff
-            
-        Example:
-            >>> TextDiffUtils.diff_chars("hello", "hallo")
-            [DiffBlock(operation=DiffOperation.EQUAL, text='h'),
-             DiffBlock(operation=DiffOperation.DELETE, text='e'),
-             DiffBlock(operation=DiffOperation.INSERT, text='a'),
-             DiffBlock(operation=DiffOperation.EQUAL, text='llo')]
-        """
-        m, n = len(text1), len(text2)
-        
-        # Build DP table for LCS
-        dp = [[0] * (n + 1) for _ in range(m + 1)]
-        
-        for i in range(1, m + 1):
-            for j in range(1, n + 1):
-                if text1[i - 1] == text2[j - 1]:
-                    dp[i][j] = dp[i - 1][j - 1] + 1
-                else:
-                    dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
-        
-        # Backtrack to build diff
-        diff_blocks = []
-        i, j = m, n
-        
-        while i > 0 or j > 0:
-            if i > 0 and j > 0 and text1[i - 1] == text2[j - 1]:
-                # Equal character
-                diff_blocks.append(DiffBlock(DiffOperation.EQUAL, text1[i - 1]))
-                i -= 1
-                j -= 1
-            elif j > 0 and (i == 0 or dp[i][j - 1] >= dp[i - 1][j]):
-                # Insert in text2
-                diff_blocks.append(DiffBlock(DiffOperation.INSERT, text2[j - 1]))
-                j -= 1
-            else:
-                # Delete from text1
-                diff_blocks.append(DiffBlock(DiffOperation.DELETE, text1[i - 1]))
-                i -= 1
-        
-        # Reverse and merge adjacent blocks with same operation
-        diff_blocks.reverse()
-        
-        merged = []
-        for block in diff_blocks:
-            if merged and merged[-1].operation == block.operation:
-                merged[-1] = DiffBlock(block.operation, merged[-1].text + block.text)
-            else:
-                merged.append(block)
-        
-        return merged
-
-    @staticmethod
-    def diff_lines(text1: str, text2: str) -> List[DiffBlock]:
-        """
-        Compute line-level diff between two texts.
-        
-        Args:
-            text1: Original text
-            text2: Modified text
-            
-        Returns:
-            List of DiffBlock objects representing line-level changes
-            
-        Example:
-            >>> TextDiffUtils.diff_lines("a\\nb\\nc", "a\\nx\\nc")
-            [DiffBlock(operation=DiffOperation.EQUAL, text='a\\n'),
-             DiffBlock(operation=DiffOperation.DELETE, text='b\\n'),
-             DiffBlock(operation=DiffOperation.INSERT, text='x\\n'),
-             DiffBlock(operation=DiffOperation.EQUAL, text='c')]
-        """
-        lines1 = text1.splitlines(keepends=True)
-        lines2 = text2.splitlines(keepends=True)
-        
-        # Ensure lines end with newline for comparison
-        lines1 = [line if line.endswith('\n') else line + '\n' for line in lines1] if lines1 and not text1.endswith('\n') else lines1
-        lines2 = [line if line.endswith('\n') else line + '\n' for line in lines2] if lines2 and not text2.endswith('\n') else lines2
-        
-        m, n = len(lines1), len(lines2)
-        
-        # Build DP table for LCS
-        dp = [[0] * (n + 1) for _ in range(m + 1)]
-        
-        for i in range(1, m + 1):
-            for j in range(1, n + 1):
-                if lines1[i - 1] == lines2[j - 1]:
-                    dp[i][j] = dp[i - 1][j - 1] + 1
-                else:
-                    dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
-        
-        # Backtrack to build diff
-        diff_blocks = []
-        i, j = m, n
-        
-        while i > 0 or j > 0:
-            if i > 0 and j > 0 and lines1[i - 1] == lines2[j - 1]:
-                diff_blocks.append(DiffBlock(DiffOperation.EQUAL, lines1[i - 1]))
-                i -= 1
-                j -= 1
-            elif j > 0 and (i == 0 or dp[i][j - 1] >= dp[i - 1][j]):
-                diff_blocks.append(DiffBlock(DiffOperation.INSERT, lines2[j - 1]))
-                j -= 1
-            else:
-                diff_blocks.append(DiffBlock(DiffOperation.DELETE, lines1[i - 1]))
-                i -= 1
-        
-        diff_blocks.reverse()
-        
-        # Merge adjacent blocks with same operation
-        merged = []
-        for block in diff_blocks:
-            if merged and merged[-1].operation == block.operation:
-                merged[-1] = DiffBlock(block.operation, merged[-1].text + block.text)
-            else:
-                merged.append(block)
-        
-        return merged
-
-    @staticmethod
-    def unified_diff(text1: str, text2: str, 
-                      filename1: str = "original", 
-                      filename2: str = "modified",
-                      context_lines: int = 3) -> str:
-        """
-        Generate unified diff format output.
-        
-        Args:
-            text1: Original text
-            text2: Modified text
-            filename1: Original filename (default: "original")
-            filename2: Modified filename (default: "modified")
-            context_lines: Number of context lines around changes (default: 3)
-            
-        Returns:
-            Unified diff string in standard format
-            
-        Example:
-            >>> diff = TextDiffUtils.unified_diff("a\\nb\\nc", "a\\nx\\nc")
-            >>> print(diff)
-            --- original
-            +++ modified
-            @@ -1,3 +1,3 @@
-             a
-            -b
-            +x
-             c
-        """
-        lines1 = text1.splitlines()
-        lines2 = text2.splitlines()
-        
-        # Build line diff using LCS
-        m, n = len(lines1), len(lines2)
-        dp = [[0] * (n + 1) for _ in range(m + 1)]
-        
-        for i in range(1, m + 1):
-            for j in range(1, n + 1):
-                if lines1[i - 1] == lines2[j - 1]:
-                    dp[i][j] = dp[i - 1][j - 1] + 1
-                else:
-                    dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
-        
-        # Build diff sequence
-        diff = []
-        i, j = m, n
-        while i > 0 or j > 0:
-            if i > 0 and j > 0 and lines1[i - 1] == lines2[j - 1]:
-                diff.append((' ', lines1[i - 1]))
-                i -= 1
-                j -= 1
-            elif j > 0 and (i == 0 or dp[i][j - 1] >= dp[i - 1][j]):
-                diff.append(('+', lines2[j - 1]))
-                j -= 1
-            else:
-                diff.append(('-', lines1[i - 1]))
-                i -= 1
-        
-        diff.reverse()
-        
-        # Build unified diff output
+        matcher = SequenceMatcher(None, self.text1, self.text2)
         result = []
-        result.append(f"--- {filename1}")
-        result.append(f"+++ {filename2}")
         
-        # Find change hunks
-        if not diff:
-            return '\n'.join(result) + '\n'
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            if tag == 'equal':
+                result.append((DiffType.EQUAL, self.text1[i1:i2]))
+            elif tag == 'insert':
+                result.append((DiffType.INSERT, self.text2[j1:j2]))
+            elif tag == 'delete':
+                result.append((DiffType.DELETE, self.text1[i1:i2]))
+            elif tag == 'replace':
+                result.append((DiffType.DELETE, self.text1[i1:i2]))
+                result.append((DiffType.INSERT, self.text2[j1:j2]))
         
-        # Group into hunks
-        hunks = []
-        hunk_start = None
-        hunk_lines = []
-        context_before = []
-        
-        for idx, (op, line) in enumerate(diff):
-            if op != ' ':
-                # Change detected
-                if hunk_start is None:
-                    # Find start line number (1-indexed)
-                    unchanged_before = sum(1 for i in range(idx) if diff[i][0] == ' ')
-                    hunk_start = unchanged_before + 1
-                
-                # Add context
-                context_before_idx = idx - context_lines
-                for i in range(max(0, context_before_idx - len(context_before)), idx):
-                    if i >= 0 and diff[i][0] == ' ' and (hunk_start is None or i not in [h['idx'] for h in hunks]):
-                        context_before.append((i, diff[i]))
-                
-                hunk_lines.append((op, line))
-            elif hunk_start is not None:
-                hunk_lines.append((op, line))
-        
-        # Build hunks from diff
-        hunks_data = []
-        i = 0
-        while i < len(diff):
-            if diff[i][0] != ' ':
-                # Start of a change
-                start = max(0, i - context_lines)
-                end = min(len(diff), i + 1)
-                
-                # Extend to end of change
-                while end < len(diff) and diff[end][0] != ' ':
-                    end += 1
-                # Add context after
-                while end < len(diff) and end - i < context_lines + 1:
-                    if diff[end][0] != ' ':
-                        while end < len(diff) and diff[end][0] != ' ':
-                            end += 1
-                    else:
-                        end += 1
-                
-                hunk = diff[start:end]
-                hunks_data.append((start, hunk))
-                i = end
-            else:
-                i += 1
-        
-        # Generate output for each hunk
-        for hunk_idx, (start_offset, hunk) in enumerate(hunks_data):
-            # Calculate line numbers
-            orig_start = sum(1 for i in range(start_offset) if diff[i][0] != '+') + 1
-            mod_start = sum(1 for i in range(start_offset) if diff[i][0] != '-') + 1
-            
-            orig_count = sum(1 for op, _ in hunk if op != '+')
-            mod_count = sum(1 for op, _ in hunk if op != '-')
-            
-            result.append(f"@@ -{orig_start},{orig_count} +{mod_start},{mod_count} @@")
-            
-            for op, line in hunk:
-                result.append(f"{op}{line}")
-        
-        return '\n'.join(result) + '\n'
-
-    @staticmethod
-    def highlight_diff(diff_blocks: List[DiffBlock], 
-                       color_insert: str = "\033[32m",
-                       color_delete: str = "\033[31m",
-                       color_equal: str = "\033[0m",
-                       color_reset: str = "\033[0m") -> str:
+        return result
+    
+    def compare_words(self) -> List[Tuple[DiffType, str]]:
         """
-        Highlight diff output with ANSI color codes.
+        单词级差异比较
+        
+        Returns:
+            差异操作列表，每个元素为 (差异类型, 单词)
+        """
+        # 分词：保留空格和标点作为分隔符
+        words1 = re.findall(r'\S+|\s+', self.text1)
+        words2 = re.findall(r'\S+|\s+', self.text2)
+        
+        matcher = SequenceMatcher(None, words1, words2)
+        result = []
+        
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            if tag == 'equal':
+                for w in words1[i1:i2]:
+                    result.append((DiffType.EQUAL, w))
+            elif tag == 'insert':
+                for w in words2[j1:j2]:
+                    result.append((DiffType.INSERT, w))
+            elif tag == 'delete':
+                for w in words1[i1:i2]:
+                    result.append((DiffType.DELETE, w))
+            elif tag == 'replace':
+                for w in words1[i1:i2]:
+                    result.append((DiffType.DELETE, w))
+                for w in words2[j1:j2]:
+                    result.append((DiffType.INSERT, w))
+        
+        return result
+    
+    def compare_lines(self) -> List[Tuple[DiffType, str]]:
+        """
+        行级差异比较
+        
+        Returns:
+            差异操作列表，每个元素为 (差异类型, 行内容)
+        """
+        matcher = SequenceMatcher(None, self._lines1, self._lines2)
+        result = []
+        
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            if tag == 'equal':
+                for line in self._lines1[i1:i2]:
+                    result.append((DiffType.EQUAL, line))
+            elif tag == 'insert':
+                for line in self._lines2[j1:j2]:
+                    result.append((DiffType.INSERT, line))
+            elif tag == 'delete':
+                for line in self._lines1[i1:i2]:
+                    result.append((DiffType.DELETE, line))
+            elif tag == 'replace':
+                for line in self._lines1[i1:i2]:
+                    result.append((DiffType.DELETE, line))
+                for line in self._lines2[j1:j2]:
+                    result.append((DiffType.INSERT, line))
+        
+        return result
+    
+    def get_operations(self) -> List[DiffOperation]:
+        """
+        获取结构化差异操作列表
+        
+        Returns:
+            DiffOperation 对象列表
+        """
+        matcher = SequenceMatcher(None, self._lines1, self._lines2)
+        operations = []
+        
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            diff_type = DiffType(tag)
+            operations.append(DiffOperation(
+                diff_type=diff_type,
+                old_start=i1 + 1,
+                old_end=i2,
+                new_start=j1 + 1,
+                new_end=j2,
+                old_content=''.join(self._lines1[i1:i2]),
+                new_content=''.join(self._lines2[j1:j2])
+            ))
+        
+        return operations
+    
+    def unified_diff(self, n: int = 3, 
+                     fromfile: str = 'original', 
+                     tofile: str = 'modified') -> str:
+        """
+        生成统一格式差异（类似 git diff）
         
         Args:
-            diff_blocks: List of DiffBlock objects
-            color_insert: ANSI color for insertions (default: green)
-            color_delete: ANSI color for deletions (default: red)
-            color_equal: ANSI color for unchanged text (default: reset)
-            color_reset: ANSI reset code
-            
+            n: 上下文行数
+            fromfile: 原文件名
+            tofile: 新文件名
+        
         Returns:
-            Colorized string for terminal output
-            
-        Example:
-            >>> diff = TextDiffUtils.diff_chars("hello", "hallo")
-            >>> print(TextDiffUtils.highlight_diff(diff))
+            统一格式差异字符串
         """
-        colors = {
-            DiffOperation.INSERT: color_insert,
-            DiffOperation.DELETE: color_delete,
-            DiffOperation.EQUAL: color_equal,
-        }
+        diff_lines = list(_unified_diff(
+            self._lines1,
+            self._lines2,
+            fromfile=fromfile,
+            tofile=tofile,
+            n=n
+        ))
+        return ''.join(diff_lines)
+    
+    def context_diff(self, n: int = 3,
+                      fromfile: str = 'original',
+                      tofile: str = 'modified') -> str:
+        """
+        生成上下文格式差异
+        
+        Args:
+            n: 上下文行数
+            fromfile: 原文件名
+            tofile: 新文件名
+        
+        Returns:
+            上下文格式差异字符串
+        """
+        diff_lines = list(_context_diff(
+            self._lines1,
+            self._lines2,
+            fromfile=fromfile,
+            tofile=tofile,
+            n=n
+        ))
+        return ''.join(diff_lines)
+    
+    def side_by_side_text(self, width: int = 50, 
+                          show_line_numbers: bool = True) -> str:
+        """
+        生成并排格式差异（纯文本版）
+        
+        Args:
+            width: 每侧宽度
+            show_line_numbers: 是否显示行号
+        
+        Returns:
+            并排格式差异字符串
+        """
+        lines1 = self.text1.splitlines()
+        lines2 = self.text2.splitlines()
+        matcher = SequenceMatcher(None, lines1, lines2)
         
         result = []
-        for block in diff_blocks:
-            color = colors.get(block.operation, color_reset)
-            result.append(f"{color}{block.text}{color_reset}")
+        separator = ' | '
         
-        return ''.join(result)
-
-    @staticmethod
-    def html_diff(diff_blocks: List[DiffBlock],
-                  insert_class: str = "diff-insert",
-                  delete_class: str = "diff-delete",
-                  equal_class: str = "diff-equal") -> str:
-        """
-        Generate HTML diff output with CSS classes.
+        # 标题行
+        left_title = 'Original'.ljust(width)
+        right_title = 'Modified'.ljust(width)
+        result.append(f"{left_title}{separator}{right_title}")
+        result.append('-' * (width * 2 + len(separator)))
         
-        Args:
-            diff_blocks: List of DiffBlock objects
-            insert_class: CSS class for insertions
-            delete_class: CSS class for deletions
-            equal_class: CSS class for unchanged text
-            
-        Returns:
-            HTML string with spans for styling
-            
-        Example:
-            >>> diff = TextDiffUtils.diff_chars("hello", "hallo")
-            >>> html = TextDiffUtils.html_diff(diff)
-        """
-        import html
+        left_lines = []
+        right_lines = []
         
-        classes = {
-            DiffOperation.INSERT: insert_class,
-            DiffOperation.DELETE: delete_class,
-            DiffOperation.EQUAL: equal_class,
-        }
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            if tag == 'equal':
+                for idx, (left, right) in enumerate(zip(lines1[i1:i2], lines2[j1:j2])):
+                    left_lines.append((' ', left))
+                    right_lines.append((' ', right))
+            elif tag == 'insert':
+                for line in lines2[j1:j2]:
+                    left_lines.append((' ', ''))
+                    right_lines.append(('+', line))
+            elif tag == 'delete':
+                for line in lines1[i1:i2]:
+                    left_lines.append(('-', line))
+                    right_lines.append((' ', ''))
+            elif tag == 'replace':
+                # 配对显示替换
+                old_lines = lines1[i1:i2]
+                new_lines = lines2[j1:j2]
+                max_len = max(len(old_lines), len(new_lines))
+                for i in range(max_len):
+                    old_line = old_lines[i] if i < len(old_lines) else ''
+                    new_line = new_lines[i] if i < len(new_lines) else ''
+                    left_lines.append(('-' if old_line else ' ', old_line))
+                    right_lines.append(('+' if new_line else ' ', new_line))
         
-        result = []
-        for block in diff_blocks:
-            css_class = classes.get(block.operation, equal_class)
-            escaped_text = html.escape(block.text)
-            result.append(f'<span class="{css_class}">{escaped_text}</span>')
+        max_lines = max(len(left_lines), len(right_lines))
         
-        return ''.join(result)
-
-    @staticmethod
-    def diff_stats(diff_blocks: List[DiffBlock]) -> dict:
-        """
-        Calculate statistics from diff blocks.
-        
-        Args:
-            diff_blocks: List of DiffBlock objects
-            
-        Returns:
-            Dictionary with counts and statistics
-            
-        Example:
-            >>> diff = TextDiffUtils.diff_chars("hello", "hallo")
-            >>> TextDiffUtils.diff_stats(diff)
-            {'insertions': 1, 'deletions': 1, 'unchanged': 4, 'total': 6}
-        """
-        stats = {
-            'insertions': 0,
-            'deletions': 0,
-            'unchanged': 0,
-            'total': 0
-        }
-        
-        for block in diff_blocks:
-            length = len(block.text)
-            stats['total'] += length
-            
-            if block.operation == DiffOperation.INSERT:
-                stats['insertions'] += length
-            elif block.operation == DiffOperation.DELETE:
-                stats['deletions'] += length
-            else:
-                stats['unchanged'] += length
-        
-        return stats
-
-    @staticmethod
-    def side_by_side(text1: str, text2: str, 
-                     width: int = 50,
-                     separator: str = " | ") -> str:
-        """
-        Generate side-by-side comparison of two texts.
-        
-        Args:
-            text1: Left text
-            text2: Right text
-            width: Column width for each side (default: 50)
-            separator: Separator between columns (default: " | ")
-            
-        Returns:
-            Side-by-side formatted string
-            
-        Example:
-            >>> print(TextDiffUtils.side_by_side("Hello", "World"))
-        """
-        lines1 = text1.splitlines()
-        lines2 = text2.splitlines()
-        
-        max_lines = max(len(lines1), len(lines2))
-        
-        result = []
         for i in range(max_lines):
-            left = lines1[i] if i < len(lines1) else ""
-            right = lines2[i] if i < len(lines2) else ""
+            left_marker, left_content = left_lines[i] if i < len(left_lines) else (' ', '')
+            right_marker, right_content = right_lines[i] if i < len(right_lines) else (' ', '')
             
-            # Truncate if too long
-            left = left[:width].ljust(width)
-            right = right[:width].ljust(width)
+            left_display = left_content[:width].ljust(width)
+            right_display = right_content[:width].ljust(width)
             
-            result.append(f"{left}{separator}{right}")
+            if show_line_numbers:
+                line_num = str(i + 1).rjust(4)
+                result.append(f"{line_num} {left_marker}{left_display}{separator}{right_marker}{right_display}")
+            else:
+                result.append(f"{left_marker}{left_display}{separator}{right_marker}{right_display}")
         
         return '\n'.join(result)
-
-    @staticmethod
-    def find_changes(text1: str, text2: str, 
-                     threshold: float = 0.5) -> List[Tuple[int, int, str, str]]:
+    
+    def similarity(self) -> float:
         """
-        Find specific changed regions between two texts.
+        计算文本相似度
+        
+        Returns:
+            相似度值 (0.0 - 1.0)
+        """
+        matcher = SequenceMatcher(None, self.text1, self.text2)
+        return matcher.ratio()
+    
+    def quick_ratio(self) -> float:
+        """
+        快速计算相似度（上界估计，更快）
+        
+        Returns:
+            相似度上界 (0.0 - 1.0)
+        """
+        matcher = SequenceMatcher(None, self.text1, self.text2)
+        return matcher.quick_ratio()
+    
+    def stats(self, level: str = 'line') -> DiffStats:
+        """
+        获取差异统计
         
         Args:
-            text1: Original text
-            text2: Modified text
-            threshold: Similarity threshold for grouping changes (default: 0.5)
-            
+            level: 统计级别 ('char', 'word', 'line')
+        
         Returns:
-            List of (start_pos, end_pos, deleted_text, inserted_text)
-            
-        Example:
-            >>> TextDiffUtils.find_changes("hello world", "hello there")
-            [(6, 11, 'world', 'there')]
+            DiffStats 对象
         """
-        diff_blocks = TextDiffUtils.diff_chars(text1, text2)
+        if level == 'char':
+            ops = self.compare_chars()
+            total1 = len(self.text1)
+            total2 = len(self.text2)
+        elif level == 'word':
+            ops = self.compare_words()
+            words1 = re.findall(r'\S+', self.text1)
+            words2 = re.findall(r'\S+', self.text2)
+            total1 = len(words1)
+            total2 = len(words2)
+        else:  # line
+            ops = self.compare_lines()
+            total1 = len(self._lines1)
+            total2 = len(self._lines2)
         
-        changes = []
-        current_change = None
-        pos = 0
+        additions = 0
+        deletions = 0
+        modifications = 0
+        unchanged = 0
         
-        for block in diff_blocks:
-            if block.operation == DiffOperation.EQUAL:
-                if current_change:
-                    start, deleted, inserted = current_change
-                    changes.append((start, pos, deleted, inserted))
-                    current_change = None
-                pos += len(block.text)
-            elif block.operation == DiffOperation.DELETE:
-                if not current_change:
-                    current_change = (pos, "", "")
-                deleted, inserted = current_change[1], current_change[2]
-                current_change = (current_change[0], deleted + block.text, inserted)
-            elif block.operation == DiffOperation.INSERT:
-                if not current_change:
-                    current_change = (pos, "", "")
-                deleted, inserted = current_change[1], current_change[2]
-                current_change = (current_change[0], deleted, inserted + block.text)
+        # 追踪上一个操作类型，用于合并相邻的删除+插入为修改
+        prev_type = None
+        prev_len = 0
         
-        if current_change:
-            start, deleted, inserted = current_change
-            changes.append((start, pos, deleted, inserted))
+        for diff_type, content in ops:
+            if diff_type == DiffType.EQUAL:
+                unchanged += 1
+                if prev_type == DiffType.DELETE:
+                    # 之前的删除不是修改的一部分
+                    deletions += prev_len
+                prev_type = DiffType.EQUAL
+                prev_len = 0
+            elif diff_type == DiffType.INSERT:
+                if prev_type == DiffType.DELETE:
+                    modifications += 1
+                    deletions += max(0, prev_len - 1)
+                else:
+                    additions += 1
+                prev_type = DiffType.INSERT
+                prev_len = 0
+            elif diff_type == DiffType.DELETE:
+                if prev_type == DiffType.DELETE:
+                    pass  # 连续删除
+                prev_type = DiffType.DELETE
+                prev_len = 1
         
-        return changes
+        if prev_type == DiffType.DELETE:
+            deletions += prev_len
+        
+        similarity = self.similarity()
+        
+        return DiffStats(
+            additions=additions,
+            deletions=deletions,
+            modifications=modifications,
+            unchanged=unchanged,
+            similarity=similarity
+        )
 
 
-# Convenience functions for direct import
-
-def lcs(text1: str, text2: str) -> str:
-    """Find the Longest Common Subsequence of two strings."""
-    return TextDiffUtils.lcs(text1, text2)
-
-
-def lcs_length(text1: str, text2: str) -> int:
-    """Calculate the length of the Longest Common Subsequence."""
-    return TextDiffUtils.lcs_length(text1, text2)
-
-
-def levenshtein_distance(text1: str, text2: str) -> int:
-    """Calculate the Levenshtein (edit) distance between two strings."""
-    return TextDiffUtils.levenshtein_distance(text1, text2)
-
-
-def similarity_ratio(text1: str, text2: str) -> float:
-    """Calculate the similarity ratio between two strings (0.0 to 1.0)."""
-    return TextDiffUtils.similarity_ratio(text1, text2)
-
-
-def jaccard_similarity(text1: str, text2: str, ngram: int = 2) -> float:
-    """Calculate Jaccard similarity coefficient based on n-grams."""
-    return TextDiffUtils.jaccard_similarity(text1, text2, ngram)
+def diff_texts(text1: str, text2: str, level: str = 'line') -> List[Tuple[DiffType, str]]:
+    """
+    快捷函数：比较两个文本
+    
+    Args:
+        text1: 原始文本
+        text2: 新文本
+        level: 比较级别 ('char', 'word', 'line')
+    
+    Returns:
+        差异操作列表
+    """
+    differ = TextDiff(text1, text2)
+    if level == 'char':
+        return differ.compare_chars()
+    elif level == 'word':
+        return differ.compare_words()
+    else:
+        return differ.compare_lines()
 
 
-def diff_chars(text1: str, text2: str) -> List[DiffBlock]:
-    """Compute character-level diff between two strings."""
-    return TextDiffUtils.diff_chars(text1, text2)
+def generate_unified_diff(text1: str, text2: str, 
+                          fromfile: str = 'original',
+                          tofile: str = 'modified',
+                          n: int = 3) -> str:
+    """
+    快捷函数：生成统一格式差异
+    
+    Args:
+        text1: 原始文本
+        text2: 新文本
+        fromfile: 原文件名
+        tofile: 新文件名
+        n: 上下文行数
+    
+    Returns:
+        统一格式差异字符串
+    """
+    differ = TextDiff(text1, text2)
+    return differ.unified_diff(n=n, fromfile=fromfile, tofile=tofile)
 
 
-def diff_lines(text1: str, text2: str) -> List[DiffBlock]:
-    """Compute line-level diff between two texts."""
-    return TextDiffUtils.diff_lines(text1, text2)
+# 别名，保持向后兼容
+unified_diff = generate_unified_diff
 
 
-def unified_diff(text1: str, text2: str, 
-                 filename1: str = "original", 
-                 filename2: str = "modified",
-                 context_lines: int = 3) -> str:
-    """Generate unified diff format output."""
-    return TextDiffUtils.unified_diff(text1, text2, filename1, filename2, context_lines)
+def similarity(text1: str, text2: str) -> float:
+    """
+    快捷函数：计算两个文本的相似度
+    
+    Args:
+        text1: 第一个文本
+        text2: 第二个文本
+    
+    Returns:
+        相似度值 (0.0 - 1.0)
+    """
+    return SequenceMatcher(None, text1, text2).ratio()
 
 
-def highlight_diff(diff_blocks: List[DiffBlock], 
-                   color_insert: str = "\033[32m",
-                   color_delete: str = "\033[31m",
-                   color_equal: str = "\033[0m",
-                   color_reset: str = "\033[0m") -> str:
-    """Highlight diff output with ANSI color codes."""
-    return TextDiffUtils.highlight_diff(diff_blocks, color_insert, color_delete, color_equal, color_reset)
+def find_common_substring(text1: str, text2: str) -> str:
+    """
+    查找两个文本的最长公共子串
+    
+    Args:
+        text1: 第一个文本
+        text2: 第二个文本
+    
+    Returns:
+        最长公共子串
+    """
+    matcher = SequenceMatcher(None, text1, text2)
+    match = matcher.find_longest_match(0, len(text1), 0, len(text2))
+    return text1[match.a:match.a + match.size]
 
 
-def html_diff(diff_blocks: List[DiffBlock],
-              insert_class: str = "diff-insert",
-              delete_class: str = "diff-delete",
-              equal_class: str = "diff-equal") -> str:
-    """Generate HTML diff output with CSS classes."""
-    return TextDiffUtils.html_diff(diff_blocks, insert_class, delete_class, equal_class)
+def find_common_subsequences(text1: str, text2: str, 
+                             min_length: int = 3) -> List[str]:
+    """
+    查找两个文本的所有公共子串
+    
+    Args:
+        text1: 第一个文本
+        text2: 第二个文本
+        min_length: 最小子串长度
+    
+    Returns:
+        公共子串列表（按长度降序）
+    """
+    matcher = SequenceMatcher(None, text1, text2)
+    matches = matcher.get_matching_blocks()
+    
+    subsequences = []
+    for match in matches:
+        if match.size >= min_length:
+            subsequences.append(text1[match.a:match.a + match.size])
+    
+    return sorted(subsequences, key=len, reverse=True)
 
 
-def diff_stats(diff_blocks: List[DiffBlock]) -> dict:
-    """Calculate statistics from diff blocks."""
-    return TextDiffUtils.diff_stats(diff_blocks)
+def highlight_diff_html(text1: str, text2: str, 
+                        level: str = 'word',
+                        insert_color: str = '#d4edda',
+                        delete_color: str = '#f8d7da') -> str:
+    """
+    生成 HTML 格式的高亮差异
+    
+    Args:
+        text1: 原始文本
+        text2: 新文本
+        level: 比较级别 ('char', 'word')
+        insert_color: 插入部分背景色
+        delete_color: 删除部分背景色
+    
+    Returns:
+        HTML 格式的差异展示
+    """
+    differ = TextDiff(text1, text2)
+    
+    if level == 'char':
+        ops = differ.compare_chars()
+    else:
+        ops = differ.compare_words()
+    
+    html_parts = []
+    
+    for diff_type, content in ops:
+        # HTML 转义
+        escaped = content.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        
+        if diff_type == DiffType.INSERT:
+            html_parts.append(f'<span style="background-color: {insert_color}">{escaped}</span>')
+        elif diff_type == DiffType.DELETE:
+            html_parts.append(f'<span style="background-color: {delete_color}"><del>{escaped}</del></span>')
+        else:
+            html_parts.append(escaped)
+    
+    return ''.join(html_parts)
 
 
-def side_by_side(text1: str, text2: str, width: int = 50, separator: str = " | ") -> str:
-    """Generate side-by-side comparison of two texts."""
-    return TextDiffUtils.side_by_side(text1, text2, width, separator)
+def count_changes(text1: str, text2: str, level: str = 'line') -> Dict[str, int]:
+    """
+    统计变更数量
+    
+    Args:
+        text1: 原始文本
+        text2: 新文本
+        level: 统计级别 ('char', 'word', 'line')
+    
+    Returns:
+        变更统计字典
+    """
+    differ = TextDiff(text1, text2)
+    ops = differ.compare_chars() if level == 'char' else \
+          (differ.compare_words() if level == 'word' else differ.compare_lines())
+    
+    additions = sum(1 for t, _ in ops if t == DiffType.INSERT)
+    deletions = sum(1 for t, _ in ops if t == DiffType.DELETE)
+    unchanged = sum(1 for t, _ in ops if t == DiffType.EQUAL)
+    
+    return {
+        'additions': additions,
+        'deletions': deletions,
+        'unchanged': unchanged,
+        'total_changes': additions + deletions,
+        'similarity': differ.similarity()
+    }
 
 
-def find_changes(text1: str, text2: str, threshold: float = 0.5) -> List[Tuple[int, int, str, str]]:
-    """Find specific changed regions between two texts."""
-    return TextDiffUtils.find_changes(text1, text2, threshold)
+def diff_three_texts(text1: str, text2: str, text3: str) -> Dict[str, float]:
+    """
+    比较三个文本的相似度
+    
+    Args:
+        text1: 第一个文本
+        text2: 第二个文本
+        text3: 第三个文本
+    
+    Returns:
+        两两相似度字典
+    """
+    return {
+        'text1_vs_text2': similarity(text1, text2),
+        'text1_vs_text3': similarity(text1, text3),
+        'text2_vs_text3': similarity(text2, text3)
+    }
+
+
+if __name__ == '__main__':
+    # 简单演示
+    original = """Hello World
+This is a test.
+Line three.
+Line four.
+Goodbye!"""
+    
+    modified = """Hello World
+This is a modified test.
+Line three.
+New line inserted.
+Line four.
+See you later!"""
+    
+    diff = TextDiff(original, modified)
+    
+    print("=== 字符级差异 ===")
+    for dtype, content in diff.compare_chars():
+        if dtype != DiffType.EQUAL:
+            print(f"{dtype.value}: {repr(content)}")
+    
+    print("\n=== 行级差异 ===")
+    for dtype, content in diff.compare_lines():
+        marker = {'equal': ' ', 'insert': '+', 'delete': '-'}[dtype.value]
+        print(f"{marker} {content.rstrip()}")
+    
+    print("\n=== 统一格式差异 ===")
+    print(diff.unified_diff())
+    
+    print("\n=== 差异统计 ===")
+    stats = diff.stats()
+    print(f"新增: {stats.additions}, 删除: {stats.deletions}, 相似度: {stats.similarity:.2%}")

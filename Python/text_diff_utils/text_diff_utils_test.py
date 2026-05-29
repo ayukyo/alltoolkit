@@ -1,612 +1,427 @@
 """
-文本差异比较工具集测试
-Text Diff Utilities Test Suite
+text_diff_utils 单元测试
+
+测试文本差异比较工具的所有核心功能。
 """
 
-import sys
-import os
 import unittest
-
-# Add module directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
 from mod import (
-    diff_lines, diff_words, diff_chars,
-    unified_diff, context_diff, html_diff, inline_diff,
-    similarity_ratio, levenshtein_distance, normalized_levenshtein,
-    lcs, lcs_length, create_patch, apply_patch,
-    find_matching_blocks, get_diff_summary, text_diff_summary,
-    TextDiffer, batch_diff, find_duplicate_blocks,
-    DiffType, DiffOp, DiffResult
+    TextDiff, DiffType, DiffStats, DiffOperation,
+    diff_texts, unified_diff, similarity, 
+    find_common_substring, find_common_subsequences,
+    highlight_diff_html, count_changes, diff_three_texts
 )
 
 
-class TestDiffLines(unittest.TestCase):
-    """测试行级差异比较"""
+class TestTextDiff(unittest.TestCase):
+    """TextDiff 类测试"""
     
-    def test_identical_texts(self):
-        """测试相同文本"""
-        text = "line1\nline2\nline3"
-        result = diff_lines(text, text)
+    def setUp(self):
+        """测试数据"""
+        self.text1 = """Hello World
+This is a test.
+Line three.
+Line four.
+Goodbye!"""
         
-        self.assertFalse(result.has_changes())
-        self.assertEqual(result.stats["total_changes"], 0)
-        self.assertEqual(len(result.old_lines), 3)
-        self.assertEqual(len(result.new_lines), 3)
+        self.text2 = """Hello World
+This is a modified test.
+Line three.
+New line inserted.
+Line four.
+See you later!"""
+        
+        self.differ = TextDiff(self.text1, self.text2)
     
-    def test_add_lines(self):
-        """测试添加行"""
-        old = "line1\nline2"
-        new = "line1\nline2\nline3"
-        result = diff_lines(old, new)
-        
-        self.assertTrue(result.has_changes())
-        self.assertEqual(result.stats["added"], 1)
-        changes = result.get_changes()
-        self.assertEqual(len(changes), 1)
-        self.assertEqual(changes[0].type, DiffType.INSERT)
+    def test_init(self):
+        """测试初始化"""
+        self.assertEqual(self.differ.text1, self.text1)
+        self.assertEqual(self.differ.text2, self.text2)
     
-    def test_delete_lines(self):
-        """测试删除行"""
-        old = "line1\nline2\nline3"
-        new = "line1\nline3"
-        result = diff_lines(old, new)
-        
-        self.assertTrue(result.has_changes())
-        self.assertEqual(result.stats["deleted"], 1)
+    def test_compare_chars_equal(self):
+        """测试字符级比较 - 相同部分"""
+        diff = TextDiff("abc", "abc")
+        result = diff.compare_chars()
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0], (DiffType.EQUAL, "abc"))
     
-    def test_replace_lines(self):
-        """测试替换行"""
-        old = "line1\nline2\nline3"
-        new = "line1\nmodified\nline3"
-        result = diff_lines(old, new)
-        
-        self.assertTrue(result.has_changes())
-        self.assertEqual(result.stats["replaced"], 1)
+    def test_compare_chars_insert(self):
+        """测试字符级比较 - 插入"""
+        diff = TextDiff("abc", "abcd")
+        result = diff.compare_chars()
+        types = [t for t, _ in result]
+        self.assertIn(DiffType.INSERT, types)
     
-    def test_ignore_whitespace(self):
-        """测试忽略空白"""
-        old = "line1\n  line2\nline3"
-        new = "line1\nline2\nline3"
-        result = diff_lines(old, new, ignore_whitespace=True)
-        
-        self.assertFalse(result.has_changes())
+    def test_compare_chars_delete(self):
+        """测试字符级比较 - 删除"""
+        diff = TextDiff("abcd", "abc")
+        result = diff.compare_chars()
+        types = [t for t, _ in result]
+        self.assertIn(DiffType.DELETE, types)
     
-    def test_ignore_case(self):
-        """测试忽略大小写"""
-        old = "Hello\nWorld"
-        new = "hello\nworld"
-        result = diff_lines(old, new, ignore_case=True)
-        
-        self.assertFalse(result.has_changes())
+    def test_compare_chars_replace(self):
+        """测试字符级比较 - 替换"""
+        diff = TextDiff("abc", "xyz")
+        result = diff.compare_chars()
+        types = [t for t, _ in result]
+        self.assertEqual(types.count(DiffType.DELETE), 1)
+        self.assertEqual(types.count(DiffType.INSERT), 1)
     
-    def test_empty_texts(self):
-        """测试空文本"""
-        old = ""
-        new = "new line"
-        result = diff_lines(old, new)
+    def test_compare_words(self):
+        """测试单词级比较"""
+        result = self.differ.compare_words()
+        self.assertTrue(len(result) > 0)
         
-        self.assertTrue(result.has_changes())
-        self.assertEqual(result.stats["added"], 1)
-
-
-class TestDiffWords(unittest.TestCase):
-    """测试单词级差异比较"""
+        # 验证差异类型正确
+        diff_types = {t for t, _ in result}
+        self.assertIn(DiffType.EQUAL, diff_types)
     
-    def test_word_diff_identical(self):
-        """测试相同文本的单词差异"""
-        text = "hello world"
-        result = diff_words(text, text)
+    def test_compare_lines(self):
+        """测试行级比较"""
+        result = self.differ.compare_lines()
+        self.assertTrue(len(result) > 0)
         
-        self.assertEqual(len(result), 2)
-        for word, diff_type in result:
-            self.assertEqual(diff_type, DiffType.EQUAL)
+        # 检查有插入和删除
+        types = [t for t, _ in result]
+        self.assertIn(DiffType.INSERT, types)
     
-    def test_word_diff_add(self):
-        """测试添加单词"""
-        old = "hello world"
-        new = "hello beautiful world"
-        result = diff_words(old, new)
+    def test_get_operations(self):
+        """测试获取结构化操作"""
+        operations = self.differ.get_operations()
         
-        insert_count = sum(1 for _, dt in result if dt == DiffType.INSERT)
-        self.assertEqual(insert_count, 1)
+        self.assertTrue(len(operations) > 0)
+        self.assertIsInstance(operations[0], DiffOperation)
+        
+        # 验证操作属性
+        for op in operations:
+            self.assertIsInstance(op.diff_type, DiffType)
+            self.assertIsInstance(op.old_start, int)
+            self.assertIsInstance(op.new_start, int)
     
-    def test_word_diff_delete(self):
-        """测试删除单词"""
-        old = "hello beautiful world"
-        new = "hello world"
-        result = diff_words(old, new)
+    def test_unified_diff(self):
+        """测试统一格式差异"""
+        result = self.differ.unified_diff()
         
-        delete_count = sum(1 for _, dt in result if dt == DiffType.DELETE)
-        self.assertEqual(delete_count, 1)
+        self.assertIn('--- original', result)
+        self.assertIn('+++ modified', result)
+        self.assertIn('@@', result)  # 差异块标记
     
-    def test_word_diff_ignore_case(self):
-        """测试忽略大小写"""
-        old = "Hello World"
-        new = "hello world"
-        result = diff_words(old, new, ignore_case=True)
+    def test_unified_diff_custom_names(self):
+        """测试统一格式差异 - 自定义文件名"""
+        result = self.differ.unified_diff(fromfile='old.txt', tofile='new.txt')
         
-        equal_count = sum(1 for _, dt in result if dt == DiffType.EQUAL)
-        self.assertEqual(equal_count, 2)
-
-
-class TestDiffChars(unittest.TestCase):
-    """测试字符级差异比较"""
+        self.assertIn('--- old.txt', result)
+        self.assertIn('+++ new.txt', result)
     
-    def test_char_diff_identical(self):
-        """测试相同文本的字符差异"""
-        text = "hello"
-        result = diff_chars(text, text)
+    def test_context_diff(self):
+        """测试上下文格式差异"""
+        result = self.differ.context_diff()
         
-        self.assertEqual(len(result), 5)
-        for char, diff_type in result:
-            self.assertEqual(diff_type, DiffType.EQUAL)
+        self.assertIn('*** original', result)
+        self.assertIn('--- modified', result)
     
-    def test_char_diff_add(self):
-        """测试添加字符"""
-        old = "abc"
-        new = "abcd"
-        result = diff_chars(old, new)
+    def test_side_by_side_text(self):
+        """测试并排格式差异"""
+        result = self.differ.side_by_side_text()
         
-        insert_count = sum(1 for _, dt in result if dt == DiffType.INSERT)
-        self.assertEqual(insert_count, 1)
+        self.assertIn('Original', result)
+        self.assertIn('Modified', result)
+        self.assertIn('|', result)
     
-    def test_char_diff_modify(self):
-        """测试修改字符"""
-        old = "hello"
-        new = "hallo"
-        result = diff_chars(old, new)
+    def test_side_by_side_text_no_line_numbers(self):
+        """测试并排格式差异 - 无行号"""
+        result = self.differ.side_by_side_text(show_line_numbers=False)
         
-        # 应该有删除和插入
-        delete_count = sum(1 for _, dt in result if dt == DiffType.DELETE)
-        insert_count = sum(1 for _, dt in result if dt == DiffType.INSERT)
-        self.assertTrue(delete_count > 0 or insert_count > 0)
-
-
-class TestUnifiedDiff(unittest.TestCase):
-    """测试统一差异格式"""
-    
-    def test_unified_diff_header(self):
-        """测试差异头"""
-        old = "line1\nline2"
-        new = "line1\nline3"
-        result = unified_diff(old, new, "old.txt", "new.txt")
-        
-        self.assertIn("--- old.txt", result)
-        self.assertIn("+++ new.txt", result)
-    
-    def test_unified_diff_changes(self):
-        """测试差异变更"""
-        old = "line1\nline2\nline3"
-        new = "line1\nmodified\nline3"
-        result = unified_diff(old, new)
-        
-        self.assertIn("-line2", result)
-        self.assertIn("+modified", result)
-    
-    def test_unified_diff_add(self):
-        """测试添加行"""
-        old = "line1"
-        new = "line1\nline2"
-        result = unified_diff(old, new)
-        
-        self.assertIn("+line2", result)
-    
-    def test_unified_diff_delete(self):
-        """测试删除行"""
-        old = "line1\nline2"
-        new = "line1"
-        result = unified_diff(old, new)
-        
-        self.assertIn("-line2", result)
-
-
-class TestContextDiff(unittest.TestCase):
-    """测试上下文差异格式"""
-    
-    def test_context_diff_header(self):
-        """测试差异头"""
-        old = "line1\nline2"
-        new = "line1\nline3"
-        result = context_diff(old, new, "old.txt", "new.txt")
-        
-        self.assertIn("*** old.txt", result)
-        self.assertIn("--- new.txt", result)
-    
-    def test_context_diff_changes(self):
-        """测试差异变更"""
-        old = "line1\nline2\nline3"
-        new = "line1\nmodified\nline3"
-        result = context_diff(old, new)
-        
-        self.assertIn("- line2", result)
-        self.assertIn("+ modified", result)
-
-
-class TestHtmlDiff(unittest.TestCase):
-    """测试 HTML 差异格式"""
-    
-    def test_html_diff_structure(self):
-        """测试 HTML 结构"""
-        old = "line1\nline2"
-        new = "line1\nline3"
-        result = html_diff(old, new)
-        
-        self.assertIn("<!DOCTYPE html>", result)
-        self.assertIn("<table>", result)
-        self.assertIn("</table>", result)
-        self.assertIn("</html>", result)
-    
-    def test_html_diff_classes(self):
-        """测试 CSS 类"""
-        # 使用删除和插入的场景，而不是替换
-        old = "line1\nline2"
-        new = "line1\nline3\nline4"
-        result = html_diff(old, new)
-        
-        # 检查 CSS 类定义存在
-        self.assertIn(".delete", result)
-        self.assertIn(".insert", result)
-        # 检查实际使用了差异类
-        self.assertTrue("class=\"replace\"" in result or "class=\"delete\"" in result or "class=\"insert\"" in result)
-    
-    def test_html_diff_custom_titles(self):
-        """测试自定义标题"""
-        old = "line1"
-        new = "line2"
-        result = html_diff(old, new, "Original", "Modified")
-        
-        self.assertIn("Original", result)
-        self.assertIn("Modified", result)
-
-
-class TestInlineDiff(unittest.TestCase):
-    """测试内联差异格式"""
-    
-    def test_inline_diff_prefixes(self):
-        """测试行前缀"""
-        old = "line1\nline2"
-        new = "line1\nline3"
-        result = inline_diff(old, new)
-        
+        self.assertIn('Original', result)
+        # 不应包含行号格式
         lines = result.split('\n')
-        self.assertTrue(any(line.startswith('  ') for line in lines))  # equal
-        self.assertTrue(any(line.startswith('- ') for line in lines))  # delete
-        self.assertTrue(any(line.startswith('+ ') for line in lines))  # insert
+        data_lines = [l for l in lines if l and not l.startswith('-') and 'Original' not in l and 'Modified' not in l]
+        # 行号应该不在开头
     
-    def test_inline_diff_custom_prefixes(self):
-        """测试自定义前缀"""
-        old = "line1"
-        new = "line2"
-        result = inline_diff(old, new, "ADD ", "DEL ", "EQ ")
+    def test_similarity(self):
+        """测试相似度计算"""
+        # 完全相同
+        diff = TextDiff("abc", "abc")
+        self.assertEqual(diff.similarity(), 1.0)
         
-        self.assertIn("DEL line1", result)
-        self.assertIn("ADD line2", result)
+        # 完全不同
+        diff = TextDiff("abc", "xyz")
+        self.assertEqual(diff.similarity(), 0.0)
+        
+        # 部分相同
+        diff = TextDiff("abc", "abd")
+        self.assertTrue(0 < diff.similarity() < 1)
+    
+    def test_quick_ratio(self):
+        """测试快速相似度"""
+        diff = TextDiff("hello world", "hello there")
+        quick = diff.quick_ratio()
+        
+        # 快速比率应该 >= 实际比率
+        actual = diff.similarity()
+        self.assertGreaterEqual(quick, actual)
+    
+    def test_stats_line_level(self):
+        """测试差异统计 - 行级"""
+        stats = self.differ.stats(level='line')
+        
+        self.assertIsInstance(stats, DiffStats)
+        self.assertIsInstance(stats.additions, int)
+        self.assertIsInstance(stats.deletions, int)
+        self.assertIsInstance(stats.similarity, float)
+        self.assertTrue(0 <= stats.similarity <= 1)
+    
+    def test_stats_char_level(self):
+        """测试差异统计 - 字符级"""
+        stats = self.differ.stats(level='char')
+        
+        self.assertIsInstance(stats, DiffStats)
+        self.assertTrue(stats.similarity >= 0)
+    
+    def test_stats_word_level(self):
+        """测试差异统计 - 单词级"""
+        stats = self.differ.stats(level='word')
+        
+        self.assertIsInstance(stats, DiffStats)
+        self.assertTrue(stats.similarity >= 0)
 
 
-class TestSimilarity(unittest.TestCase):
-    """测试相似度计算"""
+class TestUtilityFunctions(unittest.TestCase):
+    """工具函数测试"""
     
-    def test_identical_texts(self):
-        """测试相同文本"""
-        text = "hello world"
-        similarity = similarity_ratio(text, text)
+    def test_diff_texts_line(self):
+        """测试快捷函数 - 行级差异"""
+        result = diff_texts("a\nb\nc", "a\nc\nd", level='line')
         
-        self.assertEqual(similarity, 1.0)
+        self.assertTrue(len(result) > 0)
+        types = [t for t, _ in result]
+        self.assertIn(DiffType.EQUAL, types)
     
-    def test_completely_different(self):
-        """测试完全不同的文本"""
-        old = "abc"
-        new = "xyz"
-        similarity = similarity_ratio(old, new)
+    def test_diff_texts_char(self):
+        """测试快捷函数 - 字符级差异"""
+        result = diff_texts("abc", "adc", level='char')
         
-        self.assertEqual(similarity, 0.0)
+        self.assertTrue(len(result) > 0)
     
-    def test_partial_similarity(self):
-        """测试部分相似"""
-        old = "hello world"
-        new = "hello there"
-        similarity = similarity_ratio(old, new)
+    def test_diff_texts_word(self):
+        """测试快捷函数 - 单词级差异"""
+        result = diff_texts("hello world", "hello there", level='word')
         
-        self.assertGreater(similarity, 0.0)
-        self.assertLess(similarity, 1.0)
+        self.assertTrue(len(result) > 0)
     
-    def test_similarity_empty(self):
-        """测试空文本"""
-        self.assertEqual(similarity_ratio("", ""), 1.0)
-        self.assertEqual(similarity_ratio("abc", ""), 0.0)
-
-
-class TestLevenshtein(unittest.TestCase):
-    """测试 Levenshtein 距离"""
-    
-    def test_identical_strings(self):
-        """测试相同字符串"""
-        self.assertEqual(levenshtein_distance("hello", "hello"), 0)
-    
-    def test_one_insertion(self):
-        """测试一次插入"""
-        self.assertEqual(levenshtein_distance("hello", "hellos"), 1)
-    
-    def test_one_deletion(self):
-        """测试一次删除"""
-        self.assertEqual(levenshtein_distance("hello", "hell"), 1)
-    
-    def test_one_replacement(self):
-        """测试一次替换"""
-        self.assertEqual(levenshtein_distance("hello", "hallo"), 1)
-    
-    def test_multiple_operations(self):
-        """测试多次操作"""
-        self.assertEqual(levenshtein_distance("kitten", "sitting"), 3)
-    
-    def test_empty_strings(self):
-        """测试空字符串"""
-        self.assertEqual(levenshtein_distance("", ""), 0)
-        self.assertEqual(levenshtein_distance("abc", ""), 3)
-        self.assertEqual(levenshtein_distance("", "xyz"), 3)
-    
-    def test_normalized_levenshtein(self):
-        """测试归一化距离"""
-        self.assertEqual(normalized_levenshtein("", ""), 0.0)
-        self.assertEqual(normalized_levenshtein("abc", "abc"), 0.0)
-        self.assertEqual(normalized_levenshtein("abc", "xyz"), 1.0)
-
-
-class TestLCS(unittest.TestCase):
-    """测试最长公共子序列"""
-    
-    def test_identical_strings(self):
-        """测试相同字符串"""
-        self.assertEqual(lcs("hello", "hello"), "hello")
-    
-    def test_no_common(self):
-        """测试无公共子序列"""
-        self.assertEqual(lcs("abc", "xyz"), "")
-    
-    def test_partial_common(self):
-        """测试部分公共"""
-        result = lcs("abcde", "ace")
-        self.assertEqual(result, "ace")
-    
-    def test_lcs_length(self):
-        """测试 LCS 长度"""
-        self.assertEqual(lcs_length("abcde", "ace"), 3)
-        self.assertEqual(lcs_length("hello", "world"), 1)  # 'l' 或 'o'（顺序不同，只能取一个）
-        self.assertEqual(lcs_length("abcdef", "abcdef"), 6)
-
-
-class TestPatch(unittest.TestCase):
-    """测试补丁功能"""
-    
-    def test_create_patch(self):
-        """测试创建补丁"""
-        old = "line1\nline2\nline3"
-        new = "line1\nmodified\nline3"
-        patch = create_patch(old, new)
+    def test_unified_diff_function(self):
+        """测试统一格式差异快捷函数"""
+        result = unified_diff("a\nb\nc", "a\nx\nc")
         
-        self.assertIn("--- old", patch)
-        self.assertIn("+++ new", patch)
-        self.assertIn("-line2", patch)
-        self.assertIn("+modified", patch)
+        self.assertIn('--- original', result)
+        self.assertIn('+++ modified', result)
     
-    def test_create_patch_empty(self):
-        """测试空文本的补丁"""
-        old = ""
-        new = "new content"
-        patch = create_patch(old, new)
+    def test_similarity_function(self):
+        """测试相似度快捷函数"""
+        result = similarity("hello", "hello")
+        self.assertEqual(result, 1.0)
         
-        self.assertIn("+new content", patch)
-
-
-class TestDiffSummary(unittest.TestCase):
-    """测试差异摘要"""
+        result = similarity("hello", "world")
+        self.assertTrue(result < 1.0)
     
-    def test_summary_no_changes(self):
-        """测试无变化摘要"""
-        text = "line1\nline2"
-        summary = get_diff_summary(text, text)
+    def test_find_common_substring(self):
+        """测试查找最长公共子串"""
+        result = find_common_substring("hello world", "hello there")
         
-        self.assertEqual(summary["old_lines"], 2)
-        self.assertEqual(summary["new_lines"], 2)
-        self.assertEqual(summary["total_changes"], 0)
-        self.assertFalse(summary["has_changes"])
-        self.assertEqual(summary["similarity"], 1.0)
+        self.assertEqual(result, "hello ")
     
-    def test_summary_with_changes(self):
-        """测试有变化的摘要"""
-        old = "line1\nline2"
-        new = "line1\nline3\nline4"
-        summary = get_diff_summary(old, new)
+    def test_find_common_substring_no_match(self):
+        """测试查找最长公共子串 - 无匹配"""
+        result = find_common_substring("abc", "xyz")
         
-        self.assertEqual(summary["old_lines"], 2)
-        self.assertEqual(summary["new_lines"], 3)
-        self.assertTrue(summary["has_changes"])
-        self.assertLess(summary["similarity"], 1.0)
+        self.assertEqual(result, "")
     
-    def test_text_summary_format(self):
-        """测试文本摘要格式"""
-        old = "line1\nline2"
-        new = "line1\nline3"
-        summary = text_diff_summary(old, new)
+    def test_find_common_subsequences(self):
+        """测试查找所有公共子串"""
+        result = find_common_subsequences("hello world", "hello there", min_length=3)
         
-        self.assertIn("lines", summary)
-        self.assertIn("similarity", summary)
-
-
-class TestTextDifferClass(unittest.TestCase):
-    """测试 TextDiffer 类"""
+        self.assertTrue(len(result) > 0)
+        # 结果应按长度降序
+        if len(result) > 1:
+            self.assertGreaterEqual(len(result[0]), len(result[1]))
     
-    def test_differ_basic(self):
-        """测试基本差异"""
-        differ = TextDiffer()
-        result = differ.diff("hello\nworld", "hello\nthere")
+    def test_find_common_subsequences_min_length(self):
+        """测试查找公共子串 - 最小长度"""
+        result = find_common_subsequences("abc", "xyz", min_length=1)
         
-        self.assertTrue(result.has_changes())
+        # 没有公共子串
+        self.assertEqual(len(result), 0)
     
-    def test_differ_with_options(self):
-        """测试带选项的差异"""
-        differ = TextDiffer(ignore_whitespace=True)
-        result = differ.diff("hello\n  world", "hello\nworld")
+    def test_highlight_diff_html(self):
+        """测试 HTML 高亮差异"""
+        result = highlight_diff_html("hello world", "hello there")
         
-        self.assertFalse(result.has_changes())
+        self.assertIn('<span', result)
+        self.assertIn('background-color', result)
     
-    def test_differ_unified(self):
-        """测试统一差异"""
-        differ = TextDiffer()
-        result = differ.unified_diff("line1", "line2")
+    def test_highlight_diff_html_custom_colors(self):
+        """测试 HTML 高亮差异 - 自定义颜色"""
+        result = highlight_diff_html(
+            "abc", "adc",
+            insert_color='#00ff00',
+            delete_color='#ff0000'
+        )
         
-        self.assertIn("---", result)
-        self.assertIn("+++", result)
+        self.assertIn('#00ff00', result)
+        self.assertIn('#ff0000', result)
     
-    def test_differ_html(self):
-        """测试 HTML 差异"""
-        differ = TextDiffer()
-        result = differ.html_diff("line1", "line2")
+    def test_highlight_diff_html_escaping(self):
+        """测试 HTML 高亮差异 - 特殊字符转义"""
+        result = highlight_diff_html("<script>", "<div>")
         
-        self.assertIn("<table>", result)
+        # 应该转义 HTML 字符
+        self.assertNotIn('<script>', result)
+        self.assertIn('&lt;', result)
     
-    def test_differ_similarity(self):
-        """测试相似度"""
-        differ = TextDiffer()
-        similarity = differ.similarity("hello", "hallo")
+    def test_count_changes(self):
+        """测试变更计数"""
+        result = count_changes("a\nb\nc", "a\nx\nc\ny")
         
-        self.assertGreater(similarity, 0.5)
-
-
-class TestAdvancedFeatures(unittest.TestCase):
-    """测试高级功能"""
+        self.assertIn('additions', result)
+        self.assertIn('deletions', result)
+        self.assertIn('unchanged', result)
+        self.assertIn('total_changes', result)
+        self.assertIn('similarity', result)
     
-    def test_batch_diff(self):
-        """测试批量差异"""
-        texts = [
-            ("hello", "hallo"),
-            ("world", "world"),
-            ("test", "testing")
-        ]
-        results = batch_diff(texts)
+    def test_count_changes_char_level(self):
+        """测试变更计数 - 字符级"""
+        result = count_changes("abc", "adc", level='char')
         
-        self.assertEqual(len(results), 3)
-        self.assertTrue(results[0].has_changes())
-        self.assertFalse(results[1].has_changes())
-        self.assertTrue(results[2].has_changes())
+        self.assertTrue(result['total_changes'] > 0)
     
-    def test_find_matching_blocks(self):
-        """测试查找匹配块"""
-        blocks = find_matching_blocks("hello world", "hello there")
+    def test_diff_three_texts(self):
+        """测试三文本比较"""
+        result = diff_three_texts("hello", "hallo", "hullo")
         
-        self.assertTrue(len(blocks) > 0)
-        # 第一个块应该是 "hello "
-        self.assertEqual(blocks[0][2], 6)  # 长度为 6
-    
-    def test_find_duplicate_blocks(self):
-        """测试查找重复块"""
-        text = "line1\nline2\nline1\nline3"
-        duplicates = find_duplicate_blocks(text, min_length=1)
+        self.assertIn('text1_vs_text2', result)
+        self.assertIn('text1_vs_text3', result)
+        self.assertIn('text2_vs_text3', result)
         
-        self.assertTrue(len(duplicates) > 0)
+        # 所有的相似度都应该是有效值
+        for key, value in result.items():
+            self.assertTrue(0 <= value <= 1)
 
 
 class TestEdgeCases(unittest.TestCase):
-    """测试边缘情况"""
+    """边界情况测试"""
     
-    def test_single_line(self):
-        """测试单行文本"""
-        old = "single line"
-        new = "modified line"
-        result = diff_lines(old, new)
+    def test_empty_texts(self):
+        """测试空文本"""
+        diff = TextDiff("", "")
+        self.assertEqual(diff.similarity(), 1.0)
         
-        self.assertTrue(result.has_changes())
+        result = diff.compare_chars()
+        self.assertEqual(len(result), 0)
     
-    def test_large_text(self):
-        """测试大文本"""
-        lines = 1000
-        old = '\n'.join([f"line{i}" for i in range(lines)])
-        new = '\n'.join([f"line{i}" for i in range(lines)] + ["extra"])
+    def test_one_empty_text(self):
+        """测试一个空文本"""
+        diff = TextDiff("hello", "")
+        self.assertEqual(diff.similarity(), 0.0)
         
-        result = diff_lines(old, new)
-        self.assertEqual(result.stats["added"], 1)
+        result = diff.compare_chars()
+        types = [t for t, _ in result]
+        self.assertEqual(types, [DiffType.DELETE])
     
-    def test_unicode(self):
-        """测试 Unicode"""
-        old = "你好世界"
-        new = "你好宇宙"
-        result = diff_lines(old, new)
+    def test_insert_into_empty(self):
+        """测试向空文本插入"""
+        diff = TextDiff("", "hello")
+        result = diff.compare_chars()
         
-        self.assertTrue(result.has_changes())
+        types = [t for t, _ in result]
+        self.assertEqual(types, [DiffType.INSERT])
     
-    def test_special_characters(self):
-        """测试特殊字符"""
-        old = "line\twith\ttabs"
-        new = "line with spaces"
-        result = diff_lines(old, new)
+    def test_very_long_text(self):
+        """测试长文本"""
+        text1 = "a" * 10000
+        text2 = "a" * 5000 + "b" * 5000
         
-        self.assertTrue(result.has_changes())
+        diff = TextDiff(text1, text2)
+        similarity = diff.similarity()
+        
+        # 应该约为 0.5 (一半相同)
+        self.assertTrue(0.4 < similarity < 0.6)
+    
+    def test_unicode_text(self):
+        """测试 Unicode 文本"""
+        text1 = "你好世界"
+        text2 = "你好宇宙"
+        
+        diff = TextDiff(text1, text2)
+        result = diff.compare_chars()
+        
+        self.assertTrue(len(result) > 0)
+        
+        # 应该找到公共前缀
+        common = find_common_substring(text1, text2)
+        self.assertEqual(common, "你好")
+    
+    def test_newlines_handling(self):
+        """测试换行符处理"""
+        text1 = "line1\nline2\nline3"
+        text2 = "line1\nline2\nline3"
+        
+        diff = TextDiff(text1, text2)
+        self.assertEqual(diff.similarity(), 1.0)
+    
+    def test_whitespace_differences(self):
+        """测试空白差异"""
+        text1 = "hello world"
+        text2 = "hello  world"  # 双空格
+        
+        similarity_val = similarity(text1, text2)
+        self.assertTrue(0 < similarity_val < 1)
+    
+    def test_only_whitespace(self):
+        """测试纯空白文本"""
+        diff = TextDiff("   ", "\t\t")
+        
+        # 纯空白也应该能比较
+        result = diff.compare_chars()
+        self.assertTrue(len(result) > 0)
 
 
-class TestDiffOps(unittest.TestCase):
-    """测试差异操作"""
+class TestDiffStats(unittest.TestCase):
+    """DiffStats 测试"""
     
-    def test_diff_op_repr(self):
-        """测试 DiffOp 表示"""
-        op = DiffOp(
-            type=DiffType.EQUAL,
-            old_start=0, old_end=1,
-            new_start=0, new_end=1,
-            old_content="test",
-            new_content="test"
+    def test_stats_dataclass(self):
+        """测试 DiffStats 数据类"""
+        stats = DiffStats(
+            additions=5,
+            deletions=3,
+            modifications=2,
+            unchanged=10,
+            similarity=0.7
         )
-        self.assertIn("EQUAL", repr(op))
-    
-    def test_diff_result_stats(self):
-        """测试 DiffResult 统计"""
-        result = diff_lines("a\nb\nc", "a\nd\nc")
-        stats = result.stats
         
-        self.assertIn("added", stats)
-        self.assertIn("deleted", stats)
-        self.assertIn("replaced", stats)
-        self.assertIn("unchanged", stats)
-        self.assertIn("total_changes", stats)
+        self.assertEqual(stats.additions, 5)
+        self.assertEqual(stats.deletions, 3)
+        self.assertEqual(stats.similarity, 0.7)
 
 
-def run_tests():
-    """运行所有测试"""
-    loader = unittest.TestLoader()
-    suite = unittest.TestSuite()
+class TestDiffOperation(unittest.TestCase):
+    """DiffOperation 测试"""
     
-    # 添加所有测试类
-    test_classes = [
-        TestDiffLines,
-        TestDiffWords,
-        TestDiffChars,
-        TestUnifiedDiff,
-        TestContextDiff,
-        TestHtmlDiff,
-        TestInlineDiff,
-        TestSimilarity,
-        TestLevenshtein,
-        TestLCS,
-        TestPatch,
-        TestDiffSummary,
-        TestTextDifferClass,
-        TestAdvancedFeatures,
-        TestEdgeCases,
-        TestDiffOps,
-    ]
-    
-    for test_class in test_classes:
-        tests = loader.loadTestsFromTestCase(test_class)
-        suite.addTests(tests)
-    
-    # 运行测试
-    runner = unittest.TextTestRunner(verbosity=2)
-    result = runner.run(suite)
-    
-    # 返回测试结果
-    return result.wasSuccessful()
+    def test_operation_dataclass(self):
+        """测试 DiffOperation 数据类"""
+        op = DiffOperation(
+            diff_type=DiffType.INSERT,
+            old_start=1,
+            old_end=1,
+            new_start=1,
+            new_end=2,
+            old_content="",
+            new_content="new line"
+        )
+        
+        self.assertEqual(op.diff_type, DiffType.INSERT)
+        self.assertEqual(op.old_start, 1)
+        self.assertEqual(op.new_content, "new line")
 
 
 if __name__ == '__main__':
-    success = run_tests()
-    exit(0 if success else 1)
+    unittest.main(verbosity=2)
