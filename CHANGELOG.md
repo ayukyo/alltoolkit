@@ -2,6 +2,21 @@
 
 ## [2026-05-29]
 
+### 新增
+- **Python: fft_utils (69 单元测试，完整快速傅里叶变换工具库)** 📊
+  - FFT/IFFT：Cooley-Tukey 迭代算法，O(n log n) 时间复杂度
+  - DFT/IDFT：离散傅里叶变换，用于验证和小数据集
+  - RFFT/IRFFT：实数信号优化，只计算正频率部分
+  - 窗函数：Rectangular、Hanning、Hamming、Blackman、Bartlett、Kaiser (可调 β)
+  - 频谱分析：幅度谱、相位谱、功率谱、功率谱密度 (PSD)
+  - 峰值检测：频谱峰值检测、谐波检测、最小高度/间距参数
+  - 信号处理：FFT 卷积、互相关、自相关
+  - 信号生成：正弦波、余弦波、线性扫频 (Chirp)
+  - 工具函数：零填充、DC 偏移计算/移除、重采样、归一化
+  - 零外部依赖，纯 Python 标准库实现
+  - 测试覆盖：69 测试全部通过
+  - 应用场景：音频处理、振动分析、通信系统、医学信号处理、语音识别
+
 ### 修复
 - **Python: chunked_encoding_utils** 修复 analyze 函数对无效/部分数据的处理，添加 error 字段；修复测试数据 chunk size 与实际数据长度不匹配问题 (72 tests ✅)
 - **Python: csv_utils** 修复 pytest fixture 问题，添加 result fixture 支持 (11 tests ✅)
