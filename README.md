@@ -250,6 +250,9 @@ perl Perl/csv_utils/csv_utils_test.pl
 - **Python medication_utils**: 63 个测试用例，覆盖体重剂量计算、儿童剂量、输液速度、半衰期估算、剂量范围检查等 💊
 - **Python compliment_utils**: 38 个测试用例，覆盖称赞生成、分类称赞、多语言支持、强度分级、个性化称赞等 💬
 - **Python width_utils**: 76 个测试用例，覆盖字符宽度计算、CJK/Emoji处理、字符串截断/填充、多列对齐、ANSI码处理等 📏
+- **Python ansi_utils**: 44 个测试用例，覆盖 ANSI 转义序列、256色/真彩色、文本样式（粗体/斜体/下划线）、光标控制、屏幕操作、进度条、表格等 🎨
+- **Python inductor_utils**: 45 个测试用例，覆盖电感单位转换、SMD代码解码（3位/4位/R标记）、色码解码、电感储能、RL时间常数、感抗、Q值、谐振频率、互感计算、空芯/环形电感设计等 ⚡
+- **Python multi_armed_bandit_utils**: 44 个测试用例，覆盖多臂老虎机算法（Epsilon-Greedy/UCB1/Thompson Sampling/Softmax/EXP3）、臂管理、实验框架、A/B测试等 🎰
 
 ### 测试覆盖详情
 
