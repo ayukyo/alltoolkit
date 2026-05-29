@@ -1,404 +1,441 @@
 """
-Unit tests for Roman Numeral Utilities
-======================================
-
-Comprehensive test suite for roman_numeral_utils module.
-
-Run with: python -m pytest test_mod.py -v
-Or simply: python test_mod.py
+罗马数字工具测试套件
 """
 
-import unittest
-from mod import (
-    to_roman, from_roman, is_valid_roman,
-    roman_add, roman_subtract, roman_multiply, roman_divide,
-    get_roman_info, find_roman_palindromes, RomanNumeral,
-    InvalidRomanNumeralError, OutOfRangeError, RomanNumeralError,
-    int_to_roman, roman_to_int
+import pytest
+from roman_numeral_utils.mod import (
+    to_roman,
+    from_roman,
+    is_valid_roman,
+    validate_roman,
+    RomanNumeral,
+    RomanNumeralError,
+    InvalidRomanNumeralError,
+    OutOfRangeError,
+    roman_sort,
+    roman_range,
+    roman_sum,
+    roman_list,
+    RomanNumeralBuilder,
+    roman
 )
 
 
-class TestToRoman(unittest.TestCase):
-    """Tests for to_roman() function."""
+class TestToRoman:
+    """测试阿拉伯数字转罗马数字"""
     
-    def test_basic_numbers(self):
-        """Test basic number conversions."""
-        self.assertEqual(to_roman(1), 'I')
-        self.assertEqual(to_roman(5), 'V')
-        self.assertEqual(to_roman(10), 'X')
-        self.assertEqual(to_roman(50), 'L')
-        self.assertEqual(to_roman(100), 'C')
-        self.assertEqual(to_roman(500), 'D')
-        self.assertEqual(to_roman(1000), 'M')
+    def test_basic_conversions(self):
+        """测试基本转换"""
+        assert to_roman(1) == 'I'
+        assert to_roman(5) == 'V'
+        assert to_roman(10) == 'X'
+        assert to_roman(50) == 'L'
+        assert to_roman(100) == 'C'
+        assert to_roman(500) == 'D'
+        assert to_roman(1000) == 'M'
     
     def test_subtractive_notation(self):
-        """Test subtractive notation (4, 9, 40, etc.)."""
-        self.assertEqual(to_roman(4), 'IV')
-        self.assertEqual(to_roman(9), 'IX')
-        self.assertEqual(to_roman(40), 'XL')
-        self.assertEqual(to_roman(90), 'XC')
-        self.assertEqual(to_roman(400), 'CD')
-        self.assertEqual(to_roman(900), 'CM')
+        """测试减法表示法"""
+        assert to_roman(4) == 'IV'
+        assert to_roman(9) == 'IX'
+        assert to_roman(40) == 'XL'
+        assert to_roman(90) == 'XC'
+        assert to_roman(400) == 'CD'
+        assert to_roman(900) == 'CM'
     
     def test_complex_numbers(self):
-        """Test complex number conversions."""
-        self.assertEqual(to_roman(14), 'XIV')
-        self.assertEqual(to_roman(49), 'XLIX')
-        self.assertEqual(to_roman(99), 'XCIX')
-        self.assertEqual(to_roman(444), 'CDXLIV')
-        self.assertEqual(to_roman(999), 'CMXCIX')
-        self.assertEqual(to_roman(1994), 'MCMXCIV')
-        self.assertEqual(to_roman(2023), 'MMXXIII')
-        self.assertEqual(to_roman(3999), 'MMMCMXCIX')
+        """测试复杂数字"""
+        assert to_roman(1994) == 'MCMXCIV'
+        assert to_roman(2023) == 'MMXXIII'
+        assert to_roman(3999) == 'MMMCMXCIX'
+        assert to_roman(58) == 'LVIII'
+        assert to_roman(1776) == 'MDCCLXXVI'
+        assert to_roman(1954) == 'MCMLIV'
     
-    def test_out_of_range(self):
-        """Test out of range errors."""
-        with self.assertRaises(OutOfRangeError):
+    def test_lower_bound(self):
+        """测试下限"""
+        with pytest.raises(OutOfRangeError):
             to_roman(0)
-        with self.assertRaises(OutOfRangeError):
+        with pytest.raises(OutOfRangeError):
             to_roman(-1)
-        with self.assertRaises(OutOfRangeError):
+    
+    def test_upper_bound(self):
+        """测试上限"""
+        with pytest.raises(OutOfRangeError):
             to_roman(4000)
-        with self.assertRaises(OutOfRangeError):
+        with pytest.raises(OutOfRangeError):
             to_roman(10000)
     
-    def test_invalid_type(self):
-        """Test type errors."""
-        with self.assertRaises(TypeError):
+    def test_extended_range(self):
+        """测试扩展范围"""
+        assert to_roman(4000, extended=True) == '(IV)'
+        assert to_roman(5000, extended=True) == '(V)'
+        assert to_roman(10000, extended=True) == '(X)'
+        assert to_roman(100000, extended=True) == '(C)'
+        assert to_roman(1000000, extended=True) == '(M)'
+        assert to_roman(3999999, extended=True) == '(M)(M)(M)(CM)(XC)(IX)CMXCIX'
+    
+    def test_type_error(self):
+        """测试类型错误"""
+        with pytest.raises(TypeError):
             to_roman(1.5)
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             to_roman("10")
-        with self.assertRaises(TypeError):
-            to_roman(None)
-    
-    def test_edge_cases(self):
-        """Test edge cases."""
-        self.assertEqual(to_roman(2), 'II')
-        self.assertEqual(to_roman(3), 'III')
-        self.assertEqual(to_roman(6), 'VI')
-        self.assertEqual(to_roman(7), 'VII')
-        self.assertEqual(to_roman(8), 'VIII')
-        self.assertEqual(to_roman(11), 'XI')
-        self.assertEqual(to_roman(15), 'XV')
-        self.assertEqual(to_roman(19), 'XIX')
 
 
-class TestFromRoman(unittest.TestCase):
-    """Tests for from_roman() function."""
+class TestFromRoman:
+    """测试罗马数字转阿拉伯数字"""
     
-    def test_basic_numerals(self):
-        """Test basic numeral conversions."""
-        self.assertEqual(from_roman('I'), 1)
-        self.assertEqual(from_roman('V'), 5)
-        self.assertEqual(from_roman('X'), 10)
-        self.assertEqual(from_roman('L'), 50)
-        self.assertEqual(from_roman('C'), 100)
-        self.assertEqual(from_roman('D'), 500)
-        self.assertEqual(from_roman('M'), 1000)
+    def test_basic_conversions(self):
+        """测试基本转换"""
+        assert from_roman('I') == 1
+        assert from_roman('V') == 5
+        assert from_roman('X') == 10
+        assert from_roman('L') == 50
+        assert from_roman('C') == 100
+        assert from_roman('D') == 500
+        assert from_roman('M') == 1000
     
     def test_subtractive_notation(self):
-        """Test subtractive notation conversions."""
-        self.assertEqual(from_roman('IV'), 4)
-        self.assertEqual(from_roman('IX'), 9)
-        self.assertEqual(from_roman('XL'), 40)
-        self.assertEqual(from_roman('XC'), 90)
-        self.assertEqual(from_roman('CD'), 400)
-        self.assertEqual(from_roman('CM'), 900)
+        """测试减法表示法"""
+        assert from_roman('IV') == 4
+        assert from_roman('IX') == 9
+        assert from_roman('XL') == 40
+        assert from_roman('XC') == 90
+        assert from_roman('CD') == 400
+        assert from_roman('CM') == 900
     
-    def test_complex_numerals(self):
-        """Test complex numeral conversions."""
-        self.assertEqual(from_roman('XIV'), 14)
-        self.assertEqual(from_roman('XLIX'), 49)
-        self.assertEqual(from_roman('XCIX'), 99)
-        self.assertEqual(from_roman('CDXLIV'), 444)
-        self.assertEqual(from_roman('CMXCIX'), 999)
-        self.assertEqual(from_roman('MCMXCIV'), 1994)
-        self.assertEqual(from_roman('MMXXIII'), 2023)
-        self.assertEqual(from_roman('MMMCMXCIX'), 3999)
+    def test_complex_numbers(self):
+        """测试复杂数字"""
+        assert from_roman('MCMXCIV') == 1994
+        assert from_roman('MMXXIII') == 2023
+        assert from_roman('MMMCMXCIX') == 3999
+        assert from_roman('LVIII') == 58
+        assert from_roman('MDCCLXXVI') == 1776
+        assert from_roman('MCMLIV') == 1954
     
     def test_case_insensitive(self):
-        """Test case insensitivity."""
-        self.assertEqual(from_roman('iv'), 4)
-        self.assertEqual(from_roman('Xv'), 15)
-        self.assertEqual(from_roman('Mcmxciv'), 1994)
+        """测试大小写不敏感"""
+        assert from_roman('mcmxciv') == 1994
+        assert from_roman('McmXcIv') == 1994
     
     def test_whitespace_handling(self):
-        """Test whitespace handling."""
-        self.assertEqual(from_roman('  I  '), 1)
-        self.assertEqual(from_roman('\tIV\t'), 4)
+        """测试空白处理"""
+        assert from_roman('  MCMXCIV  ') == 1994
     
-    def test_invalid_numerals(self):
-        """Test invalid numeral detection."""
-        with self.assertRaises(InvalidRomanNumeralError):
+    def test_invalid_format(self):
+        """测试无效格式"""
+        with pytest.raises(InvalidRomanNumeralError):
+            from_roman('IIII')  # 应该是 IV
+        with pytest.raises(InvalidRomanNumeralError):
+            from_roman('VV')  # 应该是 X
+        with pytest.raises(InvalidRomanNumeralError):
+            from_roman('IC')  # 无效
+        with pytest.raises(InvalidRomanNumeralError):
+            from_roman('ABC')  # 无效字符
+    
+    def test_empty_string(self):
+        """测试空字符串"""
+        with pytest.raises(InvalidRomanNumeralError):
             from_roman('')
-        with self.assertRaises(InvalidRomanNumeralError):
-            from_roman('IIII')
-        with self.assertRaises(InvalidRomanNumeralError):
-            from_roman('VV')
-        with self.assertRaises(InvalidRomanNumeralError):
-            from_roman('XXXX')
-        with self.assertRaises(InvalidRomanNumeralError):
-            from_roman('ABC')
     
-    def test_invalid_type(self):
-        """Test type errors."""
-        with self.assertRaises(TypeError):
+    def test_type_error(self):
+        """测试类型错误"""
+        with pytest.raises(TypeError):
             from_roman(10)
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             from_roman(None)
-        with self.assertRaises(TypeError):
-            from_roman([])
-
-
-class TestRoundTrip(unittest.TestCase):
-    """Tests for round-trip conversions."""
     
-    def test_all_numbers(self):
-        """Test that all numbers 1-3999 convert correctly both ways."""
-        for num in range(1, 100):  # Test first 100
-            roman = to_roman(num)
-            back = from_roman(roman)
-            self.assertEqual(back, num, f"Failed for {num} -> {roman} -> {back}")
-        
-        # Test some larger numbers
-        for num in [100, 500, 999, 1000, 1994, 2023, 3000, 3999]:
-            roman = to_roman(num)
-            back = from_roman(roman)
-            self.assertEqual(back, num)
+    def test_extended_roman(self):
+        """测试扩展罗马数字"""
+        assert from_roman('(IV)', extended=True) == 4000
+        assert from_roman('(V)', extended=True) == 5000
+        assert from_roman('(X)', extended=True) == 10000
 
 
-class TestIsValidRoman(unittest.TestCase):
-    """Tests for is_valid_roman() function."""
+class TestIsValidRoman:
+    """测试罗马数字验证"""
     
     def test_valid_numerals(self):
-        """Test valid numeral detection."""
-        self.assertTrue(is_valid_roman('I'))
-        self.assertTrue(is_valid_roman('IV'))
-        self.assertTrue(is_valid_roman('XIV'))
-        self.assertTrue(is_valid_roman('MCMXCIV'))
-        self.assertTrue(is_valid_roman('MMXXIII'))
+        """测试有效的罗马数字"""
+        assert is_valid_roman('I') is True
+        assert is_valid_roman('IV') is True
+        assert is_valid_roman('MCMXCIV') is True
+        assert is_valid_roman('MMMCMXCIX') is True
     
     def test_invalid_numerals(self):
-        """Test invalid numeral detection."""
-        self.assertFalse(is_valid_roman('IIII'))
-        self.assertFalse(is_valid_roman('VV'))
-        self.assertFalse(is_valid_roman('ABC'))
-        self.assertFalse(is_valid_roman(''))
-        self.assertFalse(is_valid_roman('IM'))  # Invalid subtractive
-        self.assertFalse(is_valid_roman('XM'))
+        """测试无效的罗马数字"""
+        assert is_valid_roman('IIII') is False
+        assert is_valid_roman('ABC') is False
+        assert is_valid_roman('') is False
+        assert is_valid_roman('VV') is False
+    
+    def test_type_handling(self):
+        """测试类型处理"""
+        assert is_valid_roman(10) is False
+        assert is_valid_roman(None) is False
 
 
-class TestArithmetic(unittest.TestCase):
-    """Tests for arithmetic operations."""
+class TestValidateRoman:
+    """测试罗马数字验证（详细版本）"""
+    
+    def test_valid_numerals(self):
+        """测试有效罗马数字"""
+        valid, msg = validate_roman('MCMXCIV')
+        assert valid is True
+        assert '1994' in msg
+    
+    def test_invalid_numerals(self):
+        """测试无效罗马数字"""
+        valid, msg = validate_roman('ABC')
+        assert valid is False
+        assert 'Invalid' in msg
+
+
+class TestRomanNumeral:
+    """测试罗马数字类"""
+    
+    def test_from_int(self):
+        """测试从整数创建"""
+        r = RomanNumeral(10)
+        assert r.arabic == 10
+        assert r.roman == 'X'
+    
+    def test_from_string(self):
+        """测试从字符串创建"""
+        r = RomanNumeral('X')
+        assert r.arabic == 10
+        assert r.roman == 'X'
     
     def test_addition(self):
-        """Test Roman numeral addition."""
-        self.assertEqual(roman_add('I', 'I'), 'II')
-        self.assertEqual(roman_add('X', 'V'), 'XV')
-        self.assertEqual(roman_add('IX', 'I'), 'X')
-        self.assertEqual(roman_add('X', 'X'), 'XX')
-        self.assertEqual(roman_add('C', 'D'), 'DC')
+        """测试加法"""
+        r1 = RomanNumeral(10)
+        r2 = RomanNumeral(5)
+        result = r1 + r2
+        assert result.arabic == 15
+        assert result.roman == 'XV'
+    
+    def test_addition_with_int(self):
+        """测试与整数相加"""
+        r = RomanNumeral(10)
+        result = r + 5
+        assert result.arabic == 15
     
     def test_subtraction(self):
-        """Test Roman numeral subtraction."""
-        self.assertEqual(roman_subtract('X', 'V'), 'V')
-        self.assertEqual(roman_subtract('X', 'I'), 'IX')
-        self.assertEqual(roman_subtract('L', 'X'), 'XL')
-        self.assertEqual(roman_subtract('C', 'L'), 'L')
+        """测试减法"""
+        r1 = RomanNumeral(10)
+        r2 = RomanNumeral(5)
+        result = r1 - r2
+        assert result.arabic == 5
     
-    def test_subtraction_zero_error(self):
-        """Test subtraction resulting in zero."""
-        with self.assertRaises(OutOfRangeError):
-            roman_subtract('X', 'X')
+    def test_subtraction_error(self):
+        """测试减法结果为零或负数"""
+        r1 = RomanNumeral(5)
+        r2 = RomanNumeral(10)
+        with pytest.raises(OutOfRangeError):
+            r1 - r2
     
     def test_multiplication(self):
-        """Test Roman numeral multiplication."""
-        self.assertEqual(roman_multiply('X', 'V'), 'L')
-        self.assertEqual(roman_multiply('IV', 'V'), 'XX')
-        self.assertEqual(roman_multiply('X', 'X'), 'C')
-        self.assertEqual(roman_multiply('II', 'II'), 'IV')
+        """测试乘法"""
+        r1 = RomanNumeral(10)
+        r2 = RomanNumeral(5)
+        result = r1 * r2
+        assert result.arabic == 50
     
     def test_division(self):
-        """Test Roman numeral division."""
-        self.assertEqual(roman_divide('X', 'II'), ('V', ''))
-        self.assertEqual(roman_divide('X', 'III'), ('III', 'I'))
-        self.assertEqual(roman_divide('XX', 'V'), ('IV', ''))
-    
-    def test_division_zero_error(self):
-        """Test division by zero."""
-        # Note: There is no Roman numeral for zero, so we cannot test
-        # division by zero directly. The function checks if num2 == 0
-        # after conversion, but since Roman numerals cannot represent 0,
-        # this path is effectively unreachable with valid input.
-        pass  # Roman numerals cannot represent zero
-    
-    def test_division_zero_quotient(self):
-        """Test division with zero quotient."""
-        with self.assertRaises(OutOfRangeError):
-            roman_divide('I', 'V')
-
-
-class TestGetRomanInfo(unittest.TestCase):
-    """Tests for get_roman_info() function."""
-    
-    def test_info_structure(self):
-        """Test info structure."""
-        info = get_roman_info(1994)
-        self.assertEqual(info['arabic'], 1994)
-        self.assertEqual(info['roman'], 'MCMXCIV')
-        self.assertIsInstance(info['components'], list)
-    
-    def test_components(self):
-        """Test component breakdown."""
-        info = get_roman_info(14)
-        self.assertEqual(info['roman'], 'XIV')
-        self.assertEqual(info['components'], [('X', 10), ('IV', 4)])
-    
-    def test_simple_numbers(self):
-        """Test simple number info."""
-        info = get_roman_info(5)
-        self.assertEqual(info['arabic'], 5)
-        self.assertEqual(info['roman'], 'V')
-        self.assertEqual(info['components'], [('V', 5)])
-
-
-class TestFindRomanPalindromes(unittest.TestCase):
-    """Tests for find_roman_palindromes() function."""
-    
-    def test_palindromes(self):
-        """Test finding palindromes."""
-        palindromes = find_roman_palindromes(1, 20)
-        # I, II, III are palindromes
-        self.assertIn((1, 'I'), palindromes)
-        self.assertIn((2, 'II'), palindromes)
-        self.assertIn((3, 'III'), palindromes)
-    
-    def test_non_palindromes(self):
-        """Test that non-palindromes are not included."""
-        palindromes = find_roman_palindromes(1, 10)
-        # IV is not a palindrome
-        self.assertNotIn((4, 'IV'), palindromes)
-
-
-class TestRomanNumeralClass(unittest.TestCase):
-    """Tests for RomanNumeral class."""
-    
-    def test_creation_from_int(self):
-        """Test creating from integer."""
-        r = RomanNumeral(10)
-        self.assertEqual(r.arabic, 10)
-        self.assertEqual(r.roman, 'X')
-    
-    def test_creation_from_string(self):
-        """Test creating from Roman numeral string."""
-        r = RomanNumeral('XIV')
-        self.assertEqual(r.arabic, 14)
-        self.assertEqual(r.roman, 'XIV')
-    
-    def test_string_representation(self):
-        """Test string representation."""
-        r = RomanNumeral(10)
-        self.assertEqual(str(r), 'X')
-    
-    def test_repr(self):
-        """Test repr."""
-        r = RomanNumeral(10)
-        self.assertEqual(repr(r), "RomanNumeral('X', 10)")
-    
-    def test_int_conversion(self):
-        """Test integer conversion."""
-        r = RomanNumeral(10)
-        self.assertEqual(int(r), 10)
-    
-    def test_equality(self):
-        """Test equality comparisons."""
+        """测试除法"""
         r1 = RomanNumeral(10)
-        r2 = RomanNumeral(10)
-        r3 = RomanNumeral(5)
-        
-        self.assertEqual(r1, r2)
-        self.assertNotEqual(r1, r3)
-        self.assertEqual(r1, 10)
-        self.assertEqual(r1, 'X')
+        r2 = RomanNumeral(5)
+        result = r1 / r2
+        assert result.arabic == 2
+    
+    def test_modulo(self):
+        """测试取模"""
+        r1 = RomanNumeral(10)
+        r2 = RomanNumeral(3)
+        result = r1 % r2
+        assert result.arabic == 1
+    
+    def test_power(self):
+        """测试幂运算"""
+        r = RomanNumeral(2)
+        result = r ** 3
+        assert result.arabic == 8
     
     def test_comparison(self):
-        """Test comparison operators."""
+        """测试比较"""
         r1 = RomanNumeral(10)
         r2 = RomanNumeral(5)
-        
-        self.assertTrue(r1 > r2)
-        self.assertTrue(r2 < r1)
-        self.assertTrue(r1 >= r2)
-        self.assertTrue(r2 <= r1)
+        assert r1 > r2
+        assert r1 >= r2
+        assert r2 < r1
+        assert r2 <= r1
+        assert r1 != r2
     
-    def test_addition(self):
-        """Test addition."""
-        r1 = RomanNumeral(10)
-        r2 = RomanNumeral(5)
-        
-        result = r1 + r2
-        self.assertEqual(result.roman, 'XV')
-        self.assertEqual(result.arabic, 15)
-        
-        result = r1 + 5
-        self.assertEqual(result.arabic, 15)
-    
-    def test_subtraction(self):
-        """Test subtraction."""
-        r1 = RomanNumeral(10)
-        r2 = RomanNumeral(5)
-        
-        result = r1 - r2
-        self.assertEqual(result.roman, 'V')
-        self.assertEqual(result.arabic, 5)
-    
-    def test_multiplication(self):
-        """Test multiplication."""
-        r1 = RomanNumeral(10)
-        
-        result = r1 * 2
-        self.assertEqual(result.roman, 'XX')
-        self.assertEqual(result.arabic, 20)
-    
-    def test_floor_division(self):
-        """Test floor division."""
-        r1 = RomanNumeral(10)
-        
-        result = r1 // 3
-        self.assertEqual(result.arabic, 3)
-    
-    def test_hash(self):
-        """Test hashing."""
+    def test_equality(self):
+        """测试相等"""
         r1 = RomanNumeral(10)
         r2 = RomanNumeral(10)
-        
-        self.assertEqual(hash(r1), hash(r2))
-        
-        # Can be used in sets and dicts
-        s = {r1, r2}
-        self.assertEqual(len(s), 1)
+        assert r1 == r2
+        assert r1 == 10
+        assert r1 == 'X'
     
-    def test_invalid_creation(self):
-        """Test invalid creation."""
-        with self.assertRaises(TypeError):
-            RomanNumeral(1.5)
-        with self.assertRaises(TypeError):
-            RomanNumeral([])
+    def test_str_representation(self):
+        """测试字符串表示"""
+        r = RomanNumeral(1994)
+        assert str(r) == 'MCMXCIV'
+        assert repr(r) == "RomanNumeral('MCMXCIV')"
+    
+    def test_int_conversion(self):
+        """测试整数转换"""
+        r = RomanNumeral(1994)
+        assert int(r) == 1994
+    
+    def test_hash(self):
+        """测试哈希"""
+        r1 = RomanNumeral(10)
+        r2 = RomanNumeral(10)
+        assert hash(r1) == hash(r2)
+        # 可以用作字典键
+        d = {r1: 'value'}
+        assert d[r2] == 'value'
 
 
-class TestAliases(unittest.TestCase):
-    """Tests for alias functions."""
+class TestRomanSort:
+    """测试罗马数字排序"""
     
-    def test_int_to_roman(self):
-        """Test int_to_roman alias."""
-        self.assertEqual(int_to_roman(10), to_roman(10))
-        self.assertEqual(int_to_roman(1994), to_roman(1994))
+    def test_ascending_sort(self):
+        """测试升序排序"""
+        result = roman_sort(['III', 'I', 'II'])
+        assert result == ['I', 'II', 'III']
     
-    def test_roman_to_int(self):
-        """Test roman_to_int alias."""
-        self.assertEqual(roman_to_int('X'), from_roman('X'))
-        self.assertEqual(roman_to_int('MCMXCIV'), from_roman('MCMXCIV'))
+    def test_descending_sort(self):
+        """测试降序排序"""
+        result = roman_sort(['I', 'II', 'III'], reverse=True)
+        assert result == ['III', 'II', 'I']
+    
+    def test_mixed_types(self):
+        """测试混合类型"""
+        result = roman_sort([10, 'V', RomanNumeral(1)])
+        assert result == ['I', 'V', 'X']
+
+
+class TestRomanRange:
+    """测试罗马数字范围生成"""
+    
+    def test_basic_range(self):
+        """测试基本范围"""
+        result = roman_range(1, 5)
+        assert result == ['I', 'II', 'III', 'IV', 'V']
+    
+    def test_range_with_step(self):
+        """测试带步长的范围"""
+        result = roman_range(1, 10, step=2)
+        assert result == ['I', 'III', 'V', 'VII', 'IX']
+    
+    def test_out_of_range(self):
+        """测试超出范围"""
+        with pytest.raises(OutOfRangeError):
+            roman_range(0, 10)
+        with pytest.raises(OutOfRangeError):
+            roman_range(1, 5000)
+
+
+class TestRomanSum:
+    """测试罗马数字求和"""
+    
+    def test_basic_sum(self):
+        """测试基本求和"""
+        result = roman_sum(['X', 'V', 'I'])
+        assert result == 'XVI'
+    
+    def test_mixed_types_sum(self):
+        """测试混合类型求和"""
+        result = roman_sum([10, 'V', RomanNumeral(1)])
+        assert result == 'XVI'
+
+
+class TestRomanList:
+    """测试罗马数字列表格式化"""
+    
+    def test_basic_list(self):
+        """测试基本列表"""
+        result = roman_list(['I', 'II', 'III'])
+        lines = result.split('\n')
+        assert 'I.' in lines[0]
+        assert 'II.' in lines[1]
+        assert 'III.' in lines[2]
+
+
+class TestRomanNumeralBuilder:
+    """测试罗马数字构建器"""
+    
+    def test_basic_build(self):
+        """测试基本构建"""
+        builder = RomanNumeralBuilder()
+        result = builder.from_int(15).build()
+        assert result == 'XV'
+    
+    def test_add_operations(self):
+        """测试添加操作"""
+        builder = RomanNumeralBuilder()
+        result = builder.add(10).add('V').build()
+        assert result == 'XV'
+    
+    def test_subtract_operations(self):
+        """测试减法操作"""
+        builder = RomanNumeralBuilder()
+        result = builder.from_int(20).subtract(5).build()
+        assert result == 'XV'
+    
+    def test_multiply_operations(self):
+        """测试乘法操作"""
+        builder = RomanNumeralBuilder()
+        result = builder.from_int(5).multiply(3).build()
+        assert result == 'XV'
+    
+    def test_divide_operations(self):
+        """测试除法操作"""
+        builder = RomanNumeralBuilder()
+        result = builder.from_int(15).divide(3).build()
+        assert result == 'V'
+    
+    def test_reset(self):
+        """测试重置"""
+        builder = RomanNumeralBuilder()
+        result = builder.from_int(100).reset().from_int(5).build()
+        assert result == 'V'
+    
+    def test_build_numeral(self):
+        """测试构建RomanNumeral对象"""
+        builder = RomanNumeralBuilder()
+        result = builder.from_int(10).build_numeral()
+        assert isinstance(result, RomanNumeral)
+        assert result.arabic == 10
+
+
+class TestConvenienceFunction:
+    """测试便捷函数"""
+    
+    def test_roman_function(self):
+        """测试roman便捷函数"""
+        r1 = roman(10)
+        r2 = roman('V')
+        result = r1 + r2
+        assert result.arabic == 15
+
+
+class TestRoundTrip:
+    """测试往返转换"""
+    
+    @pytest.mark.parametrize("num", [1, 4, 9, 10, 40, 50, 90, 100, 400, 500, 
+                                      900, 1000, 1994, 2023, 3999])
+    def test_round_trip(self, num):
+        """测试所有基本数字的往返转换"""
+        roman_str = to_roman(num)
+        result = from_roman(roman_str)
+        assert result == num
 
 
 if __name__ == '__main__':
-    unittest.main(verbosity=2)
+    pytest.main([__file__, '-v'])

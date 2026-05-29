@@ -1,47 +1,94 @@
 """
-Roman Numeral Utils - 罗马数字转换工具
+Roman Numeral Utilities - 零外部依赖的罗马数字转换工具
 
-提供阿拉伯数字与罗马数字之间的相互转换，以及罗马数字的验证和运算功能。
-
-Features:
-- 阿拉伯数字转罗马数字 (int_to_roman)
-- 罗马数字转阿拉伯数字 (roman_to_int)
-- 罗马数字验证 (is_valid_roman)
-- 罗马数字加减运算 (roman_add, roman_subtract)
-- 罗马数字比较 (roman_compare)
-- 转换大型数字（使用上划线表示法，如 V̄ = 5000）
-
-Example:
-    >>> from mod import int_to_roman, roman_to_int
-    >>> int_to_roman(2024)
-    'MMXXIV'
-    >>> roman_to_int('MMXXIV')
-    2024
+功能:
+- 阿拉伯数字转罗马数字 (1-3999)
+- 罗马数字转阿拉伯数字
+- 罗马数字验证
+- 罗马数字算术运算 (加减乘除)
+- 罗马数字比较和排序
+- 支持扩展罗马数字 (使用上划线表示乘以1000)
+- 链式调用 API
 """
 
-from typing import Tuple, Optional
-import re
+from typing import Optional, List, Tuple, Union
+from functools import total_ordering
+
+
+class RomanNumeralError(Exception):
+    """罗马数字相关错误的基类"""
+    pass
+
+
+class InvalidRomanNumeralError(RomanNumeralError):
+    """无效的罗马数字格式"""
+    pass
+
+
+class OutOfRangeError(RomanNumeralError):
+    """数值超出范围"""
+    pass
 
 
 # 基本罗马数字映射
-ROMAN_NUMERALS = {
-    1: 'I',
-    4: 'IV',
-    5: 'V',
-    9: 'IX',
-    10: 'X',
-    40: 'XL',
-    50: 'L',
-    90: 'XC',
-    100: 'C',
-    400: 'CD',
-    500: 'D',
-    900: 'CM',
+ROMAN_MAP = {
     1000: 'M',
+    900: 'CM',
+    500: 'D',
+    400: 'CD',
+    100: 'C',
+    90: 'XC',
+    50: 'L',
+    40: 'XL',
+    10: 'X',
+    9: 'IX',
+    5: 'V',
+    4: 'IV',
+    1: 'I'
 }
 
-# 反向映射：罗马数字到阿拉伯数字
-ROMAN_TO_INT_MAP = {
+# 罗马数字到阿拉伯数字的映射
+ROMAN_VALUES = {
+    'I': 1,
+    'V': 5,
+    'X': 10,
+    'L': 50,
+    'C': 100,
+    'D': 500,
+    'M': 1000
+}
+
+# 扩展罗马数字映射（用于表示更大的数，上划线用括号表示）
+EXTENDED_ROMAN_MAP = {
+    1000000: '(M)',      # M with overline
+    900000: '(CM)',
+    500000: '(D)',       # D with overline
+    400000: '(CD)',
+    100000: '(C)',       # C with overline
+    90000: '(XC)',
+    50000: '(L)',         # L with overline
+    40000: '(XL)',
+    10000: '(X)',         # X with overline
+    9000: '(IX)',
+    5000: '(V)',          # V with overline
+    4000: '(IV)',
+    1000: 'M',
+    900: 'CM',
+    500: 'D',
+    400: 'CD',
+    100: 'C',
+    90: 'XC',
+    50: 'L',
+    40: 'XL',
+    10: 'X',
+    9: 'IX',
+    5: 'V',
+    4: 'IV',
+    1: 'I'
+}
+
+# 扩展罗马数字值
+EXTENDED_ROMAN_VALUES = {
     'I': 1,
     'V': 5,
     'X': 10,
@@ -49,489 +96,605 @@ ROMAN_TO_INT_MAP = {
     'C': 100,
     'D': 500,
     'M': 1000,
+    '(IV)': 4000,
+    '(V)': 5000,
+    '(IX)': 9000,
+    '(X)': 10000,
+    '(XL)': 40000,
+    '(L)': 50000,
+    '(XC)': 90000,
+    '(C)': 100000,
+    '(CD)': 400000,
+    '(D)': 500000,
+    '(CM)': 900000,
+    '(M)': 1000000
 }
 
-# 扩展映射（用于大于3999的数字）
-EXTENDED_ROMAN = {
-    5000: 'V̄',
-    10000: 'X̄',
-    50000: 'L̄',
-    100000: 'C̄',
-    500000: 'D̄',
-    1000000: 'M̄',
-}
 
-# 有效罗马数字的正则表达式
-VALID_ROMAN_PATTERN = re.compile(
-    '^M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$',
-    re.IGNORECASE
-)
-
-
-class RomanNumeralError(Exception):
-    """罗马数字相关错误基类"""
-    pass
-
-
-class InvalidRomanError(RomanNumeralError):
-    """无效的罗马数字"""
-    pass
-
-
-class OutOfRangeError(RomanNumeralError):
-    """数字超出可表示范围"""
-    pass
-
-
-def int_to_roman(num: int, use_overline: bool = False) -> str:
+def to_roman(num: int, extended: bool = False) -> str:
     """
-    将阿拉伯数字转换为罗马数字。
-
+    将阿拉伯数字转换为罗马数字
+    
     Args:
-        num: 要转换的整数（标准模式下支持1-3999）
-        use_overline: 是否使用上划线表示法支持更大数字
-
+        num: 要转换的阿拉伯数字
+        extended: 是否使用扩展罗马数字（支持更大的数值）
+    
     Returns:
-        str: 罗马数字字符串
-
+        罗马数字字符串
+    
     Raises:
-        OutOfRangeError: 数字小于1或超出可表示范围
+        OutOfRangeError: 数值超出有效范围
         TypeError: 输入不是整数
-
+    
     Examples:
-        >>> int_to_roman(1)
+        >>> to_roman(1)
         'I'
-        >>> int_to_roman(4)
-        'IV'
-        >>> int_to_roman(2024)
-        'MMXXIV'
-        >>> int_to_roman(3999)
-        'MMMCMXCIX'
+        >>> to_roman(1994)
+        'MCMXCIV'
+        >>> to_roman(4000, extended=True)
+        '(IV)'
     """
     if not isinstance(num, int):
-        raise TypeError(f"输入必须是整数，当前类型: {type(num).__name__}")
+        raise TypeError(f"Expected int, got {type(num).__name__}")
     
-    if num < 1:
-        raise OutOfRangeError(f"罗马数字不能表示0或负数: {num}")
-    
-    if not use_overline and num > 3999:
-        raise OutOfRangeError(
-            f"标准罗马数字最大支持3999，当前: {num}。"
-            "使用 use_overline=True 启用扩展表示法。"
-        )
+    if extended:
+        if num < 1 or num > 3999999:
+            raise OutOfRangeError(f"Number {num} out of range for extended roman numerals (1-3999999)")
+        mapping = EXTENDED_ROMAN_MAP
+    else:
+        if num < 1 or num > 3999:
+            raise OutOfRangeError(f"Number {num} out of range for standard roman numerals (1-3999)")
+        mapping = ROMAN_MAP
     
     result = []
-    
-    # 如果启用上划线且数字大于3999
-    if use_overline and num >= 4000:
-        # 扩展表示法
-        extended_values = sorted(EXTENDED_ROMAN.items(), key=lambda x: x[0], reverse=True)
-        standard_values = sorted(ROMAN_NUMERALS.items(), key=lambda x: x[0], reverse=True)
-        
-        for value, numeral in extended_values:
-            while num >= value:
-                result.append(numeral)
-                num -= value
-        
-        for value, numeral in standard_values:
-            while num >= value:
-                result.append(numeral)
-                num -= value
-    else:
-        # 标准转换
-        values = sorted(ROMAN_NUMERALS.items(), key=lambda x: x[0], reverse=True)
-        
-        for value, numeral in values:
-            while num >= value:
-                result.append(numeral)
-                num -= value
+    for value, symbol in mapping.items():
+        while num >= value:
+            result.append(symbol)
+            num -= value
     
     return ''.join(result)
 
 
-def roman_to_int(roman: str) -> int:
+def from_roman(roman: str, extended: bool = False) -> int:
     """
-    将罗马数字转换为阿拉伯数字。
-
+    将罗马数字转换为阿拉伯数字
+    
     Args:
         roman: 罗马数字字符串
-
+        extended: 是否解析扩展罗马数字
+    
     Returns:
-        int: 对应的阿拉伯数字
-
+        对应的阿拉伯数字
+    
     Raises:
-        InvalidRomanError: 输入不是有效的罗马数字
+        InvalidRomanNumeralError: 无效的罗马数字格式
         TypeError: 输入不是字符串
-
+    
     Examples:
-        >>> roman_to_int('I')
+        >>> from_roman('I')
         1
-        >>> roman_to_int('IV')
-        4
-        >>> roman_to_int('MMXXIV')
-        2024
+        >>> from_roman('MCMXCIV')
+        1994
+        >>> from_roman('(IV)', extended=True)
+        4000
     """
     if not isinstance(roman, str):
-        raise TypeError(f"输入必须是字符串，当前类型: {type(roman).__name__}")
+        raise TypeError(f"Expected str, got {type(roman).__name__}")
     
     roman = roman.strip().upper()
     
     if not roman:
-        raise InvalidRomanError("空字符串不是有效的罗马数字")
+        raise InvalidRomanNumeralError("Empty string is not a valid roman numeral")
     
-    # 验证罗马数字格式
-    if not is_valid_roman(roman):
-        raise InvalidRomanError(f"无效的罗马数字: '{roman}'")
+    if extended:
+        return _parse_extended_roman(roman)
+    else:
+        return _parse_standard_roman(roman)
+
+
+def _parse_standard_roman(roman: str) -> int:
+    """解析标准罗马数字"""
+    # 验证字符
+    valid_chars = set(ROMAN_VALUES.keys())
+    if not all(c in valid_chars for c in roman):
+        raise InvalidRomanNumeralError(f"Invalid character in roman numeral: {roman}")
     
+    # 计算值
     result = 0
     prev_value = 0
     
     for char in reversed(roman):
-        if char not in ROMAN_TO_INT_MAP:
-            raise InvalidRomanError(f"无效的罗马数字字符: '{char}'")
-        
-        current_value = ROMAN_TO_INT_MAP[char]
-        
-        # 如果当前值小于前一个值，则减去（处理减法原则）
-        if current_value < prev_value:
-            result -= current_value
+        value = ROMAN_VALUES[char]
+        if value < prev_value:
+            result -= value
         else:
-            result += current_value
-        
-        prev_value = current_value
+            result += value
+        prev_value = value
+    
+    # 验证：转换回去应该得到相同的结果
+    if to_roman(result) != roman:
+        raise InvalidRomanNumeralError(f"Invalid roman numeral format: {roman}")
     
     return result
 
 
-def is_valid_roman(roman: str) -> bool:
+def _parse_extended_roman(roman: str) -> int:
+    """解析扩展罗马数字（支持上划线表示法，用括号代替）"""
+    result = 0
+    i = 0
+    
+    while i < len(roman):
+        # 尝试匹配扩展符号（括号包围的）
+        if roman[i] == '(':
+            end = roman.find(')', i)
+            if end == -1:
+                raise InvalidRomanNumeralError(f"Unmatched parenthesis in: {roman}")
+            
+            extended_symbol = roman[i:end+1]
+            if extended_symbol not in EXTENDED_ROMAN_VALUES:
+                raise InvalidRomanNumeralError(f"Invalid extended symbol: {extended_symbol}")
+            
+            result += EXTENDED_ROMAN_VALUES[extended_symbol]
+            i = end + 1
+        elif roman[i] in ROMAN_VALUES:
+            # 标准罗马数字
+            result += ROMAN_VALUES[roman[i]]
+            i += 1
+        else:
+            raise InvalidRomanNumeralError(f"Invalid character in roman numeral: {roman[i]}")
+    
+    return result
+
+
+def is_valid_roman(roman: str, extended: bool = False) -> bool:
     """
-    验证字符串是否为有效的罗马数字。
-
+    检查字符串是否为有效的罗马数字
+    
     Args:
-        roman: 要验证的字符串
-
+        roman: 要检查的字符串
+        extended: 是否支持扩展罗马数字
+    
     Returns:
-        bool: 是否为有效的罗马数字
-
+        如果有效返回True，否则返回False
+    
     Examples:
-        >>> is_valid_roman('IV')
+        >>> is_valid_roman('MCMXCIV')
         True
-        >>> is_valid_roman('IIII')
-        False
         >>> is_valid_roman('ABC')
         False
+        >>> is_valid_roman('IIII')
+        False
     """
-    if not isinstance(roman, str):
+    try:
+        from_roman(roman, extended=extended)
+        return True
+    except (InvalidRomanNumeralError, TypeError):
         return False
-    
-    roman = roman.strip().upper()
-    
-    if not roman:
-        return False
-    
-    # 检查所有字符是否有效
-    valid_chars = set(ROMAN_TO_INT_MAP.keys())
-    if not all(char in valid_chars for char in roman):
-        return False
-    
-    # 使用正则表达式验证格式
-    return bool(VALID_ROMAN_PATTERN.match(roman))
 
 
-def roman_add(roman1: str, roman2: str) -> str:
+def validate_roman(roman: str, extended: bool = False) -> Tuple[bool, Optional[str]]:
     """
-    两个罗马数字相加。
-
+    验证罗马数字并返回详细信息
+    
     Args:
-        roman1: 第一个罗马数字
-        roman2: 第二个罗马数字
-
-    Returns:
-        str: 相加结果的罗马数字
-
-    Raises:
-        InvalidRomanError: 输入不是有效的罗马数字
-        OutOfRangeError: 结果超出可表示范围
-
-    Examples:
-        >>> roman_add('X', 'V')
-        'XV'
-        >>> roman_add('IV', 'VI')
-        'X'
-    """
-    num1 = roman_to_int(roman1)
-    num2 = roman_to_int(roman2)
-    return int_to_roman(num1 + num2)
-
-
-def roman_subtract(roman1: str, roman2: str) -> str:
-    """
-    两个罗马数字相减。
-
-    Args:
-        roman1: 被减数（罗马数字）
-        roman2: 减数（罗马数字）
-
-    Returns:
-        str: 相减结果的罗马数字
-
-    Raises:
-        InvalidRomanError: 输入不是有效的罗马数字
-        OutOfRangeError: 结果小于或等于0
-
-    Examples:
-        >>> roman_subtract('X', 'V')
-        'V'
-        >>> roman_subtract('X', 'I')
-        'IX'
-    """
-    num1 = roman_to_int(roman1)
-    num2 = roman_to_int(roman2)
-    return int_to_roman(num1 - num2)
-
-
-def roman_multiply(roman1: str, roman2: str) -> str:
-    """
-    两个罗马数字相乘。
-
-    Args:
-        roman1: 第一个罗马数字
-        roman2: 第二个罗马数字
-
-    Returns:
-        str: 相乘结果的罗马数字
-
-    Raises:
-        InvalidRomanError: 输入不是有效的罗马数字
-        OutOfRangeError: 结果超出可表示范围
-
-    Examples:
-        >>> roman_multiply('V', 'II')
-        'X'
-        >>> roman_multiply('X', 'X')
-        'C'
-    """
-    num1 = roman_to_int(roman1)
-    num2 = roman_to_int(roman2)
-    return int_to_roman(num1 * num2)
-
-
-def roman_divide(roman1: str, roman2: str) -> Tuple[str, str]:
-    """
-    两个罗马数字相除。
-
-    Args:
-        roman1: 被除数（罗马数字）
-        roman2: 除数（罗马数字）
-
-    Returns:
-        Tuple[str, str]: (商, 余数) 都是罗马数字
-
-    Raises:
-        InvalidRomanError: 输入不是有效的罗马数字
-        ZeroDivisionError: 除数为0
-
-    Examples:
-        >>> roman_divide('X', 'III')
-        ('III', 'I')
-        >>> roman_divide('X', 'II')
-        ('V', '')
-    """
-    num1 = roman_to_int(roman1)
-    num2 = roman_to_int(roman2)
+        roman: 要验证的字符串
+        extended: 是否支持扩展罗马数字
     
-    if num2 == 0:
-        raise ZeroDivisionError("罗马数字不能被零整除")
-    
-    quotient = num1 // num2
-    remainder = num1 % num2
-    
-    if quotient == 0:
-        raise OutOfRangeError("商为0，罗马数字无法表示0")
-    
-    result = int_to_roman(quotient)
-    remainder_roman = int_to_roman(remainder) if remainder > 0 else ''
-    
-    return (result, remainder_roman)
-
-
-def roman_compare(roman1: str, roman2: str) -> int:
-    """
-    比较两个罗马数字的大小。
-
-    Args:
-        roman1: 第一个罗马数字
-        roman2: 第二个罗马数字
-
     Returns:
-        int: 负数表示roman1<roman2，0表示相等，正数表示roman1>roman2
-
-    Raises:
-        InvalidRomanError: 输入不是有效的罗马数字
-
-    Examples:
-        >>> roman_compare('V', 'X')
-        -1
-        >>> roman_compare('X', 'X')
-        0
-        >>> roman_compare('X', 'V')
-        1
-    """
-    num1 = roman_to_int(roman1)
-    num2 = roman_to_int(roman2)
+        (是否有效, 错误信息)
     
-    if num1 < num2:
-        return -1
-    elif num1 > num2:
-        return 1
-    else:
-        return 0
-
-
-def get_roman_info(roman: str) -> dict:
-    """
-    获取罗马数字的详细信息。
-
-    Args:
-        roman: 罗马数字字符串
-
-    Returns:
-        dict: 包含各种信息的字典
-
     Examples:
-        >>> info = get_roman_info('MMXXIV')
-        >>> info['value']
-        2024
-        >>> info['valid']
+        >>> validate_roman('MCMXCIV')
+        (True, None)
+        >>> validate_roman('ABC')
+        (False, 'Invalid character in roman numeral: ABC')
+    """
+    try:
+        value = from_roman(roman, extended=extended)
+        return True, f"Valid roman numeral for {value}"
+    except InvalidRomanNumeralError as e:
+        return False, str(e)
+    except TypeError as e:
+        return False, str(e)
+
+
+@total_ordering
+class RomanNumeral:
+    """
+    罗马数字类，支持算术运算和比较
+    
+    Examples:
+        >>> r1 = RomanNumeral(10)
+        >>> r2 = RomanNumeral('V')
+        >>> r1 + r2
+        RomanNumeral('XV')
+        >>> r1 * r2
+        RomanNumeral('L')
+        >>> r1 > r2
         True
     """
-    try:
-        value = roman_to_int(roman)
-        valid = True
-        length = len(roman.strip().upper())
+    
+    def __init__(self, value: Union[int, str], extended: bool = False):
+        """
+        初始化罗马数字
         
-        # 分析组成
-        components = []
-        temp_value = value
-        for val, numeral in sorted(ROMAN_NUMERALS.items(), key=lambda x: x[0], reverse=True):
-            while temp_value >= val:
-                components.append(numeral)
-                temp_value -= val
+        Args:
+            value: 阿拉伯数字(int)或罗马数字(str)
+            extended: 是否使用扩展罗马数字
+        """
+        self._extended = extended
         
-        return {
-            'original': roman.strip().upper(),
-            'value': value,
-            'valid': valid,
-            'length': length,
-            'components': components,
-            'digit_count': len(str(value)),
-        }
-    except RomanNumeralError:
-        return {
-            'original': roman.strip().upper() if isinstance(roman, str) else str(roman),
-            'value': None,
-            'valid': False,
-            'error': '无效的罗马数字',
-        }
+        if isinstance(value, int):
+            self._arabic = value
+            self._roman = to_roman(value, extended=extended)
+        elif isinstance(value, str):
+            self._arabic = from_roman(value, extended=extended)
+            self._roman = to_roman(self._arabic, extended=extended)
+        else:
+            raise TypeError(f"Expected int or str, got {type(value).__name__}")
+    
+    @property
+    def arabic(self) -> int:
+        """返回阿拉伯数字表示"""
+        return self._arabic
+    
+    @property
+    def roman(self) -> str:
+        """返回罗马数字表示"""
+        return self._roman
+    
+    @property
+    def extended(self) -> bool:
+        """是否使用扩展罗马数字"""
+        return self._extended
+    
+    def __repr__(self) -> str:
+        return f"RomanNumeral('{self._roman}')"
+    
+    def __str__(self) -> str:
+        return self._roman
+    
+    def __int__(self) -> int:
+        return self._arabic
+    
+    def __add__(self, other: Union['RomanNumeral', int]) -> 'RomanNumeral':
+        if isinstance(other, RomanNumeral):
+            return RomanNumeral(self._arabic + other._arabic, extended=self._extended)
+        elif isinstance(other, int):
+            return RomanNumeral(self._arabic + other, extended=self._extended)
+        return NotImplemented
+    
+    def __radd__(self, other: int) -> 'RomanNumeral':
+        return self.__add__(other)
+    
+    def __sub__(self, other: Union['RomanNumeral', int]) -> 'RomanNumeral':
+        if isinstance(other, RomanNumeral):
+            result = self._arabic - other._arabic
+        elif isinstance(other, int):
+            result = self._arabic - other
+        else:
+            return NotImplemented
+        
+        if result < 1:
+            raise OutOfRangeError("Roman numerals cannot represent zero or negative numbers")
+        return RomanNumeral(result, extended=self._extended)
+    
+    def __rsub__(self, other: int) -> 'RomanNumeral':
+        result = other - self._arabic
+        if result < 1:
+            raise OutOfRangeError("Roman numerals cannot represent zero or negative numbers")
+        return RomanNumeral(result, extended=self._extended)
+    
+    def __mul__(self, other: Union['RomanNumeral', int]) -> 'RomanNumeral':
+        if isinstance(other, RomanNumeral):
+            return RomanNumeral(self._arabic * other._arabic, extended=self._extended)
+        elif isinstance(other, int):
+            return RomanNumeral(self._arabic * other, extended=self._extended)
+        return NotImplemented
+    
+    def __rmul__(self, other: int) -> 'RomanNumeral':
+        return self.__mul__(other)
+    
+    def __truediv__(self, other: Union['RomanNumeral', int]) -> 'RomanNumeral':
+        if isinstance(other, RomanNumeral):
+            result = self._arabic // other._arabic
+        elif isinstance(other, int):
+            result = self._arabic // other
+        else:
+            return NotImplemented
+        
+        if result < 1:
+            raise OutOfRangeError("Roman numerals cannot represent zero or negative numbers")
+        return RomanNumeral(result, extended=self._extended)
+    
+    def __floordiv__(self, other: Union['RomanNumeral', int]) -> 'RomanNumeral':
+        return self.__truediv__(other)
+    
+    def __mod__(self, other: Union['RomanNumeral', int]) -> 'RomanNumeral':
+        if isinstance(other, RomanNumeral):
+            result = self._arabic % other._arabic
+        elif isinstance(other, int):
+            result = self._arabic % other
+        else:
+            return NotImplemented
+        
+        if result < 1:
+            raise OutOfRangeError("Roman numerals cannot represent zero or negative numbers")
+        return RomanNumeral(result, extended=self._extended)
+    
+    def __pow__(self, other: int) -> 'RomanNumeral':
+        if not isinstance(other, int):
+            return NotImplemented
+        return RomanNumeral(self._arabic ** other, extended=self._extended)
+    
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, RomanNumeral):
+            return self._arabic == other._arabic
+        elif isinstance(other, int):
+            return self._arabic == other
+        elif isinstance(other, str):
+            try:
+                return self._arabic == from_roman(other, extended=self._extended)
+            except InvalidRomanNumeralError:
+                return False
+        return NotImplemented
+    
+    def __lt__(self, other: Union['RomanNumeral', int]) -> bool:
+        if isinstance(other, RomanNumeral):
+            return self._arabic < other._arabic
+        elif isinstance(other, int):
+            return self._arabic < other
+        return NotImplemented
+    
+    def __hash__(self) -> int:
+        return hash(self._arabic)
 
 
-def find_roman_range(start: int, end: int) -> list:
+def roman_sort(romans: List[Union[str, 'RomanNumeral', int]], 
+               reverse: bool = False,
+               extended: bool = False) -> List[str]:
     """
-    生成指定范围内所有整数的罗马数字列表。
-
+    对罗马数字列表进行排序
+    
     Args:
-        start: 起始整数
-        end: 结束整数
-
+        romans: 罗马数字列表（可以是字符串、RomanNumeral对象或整数）
+        reverse: 是否降序排列
+        extended: 是否使用扩展罗马数字
+    
     Returns:
-        list: 包含(value, roman)元组的列表
-
-    Raises:
-        OutOfRangeError: 范围超出可表示范围
-
+        排序后的罗马数字字符串列表
+    
     Examples:
-        >>> find_roman_range(1, 5)
-        [(1, 'I'), (2, 'II'), (3, 'III'), (4, 'IV'), (5, 'V')]
+        >>> roman_sort(['III', 'I', 'II'])
+        ['I', 'II', 'III']
+        >>> roman_sort(['M', 'I', 'C'], reverse=True)
+        ['M', 'C', 'I']
     """
-    if start < 1 or end > 3999:
-        raise OutOfRangeError("范围必须在1到3999之间")
+    def to_sort_key(item):
+        if isinstance(item, RomanNumeral):
+            return item.arabic
+        elif isinstance(item, int):
+            return item
+        elif isinstance(item, str):
+            return from_roman(item, extended=extended)
+        else:
+            raise TypeError(f"Unsupported type: {type(item)}")
     
-    if start > end:
-        start, end = end, start
+    sorted_items = sorted(romans, key=to_sort_key, reverse=reverse)
     
-    return [(i, int_to_roman(i)) for i in range(start, end + 1)]
+    # 转换为罗马数字字符串
+    result = []
+    for item in sorted_items:
+        if isinstance(item, RomanNumeral):
+            result.append(item.roman)
+        elif isinstance(item, int):
+            result.append(to_roman(item, extended=extended))
+        else:
+            result.append(item)
+    
+    return result
 
 
-def search_by_value(value: int) -> Optional[str]:
+def roman_range(start: int, end: int, step: int = 1, extended: bool = False) -> List[str]:
     """
-    根据阿拉伯数字值搜索对应的罗马数字。
-
+    生成罗马数字范围内的列表
+    
     Args:
-        value: 要搜索的值
-
+        start: 起始值（阿拉伯数字）
+        end: 结束值（阿拉伯数字）
+        step: 步长
+        extended: 是否使用扩展罗马数字
+    
     Returns:
-        Optional[str]: 对应的罗马数字，如果超出范围则返回None
-
+        罗马数字字符串列表
+    
     Examples:
-        >>> search_by_value(10)
-        'X'
-        >>> search_by_value(5000)
-        None
+        >>> roman_range(1, 5)
+        ['I', 'II', 'III', 'IV', 'V']
     """
-    try:
-        return int_to_roman(value)
-    except OutOfRangeError:
-        return None
+    max_val = 3999999 if extended else 3999
+    if start < 1 or end > max_val:
+        raise OutOfRangeError(f"Range must be within 1-{max_val}")
+    
+    return [to_roman(i, extended=extended) for i in range(start, end + 1, step)]
 
 
-# 预定义的常见罗马数字
-COMMON_ROMANS = {
-    1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V',
-    6: 'VI', 7: 'VII', 8: 'VIII', 9: 'IX', 10: 'X',
-    20: 'XX', 30: 'XXX', 40: 'XL', 50: 'L',
-    60: 'LX', 70: 'LXX', 80: 'LXXX', 90: 'XC', 100: 'C',
-    200: 'CC', 300: 'CCC', 400: 'CD', 500: 'D',
-    600: 'DC', 700: 'DCC', 800: 'DCCC', 900: 'CM', 1000: 'M',
-    1984: 'MCMLXXXIV', 1999: 'MCMXCIX', 
-    2000: 'MM', 2024: 'MMXXIV', 
-    2025: 'MMXXV', 3000: 'MMM', 3999: 'MMMCMXCIX',
-}
+def roman_sum(romans: List[Union[str, 'RomanNumeral', int]], extended: bool = False) -> str:
+    """
+    计算罗马数字列表的和
+    
+    Args:
+        romans: 罗马数字列表
+        extended: 是否使用扩展罗马数字
+    
+    Returns:
+        和的罗马数字表示
+    
+    Examples:
+        >>> roman_sum(['X', 'V'])
+        'XV'
+    """
+    total = 0
+    for item in romans:
+        if isinstance(item, RomanNumeral):
+            total += item.arabic
+        elif isinstance(item, int):
+            total += item
+        elif isinstance(item, str):
+            total += from_roman(item, extended=extended)
+        else:
+            raise TypeError(f"Unsupported type: {type(item)}")
+    
+    return to_roman(total, extended=extended)
 
 
-if __name__ == '__main__':
-    # 演示功能
-    print("=" * 50)
-    print("Roman Numeral Utils - 罗马数字转换工具演示")
-    print("=" * 50)
+def roman_list(romans: List[Union[str, 'RomanNumeral', int]], extended: bool = False) -> str:
+    """
+    将罗马数字列表格式化为带编号的字符串
     
-    # 基本转换
-    print("\n【基本转换】")
-    test_numbers = [1, 4, 9, 49, 99, 2024, 3999]
-    for num in test_numbers:
-        roman = int_to_roman(num)
-        back = roman_to_int(roman)
-        print(f"  {num} → {roman} → {back}")
+    Args:
+        romans: 罗马数字列表
+        extended: 是否使用扩展罗马数字
     
-    # 验证
-    print("\n【验证功能】")
-    test_romans = ['IV', 'IIII', 'ABC', 'MMXXIV', 'MCMLXXXIV']
-    for r in test_romans:
-        valid = is_valid_roman(r)
-        print(f"  '{r}': {'有效' if valid else '无效'}")
+    Returns:
+        格式化的字符串
     
-    # 运算
-    print("\n【运算功能】")
-    print(f"  X + V = {roman_add('X', 'V')}")
-    print(f"  X - I = {roman_subtract('X', 'I')}")
-    print(f"  V × II = {roman_multiply('V', 'II')}")
-    print(f"  X ÷ III = {roman_divide('X', 'III')}")
+    Examples:
+        >>> print(roman_list(['I', 'II', 'III']))
+        I. 第一项
+        II. 第二项
+        III. 第三项
+    """
+    chinese_nums = ['第一项', '第二项', '第三项', '第四项', '第五项',
+                    '第六项', '第七项', '第八项', '第九项', '第十项']
     
-    # 比较
-    print("\n【比较功能】")
-    pairs = [('V', 'X'), ('X', 'X'), ('X', 'V')]
-    for a, b in pairs:
-        result = roman_compare(a, b)
-        symbol = '<' if result < 0 else ('=' if result == 0 else '>')
-        print(f"  {a} {symbol} {b}")
+    lines = []
+    for i, item in enumerate(romans):
+        if isinstance(item, RomanNumeral):
+            r = item.roman
+        elif isinstance(item, int):
+            r = to_roman(item, extended=extended)
+        else:
+            r = item
+        
+        desc = chinese_nums[i] if i < len(chinese_nums) else f"第{i+1}项"
+        lines.append(f"{r}. {desc}")
     
-    print("\n" + "=" * 50)
+    return '\n'.join(lines)
+
+
+class RomanNumeralBuilder:
+    """
+    罗马数字构建器，支持链式调用
+    
+    Examples:
+        >>> builder = RomanNumeralBuilder()
+        >>> builder.add(10).add(5).build()
+        'XV'
+        >>> builder.reset().from_int(1994).build()
+        'MCMXCIV'
+    """
+    
+    def __init__(self, extended: bool = False):
+        self._extended = extended
+        self._value = 0
+    
+    def reset(self) -> 'RomanNumeralBuilder':
+        """重置累加值为0"""
+        self._value = 0
+        return self
+    
+    def add(self, value: Union[int, str, RomanNumeral]) -> 'RomanNumeralBuilder':
+        """添加一个值到累加器"""
+        if isinstance(value, RomanNumeral):
+            self._value += value.arabic
+        elif isinstance(value, int):
+            self._value += value
+        elif isinstance(value, str):
+            self._value += from_roman(value, extended=self._extended)
+        else:
+            raise TypeError(f"Unsupported type: {type(value)}")
+        return self
+    
+    def subtract(self, value: Union[int, str, RomanNumeral]) -> 'RomanNumeralBuilder':
+        """从累加器减去一个值"""
+        if isinstance(value, RomanNumeral):
+            self._value -= value.arabic
+        elif isinstance(value, int):
+            self._value -= value
+        elif isinstance(value, str):
+            self._value -= from_roman(value, extended=self._extended)
+        else:
+            raise TypeError(f"Unsupported type: {type(value)}")
+        
+        if self._value < 1:
+            raise OutOfRangeError("Value cannot be less than 1")
+        return self
+    
+    def multiply(self, value: int) -> 'RomanNumeralBuilder':
+        """将累加器乘以一个整数"""
+        self._value *= value
+        return self
+    
+    def divide(self, value: int) -> 'RomanNumeralBuilder':
+        """将累加器除以一个整数（整数除法）"""
+        self._value //= value
+        if self._value < 1:
+            raise OutOfRangeError("Value cannot be less than 1")
+        return self
+    
+    def from_int(self, value: int) -> 'RomanNumeralBuilder':
+        """从整数设置值"""
+        self._value = value
+        return self
+    
+    def from_roman(self, roman: str) -> 'RomanNumeralBuilder':
+        """从罗马数字字符串设置值"""
+        self._value = from_roman(roman, extended=self._extended)
+        return self
+    
+    def build(self) -> str:
+        """构建并返回罗马数字字符串"""
+        return to_roman(self._value, extended=self._extended)
+    
+    def build_numeral(self) -> RomanNumeral:
+        """构建并返回RomanNumeral对象"""
+        return RomanNumeral(self._value, extended=self._extended)
+
+
+# 便捷函数
+def roman(num: Union[int, str], extended: bool = False) -> RomanNumeral:
+    """
+    创建罗马数字对象的便捷函数
+    
+    Args:
+        num: 整数或罗马数字字符串
+        extended: 是否使用扩展罗马数字
+    
+    Returns:
+        RomanNumeral对象
+    
+    Examples:
+        >>> roman(10) + roman('V')
+        RomanNumeral('XV')
+    """
+    return RomanNumeral(num, extended=extended)
+
+
+# 导出的公共API
+__all__ = [
+    'to_roman',
+    'from_roman',
+    'is_valid_roman',
+    'validate_roman',
+    'RomanNumeral',
+    'RomanNumeralError',
+    'InvalidRomanNumeralError',
+    'OutOfRangeError',
+    'roman_sort',
+    'roman_range',
+    'roman_sum',
+    'roman_list',
+    'RomanNumeralBuilder',
+    'roman',
+]

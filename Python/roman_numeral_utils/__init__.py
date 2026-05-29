@@ -3,38 +3,48 @@ Roman Numeral Utilities
 =======================
 
 A comprehensive library for converting between Arabic numerals and Roman numerals.
+
+Features:
+- Arabic to Roman numeral conversion (1-3999 standard, up to 3999999 extended)
+- Roman to Arabic numeral conversion
+- Validation and detailed error messages
+- RomanNumeral class with arithmetic operations
+- Chain builder for fluent API
+- Sorting, summing, and range generation
 """
 
 from .mod import (
     to_roman,
     from_roman,
     is_valid_roman,
-    parse_roman_in_text,
+    validate_roman,
+    RomanNumeral,
+    RomanNumeralError,
+    InvalidRomanNumeralError,
+    OutOfRangeError,
+    roman_sort,
     roman_range,
-    add_roman,
-    subtract_roman,
-    compare_roman,
-    get_roman_info,
-    format_with_ordinal,
-    ROMAN_ONES,
-    ROMAN_TENS,
-    ROMAN_HUNDREDS,
+    roman_sum,
+    roman_list,
+    RomanNumeralBuilder,
+    roman,
 )
 
 __all__ = [
     'to_roman',
     'from_roman',
     'is_valid_roman',
-    'parse_roman_in_text',
+    'validate_roman',
+    'RomanNumeral',
+    'RomanNumeralError',
+    'InvalidRomanNumeralError',
+    'OutOfRangeError',
+    'roman_sort',
     'roman_range',
-    'add_roman',
-    'subtract_roman',
-    'compare_roman',
-    'get_roman_info',
-    'format_with_ordinal',
-    'ROMAN_ONES',
-    'ROMAN_TENS',
-    'ROMAN_HUNDREDS',
+    'roman_sum',
+    'roman_list',
+    'RomanNumeralBuilder',
+    'roman',
 ]
 
-__version__ = '1.0.0'
+__version__ = '2.0.0'
