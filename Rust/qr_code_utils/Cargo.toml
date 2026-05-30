@@ -1,0 +1,27 @@
+[package]
+name = "qr_code_utils"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "零依赖 QR 码生成器 - 支持多种编码模式、纠错级别和输出格式"
+license = "MIT"
+keywords = ["qr", "qrcode", "barcode", "generator", "no-std"]
+categories = ["encoding", "graphics", "no-std"]
+
+[dependencies]
+
+[features]
+default = ["std"]
+std = []
+
+[[example]]
+name = "basic"
+path = "examples/basic.rs"
+
+[[example]]
+name = "batch"
+path = "examples/batch.rs"
+
+[[example]]
+name = "formats"
+path = "examples/formats.rs"
