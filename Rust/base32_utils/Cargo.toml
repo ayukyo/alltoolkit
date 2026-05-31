@@ -1,0 +1,18 @@
+[package]
+name = "base32_utils"
+version = "0.1.0"
+edition = "2021"
+description = "Base32 encoding and decoding utilities implementing RFC 4648"
+license = "MIT"
+authors = ["AllToolkit"]
+readme = "README.md"
+keywords = ["base32", "encoding", "decoding", "rfc4648", "no-std"]
+categories = ["encoding", "no-std"]
+
+[dependencies]
+
+[dev-dependencies]
+
+[features]
+default = ["std"]
+std = []
