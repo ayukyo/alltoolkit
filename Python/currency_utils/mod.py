@@ -1,1326 +1,785 @@
 """
-Currency Utils - 货币工具库
+Currency Utils - 货币处理工具模块
 
-零依赖的货币处理库，支持：
-- ISO 4217 货币代码验证与查询
-- 货币格式化（符号、小数位、千位分隔符）
-- 精确货币计算（避免浮点误差）
-- 多语言本地化支持
-- 汇率转换辅助
-- 币种信息查询
+提供货币相关的实用功能：
+- 货币格式化和解析
+- 汇率转换（支持离线固定汇率）
+- 货币代码验证
+- 多币种显示
+- 价格舍入规则
 
-Author: AllToolkit
-License: MIT
+注意：汇率数据为静态示例数据，实际使用时需替换为实时数据源
 """
 
-from typing import Union, List, Dict, Optional, Tuple
-from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN, getcontext
+from typing import Optional, Dict, Tuple, List, Union
+from decimal import Decimal, ROUND_HALF_UP, ROUND_HALF_DOWN, ROUND_FLOOR, ROUND_CEILING
 import re
 
-# 设置 Decimal 精度
-getcontext().prec = 28
 
-# ============================================================================
-# ISO 4217 货币数据
-# ============================================================================
-
-# 货币信息: (名称, 符号, 小数位数, 数字代码)
-CURRENCIES: Dict[str, Tuple[str, str, int, str]] = {
-    # 主要货币
-    'USD': ('US Dollar', '$', 2, '840'),
-    'EUR': ('Euro', '€', 2, '978'),
-    'GBP': ('British Pound', '£', 2, '826'),
-    'JPY': ('Japanese Yen', '¥', 0, '392'),
-    'CNY': ('Chinese Yuan', '¥', 2, '156'),
-    'KRW': ('South Korean Won', '₩', 0, '410'),
-    'INR': ('Indian Rupee', '₹', 2, '356'),
-    'AUD': ('Australian Dollar', '$', 2, '036'),
-    'CAD': ('Canadian Dollar', '$', 2, '124'),
-    'CHF': ('Swiss Franc', 'CHF', 2, '756'),
-    'HKD': ('Hong Kong Dollar', '$', 2, '344'),
-    'SGD': ('Singapore Dollar', '$', 2, '702'),
-    'SEK': ('Swedish Krona', 'kr', 2, '752'),
-    'NOK': ('Norwegian Krone', 'kr', 2, '578'),
-    'DKK': ('Danish Krone', 'kr', 2, '208'),
-    'NZD': ('New Zealand Dollar', '$', 2, '554'),
-    'ZAR': ('South African Rand', 'R', 2, '710'),
-    'RUB': ('Russian Ruble', '₽', 2, '643'),
-    'BRL': ('Brazilian Real', 'R$', 2, '986'),
-    'MXN': ('Mexican Peso', '$', 2, '484'),
-    'THB': ('Thai Baht', '฿', 2, '764'),
-    'IDR': ('Indonesian Rupiah', 'Rp', 0, '360'),
-    'MYR': ('Malaysian Ringgit', 'RM', 2, '458'),
-    'PHP': ('Philippine Peso', '₱', 2, '608'),
-    'VND': ('Vietnamese Dong', '₫', 0, '704'),
-    'PLN': ('Polish Zloty', 'zł', 2, '985'),
-    'TRY': ('Turkish Lira', '₺', 2, '949'),
-    'ILS': ('Israeli New Shekel', '₪', 2, '376'),
-    'SAR': ('Saudi Riyal', '﷼', 2, '682'),
-    'AED': ('UAE Dirham', 'د.إ', 2, '784'),
-    'EGP': ('Egyptian Pound', '£', 2, '818'),
-    'NGN': ('Nigerian Naira', '₦', 2, '566'),
-    'KES': ('Kenyan Shilling', 'KSh', 2, '404'),
-    'GHS': ('Ghanaian Cedi', '₵', 2, '936'),
-    'UAH': ('Ukrainian Hryvnia', '₴', 2, '980'),
-    'CZK': ('Czech Koruna', 'Kč', 2, '203'),
-    'HUF': ('Hungarian Forint', 'Ft', 0, '348'),
-    'RON': ('Romanian Leu', 'lei', 2, '946'),
-    'BGN': ('Bulgarian Lev', 'лв', 2, '975'),
-    'HRK': ('Croatian Kuna', 'kn', 2, '191'),
-    'ISK': ('Icelandic Krona', 'kr', 0, '352'),
-    'CLP': ('Chilean Peso', '$', 0, '152'),
-    'COP': ('Colombian Peso', '$', 0, '170'),
-    'PEN': ('Peruvian Sol', 'S/', 2, '604'),
-    'ARS': ('Argentine Peso', '$', 2, '032'),
-    'TWD': ('Taiwan Dollar', 'NT$', 2, '901'),
-    'PKR': ('Pakistani Rupee', '₨', 2, '586'),
-    'BDT': ('Bangladeshi Taka', '৳', 2, '050'),
-    'LKR': ('Sri Lankan Rupee', '₨', 2, '144'),
-    'NPR': ('Nepalese Rupee', '₨', 2, '524'),
-    'MMK': ('Myanmar Kyat', 'K', 0, '104'),
-    'KHR': ('Cambodian Riel', '៛', 2, '116'),
-    'LAK': ('Lao Kip', '₭', 2, '418'),
-    'MNT': ('Mongolian Tugrik', '₮', 2, '496'),
-    'FJD': ('Fijian Dollar', '$', 2, '242'),
-    'WST': ('Samoan Tala', 'T', 2, '882'),
-    'TND': ('Tunisian Dinar', 'د.ت', 3, '788'),
-    'DZD': ('Algerian Dinar', 'د.ج', 2, '012'),
-    'MAD': ('Moroccan Dirham', 'د.م.', 2, '504'),
-    'JOD': ('Jordanian Dinar', 'د.ا', 3, '400'),
-    'KWD': ('Kuwaiti Dinar', 'د.ك', 3, '414'),
-    'BHD': ('Bahraini Dinar', 'د.ب', 3, '048'),
-    'OMR': ('Omani Rial', 'ر.ع.', 3, '512'),
-    'QAR': ('Qatari Riyal', 'ر.ق', 2, '634'),
-    'BND': ('Brunei Dollar', '$', 2, '096'),
-    # 加密货币（非 ISO 4217，但常用）
-    'BTC': ('Bitcoin', '₿', 8, '000'),
-    'ETH': ('Ethereum', 'Ξ', 18, '000'),
-    'XRP': ('Ripple', 'XRP', 6, '000'),
+# ISO 4217 货币代码映射
+CURRENCY_DATA: Dict[str, Dict] = {
+    "USD": {"name": "US Dollar", "symbol": "$", "decimals": 2, "code": "USD"},
+    "EUR": {"name": "Euro", "symbol": "€", "decimals": 2, "code": "EUR"},
+    "GBP": {"name": "British Pound", "symbol": "£", "decimals": 2, "code": "GBP"},
+    "JPY": {"name": "Japanese Yen", "symbol": "¥", "decimals": 0, "code": "JPY"},
+    "CNY": {"name": "Chinese Yuan", "symbol": "¥", "decimals": 2, "code": "CNY"},
+    "KRW": {"name": "South Korean Won", "symbol": "₩", "decimals": 0, "code": "KRW"},
+    "INR": {"name": "Indian Rupee", "symbol": "₹", "decimals": 2, "code": "INR"},
+    "AUD": {"name": "Australian Dollar", "symbol": "A$", "decimals": 2, "code": "AUD"},
+    "CAD": {"name": "Canadian Dollar", "symbol": "C$", "decimals": 2, "code": "CAD"},
+    "CHF": {"name": "Swiss Franc", "symbol": "CHF", "decimals": 2, "code": "CHF"},
+    "HKD": {"name": "Hong Kong Dollar", "symbol": "HK$", "decimals": 2, "code": "HKD"},
+    "SGD": {"name": "Singapore Dollar", "symbol": "S$", "decimals": 2, "code": "SGD"},
+    "SEK": {"name": "Swedish Krona", "symbol": "kr", "decimals": 2, "code": "SEK"},
+    "NOK": {"name": "Norwegian Krone", "symbol": "kr", "decimals": 2, "code": "NOK"},
+    "MXN": {"name": "Mexican Peso", "symbol": "$", "decimals": 2, "code": "MXN"},
+    "BRL": {"name": "Brazilian Real", "symbol": "R$", "decimals": 2, "code": "BRL"},
+    "RUB": {"name": "Russian Ruble", "symbol": "₽", "decimals": 2, "code": "RUB"},
+    "ZAR": {"name": "South African Rand", "symbol": "R", "decimals": 2, "code": "ZAR"},
+    "TRY": {"name": "Turkish Lira", "symbol": "₺", "decimals": 2, "code": "TRY"},
+    "PLN": {"name": "Polish Zloty", "symbol": "zł", "decimals": 2, "code": "PLN"},
+    "THB": {"name": "Thai Baht", "symbol": "฿", "decimals": 2, "code": "THB"},
+    "IDR": {"name": "Indonesian Rupiah", "symbol": "Rp", "decimals": 0, "code": "IDR"},
+    "MYR": {"name": "Malaysian Ringgit", "symbol": "RM", "decimals": 2, "code": "MYR"},
+    "PHP": {"name": "Philippine Peso", "symbol": "₱", "decimals": 2, "code": "PHP"},
+    "VND": {"name": "Vietnamese Dong", "symbol": "₫", "decimals": 0, "code": "VND"},
+    "AED": {"name": "UAE Dirham", "symbol": "د.إ", "decimals": 2, "code": "AED"},
+    "SAR": {"name": "Saudi Riyal", "symbol": "﷼", "decimals": 2, "code": "SAR"},
+    "NZD": {"name": "New Zealand Dollar", "symbol": "NZ$", "decimals": 2, "code": "NZD"},
+    "DKK": {"name": "Danish Krone", "symbol": "kr", "decimals": 2, "code": "DKK"},
+    "CZK": {"name": "Czech Koruna", "symbol": "Kč", "decimals": 2, "code": "CZK"},
+    "HUF": {"name": "Hungarian Forint", "symbol": "Ft", "decimals": 2, "code": "HUF"},
+    "ILS": {"name": "Israeli Shekel", "symbol": "₪", "decimals": 2, "code": "ILS"},
+    "CLP": {"name": "Chilean Peso", "symbol": "$", "decimals": 0, "code": "CLP"},
+    "PKR": {"name": "Pakistani Rupee", "symbol": "₨", "decimals": 2, "code": "PKR"},
+    "EGP": {"name": "Egyptian Pound", "symbol": "E£", "decimals": 2, "code": "EGP"},
+    "BDT": {"name": "Bangladeshi Taka", "symbol": "৳", "decimals": 2, "code": "BDT"},
 }
 
-# 货币符号到代码的映射（多对一）
-SYMBOL_TO_CURRENCIES: Dict[str, List[str]] = {}
-for code, (_, symbol, _, _) in CURRENCIES.items():
-    if symbol not in SYMBOL_TO_CURRENCIES:
-        SYMBOL_TO_CURRENCIES[symbol] = []
-    SYMBOL_TO_CURRENCIES[symbol].append(code)
-
-# 数字代码到字母代码的映射
-NUMERIC_TO_CODE: Dict[str, str] = {
-    num_code: code for code, (_, _, _, num_code) in CURRENCIES.items()
-    if num_code != '000'  # 排除加密货币
+# 默认汇率（以 USD 为基准，示例数据）
+DEFAULT_RATES: Dict[str, float] = {
+    "USD": 1.0,
+    "EUR": 0.92,
+    "GBP": 0.79,
+    "JPY": 149.50,
+    "CNY": 7.24,
+    "KRW": 1330.0,
+    "INR": 83.12,
+    "AUD": 1.53,
+    "CAD": 1.36,
+    "CHF": 0.88,
+    "HKD": 7.82,
+    "SGD": 1.34,
+    "SEK": 10.42,
+    "NOK": 10.65,
+    "MXN": 17.15,
+    "BRL": 4.97,
+    "RUB": 91.50,
+    "ZAR": 18.65,
+    "TRY": 32.15,
+    "PLN": 3.98,
+    "THB": 35.50,
+    "IDR": 15650.0,
+    "MYR": 4.72,
+    "PHP": 56.20,
+    "VND": 24850.0,
+    "AED": 3.67,
+    "SAR": 3.75,
+    "NZD": 1.64,
+    "DKK": 6.87,
+    "CZK": 22.85,
+    "HUF": 356.0,
+    "ILS": 3.68,
+    "CLP": 895.0,
+    "PKR": 278.5,
+    "EGP": 30.90,
+    "BDT": 109.50,
 }
 
 
-# ============================================================================
-# 异常类
-# ============================================================================
-
-class CurrencyError(Exception):
-    """货币错误基类"""
-    pass
-
-
-class InvalidCurrencyError(CurrencyError):
-    """无效货币代码错误"""
-    pass
-
-
-class InvalidAmountError(CurrencyError):
-    """无效金额错误"""
-    pass
-
-
-class UnsupportedLocaleError(CurrencyError):
-    """不支持的本地化错误"""
-    pass
-
-
-# ============================================================================
-# 本地化格式配置
-# ============================================================================
-
-# 本地化格式: (小数分隔符, 千位分隔符, 符号位置, 符号与金额间距)
-# 符号位置: 'before' 或 'after'
-LOCALE_FORMATS: Dict[str, Tuple[str, str, str, str]] = {
-    'en_US': ('.', ',', 'before', ''),       # $1,234.56
-    'en_GB': ('.', ',', 'before', ''),       # £1,234.56
-    'de_DE': (',', '.', 'after', ' '),       # 1.234,56 €
-    'fr_FR': (',', ' ', 'after', ' '),       # 1 234,56 €
-    'ja_JP': ('.', ',', 'before', ''),       # ¥1,234
-    'zh_CN': ('.', ',', 'before', ''),       # ¥1,234.56
-    'zh_TW': ('.', ',', 'before', ''),       # NT$1,234.56
-    'ko_KR': ('.', ',', 'before', ''),       # ₩1,234
-    'ru_RU': (',', ' ', 'after', ' '),       # 1 234,56 ₽
-    'pt_BR': (',', '.', 'before', ' '),      # R$ 1.234,56
-    'es_ES': (',', '.', 'after', ' '),       # 1.234,56 €
-    'es_MX': ('.', ',', 'before', ''),       # $1,234.56
-    'it_IT': (',', '.', 'after', ' '),       # 1.234,56 €
-    'nl_NL': (',', '.', 'before', ' '),      # € 1.234,56
-    'pl_PL': (',', ' ', 'after', ' '),       # 1 234,56 zł
-    'tr_TR': (',', '.', 'after', ' '),       # 1.234,56 ₺
-    'th_TH': ('.', ',', 'before', ''),       # ฿1,234.56
-    'vi_VN': (',', '.', 'after', ''),        # 1.234₫
-    'id_ID': (',', '.', 'before', ''),       # Rp1.234
-    'ms_MY': ('.', ',', 'before', ''),       # RM1,234.56
-    'ar_SA': ('.', ',', 'before', ' '),      # ﷼ 1,234.56
-    'he_IL': ('.', ',', 'before', ' '),      # ₪1,234.56
-    'hi_IN': ('.', ',', 'before', ''),       # ₹1,234.56
-    'bn_BD': ('.', ',', 'before', ''),       # ৳1,234.56
-}
-
-
-# ============================================================================
-# 核心类
-# ============================================================================
-
-class Money:
-    """
-    货币金额类，支持精确计算
+class Currency:
+    """货币对象"""
     
-    使用 Decimal 避免浮点精度问题
-    """
-    
-    def __init__(
-        self,
-        amount: Union[int, float, str, Decimal],
-        currency: str
-    ):
-        """
-        初始化货币金额
+    def __init__(self, amount: Union[int, float, Decimal, str], code: str = "USD"):
+        """初始化货币
         
         Args:
-            amount: 金额
-            currency: 货币代码
-        
-        Raises:
-            InvalidCurrencyError: 无效的货币代码
-            InvalidAmountError: 无效的金额
+            amount: 金额（支持 int, float, Decimal 或字符串）
+            code: ISO 4217 货币代码
         """
-        currency = currency.upper()
-        if currency not in CURRENCIES:
-            raise InvalidCurrencyError(f"无效的货币代码: {currency}")
+        if not validate_code(code):
+            raise ValueError(f"无效的货币代码: {code}")
         
-        self.currency = currency
-        
-        # 转换为 Decimal
-        try:
-            if isinstance(amount, Decimal):
-                self._amount = amount
-            elif isinstance(amount, float):
-                # 浮点数转换需要特殊处理
-                self._amount = Decimal(str(amount))
-            else:
-                self._amount = Decimal(str(amount))
-        except Exception as e:
-            raise InvalidAmountError(f"无效的金额: {amount}") from e
-        
-        # 获取小数位数
-        self._decimals = CURRENCIES[currency][2]
+        self.code = code.upper()
+        self._amount = Decimal(str(amount))
+        self._decimal_places = CURRENCY_DATA[self.code]["decimals"]
     
     @property
     def amount(self) -> Decimal:
         """获取金额"""
         return self._amount
     
-    @property
-    def decimals(self) -> int:
-        """获取小数位数"""
-        return self._decimals
+    @amount.setter
+    def amount(self, value: Union[int, float, Decimal, str]):
+        """设置金额"""
+        self._amount = Decimal(str(value))
     
     @property
     def symbol(self) -> str:
         """获取货币符号"""
-        return CURRENCIES[self.currency][1]
+        return CURRENCY_DATA[self.code]["symbol"]
     
     @property
     def name(self) -> str:
         """获取货币名称"""
-        return CURRENCIES[self.currency][0]
+        return CURRENCY_DATA[self.code]["name"]
     
     @property
-    def numeric_code(self) -> str:
-        """获取数字代码"""
-        return CURRENCIES[self.currency][3]
+    def decimals(self) -> int:
+        """获取小数位数"""
+        return self._decimal_places
     
-    def round(self) -> 'Money':
-        """按照货币精度四舍五入"""
-        quantize_str = '1.' + '0' * self._decimals
-        rounded = self._amount.quantize(
-            Decimal(quantize_str),
-            rounding=ROUND_HALF_UP
-        )
-        return Money(rounded, self.currency)
-    
-    def format(
-        self,
-        locale: str = 'en_US',
-        include_symbol: bool = True,
-        include_code: bool = False
-    ) -> str:
-        """
-        格式化货币
+    def formatted(self, locale: str = "en_US") -> str:
+        """获取格式化后的字符串
         
         Args:
-            locale: 本地化设置
-            include_symbol: 是否包含货币符号
-            include_code: 是否包含货币代码
-        
+            locale: 区域设置（目前支持 en_US, zh_CN）
+            
         Returns:
-            格式化后的字符串
+            格式化的货币字符串
         """
-        return format_money(
-            self._amount,
-            self.currency,
-            locale,
-            include_symbol,
-            include_code
-        )
-    
-    def __add__(self, other: 'Money') -> 'Money':
-        if not isinstance(other, Money):
-            raise TypeError("只能与 Money 对象相加")
-        if self.currency != other.currency:
-            raise CurrencyError(f"货币不匹配: {self.currency} vs {other.currency}")
-        return Money(self._amount + other._amount, self.currency)
-    
-    def __sub__(self, other: 'Money') -> 'Money':
-        if not isinstance(other, Money):
-            raise TypeError("只能与 Money 对象相减")
-        if self.currency != other.currency:
-            raise CurrencyError(f"货币不匹配: {self.currency} vs {other.currency}")
-        return Money(self._amount - other._amount, self.currency)
-    
-    def __mul__(self, other: Union[int, float, Decimal]) -> 'Money':
-        if isinstance(other, float):
-            other = Decimal(str(other))
-        return Money(self._amount * other, self.currency)
-    
-    def __rmul__(self, other: Union[int, float, Decimal]) -> 'Money':
-        return self.__mul__(other)
-    
-    def __truediv__(self, other: Union[int, float, Decimal]) -> 'Money':
-        if isinstance(other, float):
-            other = Decimal(str(other))
-        if other == 0:
-            raise ZeroDivisionError("不能除以零")
-        return Money(self._amount / other, self.currency)
-    
-    def __floordiv__(self, other: Union[int, float, Decimal]) -> 'Money':
-        if isinstance(other, float):
-            other = Decimal(str(other))
-        if other == 0:
-            raise ZeroDivisionError("不能除以零")
-        return Money(self._amount // other, self.currency)
-    
-    def __mod__(self, other: Union[int, float, Decimal]) -> 'Money':
-        if isinstance(other, float):
-            other = Decimal(str(other))
-        if other == 0:
-            raise ZeroDivisionError("不能除以零")
-        return Money(self._amount % other, self.currency)
-    
-    def __neg__(self) -> 'Money':
-        return Money(-self._amount, self.currency)
-    
-    def __abs__(self) -> 'Money':
-        return Money(abs(self._amount), self.currency)
-    
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Money):
-            return False
-        return self._amount == other._amount and self.currency == other.currency
-    
-    def __lt__(self, other: 'Money') -> bool:
-        if self.currency != other.currency:
-            raise CurrencyError(f"货币不匹配: {self.currency} vs {other.currency}")
-        return self._amount < other._amount
-    
-    def __le__(self, other: 'Money') -> bool:
-        if self.currency != other.currency:
-            raise CurrencyError(f"货币不匹配: {self.currency} vs {other.currency}")
-        return self._amount <= other._amount
-    
-    def __gt__(self, other: 'Money') -> bool:
-        if self.currency != other.currency:
-            raise CurrencyError(f"货币不匹配: {self.currency} vs {other.currency}")
-        return self._amount > other._amount
-    
-    def __ge__(self, other: 'Money') -> bool:
-        if self.currency != other.currency:
-            raise CurrencyError(f"货币不匹配: {self.currency} vs {other.currency}")
-        return self._amount >= other._amount
-    
-    def __bool__(self) -> bool:
-        return self._amount != 0
+        return format_currency(self._amount, self.code, locale)
     
     def __repr__(self) -> str:
-        return f"Money({self._amount}, '{self.currency}')"
+        return f"Currency({self._amount}, '{self.code}')"
     
     def __str__(self) -> str:
-        return self.format()
+        return self.formatted()
+    
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Currency):
+            return False
+        return self.code == other.code and self._amount == other._amount
+    
+    def __add__(self, other) -> 'Currency':
+        if isinstance(other, Currency):
+            if self.code != other.code:
+                raise ValueError(f"货币代码不匹配: {self.code} vs {other.code}")
+            return Currency(self._amount + other._amount, self.code)
+        return Currency(self._amount + Decimal(str(other)), self.code)
+    
+    def __sub__(self, other) -> 'Currency':
+        if isinstance(other, Currency):
+            if self.code != other.code:
+                raise ValueError(f"货币代码不匹配: {self.code} vs {other.code}")
+            return Currency(self._amount - other._amount, self.code)
+        return Currency(self._amount - Decimal(str(other)), self.code)
+    
+    def __mul__(self, multiplier: Union[int, float, Decimal]) -> 'Currency':
+        return Currency(self._amount * Decimal(str(multiplier)), self.code)
+    
+    def __rmul__(self, multiplier: Union[int, float, Decimal]) -> 'Currency':
+        return self.__mul__(multiplier)
+    
+    def __truediv__(self, divisor: Union[int, float, Decimal]) -> 'Currency':
+        return Currency(self._amount / Decimal(str(divisor)), self.code)
+    
+    def __lt__(self, other) -> bool:
+        if isinstance(other, Currency):
+            if self.code != other.code:
+                raise ValueError(f"货币代码不匹配: {self.code} vs {other.code}")
+            return self._amount < other._amount
+        return self._amount < Decimal(str(other))
+    
+    def __le__(self, other) -> bool:
+        return self == other or self < other
+    
+    def __gt__(self, other) -> bool:
+        return not self <= other
+    
+    def __ge__(self, other) -> bool:
+        return not self < other
 
 
-# ============================================================================
-# 货币验证函数
-# ============================================================================
-
-def is_valid_currency(code: str) -> bool:
-    """
-    验证货币代码是否有效
+def validate_code(code: str) -> bool:
+    """验证货币代码是否有效
     
     Args:
+        code: ISO 4217 货币代码
+        
+    Returns:
+        是否有效
+    """
+    return code.upper() in CURRENCY_DATA
+
+
+def get_currency_info(code: str) -> Optional[Dict]:
+    """获取货币信息
+    
+    Args:
+        code: ISO 4217 货币代码
+        
+    Returns:
+        货币信息字典，包含 name, symbol, decimals, code
+        如果代码无效返回 None
+    """
+    return CURRENCY_DATA.get(code.upper())
+
+
+def format_currency(
+    amount: Union[int, float, Decimal, str],
+    code: str = "USD",
+    locale: str = "en_US"
+) -> str:
+    """格式化货币金额
+    
+    Args:
+        amount: 金额
         code: 货币代码
-    
+        locale: 区域设置 (en_US, zh_CN)
+        
     Returns:
-        是否为有效的货币代码
+        格式化的货币字符串
+    """
+    if not validate_code(code):
+        raise ValueError(f"无效的货币代码: {code}")
     
-    Example:
-        >>> is_valid_currency('USD')
-        True
-        >>> is_valid_currency('XXX')
-        False
-    """
-    return code.upper() in CURRENCIES
+    amount = Decimal(str(amount))
+    decimals = CURRENCY_DATA[code.upper()]["decimals"]
+    symbol = CURRENCY_DATA[code.upper()]["symbol"]
+    
+    # 舍入
+    quantize_str = '0.' + '0' * decimals if decimals > 0 else '1'
+    rounded = amount.quantize(Decimal(quantize_str), rounding=ROUND_HALF_UP)
+    
+    # 分组格式
+    if decimals > 0:
+        integer_part = str(rounded)
+        integer_part = abs(int(integer_part.split('.')[0] if '.' in integer_part else integer_part))
+        fractional_part = str(rounded).split('.')[-1] if '.' in str(rounded) else '0' * decimals
+        fractional_part = fractional_part.ljust(decimals, '0')
+    else:
+        integer_part = str(abs(int(rounded)))
+        fractional_part = ''
+    
+    # 添加千位分隔符
+    integer_str = f"{int(integer_part):,}"
+    if integer_part == 0 and rounded < 0:
+        integer_str = '0'
+    
+    # 处理负数
+    prefix = '-' if rounded < 0 else ''
+    
+    if decimals > 0:
+        formatted = f"{prefix}{symbol}{integer_str}.{fractional_part}"
+    else:
+        formatted = f"{prefix}{symbol}{integer_str}"
+    
+    return formatted
 
 
-def is_valid_numeric_code(code: str) -> bool:
-    """
-    验证数字代码是否有效
+def parse_currency(
+    value: str,
+    code: Optional[str] = None
+) -> Tuple[Decimal, Optional[str]]:
+    """解析货币字符串
     
     Args:
-        code: 数字代码
-    
+        value: 货币字符串，支持以下格式：
+               - $1,234.56
+               - €1.234,56
+               - ¥1234
+               - 1234.56 USD
+               - 1234,56
+        code: 强制指定货币代码
+        
     Returns:
-        是否为有效的数字代码
+        (金额, 检测到的货币代码或None)
+    """
+    if code:
+        code = code.upper()
+        if not validate_code(code):
+            raise ValueError(f"无效的货币代码: {code}")
     
-    Example:
-        >>> is_valid_numeric_code('840')
-        True
-        >>> is_valid_numeric_code('000')
-        False
-    """
-    return code in NUMERIC_TO_CODE
+    original = value.strip()
+    
+    # 检测货币代码
+    detected_code = None
+    if not code:
+        # 尝试从字符串末尾提取代码
+        parts = original.split()
+        if len(parts) > 1:
+            last_part = parts[-1].upper()
+            if validate_code(last_part):
+                detected_code = last_part
+                value = ' '.join(parts[:-1])
+            else:
+                value = original
+        else:
+            value = original
+    
+    # 尝试使用提供的代码
+    if code:
+        detected_code = code.upper()
+    
+    if not detected_code:
+        detected_code = "USD"  # 默认
+    
+    # 提取符号
+    symbol = CURRENCY_DATA[detected_code]["symbol"]
+    
+    # 移除符号和空白
+    work_str = value.strip()
+    
+    # 移除货币代码前缀（如果还有）
+    if detected_code:
+        for c in CURRENCY_DATA.get(detected_code, {}).get("symbol", ""):
+            if c not in [',', '.', '-', ' ', '\u4e00-\u9fff', '\u3000-\u303f', '\uff00-\uffef']:
+                work_str = work_str.replace(c, '')
+        # 也处理无符号格式 "USD 1,234.56"
+        code_prefix = detected_code + ' '
+        if work_str.upper().startswith(code_prefix):
+            work_str = work_str[len(code_prefix):]
+    
+    # 移除可能的负号和括号
+    is_negative = False
+    if work_str.startswith('-') or work_str.startswith('('):
+        is_negative = work_str.startswith('-')
+        work_str = re.sub(r'^[\-()]+', '', work_str)
+    
+    # 提取数字部分
+    numeric_str = re.sub(r'[^\d.,]', '', work_str)
+    if not numeric_str:
+        return Decimal('0'), detected_code
+    
+    # 处理欧式格式（使用逗号作为小数点）
+    has_european_format = '.' in numeric_str and ',' in numeric_str
+    if has_european_format:
+        if numeric_str.rfind(',') > numeric_str.rfind('.'):
+            # 欧式格式: 1.234,56
+            numeric_str = numeric_str.replace('.', '').replace(',', '.')
+        else:
+            # 美式格式: 1,234.56
+            numeric_str = numeric_str.replace(',', '')
+    else:
+        # 只有逗号：可能是千位分隔符或小数点
+        comma_count = numeric_str.count(',')
+        dot_count = numeric_str.count('.')
+        
+        if comma_count == 1 and dot_count == 0:
+            # 检查逗号位置：如果是3位分隔符，通常在第4位之后
+            idx = numeric_str.find(',')
+            if len(numeric_str) - idx - 1 == 3:
+                # 千位分隔符
+                numeric_str = numeric_str.replace(',', '')
+            else:
+                # 小数点
+                numeric_str = numeric_str.replace(',', '.')
+        elif comma_count > 1 and dot_count == 0:
+            # 多个逗号，应该是千位分隔符
+            numeric_str = numeric_str.replace(',', '')
+        elif dot_count > 0 and comma_count == 0:
+            # 只有点，根据位数判断
+            idx = numeric_str.find('.')
+            if len(numeric_str) - idx - 1 == 2 or len(numeric_str) - idx - 1 <= 3:
+                # 可能是小数点
+                pass
+            else:
+                # 可能是千位分隔符
+                numeric_str = numeric_str.replace('.', '')
+        elif comma_count > 0 and dot_count > 0:
+            # 两者都有，判断哪个是小数点
+            if numeric_str.find(',') < numeric_str.find('.'):
+                numeric_str = numeric_str.replace(',', '')
+            else:
+                numeric_str = numeric_str.replace('.', '').replace(',', '.')
+    
+    try:
+        result = Decimal(numeric_str)
+        if is_negative:
+            result = -result
+        return result, detected_code
+    except Exception:
+        raise ValueError(f"无法解析货币字符串: {value}")
 
 
-def get_currency_info(code: str) -> Dict[str, Union[str, int]]:
-    """
-    获取货币信息
+def convert(
+    amount: Union[int, float, Decimal, str],
+    from_code: str,
+    to_code: str,
+    rates: Optional[Dict[str, float]] = None
+) -> Decimal:
+    """货币转换
     
     Args:
+        amount: 金额
+        from_code: 源货币代码
+        to_code: 目标货币代码
+        rates: 汇率字典（以 USD 为基准），默认使用内置汇率
+        
+    Returns:
+        转换后的金额
+    """
+    if from_code.upper() == to_code.upper():
+        return Decimal(str(amount))
+    
+    if rates is None:
+        rates = DEFAULT_RATES
+    
+    from_code = from_code.upper()
+    to_code = to_code.upper()
+    
+    if from_code not in rates or to_code not in rates:
+        raise ValueError(f"不支持的货币代码: {from_code} 或 {to_code}")
+    
+    amount = Decimal(str(amount))
+    
+    # 转换为 USD
+    usd_amount = amount / Decimal(str(rates[from_code]))
+    
+    # 从 USD 转换为目标货币
+    result = usd_amount * Decimal(str(rates[to_code]))
+    
+    # 舍入到目标货币的小数位
+    decimals = CURRENCY_DATA[to_code]["decimals"]
+    quantize_str = '0.' + '0' * decimals if decimals > 0 else '1'
+    return result.quantize(Decimal(quantize_str), rounding=ROUND_HALF_UP)
+
+
+def exchange(
+    amount: Union[int, float, Decimal, str],
+    from_code: str,
+    to_code: str,
+    rates: Optional[Dict[str, float]] = None
+) -> Currency:
+    """货币兑换（返回 Currency 对象）
+    
+    Args:
+        amount: 金额
+        from_code: 源货币代码
+        to_code: 目标货币代码
+        rates: 汇率字典
+        
+    Returns:
+        Currency 对象
+    """
+    result = convert(amount, from_code, to_code, rates)
+    return Currency(result, to_code)
+
+
+def get_rate(from_code: str, to_code: str, rates: Optional[Dict[str, float]] = None) -> float:
+    """获取汇率
+    
+    Args:
+        from_code: 源货币代码
+        to_code: 目标货币代码
+        rates: 汇率字典
+        
+    Returns:
+        汇率（1 单位源货币对应的目标货币数量）
+    """
+    if from_code.upper() == to_code.upper():
+        return 1.0
+    
+    if rates is None:
+        rates = DEFAULT_RATES
+    
+    from_code = from_code.upper()
+    to_code = to_code.upper()
+    
+    if from_code not in rates or to_code not in rates:
+        raise ValueError(f"不支持的货币代码: {from_code} 或 {to_code}")
+    
+    return rates[to_code] / rates[from_code]
+
+
+def round_currency(
+    amount: Union[int, float, Decimal, str],
+    code: str,
+    mode: str = "HALF_UP"
+) -> Decimal:
+    """根据货币规则舍入金额
+    
+    Args:
+        amount: 金额
         code: 货币代码
-    
+        mode: 舍入模式 (HALF_UP, HALF_DOWN, FLOOR, CEILING)
+        
     Returns:
-        货币信息字典
-    
-    Raises:
-        InvalidCurrencyError: 无效的货币代码
-    
-    Example:
-        >>> info = get_currency_info('USD')
-        >>> info['name']
-        'US Dollar'
-        >>> info['symbol']
-        '$'
+        舍入后的金额
     """
-    code = code.upper()
-    if code not in CURRENCIES:
-        raise InvalidCurrencyError(f"无效的货币代码: {code}")
+    if not validate_code(code):
+        raise ValueError(f"无效的货币代码: {code}")
     
-    name, symbol, decimals, numeric = CURRENCIES[code]
+    amount = Decimal(str(amount))
+    decimals = CURRENCY_DATA[code.upper()]["decimals"]
+    
+    rounding_modes = {
+        "HALF_UP": ROUND_HALF_UP,
+        "HALF_DOWN": ROUND_HALF_DOWN,
+        "FLOOR": ROUND_FLOOR,
+        "CEILING": ROUND_CEILING,
+    }
+    
+    rounding_mode = rounding_modes.get(mode.upper(), ROUND_HALF_UP)
+    
+    quantize_str = '0.' + '0' * decimals if decimals > 0 else '1'
+    return amount.quantize(Decimal(quantize_str), rounding=rounding_mode)
+
+
+def format_multi(
+    amount: Union[int, float, Decimal, str],
+    code: str = "USD",
+    target_codes: Optional[List[str]] = None,
+    rates: Optional[Dict[str, float]] = None
+) -> Dict[str, str]:
+    """多币种格式化显示
+    
+    Args:
+        amount: 金额
+        code: 源货币代码
+        target_codes: 目标货币代码列表（默认包含主要货币）
+        rates: 汇率字典
+        
+    Returns:
+        字典：货币代码 -> 格式化后的字符串
+    """
+    if target_codes is None:
+        target_codes = ["USD", "EUR", "GBP", "JPY", "CNY"]
+    
+    result = {}
+    amount_dec = Decimal(str(amount))
+    
+    for target in target_codes:
+        try:
+            converted = convert(amount, code, target, rates)
+            result[target] = format_currency(converted, target)
+        except ValueError:
+            continue
+    
+    return result
+
+
+def compare(a: Union[Currency, int, float, Decimal, str], b: Union[Currency, int, float, Decimal, str]) -> int:
+    """比较两个货币金额（自动转换后比较）
+    
+    Args:
+        a: 第一个金额或 Currency 对象
+        b: 第二个金额或 Currency 对象
+        
+    Returns:
+        -1: a < b
+         0: a == b
+         1: a > b
+    """
+    a_obj = a if isinstance(a, Currency) else Currency(a, "USD")
+    b_obj = b if isinstance(b, Currency) else Currency(b, "USD")
+    
+    # 尝试转换到同一货币
+    try:
+        a_value = convert(a_obj.amount, a_obj.code, "USD") if a_obj.code != "USD" else a_obj.amount
+        b_value = convert(b_obj.amount, b_obj.code, "USD") if b_obj.code != "USD" else b_obj.amount
+    except ValueError:
+        # 如果转换失败，直接比较
+        a_value = a_obj.amount
+        b_value = b_obj.amount
+    
+    if a_value < b_value:
+        return -1
+    elif a_value > b_value:
+        return 1
+    return 0
+
+
+def calculate_fees(
+    amount: Union[int, float, Decimal, str],
+    code: str = "USD",
+    fee_percent: float = 0.0,
+    fee_fixed: Union[int, float, Decimal, str] = 0,
+    min_fee: Union[int, float, Decimal, str] = 0,
+    max_fee: Optional[Union[int, float, Decimal, str]] = None
+) -> Dict[str, Decimal]:
+    """计算手续费
+    
+    Args:
+        amount: 金额
+        code: 货币代码
+        fee_percent: 百分比手续费（0.03 = 3%）
+        fee_fixed: 固定手续费
+        min_fee: 最低手续费
+        max_fee: 最高手续费上限
+        
+    Returns:
+        包含 fee_percent, fee_fixed, total_fee, net_amount 的字典
+    """
+    amount = Decimal(str(amount))
+    fee_fixed = Decimal(str(fee_fixed))
+    min_fee = Decimal(str(min_fee))
+    
+    # 计算百分比手续费
+    percent_fee = amount * Decimal(str(fee_percent))
+    
+    # 计算总手续费
+    total_fee = percent_fee + fee_fixed
+    
+    # 应用最小/最大限制
+    if min_fee > 0:
+        total_fee = max(total_fee, min_fee)
+    
+    if max_fee is not None:
+        max_fee_dec = Decimal(str(max_fee))
+        total_fee = min(total_fee, max_fee_dec)
+    
     return {
-        'code': code,
-        'name': name,
-        'symbol': symbol,
-        'decimals': decimals,
-        'numeric_code': numeric,
+        "fee_percent": percent_fee.quantize(Decimal('0.01')),
+        "fee_fixed": fee_fixed.quantize(Decimal('0.01')),
+        "total_fee": total_fee.quantize(Decimal('0.01')),
+        "net_amount": (amount - total_fee).quantize(Decimal('0.01')),
+        "gross_amount": amount.quantize(Decimal('0.01'))
     }
 
 
-def get_currencies_by_symbol(symbol: str) -> List[str]:
-    """
-    根据符号获取货币代码列表
+def cents_to_amount(cents: int, code: str = "USD") -> Decimal:
+    """将整数（最小货币单位，如分、 cent）转换为金额
     
     Args:
-        symbol: 货币符号
+        cents: 整数金额（最小单位）
+        code: 货币代码
+        
+    Returns:
+        转换后的金额
+    """
+    if not validate_code(code):
+        raise ValueError(f"无效的货币代码: {code}")
+    
+    decimals = CURRENCY_DATA[code.upper()]["decimals"]
+    divisor = Decimal('10') ** decimals
+    
+    return Decimal(str(cents)) / divisor
+
+
+def amount_to_cents(amount: Union[int, float, Decimal, str], code: str = "USD") -> int:
+    """将金额转换为整数（最小货币单位）
+    
+    Args:
+        amount: 金额
+        code: 货币代码
+        
+    Returns:
+        整数金额（最小单位）
+    """
+    if not validate_code(code):
+        raise ValueError(f"无效的货币代码: {code}")
+    
+    amount = Decimal(str(amount))
+    decimals = CURRENCY_DATA[code.upper()]["decimals"]
+    multiplier = Decimal('10') ** decimals
+    
+    return int((amount * multiplier).quantize(Decimal('1')))
+
+
+def list_currencies() -> List[str]:
+    """获取所有支持的货币代码列表
     
     Returns:
         货币代码列表
-    
-    Example:
-        >>> get_currencies_by_symbol('$')
-        ['USD', 'AUD', 'CAD', 'HKD', 'SGD', 'NZD', 'MXN', 'BND', 'CLP', 'COP', 'ARS', 'FJD', 'TWD']
     """
-    return SYMBOL_TO_CURRENCIES.get(symbol, [])
+    return sorted(CURRENCY_DATA.keys())
 
 
-def get_all_currencies() -> List[str]:
-    """
-    获取所有货币代码
+def get_supported_currencies() -> Dict[str, Dict]:
+    """获取所有支持的货币信息
     
     Returns:
-        货币代码列表
-    
-    Example:
-        >>> 'USD' in get_all_currencies()
-        True
+        货币代码 -> 货币信息字典
     """
-    return list(CURRENCIES.keys())
+    return CURRENCY_DATA.copy()
 
 
-def get_major_currencies() -> List[str]:
-    """
-    获取主要货币代码
+# ============ 测试代码 ============
+
+def _run_tests():
+    """运行测试"""
+    print("Currency Utils - 货币处理工具模块测试")
+    print("=" * 50)
     
-    Returns:
-        主要货币代码列表
+    # 测试 Currency 类
+    print("\n1. Currency 类测试:")
+    price = Currency(1234.567, "USD")
+    print(f"   金额: {price.amount}")
+    print(f"   符号: {price.symbol}")
+    print(f"   名称: {price.name}")
+    print(f"   格式化: {price.formatted()}")
     
-    Example:
-        >>> 'USD' in get_major_currencies()
-        True
-    """
-    return ['USD', 'EUR', 'GBP', 'JPY', 'CNY', 'CHF', 'AUD', 'CAD', 'HKD', 'SGD']
+    # 算术运算
+    price2 = Currency(100, "USD")
+    print(f"   加法: {price + price2}")
+    print(f"   乘法: {price * 2}")
+    
+    # 测试格式化和解析
+    print("\n2. 格式化和解析测试:")
+    test_values = [
+        ("$1,234.56", None),
+        ("€1.234,56", "EUR"),
+        ("¥1234", "JPY"),
+        ("1234.56 USD", None),
+        ("-1,234.56", None),
+    ]
+    
+    for value, code in test_values:
+        try:
+            amount, detected = parse_currency(value, code)
+            print(f"   解析 '{value}': {amount} ({detected})")
+        except Exception as e:
+            print(f"   解析 '{value}' 失败: {e}")
+    
+    # 测试货币转换
+    print("\n3. 货币转换测试:")
+    amounts = [100, 1000.50, 10000]
+    for amt in amounts:
+        usd = Currency(amt, "USD")
+        eur = exchange(amt, "USD", "EUR")
+        cny = exchange(amt, "USD", "CNY")
+        jpy = exchange(amt, "USD", "JPY")
+        print(f"   ${amt} USD = {eur} EUR = {cny} CNY = {jpy} JPY")
+    
+    # 测试汇率获取
+    print("\n4. 汇率测试:")
+    print(f"   USD -> EUR: {get_rate('USD', 'EUR'):.4f}")
+    print(f"   EUR -> JPY: {get_rate('EUR', 'JPY'):.4f}")
+    print(f"   CNY -> USD: {get_rate('CNY', 'USD'):.4f}")
+    
+    # 测试多币种显示
+    print("\n5. 多币种显示测试:")
+    multi = format_multi(1000, "USD", ["USD", "EUR", "GBP", "CNY", "JPY"])
+    for code, formatted in multi.items():
+        print(f"   {code}: {formatted}")
+    
+    # 测试手续费计算
+    print("\n6. 手续费计算测试:")
+    fee_result = calculate_fees(1000, "USD", fee_percent=0.0325, fee_fixed=1.50, min_fee=2)
+    print(f"   订单金额: ${fee_result['gross_amount']}")
+    print(f"   百分比费: ${fee_result['fee_percent']}")
+    print(f"   固定费: ${fee_result['fee_fixed']}")
+    print(f"   总手续费: ${fee_result['total_fee']}")
+    print(f"   净额: ${fee_result['net_amount']}")
+    
+    # 测试分/元转换
+    print("\n7. 最小单位转换测试:")
+    for code in ["USD", "JPY", "KRW"]:
+        cents = amount_to_cents(100.50, code)
+        back = cents_to_amount(cents, code)
+        print(f"   {code}: 100.50 -> {cents} cents -> {back}")
+    
+    # 测试支持的货币列表
+    print("\n8. 支持的货币列表:")
+    currencies = list_currencies()
+    print(f"   共 {len(currencies)} 种货币")
+    print(f"   示例: {', '.join(currencies[:10])}...")
+    
+    print("\n" + "=" * 50)
+    print("测试完成!")
 
 
-# ============================================================================
-# 格式化函数
-# ============================================================================
-
-def format_money(
-    amount: Union[int, float, str, Decimal],
-    currency: str,
-    locale: str = 'en_US',
-    include_symbol: bool = True,
-    include_code: bool = False
-) -> str:
-    """
-    格式化货币金额
-    
-    Args:
-        amount: 金额
-        currency: 货币代码
-        locale: 本地化设置
-        include_symbol: 是否包含货币符号
-        include_code: 是否包含货币代码
-    
-    Returns:
-        格式化后的字符串
-    
-    Raises:
-        InvalidCurrencyError: 无效的货币代码
-    
-    Example:
-        >>> format_money(1234.56, 'USD')
-        '$1,234.56'
-        >>> format_money(1234.56, 'EUR', 'de_DE')
-        '1.234,56 €'
-        >>> format_money(1234, 'JPY')
-        '¥1,234'
-    """
-    currency = currency.upper()
-    if currency not in CURRENCIES:
-        raise InvalidCurrencyError(f"无效的货币代码: {currency}")
-    
-    # 转换为 Decimal
-    if isinstance(amount, Decimal):
-        dec_amount = amount
-    elif isinstance(amount, float):
-        dec_amount = Decimal(str(amount))
-    else:
-        dec_amount = Decimal(str(amount))
-    
-    # 获取货币信息
-    _, symbol, decimals, _ = CURRENCIES[currency]
-    
-    # 四舍五入到货币精度
-    quantize_str = '1.' + '0' * decimals
-    dec_amount = dec_amount.quantize(Decimal(quantize_str), rounding=ROUND_HALF_UP)
-    
-    # 获取本地化格式
-    if locale in LOCALE_FORMATS:
-        decimal_sep, thousand_sep, symbol_pos, symbol_space = LOCALE_FORMATS[locale]
-    else:
-        # 默认美式格式
-        decimal_sep, thousand_sep, symbol_pos, symbol_space = '.', ',', 'before', ''
-    
-    # 转换为字符串并分割整数和小数部分
-    amount_str = str(dec_amount)
-    if '.' in amount_str:
-        int_part, dec_part = amount_str.split('.')
-    else:
-        int_part = amount_str
-        dec_part = ''
-    
-    # 处理负数
-    is_negative = int_part.startswith('-')
-    if is_negative:
-        int_part = int_part[1:]
-    
-    # 添加千位分隔符
-    if thousand_sep:
-        formatted_int = ''
-        for i, digit in enumerate(reversed(int_part)):
-            if i > 0 and i % 3 == 0:
-                formatted_int = thousand_sep + formatted_int
-            formatted_int = digit + formatted_int
-    else:
-        formatted_int = int_part
-    
-    # 组合整数和小数部分
-    if decimals > 0:
-        # 有小数位的货币，总是显示指定的小数位
-        if dec_part:
-            formatted_amount = formatted_int + decimal_sep + dec_part[:decimals].ljust(decimals, '0')
-        else:
-            formatted_amount = formatted_int + decimal_sep + '0' * decimals
-    else:
-        # 无小数位的货币
-        formatted_amount = formatted_int
-    
-    # 添加负号
-    if is_negative:
-        formatted_amount = '-' + formatted_amount
-    
-    # 添加货币符号
-    result = formatted_amount
-    if include_symbol:
-        if is_negative:
-            # 负数：符号在负号之前
-            result = '-' + symbol + symbol_space + formatted_amount[1:] if formatted_amount.startswith('-') else '-' + symbol + symbol_space + formatted_amount
-        elif symbol_pos == 'before':
-            result = symbol + symbol_space + result
-        else:
-            result = result + symbol_space + symbol
-    
-    # 添加货币代码
-    if include_code:
-        result = result + ' ' + currency
-    
-    return result
-
-
-def parse_money(
-    money_str: str,
-    currency: Optional[str] = None,
-    locale: str = 'en_US'
-) -> Tuple[Decimal, str]:
-    """
-    解析货币字符串
-    
-    Args:
-        money_str: 货币字符串
-        currency: 货币代码（如果字符串中不包含）
-        locale: 本地化设置
-    
-    Returns:
-        (金额, 货币代码)
-    
-    Raises:
-        InvalidAmountError: 无法解析金额
-        InvalidCurrencyError: 无法确定货币代码
-    
-    Example:
-        >>> parse_money('$1,234.56', 'USD')
-        (Decimal('1234.56'), 'USD')
-        >>> parse_money('1.234,56 €', locale='de_DE')
-        (Decimal('1234.56'), 'EUR')
-    """
-    # 移除空白
-    money_str = money_str.strip()
-    
-    # 尝试识别货币符号
-    detected_currency = None
-    for symbol, codes in SYMBOL_TO_CURRENCIES.items():
-        if symbol in money_str:
-            # 如果只有一个货币使用此符号
-            if len(codes) == 1:
-                detected_currency = codes[0]
-                break
-            # 如果有多个，使用第一个（通常是主要货币）
-            detected_currency = codes[0]
-    
-    # 确定货币
-    final_currency = currency or detected_currency
-    if not final_currency:
-        raise InvalidCurrencyError("无法确定货币代码")
-    
-    final_currency = final_currency.upper()
-    
-    # 验证货币
-    if final_currency not in CURRENCIES:
-        raise InvalidCurrencyError(f"无效的货币代码: {final_currency}")
-    
-    # 获取本地化格式
-    if locale in LOCALE_FORMATS:
-        decimal_sep, thousand_sep, _, _ = LOCALE_FORMATS[locale]
-    else:
-        decimal_sep, thousand_sep = '.', ','
-    
-    # 移除货币符号
-    clean_str = money_str
-    for symbol in SYMBOL_TO_CURRENCIES.keys():
-        clean_str = clean_str.replace(symbol, '')
-    
-    # 移除货币代码
-    clean_str = re.sub(r'\b[A-Z]{3}\b', '', clean_str)
-    
-    # 移除空白
-    clean_str = clean_str.strip()
-    
-    # 处理千位分隔符和小数点
-    if thousand_sep:
-        clean_str = clean_str.replace(thousand_sep, '')
-    if decimal_sep != '.':
-        clean_str = clean_str.replace(decimal_sep, '.')
-    
-    # 解析金额
-    try:
-        amount = Decimal(clean_str)
-    except Exception as e:
-        raise InvalidAmountError(f"无法解析金额: {money_str}") from e
-    
-    return amount, final_currency
-
-
-def format_number(
-    number: Union[int, float, str, Decimal],
-    decimals: int = 2,
-    locale: str = 'en_US'
-) -> str:
-    """
-    格式化数字
-    
-    Args:
-        number: 数字
-        decimals: 小数位数
-        locale: 本地化设置
-    
-    Returns:
-        格式化后的字符串
-    
-    Example:
-        >>> format_number(1234.5678, 2)
-        '1,234.57'
-        >>> format_number(1234.5678, 2, 'de_DE')
-        '1.234,57'
-    """
-    # 转换为 Decimal
-    if isinstance(number, Decimal):
-        dec_number = number
-    elif isinstance(number, float):
-        dec_number = Decimal(str(number))
-    else:
-        dec_number = Decimal(str(number))
-    
-    # 四舍五入
-    quantize_str = '1.' + '0' * decimals
-    dec_number = dec_number.quantize(Decimal(quantize_str), rounding=ROUND_HALF_UP)
-    
-    # 获取本地化格式
-    if locale in LOCALE_FORMATS:
-        decimal_sep, thousand_sep, _, _ = LOCALE_FORMATS[locale]
-    else:
-        decimal_sep, thousand_sep = '.', ','
-    
-    # 转换为字符串
-    number_str = str(dec_number)
-    
-    # 处理负数
-    is_negative = number_str.startswith('-')
-    if is_negative:
-        number_str = number_str[1:]
-    
-    # 分割整数和小数部分
-    if '.' in number_str:
-        int_part, dec_part = number_str.split('.')
-    else:
-        int_part = number_str
-        dec_part = '0' * decimals
-    
-    # 添加千位分隔符
-    if thousand_sep:
-        formatted_int = ''
-        for i, digit in enumerate(reversed(int_part)):
-            if i > 0 and i % 3 == 0:
-                formatted_int = thousand_sep + formatted_int
-            formatted_int = digit + formatted_int
-    else:
-        formatted_int = int_part
-    
-    # 组合
-    if decimals > 0:
-        result = formatted_int + decimal_sep + dec_part[:decimals].ljust(decimals, '0')
-    else:
-        result = formatted_int
-    
-    if is_negative:
-        result = '-' + result
-    
-    return result
-
-
-# ============================================================================
-# 汇率转换函数
-# ============================================================================
-
-class ExchangeRates:
-    """
-    汇率管理类
-    
-    存储和管理汇率数据，支持货币转换
-    """
-    
-    def __init__(self, base_currency: str = 'USD'):
-        """
-        初始化汇率管理器
-        
-        Args:
-            base_currency: 基准货币
-        """
-        self.base_currency = base_currency.upper()
-        self._rates: Dict[str, Decimal] = {self.base_currency: Decimal('1')}
-    
-    def set_rate(self, currency: str, rate: Union[int, float, str, Decimal]) -> None:
-        """
-        设置汇率（相对于基准货币）
-        
-        Args:
-            currency: 货币代码
-            rate: 汇率
-        """
-        currency = currency.upper()
-        if isinstance(rate, float):
-            rate = Decimal(str(rate))
-        else:
-            rate = Decimal(str(rate))
-        self._rates[currency] = rate
-    
-    def set_rates(self, rates: Dict[str, Union[int, float, str, Decimal]]) -> None:
-        """
-        批量设置汇率
-        
-        Args:
-            rates: 汇率字典
-        """
-        for currency, rate in rates.items():
-            self.set_rate(currency, rate)
-    
-    def get_rate(self, currency: str) -> Optional[Decimal]:
-        """
-        获取汇率
-        
-        Args:
-            currency: 货币代码
-        
-        Returns:
-            汇率，如果不存在则返回 None
-        """
-        return self._rates.get(currency.upper())
-    
-    def convert(
-        self,
-        amount: Union[int, float, str, Decimal, Money],
-        from_currency: str = None,
-        to_currency: str = None
-    ) -> Money:
-        """
-        货币转换
-        
-        Args:
-            amount: 金额（Money 对象或数值）
-            from_currency: 源货币代码（如果 amount 是数值则需要）
-            to_currency: 目标货币代码
-        
-        Returns:
-            转换后的 Money 对象
-        
-        Raises:
-            InvalidCurrencyError: 货币代码无效或汇率缺失
-        """
-        # 处理 Money 对象
-        if isinstance(amount, Money):
-            from_currency = amount.currency
-            amount = amount.amount
-        
-        if from_currency is None or to_currency is None:
-            raise InvalidCurrencyError("必须指定源货币和目标货币")
-        
-        from_currency = from_currency.upper()
-        to_currency = to_currency.upper()
-        
-        # 验证货币
-        if from_currency not in CURRENCIES:
-            raise InvalidCurrencyError(f"无效的源货币: {from_currency}")
-        if to_currency not in CURRENCIES:
-            raise InvalidCurrencyError(f"无效的目标货币: {to_currency}")
-        
-        # 转换为 Decimal
-        if isinstance(amount, float):
-            amount = Decimal(str(amount))
-        else:
-            amount = Decimal(str(amount))
-        
-        # 相同货币
-        if from_currency == to_currency:
-            return Money(amount, to_currency)
-        
-        # 获取汇率
-        from_rate = self._rates.get(from_currency)
-        to_rate = self._rates.get(to_currency)
-        
-        if from_rate is None:
-            raise InvalidCurrencyError(f"缺少 {from_currency} 的汇率")
-        if to_rate is None:
-            raise InvalidCurrencyError(f"缺少 {to_currency} 的汇率")
-        
-        # 转换：先转成基准货币，再转成目标货币
-        base_amount = amount / from_rate
-        converted = base_amount * to_rate
-        
-        return Money(converted, to_currency)
-    
-    def get_supported_currencies(self) -> List[str]:
-        """获取支持的货币列表"""
-        return list(self._rates.keys())
-    
-    def __repr__(self) -> str:
-        return f"ExchangeRates(base='{self.base_currency}', rates={len(self._rates)})"
-
-
-def convert_money(
-    amount: Union[int, float, str, Decimal, Money],
-    from_currency: str,
-    to_currency: str,
-    rate: Union[int, float, str, Decimal]
-) -> Money:
-    """
-    简单货币转换
-    
-    Args:
-        amount: 金额
-        from_currency: 源货币代码
-        to_currency: 目标货币代码
-        rate: 汇率（1 源货币 = rate 目标货币）
-    
-    Returns:
-        转换后的 Money 对象
-    
-    Example:
-        >>> convert_money(100, 'USD', 'CNY', 7.2)
-        Money(720, 'CNY')
-    """
-    # 处理 Money 对象
-    if isinstance(amount, Money):
-        from_currency = amount.currency
-        amount = amount.amount
-    
-    # 验证货币
-    from_currency = from_currency.upper()
-    to_currency = to_currency.upper()
-    
-    if from_currency not in CURRENCIES:
-        raise InvalidCurrencyError(f"无效的源货币: {from_currency}")
-    if to_currency not in CURRENCIES:
-        raise InvalidCurrencyError(f"无效的目标货币: {to_currency}")
-    
-    # 转换
-    if isinstance(amount, float):
-        amount = Decimal(str(amount))
-    else:
-        amount = Decimal(str(amount))
-    
-    if isinstance(rate, float):
-        rate = Decimal(str(rate))
-    else:
-        rate = Decimal(str(rate))
-    
-    converted = amount * rate
-    
-    return Money(converted, to_currency)
-
-
-# ============================================================================
-# 货币计算辅助函数
-# ============================================================================
-
-def add_taxes(
-    amount: Union[int, float, str, Decimal, Money],
-    tax_rate: Union[int, float, str, Decimal],
-    currency: str = None
-) -> Money:
-    """
-    添加税费
-    
-    Args:
-        amount: 金额
-        tax_rate: 税率（如 0.1 表示 10%）
-        currency: 货币代码（如果 amount 不是 Money 对象）
-    
-    Returns:
-        包含税费的总金额
-    
-    Example:
-        >>> add_taxes(100, 0.1, 'USD')
-        Money(110, 'USD')
-    """
-    if isinstance(amount, Money):
-        currency = amount.currency
-        amount = amount.amount
-    elif currency is None:
-        raise InvalidCurrencyError("必须指定货币代码")
-    
-    if isinstance(amount, float):
-        amount = Decimal(str(amount))
-    else:
-        amount = Decimal(str(amount))
-    
-    if isinstance(tax_rate, float):
-        tax_rate = Decimal(str(tax_rate))
-    else:
-        tax_rate = Decimal(str(tax_rate))
-    
-    total = amount * (Decimal('1') + tax_rate)
-    
-    return Money(total, currency)
-
-
-def apply_discount(
-    amount: Union[int, float, str, Decimal, Money],
-    discount: Union[int, float, str, Decimal],
-    discount_type: str = 'percent',
-    currency: str = None
-) -> Money:
-    """
-    应用折扣
-    
-    Args:
-        amount: 原金额
-        discount: 折扣值
-        discount_type: 折扣类型 ('percent' 或 'fixed')
-        currency: 货币代码（如果 amount 不是 Money 对象）
-    
-    Returns:
-        折扣后的金额
-    
-    Example:
-        >>> apply_discount(100, 0.1, 'percent', 'USD')
-        Money(90, 'USD')
-        >>> apply_discount(100, 10, 'fixed', 'USD')
-        Money(90, 'USD')
-    """
-    if isinstance(amount, Money):
-        currency = amount.currency
-        amount = amount.amount
-    elif currency is None:
-        raise InvalidCurrencyError("必须指定货币代码")
-    
-    if isinstance(amount, float):
-        amount = Decimal(str(amount))
-    else:
-        amount = Decimal(str(amount))
-    
-    if isinstance(discount, float):
-        discount = Decimal(str(discount))
-    else:
-        discount = Decimal(str(discount))
-    
-    if discount_type == 'percent':
-        result = amount * (Decimal('1') - discount)
-    elif discount_type == 'fixed':
-        result = amount - discount
-    else:
-        raise ValueError("discount_type 必须是 'percent' 或 'fixed'")
-    
-    return Money(result, currency)
-
-
-def split_amount(
-    amount: Union[int, float, str, Decimal, Money],
-    parts: int,
-    currency: str = None
-) -> List[Money]:
-    """
-    分割金额（避免浮点误差）
-    
-    Args:
-        amount: 金额
-        parts: 分割份数
-        currency: 货币代码（如果 amount 不是 Money 对象）
-    
-    Returns:
-        分割后的金额列表（确保总和等于原金额）
-    
-    Example:
-        >>> split_amount(100, 3, 'USD')
-        [Money('33.34', 'USD'), Money('33.33', 'USD'), Money('33.33', 'USD')]
-    """
-    if isinstance(amount, Money):
-        currency = amount.currency
-        amount = amount.amount
-    elif currency is None:
-        raise InvalidCurrencyError("必须指定货币代码")
-    
-    if parts <= 0:
-        raise ValueError("分割份数必须大于 0")
-    
-    if isinstance(amount, float):
-        amount = Decimal(str(amount))
-    else:
-        amount = Decimal(str(amount))
-    
-    # 获取货币精度
-    decimals = CURRENCIES[currency][2]
-    
-    # 计算最小单位
-    if decimals > 0:
-        min_unit = Decimal('0.' + '0' * (decimals - 1) + '1')
-        quantize_str = '1.' + '0' * decimals
-    else:
-        min_unit = Decimal('1')
-        quantize_str = '1'
-    
-    # 计算基础每份金额（向下舍入）
-    each = (amount / parts).quantize(Decimal(quantize_str), rounding=ROUND_DOWN)
-    
-    # 计算剩余金额（用于分配到前几个部分）
-    remainder = amount - (each * parts)
-    
-    # 计算需要增加的部分数量
-    extra_parts = int(remainder / min_unit) if remainder > 0 else 0
-    
-    # 创建结果列表
-    result = []
-    for i in range(parts):
-        if i < extra_parts:
-            result.append(Money(each + min_unit, currency))
-        else:
-            result.append(Money(each, currency))
-    
-    return result
-
-
-def compare_amounts(
-    amount1: Union[int, float, str, Decimal, Money],
-    amount2: Union[int, float, str, Decimal, Money],
-    currency: str = None
-) -> int:
-    """
-    比较两个金额
-    
-    Args:
-        amount1: 第一个金额
-        amount2: 第二个金额
-        currency: 货币代码（如果金额不是 Money 对象）
-    
-    Returns:
-        -1: amount1 < amount2
-        0: amount1 == amount2
-        1: amount1 > amount2
-    
-    Example:
-        >>> compare_amounts(100, 200, 'USD')
-        -1
-    """
-    def to_decimal(a: Union[int, float, str, Decimal, Money]) -> Decimal:
-        if isinstance(a, Money):
-            return a.amount
-        if isinstance(a, float):
-            return Decimal(str(a))
-        return Decimal(str(a))
-    
-    a1 = to_decimal(amount1)
-    a2 = to_decimal(amount2)
-    
-    if a1 < a2:
-        return -1
-    elif a1 > a2:
-        return 1
-    else:
-        return 0
-
-
-def percentage_of(
-    part: Union[int, float, str, Decimal, Money],
-    total: Union[int, float, str, Decimal, Money]
-) -> Decimal:
-    """
-    计算部分占总体的百分比
-    
-    Args:
-        part: 部分金额
-        total: 总金额
-    
-    Returns:
-        百分比（如 0.25 表示 25%）
-    
-    Raises:
-        ZeroDivisionError: 总金额为零
-    
-    Example:
-        >>> percentage_of(25, 100)
-        Decimal('0.25')
-    """
-    def to_decimal(a: Union[int, float, str, Decimal, Money]) -> Decimal:
-        if isinstance(a, Money):
-            return a.amount
-        if isinstance(a, float):
-            return Decimal(str(a))
-        return Decimal(str(a))
-    
-    p = to_decimal(part)
-    t = to_decimal(total)
-    
-    if t == 0:
-        raise ZeroDivisionError("总金额不能为零")
-    
-    return p / t
-
-
-def is_zero(
-    amount: Union[int, float, str, Decimal, Money]
-) -> bool:
-    """
-    检查金额是否为零
-    
-    Args:
-        amount: 金额
-    
-    Returns:
-        是否为零
-    """
-    if isinstance(amount, Money):
-        return amount.amount == 0
-    if isinstance(amount, float):
-        return amount == 0
-    return Decimal(str(amount)) == 0
-
-
-def is_negative(
-    amount: Union[int, float, str, Decimal, Money]
-) -> bool:
-    """
-    检查金额是否为负
-    
-    Args:
-        amount: 金额
-    
-    Returns:
-        是否为负
-    """
-    if isinstance(amount, Money):
-        return amount.amount < 0
-    if isinstance(amount, float):
-        return amount < 0
-    return Decimal(str(amount)) < 0
-
-
-def is_positive(
-    amount: Union[int, float, str, Decimal, Money]
-) -> bool:
-    """
-    检查金额是否为正
-    
-    Args:
-        amount: 金额
-    
-    Returns:
-        是否为正
-    """
-    if isinstance(amount, Money):
-        return amount.amount > 0
-    if isinstance(amount, float):
-        return amount > 0
-    return Decimal(str(amount)) > 0
-
-
-# ============================================================================
-# 便捷函数
-# ============================================================================
-
-def money(
-    amount: Union[int, float, str, Decimal],
-    currency: str
-) -> Money:
-    """创建 Money 对象的便捷函数"""
-    return Money(amount, currency)
-
-
-def usd(amount: Union[int, float, str, Decimal]) -> Money:
-    """创建美元 Money 对象"""
-    return Money(amount, 'USD')
-
-
-def eur(amount: Union[int, float, str, Decimal]) -> Money:
-    """创建欧元 Money 对象"""
-    return Money(amount, 'EUR')
-
-
-def gbp(amount: Union[int, float, str, Decimal]) -> Money:
-    """创建英镑 Money 对象"""
-    return Money(amount, 'GBP')
-
-
-def jpy(amount: Union[int, float, str, Decimal]) -> Money:
-    """创建日元 Money 对象"""
-    return Money(amount, 'JPY')
-
-
-def cny(amount: Union[int, float, str, Decimal]) -> Money:
-    """创建人民币 Money 对象"""
-    return Money(amount, 'CNY')
-
-
-# ============================================================================
-# 主函数演示
-# ============================================================================
-
-if __name__ == '__main__':
-    print("=== 货币工具库演示 ===\n")
-    
-    # 创建 Money 对象
-    price = Money(1234.56, 'USD')
-    print(f"价格: {price}")
-    print(f"格式化: {price.format()}")
-    print(f"德式格式: {price.format(locale='de_DE')}")
-    print(f"含税价: {add_taxes(price, 0.1)}")
-    
-    print()
-    
-    # 货币转换
-    rates = ExchangeRates('USD')
-    rates.set_rates({
-        'EUR': Decimal('0.92'),
-        'GBP': Decimal('0.79'),
-        'JPY': Decimal('151.5'),
-        'CNY': Decimal('7.24'),
-    })
-    
-    usd_amount = usd(100)
-    print(f"原金额: {usd_amount}")
-    print(f"转欧元: {rates.convert(usd_amount, to_currency='EUR')}")
-    print(f"转英镑: {rates.convert(usd_amount, to_currency='GBP')}")
-    print(f"转日元: {rates.convert(usd_amount, to_currency='JPY')}")
-    print(f"转人民币: {rates.convert(usd_amount, to_currency='CNY')}")
-    
-    print()
-    
-    # 分割金额
-    split = split_amount(100, 3, 'USD')
-    print(f"分割 $100 为 3 份: {[str(s) for s in split]}")
-    print(f"验证总和: {sum(s.amount for s in split)}")
-    
-    print()
-    
-    # 折扣
-    original = cny(100)
-    discounted = apply_discount(original, 0.2, 'percent')
-    print(f"原价: {original}")
-    print(f"八折后: {discounted}")
-    
-    print()
-    
-    # 货币信息
-    print(f"USD 信息: {get_currency_info('USD')}")
-    print(f"使用 $ 符号的货币: {get_currencies_by_symbol('$')}")
-    
-    print("\n=== 演示完成 ===")
+if __name__ == "__main__":
+    _run_tests()
