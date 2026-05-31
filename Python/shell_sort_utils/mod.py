@@ -176,6 +176,12 @@ def generate_sedgewick_gaps(n: int) -> List[int]:
         k += 1
         power2 <<= 1  # power2 *= 2，使用位移（更快）
     
+    # 确保序列以 1 结尾（修复：当最大 gap 已 < n 但可能不是 1 时补充）
+    if gaps and gaps[-1] != 1:
+        gaps.append(1)
+    elif not gaps:
+        gaps = [1]
+    
     return gaps[::-1]
 
 
