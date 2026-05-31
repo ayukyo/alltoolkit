@@ -1,6 +1,18 @@
-"""Usage examples for SLA Utils."""
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+AllToolkit - SLA Calculator Utilities Examples
+===============================================
+Demonstration of sla_utils module capabilities.
 
-from sla_utils.mod import (
+Run: python examples/usage_examples.py
+"""
+
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from mod import (
     TimeUnit,
     SLATier,
     calculate_uptime_percent,
@@ -103,8 +115,8 @@ def example_sla_compliance():
     print("\n=== SLA Compliance Check ===")
 
     incidents = [
-        {'start': 1000000000, 'end': 1000003600},  # 1 hour incident
-        {'start': 2000000000, 'end': 2000001800},  # 30 minute incident
+        {'start': 0, 'end': 3600},   # 1 hour incident
+        {'start': 0, 'end': 1800},   # 30 minute incident
     ]
 
     compliance = calculate_sla_compliance(incidents, 99.9, TimeUnit.YEAR)
@@ -112,7 +124,7 @@ def example_sla_compliance():
     print(f"Target SLA: {compliance['target_uptime_percent']}%")
     print(f"Actual uptime: {compliance['uptime_percent']:.4f}%")
     print(f"Total downtime: {format_downtime(compliance['total_downtime_seconds'])}")
-    print(f"Compliance status: {'✓ MET' if compliance['compliant'] else '✗ BREACHED'}")
+    print(f"Compliance status: {'MET' if compliance['compliant'] else 'BREACHED'}")
 
     if not compliance['compliant']:
         print(f"Breach amount: {format_downtime(compliance['breach_amount'])}")
@@ -138,13 +150,13 @@ def example_nines_notation():
     uptimes = [95.0, 99.0, 99.9, 99.99, 99.999, 99.9999]
     for uptime in uptimes:
         nines = uptime_to_nines(uptime)
-        print(f"{uptime}% → {nines}")
+        print(f"{uptime}% -> {nines}")
 
     print("\nReverse conversion:")
     samples = ["99.9", "three nines", "99.99%"]
     for s in samples:
         uptime = nines_to_uptime(s)
-        print(f"'{s}' → {uptime}%")
+        print(f"'{s}' -> {uptime}%")
 
 
 def example_mttr_analysis():
@@ -163,7 +175,12 @@ def example_mttr_analysis():
     print(f"Min recovery: {mttr['min_recovery_time']}s, Max recovery: {mttr['max_recovery_time']}s")
 
 
-if __name__ == "__main__":
+def main():
+    """Run all demonstrations."""
+    print("\n" + "="*60)
+    print("  AllToolkit - SLA Calculator Utilities Demo")
+    print("="*60)
+
     example_basic_uptime_calculation()
     example_downtime_calculation()
     example_sla_tier_comparison()
@@ -173,3 +190,11 @@ if __name__ == "__main__":
     example_sla_verification()
     example_nines_notation()
     example_mttr_analysis()
+
+    print("\n" + "="*60)
+    print("  Demo Complete!")
+    print("="*60 + "\n")
+
+
+if __name__ == '__main__':
+    main()
