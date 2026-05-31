@@ -77,8 +77,9 @@ class TestBoard:
             board.drop_piece(0, PLAYER_ONE)
             board.drop_piece(1, PLAYER_TWO)
         
+        # Both players have 4 vertical (column 0 for P1, column 1 for P2)
         assert board.check_win(PLAYER_ONE)
-        assert not board.check_win(PLAYER_TWO)
+        assert board.check_win(PLAYER_TWO)
     
     def test_diagonal_win_positive(self):
         """Test diagonal win (positive slope)."""

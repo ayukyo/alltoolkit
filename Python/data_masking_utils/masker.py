@@ -399,7 +399,7 @@ def mask_custom(
         脱敏后的文本
     
     Examples:
-        >>> mask_custom("订单号：123456789", r"订单号：(\d+)", 3, 2)
+        >>> mask_custom("订单号：123456789", r"订单号：(\\d+)", 3, 2)
         '订单号：123***89'
     """
     rule = MaskRule(pattern, mask_char, keep_start, keep_end)
@@ -418,7 +418,7 @@ class DataMasker:
         '手机号：138****5678，身份证：110101********1234'
         
         >>> # 添加自定义规则
-        >>> masker.add_rule(r"订单号：(\d+)", keep_start=3, keep_end=2)
+        >>> masker.add_rule(r"订单号：(\\d+)", keep_start=3, keep_end=2)
     """
     
     def __init__(self, default_mask_char: str = "*"):
