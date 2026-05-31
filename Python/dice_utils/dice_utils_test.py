@@ -1,707 +1,332 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-AllToolkit - Python Dice Utilities Test Suite
-
-Comprehensive tests for dice rolling, notation parsing,
-probability calculations, and statistical analysis.
-
-Author: AllToolkit
-License: MIT
+AllToolkit - Dice Utils Test Suite
+===================================
+Test cases for dice utilities module.
 """
 
+import unittest
 import sys
-sys.path.insert(0, '/home/admin/.openclaw/workspace/AllToolkit/Python')
+import os
 
-from dice_utils.mod import (
-    # Basic rolls
-    roll, roll_d4, roll_d6, roll_d8, roll_d10, roll_d12, roll_d20, roll_d100,
-    roll_percentile, d, d4, d6, d8, d10, d12, d20, d100, dF,
-    
-    # Notation
-    roll_notation, DiceNotationParser,
-    
-    # Keep/drop
-    roll_keep_highest, roll_keep_lowest, roll_drop_lowest, roll_drop_highest,
-    
-    # Exploding
-    roll_exploding,
-    
-    # Dice pools
-    roll_pool, roll_world_of_darkness,
-    
-    # Fate/Fudge
-    roll_fate, roll_fudge,
-    
-    # Advantage/disadvantage
-    roll_with_advantage, roll_with_disadvantage,
-    
-    # Probability
-    dice_distribution, dice_probability, probability_at_least,
-    probability_at_most, probability_between, expected_value,
-    variance, standard_deviation,
-    
-    # Analysis
-    monte_carlo_simulation, analyze_rolls, compare_rolls,
-    
-    # Classes
-    DiceRoller, DiceResult, DicePoolResult, ProbabilityDistribution,
-    
-    # Utilities
-    dice_to_string,
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from mod import (
+    roll, roll_with_reroll, roll_exploding, roll_fudge,
+    dice_roll, dice_parse,
+    fudge_total, advantage, disadvantage,
+    roll_distribution, expected_value, variance, standard_deviation,
+    probability_at_least, probability_exactly,
+    batch_roll, batch_stats,
+    roll_weighted, roll_weighted_batch,
+    roll_pool, RollOutcome, RollStats, DicePoolResult
 )
-import random
 
 
-def test_basic_rolls():
-    """Test basic dice rolling functions."""
-    print("Testing basic rolls...")
+class TestCoreRolls(unittest.TestCase):
+    """Test core rolling functions."""
     
-    # Test single die roll
-    result = roll(6)
-    assert 1 <= result.total <= 6
-    assert len(result.dice) == 1
-    assert result.total == result.dice[0]
+    def test_roll_basic(self):
+        """Test basic roll function."""
+        result = roll(2, 6)
+        self.assertEqual(len(result), 2)
+        for r in result:
+            self.assertGreaterEqual(r, 1)
+            self.assertLessEqual(r, 6)
     
-    # Test multiple dice
-    result = roll(6, count=3)
-    assert 3 <= result.total <= 18
-    assert len(result.dice) == 3
-    assert result.total == sum(result.dice)
+    def test_roll_single_die(self):
+        """Test rolling single die."""
+        result = roll(1, 20)
+        self.assertEqual(len(result), 1)
+        self.assertGreaterEqual(result[0], 1)
+        self.assertLessEqual(result[0], 20)
     
-    # Test with modifier
-    result = roll(6, count=2, modifier=5)
-    assert 7 <= result.total <= 17
-    assert result.modifier == 5
-    assert result.total == sum(result.dice) + 5
+    def test_roll_invalid_dice_count(self):
+        """Test rolling invalid dice count."""
+        result = roll(0, 6)
+        self.assertEqual(result, [])
     
-    # Test negative modifier
-    result = roll(20, count=1, modifier=-3)
-    assert -2 <= result.total <= 17
-    assert result.modifier == -3
+    def test_roll_too_many_dice(self):
+        """Test rolling too many dice raises error."""
+        with self.assertRaises(ValueError):
+            roll(1001, 6)
     
-    print("  ✓ Basic rolls passed")
+    def test_roll_invalid_sides(self):
+        """Test rolling invalid sides raises error."""
+        with self.assertRaises(ValueError):
+            roll(2, 0)
 
 
-def test_standard_dice():
-    """Test standard dice functions (d4, d6, d8, d10, d12, d20, d100)."""
-    print("Testing standard dice...")
+class TestRerollMechanics(unittest.TestCase):
+    """Test reroll mechanics."""
     
-    # d4
-    for _ in range(10):
-        result = roll_d4()
-        assert 1 <= result.total <= 4
+    def test_reroll_basic(self):
+        """Test basic reroll."""
+        result = roll_with_reroll(5, 6, 2, max_rerolls=1)
+        self.assertEqual(len(result), 5)
+        for r in result:
+            self.assertGreaterEqual(r, 1)
+            self.assertLessEqual(r, 6)
+            # No 1s or 2s after reroll
+            self.assertGreater(r, 2)
     
-    # d6
-    for _ in range(10):
-        result = roll_d6(3)
-        assert 3 <= result.total <= 18
-    
-    # d8
-    for _ in range(10):
-        result = roll_d8()
-        assert 1 <= result.total <= 8
-    
-    # d10
-    for _ in range(10):
-        result = roll_d10()
-        assert 1 <= result.total <= 10
-    
-    # d12
-    for _ in range(10):
-        result = roll_d12()
-        assert 1 <= result.total <= 12
-    
-    # d20
-    for _ in range(10):
-        result = roll_d20()
-        assert 1 <= result.total <= 20
-    
-    # d100
-    for _ in range(10):
-        result = roll_d100()
-        assert 1 <= result.total <= 100
-    
-    # percentile
-    result = roll_percentile()
-    assert 1 <= result.total <= 100
-    
-    print("  ✓ Standard dice passed")
+    def test_reroll_multiple(self):
+        """Test multiple reroll passes."""
+        # With 3 reroll passes, all low rolls should be gone
+        result = roll_with_reroll(10, 6, 3, max_rerolls=3)
+        self.assertEqual(len(result), 10)
+        for r in result:
+            self.assertGreaterEqual(r, 4)  # Should be 4, 5, or 6
 
 
-def test_dice_notation_parser():
-    """Test dice notation parsing and rolling."""
-    print("Testing dice notation parser...")
-    
-    parser = DiceNotationParser()
-    
-    # Test basic notation
-    result = parser.roll("d6")
-    assert 1 <= result.total <= 6
-    assert len(result.dice) == 1
-    
-    # Test count and sides
-    result = parser.roll("2d6")
-    assert 2 <= result.total <= 12
-    assert len(result.dice) == 2
-    
-    # Test with modifier
-    result = parser.roll("3d6+5")
-    assert 8 <= result.total <= 23
-    assert result.modifier == 5
-    
-    result = parser.roll("1d20-2")
-    assert -1 <= result.total <= 18
-    assert result.modifier == -2
-    
-    # Test keep highest (D&D ability scores)
-    result = parser.roll("4d6k3")
-    assert 3 <= result.total <= 18
-    assert len(result.kept) == 3
-    assert len(result.dice) == 4
-    assert result.total == sum(result.kept)
-    
-    # Test keep lowest
-    result = parser.roll("4d6l3")
-    assert 3 <= result.total <= 18
-    assert len(result.kept) == 3
-    
-    # Test drop lowest
-    result = parser.roll("4d6d1")
-    assert 3 <= result.total <= 18
-    assert len(result.kept) == 3
-    
-    # Test roll_notation convenience function
-    result = roll_notation("2d6+3")
-    assert 5 <= result.total <= 15
-    
-    # Test parsing
-    parsed = parser.parse("4d6k3+2")
-    assert parsed['count'] == 4
-    assert parsed['sides'] == 6
-    assert parsed['keep_type'] == 'k'
-    assert parsed['keep_count'] == 3
-    assert parsed['modifier'] == 2
-    
-    print("  ✓ Dice notation parser passed")
-
-
-def test_exploding_dice():
+class TestExplodingDice(unittest.TestCase):
     """Test exploding dice mechanics."""
-    print("Testing exploding dice...")
     
-    # Test regular exploding dice
-    results = []
-    for _ in range(100):
-        result = roll_exploding(6, count=1)
-        results.append(result)
+    def test_exploding_returns_list(self):
+        """Test exploding dice returns a list."""
+        result = roll_exploding(3, 6)
+        self.assertIsInstance(result, list)
+        self.assertGreaterEqual(len(result), 3)  # May or may not have explosions
     
-    # All results should be >= 1
-    for r in results:
-        assert r.total >= 1
-    
-    # Some results should exceed 6 (exploded)
-    exploded_count = sum(1 for r in results if r.total > 6)
-    assert exploded_count >= 0  # Statistical - may or may not happen
-    
-    # Test compound exploding
-    result = roll_exploding(6, count=1, compound=True)
-    assert result.total >= 1
-    
-    print("  ✓ Exploding dice passed")
+    def test_exploding_values(self):
+        """Test exploding dice values are valid."""
+        result = roll_exploding(5, 6)
+        for r in result:
+            self.assertGreaterEqual(r, 1)
+            self.assertLessEqual(r, 6)
 
 
-def test_keep_drop_dice():
-    """Test keep/drop dice mechanics."""
-    print("Testing keep/drop dice...")
+class TestFudgeDice(unittest.TestCase):
+    """Test Fudge/FATE dice."""
     
-    # Test keep highest
-    result = roll_keep_highest(6, 4, 3)
-    assert len(result.dice) == 4
-    assert len(result.kept) == 3
-    assert len(result.dropped) == 1
-    assert result.total == sum(result.kept)
-    assert min(result.kept) >= max(result.dropped)
+    def test_fudge_values(self):
+        """Test Fudge dice return -1, 0, or 1."""
+        result = roll_fudge(4)
+        self.assertEqual(len(result), 4)
+        for r in result:
+            self.assertIn(r, [-1, 0, 1])
     
-    # Test keep lowest
-    result = roll_keep_lowest(6, 4, 3)
-    assert len(result.dice) == 4
-    assert len(result.kept) == 3
-    assert max(result.kept) <= min(result.dropped)
-    
-    # Test drop lowest (same as keep highest)
-    result = roll_drop_lowest(6, 4, 1)
-    assert len(result.kept) == 3
-    
-    # Test drop highest
-    result = roll_drop_highest(6, 4, 1)
-    assert len(result.kept) == 3
-    
-    print("  ✓ Keep/drop dice passed")
+    def test_fudge_total(self):
+        """Test Fudge total is within expected range."""
+        total = fudge_total(4)
+        self.assertIsInstance(total, int)
+        self.assertGreaterEqual(total, -4)
+        self.assertLessEqual(total, 4)
 
 
-def test_dice_pool():
-    """Test dice pool mechanics."""
-    print("Testing dice pools...")
+class TestDiceNotation(unittest.TestCase):
+    """Test dice notation parser."""
     
-    # Test basic dice pool
-    result = roll_pool(10, 5, 6)
-    assert len(result.dice) == 5
-    assert result.successes >= 0
-    assert result.successes + result.failures == 5
-    assert result.critical_threshold == 10
-    assert result.botch_threshold == 1
+    def test_simple_roll(self):
+        """Test simple XdY notation."""
+        outcome = dice_parse("2d6")
+        self.assertEqual(len(outcome.rolls), 2)
+        for r in outcome.rolls:
+            self.assertGreaterEqual(r, 1)
+            self.assertLessEqual(r, 6)
     
-    # Test with double success on criticals
-    result = roll_pool(10, 5, 6, critical_threshold=10, double_success=True)
-    # If any 10s rolled, they count as 2 successes
-    assert result.successes >= 0
+    def test_roll_with_modifier(self):
+        """Test roll with modifier."""
+        outcome = dice_parse("2d6+3")
+        self.assertEqual(outcome.modifier, 3)
+        self.assertEqual(outcome.total, sum(outcome.rolls) + 3)
     
-    # Test World of Darkness style
-    result = roll_world_of_darkness(5, difficulty=6)
-    assert len(result.dice) == 5
-    assert result.successes >= 0
+    def test_roll_with_negative_modifier(self):
+        """Test roll with negative modifier."""
+        outcome = dice_parse("3d8-2")
+        self.assertEqual(outcome.modifier, -2)
+        self.assertEqual(outcome.total, sum(outcome.rolls) - 2)
     
-    print("  ✓ Dice pools passed")
+    def test_keep_highest(self):
+        """Test keep highest (kh)."""
+        outcome = dice_parse("4d20kh3")
+        self.assertEqual(len(outcome.kept), 3)
+        self.assertEqual(len(outcome.dropped), 1)
+    
+    def test_keep_lowest(self):
+        """Test keep lowest (kl)."""
+        outcome = dice_parse("4d20kl2")
+        self.assertEqual(len(outcome.kept), 2)
+        self.assertEqual(len(outcome.dropped), 2)
+    
+    def test_drop_highest(self):
+        """Test drop highest (dh)."""
+        outcome = dice_parse("4d6dh1")
+        self.assertEqual(len(outcome.kept), 3)
+        self.assertEqual(len(outcome.dropped), 1)
+    
+    def test_drop_lowest(self):
+        """Test drop lowest (dl)."""
+        outcome = dice_parse("4d6dl1")
+        self.assertEqual(len(outcome.kept), 3)
+        self.assertEqual(len(outcome.dropped), 1)
+    
+    def test_exploding_notation(self):
+        """Test exploding dice notation (!)."""
+        outcome = dice_parse("2d6!")
+        # Just check it doesn't error and returns something
+        self.assertIsInstance(outcome.rolls, list)
+    
+    def test_reroll_notation(self):
+        """Test reroll notation (rN)."""
+        outcome = dice_parse("5d6r2")
+        self.assertEqual(len(outcome.rolls), 5)
+        # No values should be 1 or 2 after reroll
+        for r in outcome.rolls:
+            self.assertGreater(r, 2)
+    
+    def test_target_greater(self):
+        """Test target number (>N)."""
+        outcome = dice_parse("6d6>4")
+        self.assertEqual(outcome.success_count + outcome.failure_count, 6)
+    
+    def test_target_greater_equal(self):
+        """Test target number inclusive (>=N)."""
+        outcome = dice_parse("6d6>=4")
+        self.assertGreaterEqual(outcome.success_count + outcome.failure_count, 6)
+    
+    def test_invalid_notation(self):
+        """Test invalid notation raises error."""
+        with self.assertRaises(ValueError):
+            dice_parse("invalid")
+    
+    def test_dice_roll_convenience(self):
+        """Test dice_roll convenience function returns int."""
+        result = dice_roll("d20+5")
+        self.assertIsInstance(result, int)
+        self.assertGreaterEqual(result, 6)  # min d20 + 5
+        self.assertLessEqual(result, 25)  # max d20 + 5
 
 
-def test_fate_dice():
-    """Test Fate/Fudge dice."""
-    print("Testing Fate/Fudge dice...")
+class TestAdvantageDisadvantage(unittest.TestCase):
+    """Test advantage and disadvantage rolls."""
     
-    # Test standard Fate roll
-    result = roll_fate(4)
-    assert len(result.dice) == 4
-    assert -4 <= result.total <= 4
-    for die in result.dice:
-        assert die in [-1, 0, 1]
+    def test_advantage_returns_tuple(self):
+        """Test advantage returns tuple of 3 values."""
+        result = advantage()
+        self.assertEqual(len(result), 3)
+        r1, r2, final = result
+        self.assertEqual(final, max(r1, r2))
     
-    # Test different count
-    result = roll_fate(6)
-    assert len(result.dice) == 6
-    assert -6 <= result.total <= 6
-    
-    # Test fudge alias
-    result = roll_fudge(4)
-    assert -4 <= result.total <= 4
-    
-    print("  ✓ Fate/Fudge dice passed")
+    def test_disadvantage_returns_tuple(self):
+        """Test disadvantage returns tuple of 3 values."""
+        result = disadvantage()
+        self.assertEqual(len(result), 3)
+        r1, r2, final = result
+        self.assertEqual(final, min(r1, r2))
 
 
-def test_advantage_disadvantage():
-    """Test advantage/disadvantage mechanics."""
-    print("Testing advantage/disadvantage...")
+class TestStatistics(unittest.TestCase):
+    """Test statistical functions."""
     
-    # Test advantage
-    for _ in range(50):
-        result = roll_with_advantage(20)
-        assert len(result.dice) == 2
-        assert result.total == max(result.dice)
-        assert 1 <= result.total <= 20
+    def test_expected_value(self):
+        """Test expected value calculation."""
+        ev = expected_value(2, 6)
+        self.assertEqual(ev, 7.0)
     
-    # Test disadvantage
-    for _ in range(50):
-        result = roll_with_disadvantage(20)
-        assert len(result.dice) == 2
-        assert result.total == min(result.dice)
-        assert 1 <= result.total <= 20
+    def test_variance(self):
+        """Test variance calculation."""
+        var = variance(1, 6)
+        self.assertAlmostEqual(var, 35/12, places=3)
     
-    print("  ✓ Advantage/disadvantage passed")
+    def test_standard_deviation(self):
+        """Test standard deviation calculation."""
+        sd = standard_deviation(2, 6)
+        expected = (35/6) ** 0.5
+        self.assertAlmostEqual(sd, expected, places=3)
+    
+    def test_distribution_sums_to_one(self):
+        """Test distribution probabilities sum to 1."""
+        dist = roll_distribution(2, 6, trials=5000)
+        total = sum(dist.values())
+        self.assertAlmostEqual(total, 1.0, places=1)
 
 
-def test_probability_distribution():
-    """Test probability distribution calculations."""
-    print("Testing probability distribution...")
+class TestBatchRolling(unittest.TestCase):
+    """Test batch rolling functions."""
     
-    # Test 2d6 distribution
-    dist = dice_probability(2, 6)
+    def test_batch_roll_returns_list(self):
+        """Test batch_roll returns list of outcomes."""
+        results = batch_roll("2d6", 10)
+        self.assertEqual(len(results), 10)
+        for r in results:
+            self.assertIsInstance(r, RollOutcome)
     
-    # Mean of 2d6 should be 7
-    assert abs(dist.mean - 7.0) < 0.001
-    
-    # Min should be 2, max should be 12
-    assert dist.min_value == 2
-    assert dist.max_value == 12
-    
-    # Probability of 7 should be 6/36 = 1/6
-    assert abs(dist.probability(7) - (1/6)) < 0.001
-    
-    # Probability of 2 should be 1/36
-    assert abs(dist.probability(2) - (1/36)) < 0.001
-    
-    # Test probability_at_least
-    prob = probability_at_least(2, 6, 7)
-    # P(X >= 7) = P(7) + P(8) + ... + P(12) = 21/36 = 7/12
-    assert abs(prob - (21/36)) < 0.001
-    
-    # Test probability_at_most
-    prob = probability_at_most(2, 6, 7)
-    # P(X <= 7) = P(2) + ... + P(7) = 21/36
-    assert abs(prob - (21/36)) < 0.001
-    
-    # Test probability_between
-    prob = probability_between(2, 6, 5, 9)
-    # P(5 <= X <= 9) = P(5) + P(6) + P(7) + P(8) + P(9)
-    assert prob > 0
-    
-    print("  ✓ Probability distribution passed")
+    def test_batch_stats(self):
+        """Test batch_stats returns stats object."""
+        stats = batch_stats("d20", 100)
+        self.assertIsInstance(stats, RollStats)
+        self.assertEqual(stats.count, 100)
+        self.assertGreater(stats.mean, 0)
 
 
-def test_expected_value():
-    """Test expected value calculations."""
-    print("Testing expected value...")
+class TestWeightedDice(unittest.TestCase):
+    """Test weighted dice functions."""
     
-    # E[1d6] = 3.5
-    assert abs(expected_value(1, 6) - 3.5) < 0.001
+    def test_weighted_basic(self):
+        """Test basic weighted roll."""
+        weights = [0.1] * 5 + [0.5]  # 6 sides, sum to 1
+        result = roll_weighted(6, weights)
+        self.assertGreaterEqual(result, 1)
+        self.assertLessEqual(result, 6)
     
-    # E[2d6] = 7
-    assert abs(expected_value(2, 6) - 7.0) < 0.001
-    
-    # E[1d20] = 10.5
-    assert abs(expected_value(1, 20) - 10.5) < 0.001
-    
-    # E[3d6] = 10.5
-    assert abs(expected_value(3, 6) - 10.5) < 0.001
-    
-    print("  ✓ Expected value passed")
+    def test_weighted_batch(self):
+        """Test weighted batch roll."""
+        weights = [0.2] * 5
+        results = roll_weighted_batch(10, 5, weights)
+        self.assertEqual(len(results), 10)
+        for r in results:
+            self.assertGreaterEqual(r, 1)
+            self.assertLessEqual(r, 5)
 
 
-def test_variance_std_dev():
-    """Test variance and standard deviation calculations."""
-    print("Testing variance and standard deviation...")
+class TestDicePools(unittest.TestCase):
+    """Test dice pool functions."""
     
-    # Var[1d6] = (36-1)/12 = 35/12 ≈ 2.917
-    var1d6 = variance(1, 6)
-    assert abs(var1d6 - (35/12)) < 0.001
+    def test_pool_result(self):
+        """Test dice pool result."""
+        result = roll_pool(8, 10, 8)
+        self.assertIsInstance(result, DicePoolResult)
+        self.assertEqual(len(result.results), 8)
+        self.assertGreaterEqual(result.successes, 0)
+        self.assertLessEqual(result.successes, 8)
     
-    # Var[2d6] = 2 * 35/12 ≈ 5.833
-    var2d6 = variance(2, 6)
-    assert abs(var2d6 - (70/12)) < 0.001
-    
-    # Std dev
-    std1d6 = standard_deviation(1, 6)
-    assert abs(std1d6 - (35/12) ** 0.5) < 0.001
-    
-    print("  ✓ Variance and standard deviation passed")
+    def test_pool_net_successes(self):
+        """Test net successes calculation."""
+        result = roll_pool(10, 10, 8)
+        # Note: net_successes can be negative if many 1s
+        self.assertEqual(result.net_successes, result.successes - result.ones)
 
 
-def test_dice_distribution():
-    """Test dice distribution calculation."""
-    print("Testing dice distribution...")
+class TestRollOutcome(unittest.TestCase):
+    """Test RollOutcome dataclass."""
     
-    # Test 2d6 distribution
-    dist = dice_distribution(2, 6)
+    def test_total_property(self):
+        """Test total property."""
+        outcome = RollOutcome(
+            notation="2d6+3",
+            rolls=[3, 5],
+            kept=[3, 5],
+            dropped=[],
+            modifier=3
+        )
+        self.assertEqual(outcome.total, 11)
     
-    # 7 should have 6 ways: (1,6), (2,5), (3,4), (4,3), (5,2), (6,1)
-    assert dist[7] == 6
-    
-    # 2 should have 1 way: (1,1)
-    assert dist[2] == 1
-    
-    # 12 should have 1 way: (6,6)
-    assert dist[12] == 1
-    
-    # Total outcomes should be 36
-    total = sum(dist.values())
-    assert total == 36
-    
-    print("  ✓ Dice distribution passed")
+    def test_success_rate(self):
+        """Test success rate calculation."""
+        outcome = RollOutcome(
+            notation="6d6>=4",
+            rolls=[3, 4, 5, 2, 6, 4],
+            kept=[4, 5, 6, 4],
+            dropped=[3, 2],
+            modifier=0,
+            success_count=4,
+            failure_count=2
+        )
+        self.assertAlmostEqual(outcome.success_rate, 66.67, places=2)
 
 
-def test_monte_carlo():
-    """Test Monte Carlo simulation."""
-    print("Testing Monte Carlo simulation...")
-    
-    # Test 2d6 simulation
-    stats = monte_carlo_simulation("2d6", 10000, seed=42)
-    
-    # Mean should be approximately 7
-    assert 6 < stats['mean'] < 8
-    
-    # Min should be 2, max should be 12
-    assert stats['min'] == 2
-    assert stats['max'] == 12
-    
-    # Distribution should cover all values 2-12
-    for i in range(2, 13):
-        assert i in stats['distribution']
-    
-    print("  ✓ Monte Carlo simulation passed")
-
-
-def test_compare_rolls():
-    """Test dice roll comparison."""
-    print("Testing roll comparison...")
-    
-    # Compare 2d6 vs 1d12
-    random.seed(42)  # Set seed before comparison
-    result = compare_rolls("2d6", "1d12", iterations=10000)
-    
-    # 2d6 and 1d12 have same expected value but different distributions
-    # 2d6 is more consistent (bell curve), 1d12 is flat
-    assert 'notation1_wins' in result
-    assert 'notation2_wins' in result
-    assert 'ties' in result
-    
-    # Probabilities should sum to 1
-    total_prob = result['notation1_wins'] + result['notation2_wins'] + result['ties']
-    assert abs(total_prob - 1.0) < 0.001
-    
-    print("  ✓ Roll comparison passed")
-
-
-def test_dice_roller_class():
-    """Test DiceRoller class."""
-    print("Testing DiceRoller class...")
-    
-    # Test with seed for reproducibility
-    roller = DiceRoller(seed=42)
-    
-    # Roll and check history
-    result = roller.roll("2d6")
-    assert len(roller.history) == 1
-    
-    result2 = roller.roll("1d20")
-    assert len(roller.history) == 2
-    
-    # Test last_roll
-    assert roller.last_roll == result2
-    
-    # Test roll_d
-    result = roller.roll_d(6, 2, 3)
-    assert result.modifier == 3
-    
-    # Test roll_with_advantage
-    result = roller.roll_with_advantage(20)
-    assert result.total == max(result.dice)
-    
-    # Test roll_with_disadvantage
-    result = roller.roll_with_disadvantage(20)
-    assert result.total == min(result.dice)
-    
-    # Test roll_fate
-    result = roller.roll_fate(4)
-    assert -4 <= result.total <= 4
-    
-    # Test analyze_history
-    analysis = roller.analyze_history()
-    assert 'total_rolls' in analysis
-    assert analysis['total_rolls'] == 6
-    
-    # Test clear_history
-    roller.clear_history()
-    assert len(roller.history) == 0
-    
-    print("  ✓ DiceRoller class passed")
-
-
-def test_analyze_rolls():
-    """Test roll analysis."""
-    print("Testing roll analysis...")
-    
-    # Create some test results
-    results = []
-    random.seed(42)
-    for _ in range(100):
-        results.append(roll(6, 3))
-    
-    analysis = analyze_rolls(results)
-    
-    assert 'total_rolls' in analysis
-    assert analysis['total_rolls'] == 100
-    assert 'total_dice' in analysis
-    assert analysis['total_dice'] == 300
-    assert 'mean_total' in analysis
-    assert 'mean_die_value' in analysis
-    
-    # Mean die value should be approximately 3.5
-    assert 3 < analysis['mean_die_value'] < 4
-    
-    print("  ✓ Roll analysis passed")
-
-
-def test_dice_to_string():
-    """Test dice string representation."""
-    print("Testing dice string representation...")
-    
-    str1 = dice_to_string([5, 3, 6], modifier=2)
-    assert "3d6+2" in str1
-    assert "5" in str1 and "3" in str1 and "6" in str1
-    
-    str2 = dice_to_string([1], modifier=-1, sides=20)
-    assert "1d20" in str2
-    assert "-1" in str2
-    
-    print("  ✓ Dice string representation passed")
-
-
-def test_shorthand_functions():
-    """Test shorthand functions."""
-    print("Testing shorthand functions...")
-    
-    # Test d()
-    result = d(6, 2)
-    assert 2 <= result.total <= 12
-    
-    # Test shorthand standard dice
-    assert 1 <= d4().total <= 4
-    assert 1 <= d6().total <= 6
-    assert 1 <= d8().total <= 8
-    assert 1 <= d10().total <= 10
-    assert 1 <= d12().total <= 12
-    assert 1 <= d20().total <= 20
-    assert 1 <= d100().total <= 100
-    
-    # Test Fate shorthand
-    result = dF(4)
-    assert -4 <= result.total <= 4
-    
-    print("  ✓ Shorthand functions passed")
-
-
-def test_data_classes():
-    """Test data classes."""
-    print("Testing data classes...")
-    
-    # DiceResult
-    result = DiceResult(dice=[5, 3], modifier=2, total=10, notation="2d6+2")
-    assert result.rolls == [5, 3]
-    assert result.successful == [5, 3]
-    assert result.total == 10
-    
-    # DiceResult with kept/dropped
-    result = DiceResult(
-        dice=[6, 5, 3, 1],
-        modifier=0,
-        total=14,
-        notation="4d6k3",
-        kept=[6, 5, 3],
-        dropped=[1]
-    )
-    assert result.successful == [6, 5, 3]
-    
-    # DicePoolResult
-    pool_result = DicePoolResult(
-        dice=[8, 6, 4, 2, 10],
-        successes=3,
-        failures=2,
-        criticals=1,
-        botches=1,
-        total=30,
-        notation="5d10>=6",
-        success_threshold=6,
-        critical_threshold=10,
-        botch_threshold=1
-    )
-    assert pool_result.successes == 3
-    assert pool_result.criticals == 1
-    
-    # ProbabilityDistribution
-    dist = ProbabilityDistribution(
-        outcomes={2: 1/36, 3: 2/36, 7: 6/36},
-        mean=7.0,
-        variance=5.83,
-        std_dev=2.41,
-        min_value=2,
-        max_value=12
-    )
-    assert dist.probability(7) == 6/36
-    
-    print("  ✓ Data classes passed")
-
-
-def test_edge_cases():
-    """Test edge cases and error handling."""
-    print("Testing edge cases...")
-    
-    parser = DiceNotationParser()
-    
-    # Invalid notation should raise error
-    try:
-        parser.roll("invalid")
-        assert False, "Should have raised ValueError"
-    except ValueError:
-        pass
-    
-    # Zero dice
-    result = roll(6, 0)
-    assert result.total == 0
-    assert len(result.dice) == 0
-    
-    # Empty string notation should fail
-    try:
-        parser.roll("")
-        assert False, "Should have raised ValueError"
-    except ValueError:
-        pass
-    
-    print("  ✓ Edge cases passed")
-
-
-def test_reproducibility():
-    """Test reproducibility with seeds."""
-    print("Testing reproducibility...")
-    
-    # Test that setting seed produces reproducible results
-    # by using the same parser instance
-    parser1 = DiceNotationParser(seed=12345)
-    parser2 = DiceNotationParser(seed=12345)
-    
-    # Reset seed before each roll for reproducibility
-    parser1_reseed = DiceNotationParser(seed=12345)
-    results1 = [parser1_reseed.roll("2d6") for _ in range(5)]
-    
-    parser2_reseed = DiceNotationParser(seed=12345)
-    results2 = [parser2_reseed.roll("2d6") for _ in range(5)]
-    
-    # Results should be identical after reseeding
-    for r1, r2 in zip(results1, results2):
-        assert r1.dice == r2.dice
-        assert r1.total == r2.total
-    
-    # Test monte carlo with seed
-    stats1 = monte_carlo_simulation("2d6", iterations=1000, seed=42)
-    stats2 = monte_carlo_simulation("2d6", iterations=1000, seed=42)
-    
-    assert stats1['mean'] == stats2['mean']
-    assert stats1['min'] == stats2['min']
-    assert stats1['max'] == stats2['max']
-    
-    print("  ✓ Reproducibility passed")
-
-
-def run_all_tests():
-    """Run all tests."""
-    print("=" * 60)
-    print("AllToolkit - Python Dice Utilities Test Suite")
-    print("=" * 60)
-    print()
-    
-    test_basic_rolls()
-    test_standard_dice()
-    test_dice_notation_parser()
-    test_exploding_dice()
-    test_keep_drop_dice()
-    test_dice_pool()
-    test_fate_dice()
-    test_advantage_disadvantage()
-    test_probability_distribution()
-    test_expected_value()
-    test_variance_std_dev()
-    test_dice_distribution()
-    test_monte_carlo()
-    test_compare_rolls()
-    test_dice_roller_class()
-    test_analyze_rolls()
-    test_dice_to_string()
-    test_shorthand_functions()
-    test_data_classes()
-    test_edge_cases()
-    test_reproducibility()
-    
-    print()
-    print("=" * 60)
-    print("All tests passed! ✓")
-    print("=" * 60)
-
-
-if __name__ == "__main__":
-    run_all_tests()
+if __name__ == '__main__':
+    unittest.main(verbosity=2)

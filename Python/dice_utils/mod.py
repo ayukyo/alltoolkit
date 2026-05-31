@@ -1,20 +1,77 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-AllToolkit - Python Dice Utilities
+AllToolkit - Dice Utilities Module
+===================================
+Comprehensive dice rolling and probability utilities with zero external dependencies.
 
-A zero-dependency, production-ready dice rolling and probability calculation module.
-Supports standard dice, dice notation parsing, probability distributions,
-dice pools, Fate/Fudge dice, and statistical analysis.
+Features:
+    - Roll standard dice (d4, d6, d8, d10, d12, d20, d100)
+    - Roll arbitrary dice notation (2d6+3, 4d20kh3, 8d6kl2)
+    - Advantage/disadvantage rolls (roll twice, take higher/lower)
+    - Reroll mechanics (xdy r1-2 means reroll 1s and 2s once)
+    - Exploding dice (reroll and add when max is rolled)
+    - Target number success counting (count successes above threshold)
+    - Drop/keep highest/lowest (kh, kl, dh, dl)
+    - Batch rolling and statistics
+    - Probability distribution calculations
+    - Weighted dice support
+
+Dice Notation:
+    XdY      - Roll X dice with Y sides
+    +N/-N    - Add/subtract fixed modifier
+    khN      - Keep highest N rolls
+    klN      - Keep lowest N rolls
+    dhN      - Drop highest N rolls
+    dlN      - Drop lowest N rolls
+    rN       - Reroll dice that show N or lower (once)
+    !        - Exploding dice (reroll and add on max)
+    >N       - Target number (count successes)
+    >=N      - Target number inclusive
+
+Examples:
+    dice_roll("2d6")           -> [3, 5] (sum=8 by default)
+    dice_parse("4d20kh3")       -> Roll 4d20, keep highest 3
+    dice_parse("8d6dl2")       -> Roll 8d6, drop lowest 2
+    dice_parse("3d10+2")       -> Roll 3d10 and add 2
+    dice_parse("2d20!")        -> Exploding dice
+    dice_parse("5d6r1")        -> Reroll 1s once
+    dice_parse("6d6>=4")       -> Count successes (4+)
 
 Author: AllToolkit
 License: MIT
 """
 
-from typing import List, Tuple, Optional, Dict, Union, Callable, Iterator
-from dataclasses import dataclass
-from functools import lru_cache
-from collections import Counter
+
 import random
 import re
+from typing import Optional, List, Tuple, Dict, Union, Callable
+from dataclasses import dataclass, field
+from enum import Enum
+from collections import Counter
+
+
+# ============================================================================
+# Types & Constants
+# ============================================================================
+
+RollResult = Union[int, List[int]]
+DiceNotation = str
+Modifier = int
+
+
+# Standard dice types
+class DiceType(Enum):
+    D2 = 2
+    D3 = 3
+    D4 = 4
+    D6 = 6
+    D8 = 8
+    D10 = 10
+    D12 = 12
+    D20 = 20
+    D30 = 30
+    D100 = 100
 
 
 # ============================================================================
@@ -22,1207 +79,769 @@ import re
 # ============================================================================
 
 @dataclass
-class DiceResult:
-    """Represents the result of a dice roll."""
-    dice: List[int]
+class RollOutcome:
+    """Represents a single roll outcome."""
+    notation: str
+    rolls: List[int]
+    kept: List[int]
+    dropped: List[int]
     modifier: int
-    total: int
-    notation: str
-    kept: Optional[List[int]] = None
-    dropped: Optional[List[int]] = None
+    success_count: int = 0
+    failure_count: int = 0
+    
+    @property
+    def total(self) -> int:
+        """Sum of kept rolls plus modifier."""
+        return sum(self.kept) + self.modifier
+    
+    @property
+    def raw_sum(self) -> int:
+        """Sum of all rolls before modifiers."""
+        return sum(self.rolls)
+    
+    @property
+    def success_rate(self) -> float:
+        """Success rate as a percentage."""
+        total = self.success_count + self.failure_count
+        if total == 0:
+            return 0.0
+        return (self.success_count / total) * 100
     
     def __repr__(self) -> str:
-        return f"DiceResult(total={self.total}, dice={self.dice}, notation='{self.notation}')"
-    
-    @property
-    def rolls(self) -> List[int]:
-        """Get all rolls including dropped ones."""
-        return self.dice
-    
-    @property
-    def successful(self) -> List[int]:
-        """Get kept rolls only."""
-        return self.kept if self.kept is not None else self.dice
+        return (
+            f"RollOutcome(total={self.total}, rolls={self.rolls}, "
+            f"kept={self.kept}, dropped={self.dropped}, "
+            f"modifier={self.modifier})"
+        )
 
 
 @dataclass
-class DicePoolResult:
-    """Represents the result of a dice pool roll."""
-    dice: List[int]
-    successes: int
-    failures: int
-    criticals: int
-    botches: int
-    total: int
+class RollStats:
+    """Statistical summary of multiple rolls."""
     notation: str
-    success_threshold: int
-    critical_threshold: int
-    botch_threshold: Optional[int]
-    
-    def __repr__(self) -> str:
-        return (f"DicePoolResult(successes={self.successes}, criticals={self.criticals}, "
-                f"total={self.total}, notation='{self.notation}')")
-
-
-@dataclass
-class ProbabilityDistribution:
-    """Represents a probability distribution for dice outcomes."""
-    outcomes: Dict[int, float]
+    count: int
+    totals: List[int]
+    min_total: int
+    max_total: int
     mean: float
-    variance: float
+    median: float
     std_dev: float
-    min_value: int
-    max_value: int
     
-    def probability(self, value: int) -> float:
-        """Get probability of a specific value."""
-        return self.outcomes.get(value, 0.0)
+    @property
+    def average(self) -> float:
+        """Alias for mean."""
+        return self.mean
     
-    def probability_at_least(self, value: int) -> float:
-        """Get probability of rolling at least a given value."""
-        return sum(p for v, p in self.outcomes.items() if v >= value)
-    
-    def probability_at_most(self, value: int) -> float:
-        """Get probability of rolling at most a given value."""
-        return sum(p for v, p in self.outcomes.items() if v <= value)
-    
-    def probability_between(self, min_val: int, max_val: int) -> float:
-        """Get probability of rolling between min_val and max_val (inclusive)."""
-        return sum(p for v, p in self.outcomes.items() if min_val <= v <= max_val)
+    def percentile(self, p: float) -> float:
+        """Calculate percentile (0-100)."""
+        if p < 0 or p > 100:
+            raise ValueError("Percentile must be between 0 and 100")
+        if not self.totals:
+            return 0.0
+        sorted_totals = sorted(self.totals)
+        idx = (p / 100) * (len(sorted_totals) - 1)
+        lower = int(idx)
+        upper = min(lower + 1, len(sorted_totals) - 1)
+        frac = idx - lower
+        return sorted_totals[lower] * (1 - frac) + sorted_totals[upper] * frac
 
 
 # ============================================================================
-# Basic Dice Rolling
+# Core Rolling Functions
 # ============================================================================
 
-def roll(sides: int, count: int = 1, modifier: int = 0) -> DiceResult:
+def roll(dice: int, sides: int) -> List[int]:
     """
-    Roll one or more dice with a modifier.
+    Roll dice.
     
     Args:
-        sides: Number of sides on each die
-        count: Number of dice to roll (default: 1)
-        modifier: Modifier to add to total (default: 0)
-    
+        dice: Number of dice to roll
+        sides: Number of sides per die
+        
     Returns:
-        DiceResult with roll details
-    
-    Example:
-        >>> result = roll(20)  # Roll a d20
-        >>> result.total >= 1
-        True
-        >>> result = roll(6, count=3, modifier=2)  # Roll 3d6+2
+        List of individual roll results
+        
+    Examples:
+        >>> roll(2, 6)
+        [3, 5]
+        >>> roll(1, 20)
+        [14]
     """
-    dice = [random.randint(1, sides) for _ in range(count)]
-    total = sum(dice) + modifier
-    notation = f"{count}d{sides}" + (f"+{modifier}" if modifier > 0 else f"{modifier}" if modifier < 0 else "")
+    if dice < 1:
+        return []
+    if sides < 1:
+        raise ValueError("Sides must be at least 1")
+    if dice > 1000:
+        raise ValueError("Cannot roll more than 1000 dice at once")
+    return [random.randint(1, sides) for _ in range(dice)]
+
+
+def roll_with_reroll(dice: int, sides: int, reroll_threshold: int, max_rerolls: int = 1) -> List[int]:
+    """
+    Roll dice with reroll mechanics.
     
-    return DiceResult(
-        dice=dice,
-        modifier=modifier,
-        total=total,
-        notation=notation
-    )
+    Args:
+        dice: Number of dice to roll
+        sides: Number of sides per die
+        reroll_threshold: Dice at or below this value are rerolled
+        max_rerolls: Maximum number of reroll passes (default 1)
+        
+    Returns:
+        List of final roll results
+        
+    Examples:
+        >>> roll_with_reroll(5, 6, 2)  # Reroll 1s and 2s once
+        [6, 4, 3, 5, 6]
+    """
+    if dice < 1 or sides < 1 or reroll_threshold > sides:
+        raise ValueError("Invalid parameters")
+    
+    results = [random.randint(1, sides) for _ in range(dice)]
+    
+    for _ in range(max_rerolls):
+        new_results = []
+        for r in results:
+            if r <= reroll_threshold:
+                new_results.append(random.randint(1, sides))
+            else:
+                new_results.append(r)
+        results = new_results
+    
+    return results
 
 
-def roll_d4(count: int = 1) -> DiceResult:
-    """Roll one or more d4 dice."""
-    return roll(4, count)
+def roll_exploding(dice: int, sides: int, max_explosions: int = 100) -> List[int]:
+    """
+    Roll exploding dice (reroll and add on max value).
+    
+    Args:
+        dice: Number of dice to roll
+        sides: Number of sides per die
+        max_explosions: Maximum total explosions allowed (prevents infinite loops)
+        
+    Returns:
+        List of all rolls including explosions
+        
+    Examples:
+        >>> results = roll_exploding(3, 6)  # May include extra rolls
+        [6, 6, 3, 6, 4]  # Two 6s exploded, giving two more rolls
+    """
+    if dice < 1 or sides < 1:
+        raise ValueError("Invalid parameters")
+    
+    results = []
+    explosion_count = 0
+    
+    for _ in range(dice):
+        while True:
+            r = random.randint(1, sides)
+            results.append(r)
+            if r == sides and explosion_count < max_explosions:
+                explosion_count += 1
+            else:
+                break
+    
+    return results
 
 
-def roll_d6(count: int = 1) -> DiceResult:
-    """Roll one or more d6 dice."""
-    return roll(6, count)
+def advantage(dice: int = 1, sides: int = 20) -> Tuple[int, int, int]:
+    """
+    Roll with advantage (take higher).
+    
+    Args:
+        dice: Number of dice to roll (default 1)
+        sides: Number of sides (default 20 for d20)
+        
+    Returns:
+        Tuple of (roll1, roll2, result) where result is the higher
+        
+    Examples:
+        >>> r1, r2, result = advantage()
+        (14, 19, 19)
+    """
+    if dice != 1:
+        raise ValueError("Advantage only supports single die rolls")
+    roll1 = random.randint(1, sides)
+    roll2 = random.randint(1, sides)
+    return roll1, roll2, max(roll1, roll2)
 
 
-def roll_d8(count: int = 1) -> DiceResult:
-    """Roll one or more d8 dice."""
-    return roll(8, count)
-
-
-def roll_d10(count: int = 1) -> DiceResult:
-    """Roll one or more d10 dice."""
-    return roll(10, count)
-
-
-def roll_d12(count: int = 1) -> DiceResult:
-    """Roll one or more d12 dice."""
-    return roll(12, count)
-
-
-def roll_d20(count: int = 1) -> DiceResult:
-    """Roll one or more d20 dice."""
-    return roll(20, count)
-
-
-def roll_d100(count: int = 1) -> DiceResult:
-    """Roll one or more d100 (percentile) dice."""
-    return roll(100, count)
-
-
-def roll_percentile() -> DiceResult:
-    """Roll percentile dice (d100) for a percentage result."""
-    return roll_d100(1)
+def disadvantage(dice: int = 1, sides: int = 20) -> Tuple[int, int, int]:
+    """
+    Roll with disadvantage (take lower).
+    
+    Args:
+        dice: Number of dice to roll (default 1)
+        sides: Number of sides (default 20 for d20)
+        
+    Returns:
+        Tuple of (roll1, roll2, result) where result is the lower
+    """
+    if dice != 1:
+        raise ValueError("Disadvantage only supports single die rolls")
+    roll1 = random.randint(1, sides)
+    roll2 = random.randint(1, sides)
+    return roll1, roll2, min(roll1, roll2)
 
 
 # ============================================================================
 # Dice Notation Parser
 # ============================================================================
 
-class DiceNotationParser:
+# Regex patterns for dice notation
+DICE_PATTERN = re.compile(
+    r'^(?P<count>\d*)d(?P<sides>\d+)'
+    r'(?P<keep_high>kh\d+)?'
+    r'(?P<keep_low>kl\d+)?'
+    r'(?P<drop_high>dh\d+)?'
+    r'(?P<drop_low>dl\d+)?'
+    r'(?P<explode>!)?'
+    r'(?P<reroll>r\d+)?'
+    r'(?P<target>>=?\d+)?'
+    r'(?P<modifier>[+-]\d+)?$'
+)
+
+
+def dice_parse(notation: str) -> RollOutcome:
     """
-    Parse and evaluate dice notation.
+    Parse dice notation and roll.
     
+    Args:
+        notation: Dice notation string
+        
+    Returns:
+        RollOutcome with all roll details
+        
     Supported notation:
-        - NdS: Roll N dice with S sides (e.g., 3d6, 1d20)
-        - NdS+M: Add modifier (e.g., 2d6+3)
-        - NdS-M: Subtract modifier (e.g., 1d20-2)
-        - NdSkK: Keep highest K dice (e.g., 4d6k3)
-        - NdSlK: Keep lowest K dice (e.g., 4d6l3)
-        - NdShK: Drop highest K dice (e.g., 4d6h1)
-        - NdSdK: Drop lowest K dice (e.g., 4d6d1)
-        - NdS!: Exploding dice (roll again on max)
-        - NdS!!: Exploding and compounding dice
-        - NdSr: Reroll 1s
-        - NdSrN: Reroll values <= N
-    
-    Example:
-        >>> parser = DiceNotationParser()
-        >>> parser.roll("2d6+3")
-        DiceResult(total=..., dice=[...], notation='2d6+3')
-        >>> parser.roll("4d6k3")  # D&D ability score generation
-        DiceResult(total=..., ...)
+        XdY         - Roll X dice with Y sides
+        +N / -N     - Add/subtract modifier
+        khN         - Keep highest N
+        klN         - Keep lowest N
+        dhN         - Drop highest N
+        dlN         - Drop lowest N
+        !           - Exploding dice
+        rN          - Reroll values of N or less (once)
+        >=N / >N    - Target number for success counting
+        
+    Examples:
+        >>> outcome = dice_parse("2d6")
+        >>> outcome.total
+        9
+        >>> outcome = dice_parse("4d20kh3")  # Roll 4d20, keep highest 3
+        >>> len(outcome.kept)
+        3
+        >>> outcome = dice_parse("3d10+5")
+        >>> outcome.modifier
+        5
     """
+    notation = notation.lower().strip().replace(" ", "")
     
-    # Pattern for basic dice notation
-    DICE_PATTERN = re.compile(
-        r'^(\d+)?d(\d+)'  # Required: count and sides
-        r'(?:([kdhl])(\d+))?'  # Keep/drop modifier
-        r'(?:([+-])(\d+))?'  # Arithmetic modifier
-        r'([!]*|r(?:\d+)?)?'  # Special modifiers (explode, reroll)
-        r'$',
-        re.IGNORECASE
-    )
+    match = DICE_PATTERN.match(notation)
+    if not match:
+        raise ValueError(f"Invalid dice notation: {notation}")
     
-    def __init__(self, seed: Optional[int] = None):
-        """Initialize parser with optional random seed for reproducibility."""
-        self.seed = seed
-        if seed is not None:
-            random.seed(seed)
+    groups = match.groupdict()
     
-    def parse(self, notation: str) -> Dict:
-        """
-        Parse dice notation into components.
-        
-        Args:
-            notation: Dice notation string
-        
-        Returns:
-            Dict with parsed components
-        
-        Raises:
-            ValueError: If notation is invalid
-        """
-        notation = notation.strip().replace(' ', '')
-        
-        match = self.DICE_PATTERN.match(notation)
-        if not match:
-            raise ValueError(f"Invalid dice notation: {notation}")
-        
-        count = int(match.group(1)) if match.group(1) else 1
-        sides = int(match.group(2))
-        keep_type = match.group(3)
-        keep_count = int(match.group(4)) if match.group(4) else None
-        mod_op = match.group(5)
-        mod_val = int(match.group(6)) if match.group(6) else 0
-        special = match.group(7) or ''
-        
-        # Parse special modifiers
-        explode = special.count('!')
-        reroll_threshold = 0
-        if special.startswith('r'):
-            reroll_str = special[1:]
-            reroll_threshold = int(reroll_str) if reroll_str else 1
-        
-        return {
-            'count': count,
-            'sides': sides,
-            'keep_type': keep_type,
-            'keep_count': keep_count,
-            'modifier': mod_val if mod_op == '+' else -mod_val if mod_op == '-' else 0,
-            'explode': explode,
-            'reroll_threshold': reroll_threshold,
-            'notation': notation,
-        }
+    dice_count = int(groups['count']) if groups['count'] else 1
+    dice_sides = int(groups['sides'])
+    modifier = int(groups['modifier']) if groups['modifier'] else 0
+    target = groups['target']
+    reroll = groups['reroll']
+    exploding = groups['explode'] == '!'
     
-    def roll(self, notation: str) -> DiceResult:
-        """
-        Roll dice according to notation.
-        
-        Args:
-            notation: Dice notation string
-        
-        Returns:
-            DiceResult with roll details
-        """
-        parsed = self.parse(notation)
-        
-        count = parsed['count']
-        sides = parsed['sides']
-        keep_type = parsed['keep_type']
-        keep_count = parsed['keep_count']
-        modifier = parsed['modifier']
-        explode = parsed['explode']
-        reroll_threshold = parsed['reroll_threshold']
-        
-        # Roll dice
-        dice = []
-        
-        if explode > 0:
-            # Exploding dice
-            dice = self._roll_exploding(count, sides, explode == 2)
-        elif reroll_threshold > 0:
-            # Reroll dice below threshold
-            dice = [self._roll_with_reroll(sides, reroll_threshold) for _ in range(count)]
+    # Parse keep/drop values
+    keep_high = int(groups['keep_high'][2:]) if groups['keep_high'] else None
+    keep_low = int(groups['keep_low'][2:]) if groups['keep_low'] else None
+    drop_high = int(groups['drop_high'][2:]) if groups['drop_high'] else None
+    drop_low = int(groups['drop_low'][2:]) if groups['drop_low'] else None
+    
+    # Parse reroll threshold
+    reroll_threshold = int(reroll[1:]) if reroll else None
+    
+    # Parse target number
+    target_num = None
+    target_inclusive = True
+    if target:
+        if target.startswith('>='):
+            target_num = int(target[2:])
+            target_inclusive = True
         else:
-            dice = [random.randint(1, sides) for _ in range(count)]
-        
-        # Apply keep/drop modifiers
-        kept = dice.copy()
-        dropped = []
-        
-        if keep_type == 'k':
-            # Keep highest N
-            sorted_dice = sorted(dice, reverse=True)
-            kept = sorted_dice[:keep_count]
-            dropped = sorted_dice[keep_count:]
-        elif keep_type == 'l':
-            # Keep lowest N
-            sorted_dice = sorted(dice)
-            kept = sorted_dice[:keep_count]
-            dropped = sorted_dice[keep_count:]
-        elif keep_type == 'h':
-            # Drop highest N (keep lowest)
-            sorted_dice = sorted(dice)
-            dropped = sorted_dice[-keep_count:] if keep_count else []
-            kept = sorted_dice[:-keep_count] if keep_count else sorted_dice
-        elif keep_type == 'd':
-            # Drop lowest N (keep highest)
-            sorted_dice = sorted(dice, reverse=True)
-            dropped = sorted_dice[-keep_count:] if keep_count else []
-            kept = sorted_dice[:-keep_count] if keep_count else sorted_dice
-        
-        total = sum(kept) + modifier
-        
-        return DiceResult(
-            dice=dice,
-            modifier=modifier,
-            total=total,
-            notation=parsed['notation'],
-            kept=kept,
-            dropped=dropped if dropped else None
-        )
+            target_num = int(target[1:])
+            target_inclusive = False
     
-    def _roll_exploding(self, count: int, sides: int, compound: bool = False) -> List[int]:
-        """Roll exploding dice."""
-        results = []
-        for _ in range(count):
-            roll = random.randint(1, sides)
-            results.append(roll)
-            # Keep rolling on max
-            while roll == sides:
-                roll = random.randint(1, sides)
-                if compound:
-                    results[-1] += roll
+    # Perform rolls
+    if reroll_threshold:
+        rolls = roll_with_reroll(dice_count, dice_sides, reroll_threshold)
+    elif exploding:
+        rolls = roll_exploding(dice_count, dice_sides)
+    else:
+        rolls = roll(dice_count, dice_sides)
+    
+    # Apply keep/drop
+    kept = list(rolls)
+    dropped = []
+    
+    # Keep highest
+    if keep_high is not None:
+        kept.sort(reverse=True)
+        kept, drop_temp = kept[:keep_high], kept[keep_high:]
+        dropped.extend(drop_temp)
+    
+    # Keep lowest
+    if keep_low is not None:
+        kept.sort()
+        kept, drop_temp = kept[:keep_low], kept[keep_low:]
+        dropped.extend(drop_temp)
+    
+    # Drop highest
+    if drop_high is not None:
+        rolls.sort(reverse=True)
+        dropped.extend(rolls[:drop_high])
+        kept = rolls[drop_high:]
+    
+    # Drop lowest
+    if drop_low is not None:
+        rolls.sort()
+        dropped.extend(rolls[:drop_low])
+        kept = rolls[drop_low:]
+    
+    # Handle case where nothing is kept (e.g., dh all dice)
+    if not kept:
+        kept = [0]
+        rolls = rolls if rolls else [0]
+    
+    # Count successes
+    success_count = 0
+    failure_count = 0
+    
+    if target_num is not None:
+        check_rolls = rolls if not (kept or dropped) else (kept if len(kept) > 0 else rolls)
+        
+        for r in check_rolls:
+            if target_inclusive:
+                if r >= target_num:
+                    success_count += 1
                 else:
-                    results.append(roll)
-        return results
+                    failure_count += 1
+            else:
+                if r > target_num:
+                    success_count += 1
+                else:
+                    failure_count += 1
     
-    def _roll_with_reroll(self, sides: int, threshold: int) -> int:
-        """Roll with rerolls below threshold."""
-        roll = random.randint(1, sides)
-        while roll <= threshold:
-            roll = random.randint(1, sides)
-        return roll
-    
-    def evaluate(self, notation: str) -> DiceResult:
-        """Alias for roll()."""
-        return self.roll(notation)
-
-
-# Global parser instance
-_parser = DiceNotationParser()
-
-
-def roll_notation(notation: str, seed: Optional[int] = None) -> DiceResult:
-    """
-    Roll dice using standard notation.
-    
-    Args:
-        notation: Dice notation string (e.g., "2d6+3", "4d6k3", "1d20")
-        seed: Optional random seed for reproducibility
-    
-    Returns:
-        DiceResult with roll details
-    
-    Example:
-        >>> roll_notation("2d6+3")
-        DiceResult(total=..., dice=[...], notation='2d6+3')
-        >>> roll_notation("4d6k3")  # Keep highest 3
-        DiceResult(total=..., kept=[...], ...)
-    """
-    parser = DiceNotationParser(seed) if seed is not None else _parser
-    return parser.roll(notation)
-
-
-# ============================================================================
-# Keep/Drop Dice
-# ============================================================================
-
-def roll_keep_highest(sides: int, count: int, keep: int) -> DiceResult:
-    """
-    Roll dice and keep the highest values.
-    
-    Args:
-        sides: Number of sides on each die
-        count: Number of dice to roll
-        keep: Number of highest dice to keep
-    
-    Returns:
-        DiceResult with kept dice
-    
-    Example:
-        >>> result = roll_keep_highest(6, 4, 3)  # 4d6k3, D&D ability scores
-        >>> len(result.kept) == 3
-        True
-    """
-    dice = [random.randint(1, sides) for _ in range(count)]
-    sorted_dice = sorted(dice, reverse=True)
-    kept = sorted_dice[:keep]
-    dropped = sorted_dice[keep:]
-    
-    return DiceResult(
-        dice=dice,
-        modifier=0,
-        total=sum(kept),
-        notation=f"{count}d{sides}k{keep}",
-        kept=kept,
-        dropped=dropped
+    return RollOutcome(
+        notation=notation,
+        rolls=list(rolls),
+        kept=list(kept),
+        dropped=list(dropped),
+        modifier=modifier,
+        success_count=success_count,
+        failure_count=failure_count
     )
 
 
-def roll_keep_lowest(sides: int, count: int, keep: int) -> DiceResult:
+def dice_roll(notation: str) -> int:
     """
-    Roll dice and keep the lowest values.
+    Roll dice notation and return total.
     
     Args:
-        sides: Number of sides on each die
-        count: Number of dice to roll
-        keep: Number of lowest dice to keep
-    
+        notation: Dice notation string
+        
     Returns:
-        DiceResult with kept dice
+        Total sum of rolls (with modifiers)
+        
+    Examples:
+        >>> dice_roll("2d6")
+        8
+        >>> dice_roll("d20+5")
+        17
+        >>> dice_roll("4d6kh3")  # Roll 4d6, keep highest 3, sum them
+        12
     """
-    dice = [random.randint(1, sides) for _ in range(count)]
-    sorted_dice = sorted(dice)
-    kept = sorted_dice[:keep]
-    dropped = sorted_dice[keep:]
-    
-    return DiceResult(
-        dice=dice,
-        modifier=0,
-        total=sum(kept),
-        notation=f"{count}d{sides}l{keep}",
-        kept=kept,
-        dropped=dropped
-    )
-
-
-def roll_drop_lowest(sides: int, count: int, drop: int) -> DiceResult:
-    """
-    Roll dice and drop the lowest values.
-    
-    Args:
-        sides: Number of sides on each die
-        count: Number of dice to roll
-        drop: Number of lowest dice to drop
-    
-    Returns:
-        DiceResult with remaining dice
-    """
-    return roll_keep_highest(sides, count, count - drop)
-
-
-def roll_drop_highest(sides: int, count: int, drop: int) -> DiceResult:
-    """
-    Roll dice and drop the highest values.
-    
-    Args:
-        sides: Number of sides on each die
-        count: Number of dice to roll
-        drop: Number of highest dice to drop
-    
-    Returns:
-        DiceResult with remaining dice
-    """
-    return roll_keep_lowest(sides, count, count - drop)
+    outcome = dice_parse(notation)
+    return outcome.total
 
 
 # ============================================================================
-# Exploding Dice
+# Fudge Dice (Special Dice System)
 # ============================================================================
 
-def roll_exploding(sides: int, count: int = 1, compound: bool = False) -> DiceResult:
+def roll_fudge(dice: int = 4) -> List[int]:
     """
-    Roll exploding dice (reroll on maximum value).
+    Roll Fudge/FATE dice (-1, 0, +1).
     
     Args:
-        sides: Number of sides on each die
-        count: Number of dice to roll
-        compound: If True, add exploded rolls to the original die
-    
+        dice: Number of Fudge dice to roll (default 4)
+        
     Returns:
-        DiceResult with all rolls (including explosions)
-    
-    Example:
-        >>> result = roll_exploding(6, 1)  # d6!
-        >>> len(result.dice) >= 1
-        True
+        List of Fudge roll results (-1, 0, or 1)
+        
+    Examples:
+        >>> roll_fudge(4)
+        [-1, 0, 1, 0]
+        >>> sum(roll_fudge(4))
+        0
     """
-    dice = []
-    for _ in range(count):
-        roll = random.randint(1, sides)
-        if compound:
-            # Compound: add to same die
-            while roll == sides:
-                roll = random.randint(1, sides)
-                dice[-1] += roll if dice else roll
-            if not dice:
-                dice.append(roll)
-        else:
-            # Regular explode: add new die
-            dice.append(roll)
-            while roll == sides:
-                roll = random.randint(1, sides)
-                dice.append(roll)
+    fudge_values = [-1, 0, 1]
+    return [random.choice(fudge_values) for _ in range(dice)]
+
+
+def fudge_total(dice: int = 4) -> int:
+    """
+    Roll Fudge dice and return total.
     
-    notation = f"{count}d{sides}!" + ("!" if compound else "")
+    Args:
+        dice: Number of Fudge dice to roll
+        
+    Returns:
+        Sum of Fudge rolls (-dice to +dice)
+    """
+    return sum(roll_fudge(dice))
+
+
+# ============================================================================
+# Statistics & Probability
+# ============================================================================
+
+def roll_distribution(dice: int, sides: int, trials: int = 10000) -> Dict[int, float]:
+    """
+    Calculate probability distribution by simulation.
     
-    return DiceResult(
-        dice=dice,
-        modifier=0,
-        total=sum(dice),
-        notation=notation
+    Args:
+        dice: Number of dice
+        sides: Number of sides per die
+        trials: Number of simulation trials
+        
+    Returns:
+        Dictionary mapping sum to probability
+        
+    Examples:
+        >>> dist = roll_distribution(2, 6, trials=10000)
+        >>> dist[7]  # Probability of rolling 7 with 2d6
+        0.166
+    """
+    if trials < 1:
+        raise ValueError("Trials must be at least 1")
+    
+    totals = Counter()
+    total_trials = 0
+    
+    for _ in range(trials):
+        r = sum(roll(dice, sides))
+        totals[r] += 1
+        total_trials += 1
+    
+    return {k: v / total_trials for k, v in totals.items()}
+
+
+def expected_value(dice: int, sides: int) -> float:
+    """
+    Calculate expected value for dice roll.
+    
+    Args:
+        dice: Number of dice
+        sides: Number of sides per die
+        
+    Returns:
+        Expected value of sum
+        
+    Examples:
+        >>> expected_value(2, 6)
+        7.0
+        >>> expected_value(1, 20)
+        10.5
+    """
+    # Expected value of single die: (1 + sides) / 2
+    single_die_ev = (1 + sides) / 2
+    return dice * single_die_ev
+
+
+def variance(dice: int, sides: int) -> float:
+    """
+    Calculate variance for dice roll.
+    
+    Args:
+        dice: Number of dice
+        sides: Number of sides per die
+        
+    Returns:
+        Variance of the sum
+    """
+    # Variance of single die: (sides^2 - 1) / 12
+    single_die_var = (sides ** 2 - 1) / 12
+    return dice * single_die_var
+
+
+def standard_deviation(dice: int, sides: int) -> float:
+    """
+    Calculate standard deviation for dice roll.
+    
+    Args:
+        dice: Number of dice
+        sides: Number of sides per die
+        
+    Returns:
+        Standard deviation of the sum
+    """
+    return variance(dice, sides) ** 0.5
+
+
+def probability_at_least(dice: int, sides: int, target: int, trials: int = 10000) -> float:
+    """
+    Calculate probability of rolling at least target sum.
+    
+    Args:
+        dice: Number of dice
+        sides: Number of sides per die
+        target: Target sum
+        trials: Number of simulation trials
+        
+    Returns:
+        Probability (0 to 1)
+    """
+    count = 0
+    for _ in range(trials):
+        if sum(roll(dice, sides)) >= target:
+            count += 1
+    return count / trials
+
+
+def probability_exactly(dice: int, sides: int, target: int, trials: int = 10000) -> float:
+    """
+    Calculate probability of rolling exactly target sum.
+    
+    Args:
+        dice: Number of dice
+        sides: Number of sides per die
+        target: Target sum
+        trials: Number of simulation trials
+        
+    Returns:
+        Probability (0 to 1)
+    """
+    count = 0
+    for _ in range(trials):
+        if sum(roll(dice, sides)) == target:
+            count += 1
+    return count / trials
+
+
+# ============================================================================
+# Batch Rolling
+# ============================================================================
+
+def batch_roll(notation: str, count: int) -> List[RollOutcome]:
+    """
+    Roll dice notation multiple times.
+    
+    Args:
+        notation: Dice notation
+        count: Number of times to roll
+        
+    Returns:
+        List of RollOutcome objects
+        
+    Examples:
+        >>> outcomes = batch_roll("2d6", 100)
+        >>> len(outcomes)
+        100
+        >>> [o.total for o in outcomes[:5]]
+        [9, 5, 11, 7, 8]
+    """
+    if count < 1:
+        raise ValueError("Count must be at least 1")
+    return [dice_parse(notation) for _ in range(count)]
+
+
+def batch_stats(notation: str, count: int) -> RollStats:
+    """
+    Calculate statistics for multiple rolls.
+    
+    Args:
+        notation: Dice notation
+        count: Number of rolls
+        
+    Returns:
+        RollStats with statistical summary
+        
+    Examples:
+        >>> stats = batch_stats("d20", 1000)
+        >>> stats.mean  # Average roll
+        10.5
+        >>> stats.percentile(95)  # 95th percentile
+        19.0
+    """
+    if count < 1:
+        raise ValueError("Count must be at least 1")
+    
+    outcomes = batch_roll(notation, count)
+    totals = [o.total for o in outcomes]
+    totals.sort()
+    
+    n = len(totals)
+    mean = sum(totals) / n
+    
+    # Median
+    if n % 2 == 0:
+        median = (totals[n // 2 - 1] + totals[n // 2]) / 2
+    else:
+        median = totals[n // 2]
+    
+    # Standard deviation
+    variance_val = sum((x - mean) ** 2 for x in totals) / n
+    std_dev = variance_val ** 0.5
+    
+    return RollStats(
+        notation=notation,
+        count=count,
+        totals=totals,
+        min_total=totals[0],
+        max_total=totals[-1],
+        mean=mean,
+        median=median,
+        std_dev=std_dev
     )
+
+
+# ============================================================================
+# Weighted Dice
+# ============================================================================
+
+def roll_weighted(sides: int, weights: List[float]) -> int:
+    """
+    Roll weighted dice (probability distribution per side).
+    
+    Args:
+        sides: Number of sides
+        weights: Probability weight for each side (must sum to 1)
+        
+    Returns:
+        Rolled value (1-indexed)
+        
+    Examples:
+        >>> # Loaded d6 that favors 6
+        >>> roll_weighted(6, [0.1, 0.1, 0.1, 0.1, 0.2, 0.4])
+        6  # Most likely to be 6
+    """
+    if len(weights) != sides:
+        raise ValueError("Number of weights must equal number of sides")
+    if abs(sum(weights) - 1.0) > 0.001:
+        raise ValueError("Weights must sum to 1")
+    
+    r = random.random()
+    cumulative = 0.0
+    for i, w in enumerate(weights):
+        cumulative += w
+        if r <= cumulative:
+            return i + 1
+    return sides
+
+
+def roll_weighted_batch(dice: int, sides: int, weights: List[float]) -> List[int]:
+    """
+    Roll multiple weighted dice.
+    
+    Args:
+        dice: Number of dice
+        sides: Number of sides
+        weights: Probability weights
+        
+    Returns:
+        List of rolls
+    """
+    return [roll_weighted(sides, weights) for _ in range(dice)]
 
 
 # ============================================================================
 # Dice Pools
 # ============================================================================
 
-def roll_pool(
-    sides: int,
-    count: int,
-    success_threshold: int,
-    critical_threshold: Optional[int] = None,
-    botch_threshold: Optional[int] = None,
-    double_success: bool = False,
-) -> DicePoolResult:
+@dataclass
+class DicePoolResult:
+    """Result of rolling a dice pool."""
+    results: List[int]
+    success_threshold: int
+    successes: int
+    ones: int
+    
+    @property
+    def net_successes(self) -> int:
+        """Successes minus dramatic failures (1s that cancel successes)."""
+        return self.successes - self.ones
+
+
+def roll_pool(dice: int, sides: int = 10, success_threshold: int = 8) -> DicePoolResult:
     """
-    Roll a dice pool and count successes.
+    Roll a dice pool with success counting (Storyteller/Storypath system).
     
     Args:
-        sides: Number of sides on each die
-        count: Number of dice to roll
-        success_threshold: Minimum value for a success
-        critical_threshold: Value for critical success (default: sides)
-        botch_threshold: Value for botch/failure (default: 1)
-        double_success: Count criticals as 2 successes
-    
+        dice: Number of dice in the pool
+        sides: Number of sides (default 10)
+        success_threshold: Minimum roll that counts as success (default 8)
+        
     Returns:
-        DicePoolResult with success counts
-    
-    Example:
-        >>> result = roll_pool(10, 5, 6, critical_threshold=10, botch_threshold=1)
-        >>> result.successes >= 0
-        True
+        DicePoolResult with results and success count
+        
+    Examples:
+        >>> result = roll_pool(8)  # Roll 8d10, count 8+ as success
+        >>> result.successes
+        3
+        >>> result.net_successes  # Minus dramatic failures (1s)
+        2
     """
-    if critical_threshold is None:
-        critical_threshold = sides
-    if botch_threshold is None:
-        botch_threshold = 1
-    
-    dice = [random.randint(1, sides) for _ in range(count)]
-    
-    successes = 0
-    failures = 0
-    criticals = 0
-    botches = 0
-    
-    for die in dice:
-        if die >= critical_threshold:
-            criticals += 1
-            successes += 2 if double_success else 1
-        elif die >= success_threshold:
-            successes += 1
-        elif die <= botch_threshold:
-            botches += 1
-            failures += 1
-        else:
-            failures += 1
-    
-    notation = f"{count}d{sides}>={success_threshold}"
+    rolls = roll(dice, sides)
+    successes = sum(1 for r in rolls if r >= success_threshold)
+    ones = sum(1 for r in rolls if r == 1)
     
     return DicePoolResult(
-        dice=dice,
-        successes=successes,
-        failures=failures,
-        criticals=criticals,
-        botches=botches,
-        total=sum(dice),
-        notation=notation,
+        results=rolls,
         success_threshold=success_threshold,
-        critical_threshold=critical_threshold,
-        botch_threshold=botch_threshold
-    )
-
-
-def roll_world_of_darkness(
-    count: int,
-    difficulty: int = 6,
-    specialty: bool = False,
-) -> DicePoolResult:
-    """
-    Roll World of Darkness style dice pool (d10 system).
-    
-    Args:
-        count: Number of d10 dice to roll
-        difficulty: Target number for success
-        specialty: If True, 10s count as 2 successes
-    
-    Returns:
-        DicePoolResult with success counts
-    """
-    dice = [random.randint(1, 10) for _ in range(count)]
-    
-    successes = 0
-    failures = 0
-    criticals = 0
-    botches = 0
-    
-    for die in dice:
-        if die == 1:
-            botches += 1
-            # Botches subtract from successes in WoD
-        elif die == 10:
-            criticals += 1
-            successes += 2 if specialty else 1
-        elif die >= difficulty:
-            successes += 1
-        else:
-            failures += 1
-    
-    # Apply botches
-    actual_successes = max(0, successes - botches)
-    
-    return DicePoolResult(
-        dice=dice,
-        successes=actual_successes,
-        failures=failures,
-        criticals=criticals,
-        botches=botches,
-        total=sum(dice),
-        notation=f"{count}d10>={difficulty}",
-        success_threshold=difficulty,
-        critical_threshold=10,
-        botch_threshold=1
+        successes=successes,
+        ones=ones
     )
 
 
 # ============================================================================
-# Fate/Fudge Dice
+# Convenience Exports
 # ============================================================================
 
-FATE_FACES = [-1, -1, 0, 0, 1, 1]  # [-, -, ' ', ' ', +, +]
-
-
-def roll_fate(count: int = 4) -> DiceResult:
-    """
-    Roll Fate/Fudge dice (dF).
-    
-    Each die has: -, -, blank, blank, +, +
-    Values: -1, -1, 0, 0, +1, +1
-    
-    Args:
-        count: Number of Fate dice to roll (default: 4)
-    
-    Returns:
-        DiceResult with Fate dice results
-    
-    Example:
-        >>> result = roll_fate(4)
-        >>> -4 <= result.total <= 4
-        True
-    """
-    dice = [random.choice(FATE_FACES) for _ in range(count)]
-    
-    return DiceResult(
-        dice=dice,
-        modifier=0,
-        total=sum(dice),
-        notation=f"{count}dF"
-    )
-
-
-def roll_fudge(count: int = 4) -> DiceResult:
-    """Alias for roll_fate()."""
-    return roll_fate(count)
-
-
-# ============================================================================
-# Probability Calculations
-# ============================================================================
-
-@lru_cache(maxsize=128)
-def dice_distribution(count: int, sides: int) -> Dict[int, int]:
-    """
-    Calculate the distribution of sums for NdS dice.
-    
-    Uses dynamic programming for efficient calculation.
-    
-    Args:
-        count: Number of dice
-        sides: Number of sides on each die
-    
-    Returns:
-        Dict mapping sum to number of ways to achieve it
-    
-    Example:
-        >>> dist = dice_distribution(2, 6)
-        >>> dist[7]  # Ways to roll 7 with 2d6
-        6
-    """
-    if count == 0:
-        return {0: 1}
-    
-    if count == 1:
-        return {i: 1 for i in range(1, sides + 1)}
-    
-    # Use dynamic programming
-    prev_dist = dice_distribution(count - 1, sides)
-    result: Dict[int, int] = {}
-    
-    for prev_sum, ways in prev_dist.items():
-        for face in range(1, sides + 1):
-            new_sum = prev_sum + face
-            result[new_sum] = result.get(new_sum, 0) + ways
-    
-    return result
-
-
-def dice_probability(count: int, sides: int) -> ProbabilityDistribution:
-    """
-    Calculate the probability distribution for NdS dice.
-    
-    Args:
-        count: Number of dice
-        sides: Number of sides on each die
-    
-    Returns:
-        ProbabilityDistribution with all statistics
-    
-    Example:
-        >>> dist = dice_probability(2, 6)
-        >>> dist.mean
-        7.0
-        >>> dist.probability(7)  # Probability of rolling 7
-        0.1666...
-    """
-    dist = dice_distribution(count, sides)
-    total_outcomes = sides ** count
-    
-    # Calculate probabilities
-    outcomes = {k: v / total_outcomes for k, v in dist.items()}
-    
-    # Calculate mean
-    mean = sum(value * prob for value, prob in outcomes.items())
-    
-    # Calculate variance
-    variance = sum((value - mean) ** 2 * prob for value, prob in outcomes.items())
-    
-    # Standard deviation
-    std_dev = variance ** 0.5
-    
-    # Min and max
-    min_value = count
-    max_value = count * sides
-    
-    return ProbabilityDistribution(
-        outcomes=outcomes,
-        mean=mean,
-        variance=variance,
-        std_dev=std_dev,
-        min_value=min_value,
-        max_value=max_value
-    )
-
-
-def probability_at_least(count: int, sides: int, target: int) -> float:
-    """
-    Calculate probability of rolling at least a target value.
-    
-    Args:
-        count: Number of dice
-        sides: Number of sides on each die
-        target: Target sum to reach or exceed
-    
-    Returns:
-        Probability between 0.0 and 1.0
-    
-    Example:
-        >>> probability_at_least(2, 6, 7)
-        0.5833...
-    """
-    dist = dice_probability(count, sides)
-    return dist.probability_at_least(target)
-
-
-def probability_at_most(count: int, sides: int, target: int) -> float:
-    """
-    Calculate probability of rolling at most a target value.
-    
-    Args:
-        count: Number of dice
-        sides: Number of sides on each die
-        target: Target sum to not exceed
-    
-    Returns:
-        Probability between 0.0 and 1.0
-    """
-    dist = dice_probability(count, sides)
-    return dist.probability_at_most(target)
-
-
-def probability_between(count: int, sides: int, min_val: int, max_val: int) -> float:
-    """
-    Calculate probability of rolling between min and max (inclusive).
-    
-    Args:
-        count: Number of dice
-        sides: Number of sides on each die
-        min_val: Minimum sum
-        max_val: Maximum sum
-    
-    Returns:
-        Probability between 0.0 and 1.0
-    """
-    dist = dice_probability(count, sides)
-    return dist.probability_between(min_val, max_val)
-
-
-def expected_value(count: int, sides: int) -> float:
-    """
-    Calculate expected value (mean) of NdS roll.
-    
-    E[NdS] = N * (S + 1) / 2
-    
-    Args:
-        count: Number of dice
-        sides: Number of sides on each die
-    
-    Returns:
-        Expected value
-    
-    Example:
-        >>> expected_value(2, 6)
-        7.0
-    """
-    return count * (sides + 1) / 2
-
-
-def variance(count: int, sides: int) -> float:
-    """
-    Calculate variance of NdS roll.
-    
-    Var(NdS) = N * (S^2 - 1) / 12
-    
-    Args:
-        count: Number of dice
-        sides: Number of sides on each die
-    
-    Returns:
-        Variance
-    """
-    return count * (sides ** 2 - 1) / 12
-
-
-def standard_deviation(count: int, sides: int) -> float:
-    """
-    Calculate standard deviation of NdS roll.
-    
-    Args:
-        count: Number of dice
-        sides: Number of sides on each die
-    
-    Returns:
-        Standard deviation
-    """
-    return variance(count, sides) ** 0.5
-
-
-# ============================================================================
-# Statistical Analysis
-# ============================================================================
-
-def monte_carlo_simulation(
-    notation: str,
-    iterations: int = 10000,
-    seed: Optional[int] = None,
-) -> Dict[str, Union[float, int, Dict[int, float]]]:
-    """
-    Run Monte Carlo simulation for dice notation.
-    
-    Args:
-        notation: Dice notation string
-        iterations: Number of iterations to run
-        seed: Random seed for reproducibility
-    
-    Returns:
-        Dict with statistics and distribution
-    
-    Example:
-        >>> stats = monte_carlo_simulation("2d6", 10000)
-        >>> 6.5 < stats['mean'] < 7.5
-        True
-    """
-    if seed is not None:
-        random.seed(seed)
-    
-    parser = DiceNotationParser()
-    results = []
-    
-    for _ in range(iterations):
-        result = parser.roll(notation)
-        results.append(result.total)
-    
-    # Calculate statistics
-    mean = sum(results) / iterations
-    variance = sum((x - mean) ** 2 for x in results) / iterations
-    std_dev = variance ** 0.5
-    
-    # Build distribution
-    counter = Counter(results)
-    distribution = {k: v / iterations for k, v in sorted(counter.items())}
-    
-    return {
-        'mean': mean,
-        'variance': variance,
-        'std_dev': std_dev,
-        'min': min(results),
-        'max': max(results),
-        'median': sorted(results)[iterations // 2],
-        'distribution': distribution,
-        'iterations': iterations,
-    }
-
-
-def analyze_rolls(results: List[DiceResult]) -> Dict[str, float]:
-    """
-    Analyze a series of dice roll results.
-    
-    Args:
-        results: List of DiceResult objects
-    
-    Returns:
-        Dict with analysis statistics
-    """
-    if not results:
-        return {}
-    
-    totals = [r.total for r in results]
-    all_dice = [d for r in results for d in r.dice]
-    
-    mean_total = sum(totals) / len(totals)
-    var_total = sum((t - mean_total) ** 2 for t in totals) / len(totals)
-    
-    mean_die = sum(all_dice) / len(all_dice) if all_dice else 0
-    var_die = sum((d - mean_die) ** 2 for d in all_dice) / len(all_dice) if all_dice else 0
-    
-    # Count frequency of each die value
-    die_counter = Counter(all_dice)
-    total_rolls = len(all_dice)
-    
-    return {
-        'total_rolls': len(results),
-        'total_dice': len(all_dice),
-        'mean_total': mean_total,
-        'variance_total': var_total,
-        'std_dev_total': var_total ** 0.5,
-        'min_total': min(totals),
-        'max_total': max(totals),
-        'mean_die_value': mean_die,
-        'variance_die': var_die,
-        'die_distribution': {k: v / total_rolls for k, v in sorted(die_counter.items())},
-    }
-
-
-# ============================================================================
-# Advantage/Disadvantage
-# ============================================================================
-
-def roll_with_advantage(sides: int = 20) -> DiceResult:
-    """
-    Roll with advantage (roll twice, take higher).
-    
-    Args:
-        sides: Number of sides on the die (default: 20)
-    
-    Returns:
-        DiceResult with the higher of two rolls
-    
-    Example:
-        >>> result = roll_with_advantage(20)
-        >>> len(result.dice) == 2
-        True
-        >>> result.total == max(result.dice)
-        True
-    """
-    dice = [random.randint(1, sides) for _ in range(2)]
-    total = max(dice)
-    
-    return DiceResult(
-        dice=dice,
-        modifier=0,
-        total=total,
-        notation=f"2d{sides}kh1"
-    )
-
-
-def roll_with_disadvantage(sides: int = 20) -> DiceResult:
-    """
-    Roll with disadvantage (roll twice, take lower).
-    
-    Args:
-        sides: Number of sides on the die (default: 20)
-    
-    Returns:
-        DiceResult with the lower of two rolls
-    """
-    dice = [random.randint(1, sides) for _ in range(2)]
-    total = min(dice)
-    
-    return DiceResult(
-        dice=dice,
-        modifier=0,
-        total=total,
-        notation=f"2d{sides}kl1"
-    )
-
-
-# ============================================================================
-# Dice Comparison
-# ============================================================================
-
-def compare_rolls(notation1: str, notation2: str, iterations: int = 10000) -> Dict[str, float]:
-    """
-    Compare two dice notations by simulation.
-    
-    Args:
-        notation1: First dice notation
-        notation2: Second dice notation
-        iterations: Number of simulation iterations
-    
-    Returns:
-        Dict with comparison statistics
-    
-    Example:
-        >>> result = compare_rolls("2d6", "1d12")
-        >>> result['notation1_wins'] + result['notation2_wins'] + result['ties']
-        1.0
-    """
-    parser = DiceNotationParser()
-    
-    wins1 = 0
-    wins2 = 0
-    ties = 0
-    
-    for _ in range(iterations):
-        r1 = parser.roll(notation1)
-        r2 = parser.roll(notation2)
-        
-        if r1.total > r2.total:
-            wins1 += 1
-        elif r2.total > r1.total:
-            wins2 += 1
-        else:
-            ties += 1
-    
-    return {
-        'notation1': notation1,
-        'notation2': notation2,
-        'notation1_wins': wins1 / iterations,
-        'notation2_wins': wins2 / iterations,
-        'ties': ties / iterations,
-        'iterations': iterations,
-    }
-
-
-# ============================================================================
-# Dice String Generation
-# ============================================================================
-
-def dice_to_string(dice: List[int], modifier: int = 0, sides: Optional[int] = None) -> str:
-    """
-    Convert dice rolls to notation string.
-    
-    Args:
-        dice: List of dice values
-        modifier: Modifier to add
-        sides: Number of sides (inferred if not provided)
-    
-    Returns:
-        Notation string
-    
-    Example:
-        >>> dice_to_string([5, 3, 6], modifier=2)
-        '3d6+2 (5, 3, 6)'
-    """
-    count = len(dice)
-    sides_val = sides or max(dice) if dice else 6
-    total = sum(dice) + modifier
-    
-    base = f"{count}d{sides_val}"
-    if modifier > 0:
-        base += f"+{modifier}"
-    elif modifier < 0:
-        base += str(modifier)
-    
-    return f"{base} ({', '.join(map(str, dice))}) = {total}"
-
-
-# ============================================================================
-# Dice Roller Class
-# ============================================================================
-
-class DiceRoller:
-    """
-    A configurable dice roller with history tracking.
-    
-    Example:
-        >>> roller = DiceRoller(seed=42)
-        >>> roller.roll("2d6+3")
-        DiceResult(...)
-        >>> roller.history
-        [...]
-    """
-    
-    def __init__(self, seed: Optional[int] = None):
-        """
-        Initialize the dice roller.
-        
-        Args:
-            seed: Random seed for reproducibility
-        """
-        self.seed = seed
-        self.parser = DiceNotationParser(seed)
-        self.history: List[DiceResult] = []
-    
-    def roll(self, notation: str) -> DiceResult:
-        """Roll dice using notation and record to history."""
-        result = self.parser.roll(notation)
-        self.history.append(result)
-        return result
-    
-    def roll_d(self, sides: int, count: int = 1, modifier: int = 0) -> DiceResult:
-        """Roll standard dice."""
-        notation = f"{count}d{sides}"
-        if modifier > 0:
-            notation += f"+{modifier}"
-        elif modifier < 0:
-            notation += str(modifier)
-        return self.roll(notation)
-    
-    def roll_with_advantage(self, sides: int = 20) -> DiceResult:
-        """Roll with advantage."""
-        result = roll_with_advantage(sides)
-        self.history.append(result)
-        return result
-    
-    def roll_with_disadvantage(self, sides: int = 20) -> DiceResult:
-        """Roll with disadvantage."""
-        result = roll_with_disadvantage(sides)
-        self.history.append(result)
-        return result
-    
-    def roll_fate(self, count: int = 4) -> DiceResult:
-        """Roll Fate dice."""
-        result = roll_fate(count)
-        self.history.append(result)
-        return result
-    
-    def clear_history(self) -> None:
-        """Clear roll history."""
-        self.history = []
-    
-    def analyze_history(self) -> Dict[str, float]:
-        """Analyze all recorded rolls."""
-        return analyze_rolls(self.history)
-    
-    @property
-    def total_rolls(self) -> int:
-        """Get total number of rolls."""
-        return len(self.history)
-    
-    @property
-    def last_roll(self) -> Optional[DiceResult]:
-        """Get the last roll."""
-        return self.history[-1] if self.history else None
-
-
-# ============================================================================
-# Convenience Functions
-# ============================================================================
-
-def d(sides: int, count: int = 1) -> DiceResult:
-    """Shorthand for roll()."""
-    return roll(sides, count)
-
-
-def d4(count: int = 1) -> DiceResult:
-    """Shorthand for roll_d4()."""
-    return roll_d4(count)
-
-
-def d6(count: int = 1) -> DiceResult:
-    """Shorthand for roll_d6()."""
-    return roll_d6(count)
-
-
-def d8(count: int = 1) -> DiceResult:
-    """Shorthand for roll_d8()."""
-    return roll_d8(count)
-
-
-def d10(count: int = 1) -> DiceResult:
-    """Shorthand for roll_d10()."""
-    return roll_d10(count)
-
-
-def d12(count: int = 1) -> DiceResult:
-    """Shorthand for roll_d12()."""
-    return roll_d12(count)
-
-
-def d20(count: int = 1) -> DiceResult:
-    """Shorthand for roll_d20()."""
-    return roll_d20(count)
-
-
-def d100(count: int = 1) -> DiceResult:
-    """Shorthand for roll_d100()."""
-    return roll_d100(count)
-
-
-def dF(count: int = 4) -> DiceResult:
-    """Shorthand for roll_fate()."""
-    return roll_fate(count)
+__all__ = [
+    # Core functions
+    'roll',
+    'roll_with_reroll',
+    'roll_exploding',
+    'roll_fudge',
+    'roll_weighted',
+    'roll_weighted_batch',
+    
+    # Convenience
+    'dice_roll',
+    'dice_parse',
+    'dice_parse_summary',
+    
+    # Fudge
+    'fudge_total',
+    
+    # Stats
+    'roll_distribution',
+    'expected_value',
+    'variance',
+    'standard_deviation',
+    'probability_at_least',
+    'probability_exactly',
+    'batch_roll',
+    'batch_stats',
+    
+    # Advantage
+    'advantage',
+    'disadvantage',
+    
+    # Pools
+    'roll_pool',
+    
+    # Types
+    'DiceType',
+    'RollOutcome',
+    'RollStats',
+    'DicePoolResult',
+]
