@@ -278,7 +278,8 @@ class NameParser:
         
         # 优化：直接使用 findall 结果长度判断，避免 join 操作
         chinese_chars = self.chinese_pattern.findall(name_without_quotes)
-        chinese_count = len(chinese_chars)
+        # 修复：使用字符总数而非分段数比较（chinese_count 是分段数，non_space_count 是字符数）
+        chinese_count = sum(len(c) for c in chinese_chars)
         
         # 计算非空格字符总数（优化：使用 sum 替代 join+len）
         non_space_count = sum(1 for c in name_without_quotes if c != ' ')
