@@ -1,592 +1,425 @@
 package lfu_cache_utils
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 	"time"
 )
 
 func TestNew(t *testing.T) {
-	cache := New[string, int](100)
-	if cache == nil {
-		t.Fatal("New returned nil")
+	cache := New(3)
+	if cache.capacity != 3 {
+		t.Errorf("expected capacity 3, got %d", cache.capacity)
 	}
-	if cache.Capacity() != 100 {
-		t.Errorf("Expected capacity 100, got %d", cache.Capacity())
-	}
-	if cache.Size() != 0 {
-		t.Errorf("Expected size 0, got %d", cache.Size())
+	if cache.Len() != 0 {
+		t.Errorf("expected empty cache, got %d items", cache.Len())
 	}
 }
 
-func TestNewWithConfig(t *testing.T) {
-	cache := NewWithConfig[string, int](Config{
-		Capacity: 50,
-		TTL:      time.Hour,
-	})
-	if cache == nil {
-		t.Fatal("NewWithConfig returned nil")
-	}
-	if cache.Capacity() != 50 {
-		t.Errorf("Expected capacity 50, got %d", cache.Capacity())
+func TestNewZeroCapacity(t *testing.T) {
+	cache := New(0)
+	if cache.capacity != 128 {
+		t.Errorf("expected default capacity 128, got %d", cache.capacity)
 	}
 }
 
-func TestNewWithZeroCapacity(t *testing.T) {
-	cache := New[string, int](0)
-	if cache.Capacity() != 1000 {
-		t.Errorf("Expected default capacity 1000, got %d", cache.Capacity())
+func TestSetGet(t *testing.T) {
+	cache := New(3)
+
+	cache.Set("a", 1)
+	cache.Set("b", 2)
+	cache.Set("c", 3)
+
+	v, ok := cache.Get("a")
+	if !ok || v != 1 {
+		t.Errorf("expected Get(a)=1, got %v, ok=%v", v, ok)
+	}
+
+	v, ok = cache.Get("b")
+	if !ok || v != 2 {
+		t.Errorf("expected Get(b)=2, got %v, ok=%v", v, ok)
+	}
+
+	v, ok = cache.Get("c")
+	if !ok || v != 3 {
+		t.Errorf("expected Get(c)=3, got %v, ok=%v", v, ok)
 	}
 }
 
-func TestPutAndGet(t *testing.T) {
-	cache := New[string, int](10)
-	
-	cache.Put("one", 1)
-	cache.Put("two", 2)
-	cache.Put("three", 3)
-	
-	if cache.Size() != 3 {
-		t.Errorf("Expected size 3, got %d", cache.Size())
-	}
-	
-	if v, ok := cache.Get("one"); !ok || v != 1 {
-		t.Errorf("Expected (1, true), got (%d, %v)", v, ok)
-	}
-	
-	if v, ok := cache.Get("two"); !ok || v != 2 {
-		t.Errorf("Expected (2, true), got (%d, %v)", v, ok)
-	}
-	
-	if v, ok := cache.Get("three"); !ok || v != 3 {
-		t.Errorf("Expected (3, true), got (%d, %v)", v, ok)
-	}
-}
+func TestGetNonExistent(t *testing.T) {
+	cache := New(3)
 
-func TestGetMissing(t *testing.T) {
-	cache := New[string, int](10)
-	
-	if v, ok := cache.Get("missing"); ok || v != 0 {
-		t.Errorf("Expected (0, false), got (%d, %v)", v, ok)
-	}
-}
-
-func TestUpdateExisting(t *testing.T) {
-	cache := New[string, int](10)
-	
-	cache.Put("key", 1)
-	if v, ok := cache.Get("key"); !ok || v != 1 {
-		t.Errorf("Expected (1, true), got (%d, %v)", v, ok)
-	}
-	
-	cache.Put("key", 2)
-	if v, ok := cache.Get("key"); !ok || v != 2 {
-		t.Errorf("Expected (2, true), got (%d, %v)", v, ok)
-	}
-	
-	if cache.Size() != 1 {
-		t.Errorf("Expected size 1, got %d", cache.Size())
+	v, ok := cache.Get("nonexistent")
+	if ok || v != nil {
+		t.Errorf("expected nil, ok=false, got %v, ok=%v", v, ok)
 	}
 }
 
 func TestEviction(t *testing.T) {
-	cache := New[string, int](3)
-	
-	cache.Put("a", 1)
-	cache.Put("b", 2)
-	cache.Put("c", 3)
-	
-	// Access "a" twice to increase its frequency
+	cache := New(3)
+
+	cache.Set("a", 1)
+	cache.Set("b", 2)
+	cache.Set("c", 3)
+
+	// "a" accessed once
 	cache.Get("a")
-	cache.Get("a")
-	
-	// Access "b" once
-	cache.Get("b")
-	
-	// Add new item, should evict "c" (lowest frequency)
-	cache.Put("d", 4)
-	
-	if cache.Contains("c") {
-		t.Error("Expected 'c' to be evicted")
+
+	// Add "d", should evict "b" (least frequently used)
+	cache.Set("d", 4)
+
+	_, aExists := cache.Get("a")
+	_, bExists := cache.Get("b")
+	_, cExists := cache.Get("c")
+	_, dExists := cache.Get("d")
+
+	if !aExists {
+		t.Error("'a' should still exist after eviction")
 	}
-	
-	if !cache.Contains("a") {
-		t.Error("Expected 'a' to still be in cache")
+	if bExists {
+		t.Error("'b' should have been evicted")
+	}
+	if !cExists {
+		t.Error("'c' should still exist after eviction")
+	}
+	if !dExists {
+		t.Error("'d' should exist")
 	}
 }
 
-func TestEvictionLRUTiebreaker(t *testing.T) {
-	cache := New[string, int](3)
-	
-	// All items have same frequency initially
-	cache.Put("a", 1)
-	cache.Put("b", 2)
-	cache.Put("c", 3)
-	
-	// Access all once (same frequency)
+func TestFrequencyIncrement(t *testing.T) {
+	cache := New(3)
+
+	cache.Set("a", 1)
+	cache.Set("b", 2)
+
+	cache.Get("a")
 	cache.Get("a")
 	cache.Get("b")
-	cache.Get("c")
-	
-	// Add new item, should evict "a" (oldest among same frequency)
-	cache.Put("d", 4)
-	
-	if cache.Contains("a") {
-		t.Error("Expected 'a' to be evicted (LRU tiebreaker)")
+
+	// "a" accessed 3 times (1 set + 2 get), "b" accessed 2 times
+	freqA, _ := cache.Frequency("a")
+	freqB, _ := cache.Frequency("b")
+
+	if freqA != 3 {
+		t.Errorf("expected freq(a)=3, got %d", freqA)
+	}
+	if freqB != 2 {
+		t.Errorf("expected freq(b)=2, got %d", freqB)
 	}
 }
 
 func TestDelete(t *testing.T) {
-	cache := New[string, int](10)
-	
-	cache.Put("key", 1)
-	if !cache.Delete("key") {
-		t.Error("Expected Delete to return true")
+	cache := New(3)
+
+	cache.Set("a", 1)
+	cache.Set("b", 2)
+
+	deleted := cache.Delete("a")
+	if !deleted {
+		t.Error("expected Delete(a) to return true")
 	}
-	
-	if cache.Contains("key") {
-		t.Error("Expected key to be deleted")
+
+	_, ok := cache.Get("a")
+	if ok {
+		t.Error("'a' should not exist after deletion")
 	}
-	
-	if cache.Delete("missing") {
-		t.Error("Expected Delete of missing key to return false")
+
+	v, ok := cache.Get("b")
+	if !ok || v != 2 {
+		t.Errorf("expected Get(b)=2, got %v, ok=%v", v, ok)
 	}
 }
 
-func TestContains(t *testing.T) {
-	cache := New[string, int](10)
-	
-	cache.Put("key", 1)
-	
-	if !cache.Contains("key") {
-		t.Error("Expected Contains to return true")
-	}
-	
-	if cache.Contains("missing") {
-		t.Error("Expected Contains to return false for missing key")
-	}
-}
+func TestDeleteNonExistent(t *testing.T) {
+	cache := New(3)
 
-func TestPeek(t *testing.T) {
-	cache := New[string, int](10)
-	
-	cache.Put("key", 1)
-	cache.Get("key") // Increment frequency
-	
-	// Peek should not change frequency
-	freq1, _ := cache.GetFrequency("key")
-	cache.Peek("key")
-	freq2, _ := cache.GetFrequency("key")
-	
-	if freq1 != freq2 {
-		t.Errorf("Peek should not change frequency: %d -> %d", freq1, freq2)
-	}
-}
-
-func TestKeys(t *testing.T) {
-	cache := New[string, int](10)
-	
-	cache.Put("a", 1)
-	cache.Put("b", 2)
-	cache.Put("c", 3)
-	
-	keys := cache.Keys()
-	if len(keys) != 3 {
-		t.Errorf("Expected 3 keys, got %d", len(keys))
-	}
-	
-	keyMap := make(map[string]bool)
-	for _, k := range keys {
-		keyMap[k] = true
-	}
-	
-	if !keyMap["a"] || !keyMap["b"] || !keyMap["c"] {
-		t.Error("Expected keys to contain a, b, c")
-	}
-}
-
-func TestValues(t *testing.T) {
-	cache := New[string, int](10)
-	
-	cache.Put("a", 1)
-	cache.Put("b", 2)
-	cache.Put("c", 3)
-	
-	values := cache.Values()
-	if len(values) != 3 {
-		t.Errorf("Expected 3 values, got %d", len(values))
+	deleted := cache.Delete("nonexistent")
+	if deleted {
+		t.Error("expected Delete(nonexistent) to return false")
 	}
 }
 
 func TestClear(t *testing.T) {
-	cache := New[string, int](10)
-	
-	cache.Put("a", 1)
-	cache.Put("b", 2)
-	cache.Put("c", 3)
-	
+	cache := New(3)
+
+	cache.Set("a", 1)
+	cache.Set("b", 2)
+	cache.Set("c", 3)
+
 	cache.Clear()
-	
-	if cache.Size() != 0 {
-		t.Errorf("Expected size 0 after clear, got %d", cache.Size())
+
+	if cache.Len() != 0 {
+		t.Errorf("expected empty cache, got %d items", cache.Len())
 	}
-	
-	stats := cache.Stats()
-	if stats.Hits != 0 || stats.Misses != 0 {
-		t.Errorf("Expected stats to be reset after clear")
+
+	_, ok := cache.Get("a")
+	if ok {
+		t.Error("'a' should not exist after Clear()")
 	}
 }
 
-func TestStats(t *testing.T) {
-	cache := New[string, int](10)
-	
-	cache.Put("a", 1)
-	cache.Get("a")  // hit
-	cache.Get("b")  // miss
-	
-	stats := cache.Stats()
-	
-	if stats.Capacity != 10 {
-		t.Errorf("Expected capacity 10, got %d", stats.Capacity)
-	}
-	
-	if stats.Size != 1 {
-		t.Errorf("Expected size 1, got %d", stats.Size)
-	}
-	
-	if stats.Hits != 1 {
-		t.Errorf("Expected 1 hit, got %d", stats.Hits)
-	}
-	
-	if stats.Misses != 1 {
-		t.Errorf("Expected 1 miss, got %d", stats.Misses)
-	}
-	
-	if stats.HitRate != 0.5 {
-		t.Errorf("Expected hit rate 0.5, got %f", stats.HitRate)
-	}
-}
+func TestContains(t *testing.T) {
+	cache := New(3)
 
-func TestGetOrSet(t *testing.T) {
-	cache := New[string, int](10)
-	
-	// Set new value
-	v, found := cache.GetOrSet("key", 42)
-	if found || v != 42 {
-		t.Errorf("Expected (42, false), got (%d, %v)", v, found)
-	}
-	
-	// Get existing value
-	v, found = cache.GetOrSet("key", 100)
-	if !found || v != 42 {
-		t.Errorf("Expected (42, true), got (%d, %v)", v, found)
-	}
-}
+	cache.Set("a", 1)
 
-func TestGetOrCompute(t *testing.T) {
-	cache := New[string, int](10)
-	computed := false
-	
-	// Compute new value
-	v, found := cache.GetOrCompute("key", func() int {
-		computed = true
-		return 42
-	})
-	
-	if found || v != 42 || !computed {
-		t.Errorf("Expected (42, false, computed=true), got (%d, %v, computed=%v)", v, found, computed)
+	if !cache.Contains("a") {
+		t.Error("'a' should be contained")
 	}
-	
-	computed = false
-	
-	// Get existing value (should not compute)
-	v, found = cache.GetOrCompute("key", func() int {
-		computed = true
-		return 100
-	})
-	
-	if !found || v != 42 || computed {
-		t.Errorf("Expected (42, true, computed=false), got (%d, %v, computed=%v)", v, found, computed)
+
+	if cache.Contains("b") {
+		t.Error("'b' should not be contained")
 	}
 }
 
 func TestTTL(t *testing.T) {
-	cache := NewWithConfig[string, int](Config{
-		Capacity: 10,
-		TTL:      100 * time.Millisecond,
-	})
-	
-	cache.Put("key", 1)
-	
-	// Should exist immediately
-	if v, ok := cache.Get("key"); !ok || v != 1 {
-		t.Errorf("Expected (1, true), got (%d, %v)", v, ok)
+	cache := NewWithTTL(3, 50*time.Millisecond)
+
+	cache.Set("a", 1)
+
+	if !cache.Contains("a") {
+		t.Error("'a' should be contained immediately")
 	}
-	
-	// Wait for TTL to expire
-	time.Sleep(150 * time.Millisecond)
-	
-	// Should be expired
-	if _, ok := cache.Get("key"); ok {
-		t.Error("Expected key to be expired")
+
+	time.Sleep(60 * time.Millisecond)
+
+	if cache.Contains("a") {
+		t.Error("'a' should have expired")
 	}
 }
 
-func TestPutWithTTL(t *testing.T) {
-	cache := New[string, int](10)
-	
-	cache.PutWithTTL("key", 1, 100*time.Millisecond)
-	
-	// Should exist immediately
-	if v, ok := cache.Get("key"); !ok || v != 1 {
-		t.Errorf("Expected (1, true), got (%d, %v)", v, ok)
+func TestSetWithTTL(t *testing.T) {
+	cache := New(3)
+
+	cache.SetWithTTL("a", 1, 50*time.Millisecond)
+	cache.SetWithTTL("b", 2, 100*time.Millisecond)
+
+	time.Sleep(60 * time.Millisecond)
+
+	if cache.Contains("a") {
+		t.Error("'a' should have expired")
 	}
-	
-	// Wait for TTL to expire
-	time.Sleep(150 * time.Millisecond)
-	
-	// Should be expired
-	if _, ok := cache.Get("key"); ok {
-		t.Error("Expected key to be expired")
+
+	if !cache.Contains("b") {
+		t.Error("'b' should still be valid")
 	}
 }
 
-func TestPurgeExpired(t *testing.T) {
-	cache := New[string, int](10)
-	
-	cache.Put("a", 1)
-	cache.PutWithTTL("b", 2, 100*time.Millisecond)
-	cache.PutWithTTL("c", 3, 100*time.Millisecond)
-	
-	// Wait for TTL to expire
-	time.Sleep(150 * time.Millisecond)
-	
-	count := cache.PurgeExpired()
-	
-	if count != 2 {
-		t.Errorf("Expected 2 expired items, got %d", count)
+func TestEvictCallback(t *testing.T) {
+	evicted := make(map[string]interface{})
+	callback := func(key string, value interface{}) {
+		evicted[key] = value
 	}
-	
-	if cache.Size() != 1 {
-		t.Errorf("Expected size 1 after purge, got %d", cache.Size())
+
+	cache := NewWithEvict(2, callback)
+
+	cache.Set("a", 1)
+	cache.Set("b", 2)
+	cache.Set("c", 3) // should evict "a"
+
+	if len(evicted) != 1 {
+		t.Errorf("expected 1 eviction, got %d", len(evicted))
+	}
+
+	if evicted["a"] != 1 {
+		t.Errorf("expected evicted[a]=1, got %v", evicted["a"])
+	}
+}
+
+func TestCleanup(t *testing.T) {
+	cache := New(3)
+
+	cache.SetWithTTL("a", 1, 30*time.Millisecond)
+	cache.SetWithTTL("b", 2, 60*time.Millisecond)
+	cache.Set("c", 3)
+
+	time.Sleep(40 * time.Millisecond)
+
+	removed := cache.Cleanup()
+
+	if removed != 1 {
+		t.Errorf("expected 1 cleanup, got %d", removed)
+	}
+
+	if cache.Len() != 2 {
+		t.Errorf("expected 2 items, got %d", cache.Len())
+	}
+}
+
+func TestKeys(t *testing.T) {
+	cache := New(3)
+
+	cache.Set("a", 1)
+	cache.Set("b", 2)
+	cache.Set("c", 3)
+
+	keys := cache.Keys()
+
+	if len(keys) != 3 {
+		t.Errorf("expected 3 keys, got %d", len(keys))
+	}
+
+	keyMap := make(map[string]bool)
+	for _, k := range keys {
+		keyMap[k] = true
+	}
+
+	for _, k := range []string{"a", "b", "c"} {
+		if !keyMap[k] {
+			t.Errorf("expected key %q to be in keys", k)
+		}
+	}
+}
+
+func TestStats(t *testing.T) {
+	cache := New(3)
+
+	cache.Set("a", 1)
+	cache.Set("b", 2)
+	cache.Get("a")
+	cache.Get("a")
+	cache.Get("b")
+
+	stats := cache.Stats()
+
+	if stats["capacity"] != 3 {
+		t.Errorf("expected capacity=3, got %v", stats["capacity"])
+	}
+
+	if stats["size"] != 2 {
+		t.Errorf("expected size=2, got %v", stats["size"])
 	}
 }
 
 func TestResize(t *testing.T) {
-	cache := New[string, int](10)
-	
-	cache.Put("a", 1)
-	cache.Put("b", 2)
-	cache.Put("c", 3)
-	
-	// Resize to smaller capacity
+	cache := New(5)
+
+	for i := 0; i < 5; i++ {
+		cache.Set(fmt.Sprintf("key%d", i), i)
+	}
+
 	cache.Resize(2)
-	
-	if cache.Capacity() != 2 {
-		t.Errorf("Expected capacity 2, got %d", cache.Capacity())
-	}
-	
-	// Should have evicted items
-	if cache.Size() > 2 {
-		t.Errorf("Expected size <= 2, got %d", cache.Size())
+
+	if cache.Len() != 2 {
+		t.Errorf("expected 2 items, got %d", cache.Len())
 	}
 }
 
-func TestForEach(t *testing.T) {
-	cache := New[string, int](10)
-	
-	cache.Put("a", 1)
-	cache.Put("b", 2)
-	cache.Put("c", 3)
-	
-	count := 0
-	cache.ForEach(func(key string, value int) bool {
-		count++
-		return true
-	})
-	
-	if count != 3 {
-		t.Errorf("Expected 3 iterations, got %d", count)
+func TestUpdate(t *testing.T) {
+	cache := New(3)
+
+	cache.Set("a", 1)
+	cache.Set("a", 100)
+
+	v, ok := cache.Get("a")
+	if !ok || v != 100 {
+		t.Errorf("expected Get(a)=100, got %v, ok=%v", v, ok)
 	}
 }
 
-func TestForEachStop(t *testing.T) {
-	cache := New[string, int](10)
-	
-	cache.Put("a", 1)
-	cache.Put("b", 2)
-	cache.Put("c", 3)
-	
-	count := 0
-	cache.ForEach(func(key string, value int) bool {
-		count++
-		return count < 2 // Stop after 2
-	})
-	
-	if count != 2 {
-		t.Errorf("Expected 2 iterations, got %d", count)
+func TestTouch(t *testing.T) {
+	cache := New(3)
+
+	cache.Set("a", 1)
+	cache.Get("a")
+	cache.Get("a")
+
+	freqBefore, _ := cache.Frequency("a")
+	cache.Touch("a")
+	freqAfter, _ := cache.Frequency("a")
+
+	if freqAfter <= freqBefore {
+		t.Errorf("expected frequency to increase after Touch, before=%d, after=%d", freqBefore, freqAfter)
+	}
+}
+
+func TestGetMulti(t *testing.T) {
+	cache := New(3)
+
+	cache.Set("a", 1)
+	cache.Set("b", 2)
+	cache.Set("c", 3)
+
+	results := cache.GetMulti([]string{"a", "b", "nonexistent"})
+
+	if len(results) != 2 {
+		t.Errorf("expected 2 results, got %d", len(results))
+	}
+
+	if results["a"] != 1 {
+		t.Errorf("expected results[a]=1, got %v", results["a"])
+	}
+
+	if results["b"] != 2 {
+		t.Errorf("expected results[b]=2, got %v", results["b"])
+	}
+}
+
+func TestSetMulti(t *testing.T) {
+	cache := New(3)
+
+	items := map[string]interface{}{
+		"x": 1,
+		"y": 2,
+		"z": 3,
+	}
+
+	cache.SetMulti(items)
+
+	if cache.Len() != 3 {
+		t.Errorf("expected 3 items, got %d", cache.Len())
 	}
 }
 
 func TestConcurrency(t *testing.T) {
-	cache := New[int, int](100)
+	cache := New(1000)
+
 	var wg sync.WaitGroup
-	
-	// Concurrent writes
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func(n int) {
-			defer wg.Done()
-			cache.Put(n, n*10)
-		}(i)
-	}
-	
-	// Concurrent reads
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func(n int) {
-			defer wg.Done()
-			cache.Get(n)
-		}(i)
-	}
-	
+	wg.Add(4)
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 250; i++ {
+			cache.Set(fmt.Sprintf("key%d", i), i)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for i := 250; i < 500; i++ {
+			cache.Set(fmt.Sprintf("key%d", i), i)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 250; i++ {
+			cache.Get(fmt.Sprintf("key%d", i))
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for i := 250; i < 500; i++ {
+			cache.Get(fmt.Sprintf("key%d", i))
+		}
+	}()
+
 	wg.Wait()
-	
-	stats := cache.Stats()
-	if stats.Size > 100 {
-		t.Errorf("Cache size should not exceed capacity: %d", stats.Size)
-	}
-}
 
-func TestFrequencyTracking(t *testing.T) {
-	cache := New[string, int](10)
-	
-	cache.Put("key", 1)
-	
-	// Initial frequency is 1
-	if freq, ok := cache.GetFrequency("key"); !ok || freq != 1 {
-		t.Errorf("Expected initial frequency 1, got %d", freq)
-	}
-	
-	// Each Get increments frequency
-	cache.Get("key")
-	cache.Get("key")
-	cache.Get("key")
-	
-	if freq, ok := cache.GetFrequency("key"); !ok || freq != 4 {
-		t.Errorf("Expected frequency 4, got %d", freq)
-	}
-}
-
-func TestOnEvict(t *testing.T) {
-	evicted := make(map[string]int)
-	cache := NewWithConfig[string, int](Config{
-		Capacity: 2,
-		OnEvict: func(key any, value any) {
-			evicted[key.(string)] = value.(int)
-		},
-	})
-	
-	cache.Put("a", 1)
-	cache.Put("b", 2)
-	cache.Put("c", 3) // Should evict "a"
-	
-	if len(evicted) != 1 {
-		t.Errorf("Expected 1 eviction, got %d", len(evicted))
-	}
-	
-	if _, ok := evicted["a"]; !ok {
-		t.Error("Expected 'a' to be evicted")
+	if cache.Len() > 1000 {
+		t.Errorf("cache size exceeds capacity: %d", cache.Len())
 	}
 }
 
 func TestString(t *testing.T) {
-	cache := New[string, int](10)
-	cache.Put("a", 1)
-	cache.Get("a")
-	cache.Get("missing")
-	
+	cache := New(10)
+	cache.Set("a", 1)
+
 	str := cache.String()
-	
 	if str == "" {
-		t.Error("Expected non-empty string representation")
+		t.Error("expected non-empty string representation")
 	}
-}
-
-func TestIntKeys(t *testing.T) {
-	cache := New[int, string](10)
-	
-	cache.Put(1, "one")
-	cache.Put(2, "two")
-	cache.Put(3, "three")
-	
-	if v, ok := cache.Get(1); !ok || v != "one" {
-		t.Errorf("Expected ('one', true), got (%s, %v)", v, ok)
-	}
-}
-
-func TestStructValues(t *testing.T) {
-	type Item struct {
-		Name  string
-		Value int
-	}
-	
-	cache := New[string, Item](10)
-	
-	cache.Put("item1", Item{Name: "Test", Value: 42})
-	
-	v, ok := cache.Get("item1")
-	if !ok || v.Name != "Test" || v.Value != 42 {
-		t.Errorf("Expected (Item{Name: 'Test', Value: 42}, true), got (%v, %v)", v, ok)
-	}
-}
-
-func BenchmarkPut(b *testing.B) {
-	cache := New[int, int](10000)
-	b.ResetTimer()
-	
-	for i := 0; i < b.N; i++ {
-		cache.Put(i%10000, i)
-	}
-}
-
-func BenchmarkGet(b *testing.B) {
-	cache := New[int, int](10000)
-	for i := 0; i < 10000; i++ {
-		cache.Put(i, i)
-	}
-	b.ResetTimer()
-	
-	for i := 0; i < b.N; i++ {
-		cache.Get(i % 10000)
-	}
-}
-
-func BenchmarkConcurrentGet(b *testing.B) {
-	cache := New[int, int](10000)
-	for i := 0; i < 10000; i++ {
-		cache.Put(i, i)
-	}
-	b.ResetTimer()
-	
-	b.RunParallel(func(pb *testing.PB) {
-		i := 0
-		for pb.Next() {
-			cache.Get(i % 10000)
-			i++
-		}
-	})
-}
-
-func BenchmarkConcurrentPut(b *testing.B) {
-	cache := New[int, int](10000)
-	b.ResetTimer()
-	
-	b.RunParallel(func(pb *testing.PB) {
-		i := 0
-		for pb.Next() {
-			cache.Put(i%10000, i)
-			i++
-		}
-	})
 }
