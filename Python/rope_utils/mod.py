@@ -130,8 +130,12 @@ class LeafNode(RopeNode):
         return len(self.text)
     
     def char_at(self, index: int) -> str:
-        if index < 0 or index >= len(self.text):
-            raise IndexError(f"Index {index} out of range")
+        text_len = len(self.text)
+        # Fast path: negative index as Python semantics
+        if index < 0:
+            index += text_len
+        if index < 0 or index >= text_len:
+            raise IndexError(f"Index {index} out of range (length: {text_len})")
         return self.text[index]
     
     def substring(self, start: int, end: int) -> RopeNode:

@@ -403,11 +403,21 @@ def is_loopback_ipv4(ip: str) -> bool:
         >>> is_loopback_ipv4('192.168.1.1')
         False
     """
-    if not validate_ipv4(ip):
+    # Fast path: check first char before full validation
+    if not ip or len(ip) < 7 or ip[0] < '0' or ip[0] > '9':
         return False
     
-    first_octet = int(ip.split('.')[0])
-    return first_octet == 127
+    first_octet_char = ip[0]
+    first_octet = ord(first_octet_char) - 48
+    # Handle multi-digit first octet
+    if len(ip) > 1 and ip[1] >= '0' and ip[1] <= '9':
+        first_octet = first_octet * 10 + (ord(ip[1]) - 48)
+        if len(ip) > 2 and ip[2] >= '0' and ip[2] <= '9':
+            first_octet = first_octet * 10 + (ord(ip[2]) - 48)
+    if first_octet != 127:
+        return False
+    # Validate full IP format only after first octet check passes
+    return validate_ipv4(ip)
 
 
 # Pre-computed IPv4 link-local range integer (169.254.0.0 - 169.254.255.255)
@@ -459,10 +469,14 @@ def is_multicast_ipv4(ip: str) -> bool:
         >>> is_multicast_ipv4('192.168.1.1')
         False
     """
-    if not validate_ipv4(ip):
+    # Fast path: check first char before any parsing
+    if not ip or ip[0] < '0' or ip[0] > '9':
         return False
-    
-    first_octet = int(ip.split('.')[0])
+    # Quick check first octet (most common multicast check)
+    dot_pos = ip.find('.')
+    if dot_pos < 0:
+        return False
+    first_octet = int(ip[:dot_pos])
     return 224 <= first_octet <= 239
 
 

@@ -514,11 +514,27 @@ def evaluate_tire_wear(tread_depth_mm: float,
     if tread_depth_mm <= 0:
         return {'error': '花纹深度必须为正数'}
     
+    # Handle edge cases: new tire with depth > original (unlikely but safe)
+    if tread_depth_mm > original_depth_mm:
+        estimated_km = int(original_depth_mm * 10 * 5000)
+        return {
+            'status': 'new',
+            'wear_percent': 0.0,
+            'remaining_percent': 100.0,
+            'remaining_km': estimated_km,
+            'original_depth_mm': original_depth_mm,
+            'current_depth_mm': tread_depth_mm,
+            'recommendation': '轮胎花纹深度超过原始标称值，请检查测量是否正确'
+        }
+    
+    remaining_percent = (tread_depth_mm / original_depth_mm) * 100
+    wear_percent = 100 - remaining_percent
+    
     usable_tread = original_depth_mm - minimum_safe_depth_mm
     current_usable = max(0, tread_depth_mm - minimum_safe_depth_mm)
     
-    wear_percent = ((usable_tread - current_usable) / usable_tread) * 100
-    remaining_percent = 100 - wear_percent
+    # 估算剩余里程 (假设每 0.1mm 磨损约 5000km)
+    estimated_remaining_km = current_usable * 10 * 5000
     
     # 评估状态
     if tread_depth_mm < minimum_safe_depth_mm:
@@ -533,9 +549,6 @@ def evaluate_tire_wear(tread_depth_mm: float,
     else:
         status = 'good'
         recommendation = '轮胎状态良好'
-    
-    # 估算剩余里程 (假设每 0.1mm 磨损约 5000km)
-    estimated_remaining_km = current_usable * 10 * 5000
     
     return {
         'tread_depth_mm': tread_depth_mm,

@@ -512,14 +512,16 @@ def validate_check_digit(vin: str) -> bool:
         >>> validate_check_digit("1HGBH41JXMN109186")
         True  # With correct check digit
     """
-    if len(vin) != 17:
+    # Fast path: validate length before expensive operations
+    vin_len = len(vin)
+    if vin_len != 17:
         return False
     
     try:
         calculated = calculate_check_digit(vin)
         actual = vin[8].upper()
         return calculated == actual
-    except:
+    except (ValueError, IndexError):
         return False
 
 
