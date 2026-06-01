@@ -6,7 +6,7 @@ Comprehensive test suite covering all supported languages and edge cases.
 
 import unittest
 from decimal import Decimal
-from converter import (
+from number_to_words_utils.converter import (
     number_to_words,
     number_to_currency_words,
     number_to_ordinal_words,
