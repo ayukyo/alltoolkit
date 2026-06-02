@@ -1,0 +1,16 @@
+[package]
+name = "polyglot_syntax_matrix"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "Comparative syntax matrix across 8 languages — side-by-side equivalent snippets"
+license = "MIT"
+keywords = ["polyglot", "syntax", "comparison", "language"]
+categories = ["utility", "algorithms"]
+repository = "https://github.com/AllToolkit/AllToolkit"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[dev-dependencies]
