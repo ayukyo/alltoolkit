@@ -1,0 +1,16 @@
+[package]
+name = "language_probe"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "Parallel multi-language runtime environment probe — probes all language runtimes simultaneously, builds a capability matrix, and advances language_rotation.json"
+license = "MIT"
+keywords = ["language", "probe", "runtime", "environment", "parallel", "capability-matrix"]
+categories = ["utility", "algorithms"]
+repository = "https://github.com/AllToolkit/AllToolkit"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[dev-dependencies]
