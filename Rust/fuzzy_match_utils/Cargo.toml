@@ -1,0 +1,13 @@
+[package]
+name = "fuzzy_match_utils"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "Fuzzy string matching utilities: Levenshtein, Jaro-Winkler, token match, phonetic encode, autocomplete"
+license = "MIT"
+keywords = ["fuzzy", "string-matching", "levenshtein", "jaro-winkler", "autocomplete"]
+categories = ["algorithms", "text-processing"]
+
+[dependencies]
+
+[dev-dependencies]
