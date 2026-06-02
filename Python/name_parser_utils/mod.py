@@ -60,10 +60,14 @@ class ParsedName:
         if include_prefix and self.prefix:
             parts.append(self.prefix)
         
-        # 优先使用中文名
-        if self.chinese_surname or self.chinese_given_name:
+        # 优先使用中文名（两者都存在时才拼接）
+        if self.chinese_surname and self.chinese_given_name:
             parts.append(f"{self.chinese_surname}{self.chinese_given_name}")
         else:
+            if self.chinese_surname:
+                parts.append(self.chinese_surname)
+            if self.chinese_given_name:
+                parts.append(self.chinese_given_name)
             if self.first_name:
                 parts.append(self.first_name)
             if self.middle_name:

@@ -22,7 +22,7 @@ Reference: https://unicode.org/
 
 import unicodedata
 import re
-from typing import Optional, List, Dict, Set, Tuple, Union
+from typing import Optional, List, Dict, Set, Tuple, Union, Callable
 from dataclasses import dataclass
 from enum import Enum
 
@@ -1072,9 +1072,46 @@ def get_html_entity_named(char: str) -> Optional[str]:
 
 
 # Character type checking functions
+
+# Category lookup cache for performance (lazy-initialized)
+_category_cache: Dict[str, str] = {}
+
+
+def _get_category(char: str) -> str:
+    """Get Unicode category with local caching."""
+    if char not in _category_cache:
+        _category_cache[char] = unicodedata.category(char)
+    return _category_cache[char]
+
+
+def _make_category_checker(categories: Union[str, Tuple[str, ...], Set[str]]) -> Callable[[str], bool]:
+    """
+    Factory to create optimized category checker functions.
+    
+    Args:
+        categories: Single category, tuple/set of categories to match
+    
+    Returns:
+        Optimized checker function with category tuple for fast membership test
+    """
+    cat_tuple = categories if isinstance(categories, tuple) else tuple(categories)
+    def checker(char: str) -> bool:
+        return _get_category(char) in cat_tuple
+    return checker
+
+
+# Pre-built optimized checkers
+is_control_category = _make_category_checker(('Cc',))
+is_letter_category = _make_category_checker(('Lu', 'Ll', 'Lt', 'Lm', 'Lo'))
+is_mark_category = _make_category_checker(('Mn', 'Mc', 'Me'))
+is_numeric_category = _make_category_checker(('Nd', 'Nl', 'No'))
+is_punctuation_category = _make_category_checker(('Pc', 'Pd', 'Ps', 'Pe', 'Pi', 'Pf', 'Po'))
+is_symbol_category = _make_category_checker(('Sm', 'Sc', 'Sk', 'So'))
+
+
 def is_char_printable(char: str) -> bool:
     """Check if character is printable."""
-    category = unicodedata.category(char)
+    category = _get_category(char)
     return category not in ('Cc', 'Cs', 'Cn') and char.isprintable()
 
 
@@ -1085,52 +1122,47 @@ def is_char_whitespace(char: str) -> bool:
 
 def is_char_control(char: str) -> bool:
     """Check if character is a control character."""
-    return unicodedata.category(char) == 'Cc'
+    return is_control_category(char)
 
 
 def is_char_letter(char: str) -> bool:
     """Check if character is a letter."""
-    category = unicodedata.category(char)
-    return category in ('Lu', 'Ll', 'Lt', 'Lm', 'Lo')
+    return is_letter_category(char)
 
 
 def is_char_digit(char: str) -> bool:
     """Check if character is a digit."""
-    return unicodedata.category(char) == 'Nd'
+    return _get_category(char) == 'Nd'
 
 
 def is_char_numeric(char: str) -> bool:
     """Check if character is numeric (including Roman numerals, fractions, etc.)."""
-    category = unicodedata.category(char)
-    return category in ('Nd', 'Nl', 'No')
+    return is_numeric_category(char)
 
 
 def is_char_punctuation(char: str) -> bool:
     """Check if character is punctuation."""
-    category = unicodedata.category(char)
-    return category in ('Pc', 'Pd', 'Ps', 'Pe', 'Pi', 'Pf', 'Po')
+    return is_punctuation_category(char)
 
 
 def is_char_symbol(char: str) -> bool:
     """Check if character is a symbol."""
-    category = unicodedata.category(char)
-    return category in ('Sm', 'Sc', 'Sk', 'So')
+    return is_symbol_category(char)
 
 
 def is_char_mark(char: str) -> bool:
     """Check if character is a combining mark."""
-    category = unicodedata.category(char)
-    return category in ('Mn', 'Mc', 'Me')
+    return is_mark_category(char)
 
 
 def is_char_currency(char: str) -> bool:
     """Check if character is a currency symbol."""
-    return unicodedata.category(char) == 'Sc'
+    return _get_category(char) == 'Sc'
 
 
 def is_char_math(char: str) -> bool:
     """Check if character is a math symbol."""
-    return unicodedata.category(char) == 'Sm'
+    return _get_category(char) == 'Sm'
 
 
 def is_char_emoji(char: str) -> bool:
