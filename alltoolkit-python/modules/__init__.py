@@ -97,6 +97,17 @@ from .dev_metrics import (
     analyze_directory,
 )
 
+from .language_tools import (
+    LANGUAGE_PERSONAS,
+    load_rotation_config,
+    save_rotation_config,
+    rotate_language,
+    get_language_persona,
+    get_current_persona,
+    suggest_language_for_project,
+    get_rotation_summary,
+)
+
 __version__ = "1.0.1"
 __all__ = [
     "batch_rename",
@@ -169,4 +180,12 @@ __all__ = [
     "analyze_code",
     "analyze_file",
     "analyze_directory",
+    "LANGUAGE_PERSONAS",
+    "load_rotation_config",
+    "save_rotation_config",
+    "rotate_language",
+    "get_language_persona",
+    "get_current_persona",
+    "suggest_language_for_project",
+    "get_rotation_summary",
 ]
