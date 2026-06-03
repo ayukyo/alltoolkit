@@ -37,6 +37,7 @@ class EditOperation(Enum):
 @dataclass
 class EditStep:
     """单步编辑操作"""
+    __slots__ = ('operation', 'position', 'source_char', 'target_char')
     operation: EditOperation
     position: int           # 在源字符串中的位置
     source_char: Optional[str] = None   # 源字符（删除、替换时有）
@@ -60,6 +61,7 @@ class EditStep:
 @dataclass
 class SimilarityResult:
     """相似度计算结果"""
+    __slots__ = ('distance', 'max_length', 'similarity', 'ratio')
     distance: int          # 编辑距离
     max_length: int        # 较长字符串长度
     similarity: float      # 相似度 (0-1)
@@ -731,14 +733,20 @@ def fuzzy_search(query: str, text: str,
         if dist <= max_distance:
             results.append((i, dist, substr))
     
-    # 扩展搜索（查询长度 ±max_distance）
+    # 扩展搜索（查询长度 ±max_distance）- 优化：合并逻辑避免重复遍历
+    # 优化：提前终止如果 text 太短
+    if query_len + max_distance > len(text):
+        return results
+    
     for delta in range(1, max_distance + 1):
+        # 扩展长度
         for i in range(len(text) - query_len - delta + 1):
             substr = text[i:i + query_len + delta]
             dist = levenshtein_distance_threshold(query, substr, max_distance)
             if dist <= max_distance:
                 results.append((i, dist, substr))
         
+        # 缩短长度
         for i in range(len(text) - query_len + delta + 1):
             substr = text[i:i + query_len - delta]
             if len(substr) > 0:

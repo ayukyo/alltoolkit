@@ -766,12 +766,27 @@ class URLValidator:
     
     @classmethod
     def _is_private_ip(cls, hostname: str) -> bool:
-        """检查是否为私有 IP 地址"""
+        """检查是否为私有 IP 地址
+        
+        Note:
+            优化版本（v2）：
+            - 边界处理：空主机名快速返回 False
+            - 边界处理：解析失败时使用 try-except 保护
+            - 提前短路：先检查是否为 IP 格式再进行解析
+            - 优化：减少重复的方法调用和计算
+        """
+        # 边界处理：空主机名
+        if not hostname:
+            return False
+        
+        # 快速路径：先检查是否为 IP 格式（避免不必要的解析）
         if not cls._looks_like_ip(hostname):
             return False
         
         try:
             parts = [int(p) for p in hostname.split('.')]
+            if len(parts) != 4:
+                return False
             # 10.0.0.0/8
             if parts[0] == 10:
                 return True

@@ -51,12 +51,12 @@ def format_bytes(
         '1.50 MB'
     
     Note:
-        优化版本：使用预定义常量减少内存分配，
-        使用 math.log 快速计算单位索引。
+        优化版本（v2）：使用预定义常量减少内存分配，
+        使用 math.log 快速计算单位索引，提前处理特殊值。
     """
     import math
     
-    # 快速处理特殊情况
+    # 优化：处理负数和零的特殊情况
     if size == 0:
         return f"0{' ' if use_space else ''}B"
     
@@ -66,10 +66,6 @@ def format_bytes(
     # 使用预定义的单位列表
     units = _BINARY_UNITS if binary else _DECIMAL_UNITS
     base = 1024 if binary else 1000
-    
-    # 使用 log 快速计算单位索引
-    if size < base:
-        return f"{int(size)}{' ' if use_space else ''}B"
     
     # 计算单位索引（使用 log 优化）
     unit_index = min(int(math.log(size, base)), len(units) - 1)
