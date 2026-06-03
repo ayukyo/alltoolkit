@@ -1,0 +1,17 @@
+[package]
+name = "segment_tree_utils"
+version = "0.1.0"
+edition = "2021"
+description = "Segment Tree with lazy propagation for range queries and updates — zero external dependencies"
+license = "MIT"
+keywords = ["segment-tree", "lazy-propagation", "range-query", "data-structures", "algorithms"]
+categories = ["algorithms", "data-structures", "no-std"]
+
+[features]
+default = ["std"]
+std = []
+
+[dependencies]
+
+[dev-dependencies]
+criterion = "0.5"
