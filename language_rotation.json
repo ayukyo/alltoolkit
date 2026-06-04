@@ -1,0 +1,16 @@
+{
+  "languages": [
+    "Rust",
+    "Go",
+    "Swift",
+    "Kotlin",
+    "TypeScript",
+    "JavaScript",
+    "Java",
+    "C/C++"
+  ],
+  "current_index": 5,
+  "last_language": "TypeScript",
+  "updated_at": "2026-06-05T07:00:00+08:00",
+  "note": "仅使用根目录版本，其他副本已删除"
+}
