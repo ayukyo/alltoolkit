@@ -73,6 +73,10 @@ def format_bytes(
     
     space = ' ' if use_space else ''
     
+    # 优化：仅字节级（无小数单位）且为整数时不显示小数
+    if unit_index == 0 and size_in_unit == int(size_in_unit):
+        return f"{int(size_in_unit)}{space}{units[unit_index]}"
+    
     # 格式化数字
     return f"{size_in_unit:.{precision}f}{space}{units[unit_index]}"
 

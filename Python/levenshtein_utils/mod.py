@@ -37,7 +37,6 @@ class EditOperation(Enum):
 @dataclass
 class EditStep:
     """单步编辑操作"""
-    __slots__ = ('operation', 'position', 'source_char', 'target_char')
     operation: EditOperation
     position: int           # 在源字符串中的位置
     source_char: Optional[str] = None   # 源字符（删除、替换时有）
@@ -61,7 +60,6 @@ class EditStep:
 @dataclass
 class SimilarityResult:
     """相似度计算结果"""
-    __slots__ = ('distance', 'max_length', 'similarity', 'ratio')
     distance: int          # 编辑距离
     max_length: int        # 较长字符串长度
     similarity: float      # 相似度 (0-1)
