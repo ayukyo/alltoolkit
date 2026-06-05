@@ -84,32 +84,15 @@ class FiscalYearConfig:
         if isinstance(dt, datetime):
             dt = dt.date()
 
+        # Direct computation avoids potentially infinite loop
+        dt_tuple = (dt.month, dt.day)
+        start_tuple = (self.start_month, self.start_day)
+        is_before_fy_start = dt_tuple < start_tuple
+
         if self.year_mode == "ending":
-            # Fiscal year number = the year in which it ends
-            # Start is calculated by going back 1 year + 1 day from the end
-            # End = start of next fiscal year - 1 day
-            candidate_year = dt.year
-            while True:
-                fy_start = self._get_start_for_year(candidate_year)
-                fy_end = self._add_days(self._add_months(fy_start, 12), -1)
-                if fy_start <= dt <= fy_end:
-                    return candidate_year
-                if dt < fy_start:
-                    candidate_year -= 1
-                else:
-                    candidate_year += 1
+            return dt.year if not is_before_fy_start else dt.year - 1
         else:
-            # Starting year mode: fiscal year number = the year it starts
-            candidate_year = dt.year
-            while True:
-                fy_start = self._get_start_for_year(candidate_year)
-                fy_end = self._add_days(self._add_months(fy_start, 12), -1)
-                if fy_start <= dt <= fy_end:
-                    return candidate_year
-                if dt < fy_start:
-                    candidate_year -= 1
-                else:
-                    candidate_year += 1
+            return dt.year if is_before_fy_start else dt.year + 1
 
     def _get_start_for_year(self, year: int) -> date:
         """
@@ -142,11 +125,7 @@ class FiscalYearConfig:
         fy_year = self.get_fiscal_year(dt)
         fy_start = self._get_start_for_year(fy_year)
 
-        # Compute months elapsed since fy_start
-        months_elapsed = (dt.month - fy_start.month) % 12
-        days_extra = (dt - fy_start).days
-        total_months = months_elapsed + (days_extra // 28)  # rough offset
-        # More precise: count full months
+        # Count months since fy_start
         months_since_start = (dt.year - fy_start.year) * 12 + (dt.month - fy_start.month)
         if dt.day < fy_start.day:
             months_since_start -= 1

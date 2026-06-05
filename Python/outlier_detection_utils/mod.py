@@ -56,8 +56,9 @@ def iqr_outliers(data: List[float], multiplier: float = 1.5) -> List[Tuple[int, 
         return []
     sorted_data = sorted(data)
     n = len(sorted_data)
-    q1_idx = n // 4
-    q3_idx = 3 * n // 4
+    # Use median-based quartile indices (Excel-style)
+    q1_idx = (n + 1) // 4
+    q3_idx = (3 * n + 3) // 4
     q1 = sorted_data[q1_idx]
     q3 = sorted_data[q3_idx]
     iqr = q3 - q1

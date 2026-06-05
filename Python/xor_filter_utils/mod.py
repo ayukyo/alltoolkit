@@ -56,12 +56,14 @@ class XorFilter(Generic[T]):
         False
     """
     
+    __slots__ = ('_fingerprints', '_size', '_array_length', '_seed', '_block_length')
+    
     def __init__(self, fingerprints: List[int], size: int, array_length: int, seed: int):
         self._fingerprints = fingerprints
         self._size = size
         self._array_length = array_length
-        # 确保 seed 是正整数
         self._seed = seed & 0xFFFFFFFF
+        self._block_length = array_length // 3
     
     @classmethod
     def from_elements(cls, elements: Iterator[T], max_attempts: int = 100) -> 'XorFilter[T]':
@@ -171,7 +173,7 @@ class XorFilter(Generic[T]):
             return False
         
         h = _hash64(element, self._seed)
-        block_length = self._array_length // 3
+        block_length = self._block_length
         
         h0 = h % block_length
         h1 = block_length + ((h >> 20) % block_length)
