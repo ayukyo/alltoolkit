@@ -8,6 +8,7 @@ import os
 import shutil
 import tempfile
 import unittest
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 # Patch CONFIG_PATH before import
@@ -79,7 +80,8 @@ class TestLanguageRotator(unittest.TestCase):
         with open(self.config_path) as f:
             config = json.load(f)
         self.assertIn("updated_at", config)
-        self.assertIn("2026-06-04", config["updated_at"])
+        today = datetime.now(timezone(timedelta(hours=8))).date().isoformat()
+        self.assertTrue(config["updated_at"].startswith(today))
 
     def test_project_has_required_fields(self):
         """Generated project contains all required metadata"""
