@@ -97,7 +97,15 @@ from .dev_metrics import (
     analyze_directory,
 )
 
-__version__ = "1.0.1"
+from .language_tools import (
+    rotate_and_get_next,
+    get_rotation_status,
+    get_language_badge,
+    get_all_badges,
+    get_streak_info,
+)
+
+__version__ = "1.1.0"
 __all__ = [
     "batch_rename",
     "find_files",
@@ -169,4 +177,9 @@ __all__ = [
     "analyze_code",
     "analyze_file",
     "analyze_directory",
+    "rotate_and_get_next",
+    "get_rotation_status",
+    "get_language_badge",
+    "get_all_badges",
+    "get_streak_info",
 ]
