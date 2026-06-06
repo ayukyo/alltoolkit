@@ -1,15 +1,7 @@
 {
-  "languages": [
-    "Rust",
-    "Go",
-    "Swift",
-    "Kotlin",
-    "TypeScript",
-    "JavaScript",
-    "Java",
-    "C/C++"
-  ],
-  "current_index": 1,
-  "last_language": "Rust",
-  "updated_at": "2026-06-06T08:06:58.016076"
+  "languages": ["Python","Rust","Go","JavaScript","TypeScript","Java","C/C++","Swift","Kotlin","Lua","C#","PHP","Ruby","R","SQL","MATLAB","Perl","Delphi","Fortran","ArkTS","VB","Zig"],
+  "current_index": 4,
+  "last_language": "Kotlin",
+  "updated_at": "2026-06-07T05:10:00+08:00",
+  "note": "expanded to 22 languages"
 }
