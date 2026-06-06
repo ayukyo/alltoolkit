@@ -90,9 +90,9 @@ class FiscalYearConfig:
         is_before_fy_start = dt_tuple < start_tuple
 
         if self.year_mode == "ending":
-            return dt.year if not is_before_fy_start else dt.year - 1
-        else:
             return dt.year if is_before_fy_start else dt.year + 1
+        else:
+            return dt.year if not is_before_fy_start else dt.year - 1
 
     def _get_start_for_year(self, year: int) -> date:
         """

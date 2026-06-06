@@ -72,9 +72,16 @@ class AlcoholDrink:
         # Alcohol density ≈ 0.789 g/mL
         return self.volume_ml * self.alcohol_percent * 0.789
     
-    @property
     def standard_drinks(self, country: str = "us") -> float:
-        """Calculate number of standard drinks."""
+        """Calculate number of standard drinks.
+
+        Args:
+            country: Country code for standard drink definition (default: "us").
+                     Supported: "us", "uk", "au", "canada", "japan", "standard".
+
+        Returns:
+            Number of standard drinks.
+        """
         std_gram = STANDARD_DRINK_GRAMS.get(country, STANDARD_DRINK_GRAMS["standard"])
         return self.alcohol_grams / std_gram
 

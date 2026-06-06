@@ -13,31 +13,39 @@ from .wcag_utils import (
     calculate_contrast_ratio,
     check_wcag_compliance,
     get_compliance_level,
-    
+
     # Color parsing
     parse_hex_color,
     parse_rgb_color,
     rgb_to_hex,
     hex_to_rgb,
-    
+
     # Contrast helpers
     suggest_accessible_color,
     get_min_contrast_color,
     get_contrast_ratio_for_text_size,
-    
+
     # Color vision deficiency simulation
     simulate_protanopia,
     simulate_deuteranopia,
     simulate_tritanopia,
     simulate_achromatopsia,
-    
+
+    # CVD contrast checking
+    check_contrast_for_all_cvd,
+    get_all_cvd_contrast_ratios,
+
+    # Convenience functions
+    is_accessible,
+    quick_check,
+
     # WCAG constants
     WCAG_AA_NORMAL_TEXT_MIN_RATIO,
     WCAG_AA_LARGE_TEXT_MIN_RATIO,
     WCAG_AAA_NORMAL_TEXT_MIN_RATIO,
     WCAG_AAA_LARGE_TEXT_MIN_RATIO,
     WCAG_NON_TEXT_MIN_RATIO,
-    
+
     # Compliance levels
     ComplianceLevel,
     ContrastResult,
@@ -50,31 +58,39 @@ __all__ = [
     "calculate_contrast_ratio",
     "check_wcag_compliance",
     "get_compliance_level",
-    
+
     # Color parsing
     "parse_hex_color",
     "parse_rgb_color",
     "rgb_to_hex",
     "hex_to_rgb",
-    
+
     # Contrast helpers
     "suggest_accessible_color",
     "get_min_contrast_color",
     "get_contrast_ratio_for_text_size",
-    
+
     # Color vision deficiency simulation
     "simulate_protanopia",
     "simulate_deuteranopia",
     "simulate_tritanopia",
     "simulate_achromatopsia",
-    
+
+    # CVD contrast checking
+    "check_contrast_for_all_cvd",
+    "get_all_cvd_contrast_ratios",
+
+    # Convenience functions
+    "is_accessible",
+    "quick_check",
+
     # Constants
     "WCAG_AA_NORMAL_TEXT_MIN_RATIO",
     "WCAG_AA_LARGE_TEXT_MIN_RATIO",
     "WCAG_AAA_NORMAL_TEXT_MIN_RATIO",
     "WCAG_AAA_LARGE_TEXT_MIN_RATIO",
     "WCAG_NON_TEXT_MIN_RATIO",
-    
+
     # Classes
     "ComplianceLevel",
     "ContrastResult",

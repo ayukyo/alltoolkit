@@ -97,6 +97,8 @@ def esd_test(data: List[float], max_outliers: int = 10, significance: float = 0.
     if max_to_check == 0:
         return []
     values = list(data)
+    # Track original indices for correct index reporting after removals
+    remaining_indices = list(range(n))
     outliers = []
     for _ in range(max_to_check):
         mu = _mean(values)
@@ -113,8 +115,11 @@ def esd_test(data: List[float], max_outliers: int = 10, significance: float = 0.
         n_current = len(values)
         critical_multiplier = 2.5 + 1.0 / math.sqrt(n_current)
         if max_abs_z > critical_multiplier:
-            outliers.append((max_idx, values[max_idx], max_abs_z))
+            original_idx = remaining_indices[max_idx]
+            outliers.append((original_idx, values[max_idx], max_abs_z))
+            # Remove both the value and its original index to keep lists in sync
             values.pop(max_idx)
+            remaining_indices.pop(max_idx)
         else:
             break
     return outliers
