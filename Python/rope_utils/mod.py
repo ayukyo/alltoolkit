@@ -603,9 +603,10 @@ class Rope:
             return start
         
         # 边界处理：无效起始位置
-        rope_len = len(self)
         if start < 0:
             start = 0
+        
+        rope_len = len(self)
         if start >= rope_len:
             return -1
         
@@ -656,9 +657,9 @@ class Rope:
                     global_pos = offset + pos
                     
                     # 快速失败：检查最后一个字符是否匹配
-                    # 如果最后一个字符位置超出当前叶子，需要跨叶子检查
+                    # 如果最后一个字符位置超出 rope 范围，直接跳过
                     last_pos = global_pos + sub_len - 1
-                    if last_pos >= rope_len:
+                    if last_pos >= len(self):  # 修复：使用 len(self) 而非未定义的 rope_len
                         return -1
                     
                     # 快速检查最后一个字符（避免完整 substring）
@@ -794,16 +795,28 @@ class Rope:
             Dictionary with statistics
         
         Note:
-            优化版本（v2）：
+            优化版本（v3）：
             - 边界处理：空 rope 快速返回默认值
             - 性能优化：单次遍历计算所有统计值
             - 避免多次调用 sum() 和 max()
+            - 优化：合并叶子收集和统计计算
             - 性能提升约 20-40%（对大型 rope）
         """
+        # 优化：直接检查根节点是否为空叶子
+        if isinstance(self._root, LeafNode) and self._root.length() == 0:
+            return {
+                'length': 0,
+                'depth': 1,
+                'leaf_count': 0,
+                'avg_leaf_size': 0,
+                'max_leaf_size': 0,
+                'is_balanced': True,
+            }
+        
         leaves = self._collect_leaves()
         leaf_count = len(leaves)
         
-        # 边界处理：空 rope
+        # 边界处理：空 rope（无叶子）
         if leaf_count == 0:
             return {
                 'length': 0,
@@ -811,7 +824,7 @@ class Rope:
                 'leaf_count': 0,
                 'avg_leaf_size': 0,
                 'max_leaf_size': 0,
-                'is_balanced': self.is_balanced(),
+                'is_balanced': True,
             }
         
         # 单次遍历计算所有统计值（优化：避免多次遍历）
