@@ -7,6 +7,8 @@ Tests for Walker's Alias Method implementation for O(1) weighted random sampling
 import unittest
 import sys
 import os
+import random
+from collections import Counter
 
 # Ensure the module directory is in sys.path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
