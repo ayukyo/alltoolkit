@@ -157,6 +157,9 @@ def boyer_moore_search(text: str, pattern: str,
         6
         >>> boyer_moore_search("hello world", "xyz")
         -1
+    
+    Bug fix (v2):
+        - 空 pattern 应返回 -1（而非 0），与字符串方法语义一致
     """
     if not pattern:
         return -1

@@ -46,12 +46,13 @@ def luhn_checksum(number: str) -> int:
         67
     
     Note:
-        优化版本（v3）：
+        优化版本（v4）：
         - 边界处理：None 输入快速返回 0
         - 边界处理：非字符串输入快速返回 0
         - 边界处理：空字符串快速返回 0
         - 使用 ord() 直接计算数值，避免 int() 转换开销
-        - 预计算 0-9 数字的 ASCII 表避免重复计算
+        - 使用预编译正则 _NON_DIGIT_RE 避免重复编译
+        - 预计算 ASCII 偏移量 _ASCII_OFFSET
         - 性能提升约 30-50%（对批量计算）
     """
     # 边界处理：None 输入快速返回 0
@@ -62,7 +63,6 @@ def luhn_checksum(number: str) -> int:
     if not isinstance(number, str):
         return 0
     
-    # 移除非数字字符
     digits = _NON_DIGIT_RE.sub('', number)
     
     # 边界处理：空字符串快速返回 0
@@ -74,7 +74,7 @@ def luhn_checksum(number: str) -> int:
     # 即索引 0, 2, 4, ... 翻倍
     # 优化：使用 ord() 直接计算数值，ord('0') = 48
     for i, char in enumerate(reversed(digits)):
-        d = ord(char) - 48  # 优化：避免 int() 转换
+        d = ord(char) - _ASCII_OFFSET
         # 从右数奇数位置翻倍（索引为偶数）
         if i % 2 == 0:
             d *= 2
@@ -120,11 +120,12 @@ def validate(number: str) -> bool:
         False
     
     Note:
-        优化版本（v2）：
+        优化版本（v3）：
         - 边界处理：None 输入快速返回 False
         - 边界处理：非字符串输入快速返回 False
         - 边界处理：空字符串快速返回 False
         - 使用 ord() 直接计算数值，避免 int() 转换开销
+        - 使用预编译正则 _NON_DIGIT_RE 避免重复编译
         - 快速检查数字字符有效性
         - 性能提升约 30-50%（对批量验证）
     """
@@ -136,7 +137,6 @@ def validate(number: str) -> bool:
     if not isinstance(number, str):
         return False
     
-    # 移除非数字字符
     digits = _NON_DIGIT_RE.sub('', number)
     
     # 边界处理：空字符串快速返回 False
@@ -154,7 +154,7 @@ def validate(number: str) -> bool:
         # 快速检查：确保是数字字符
         if char < '0' or char > '9':
             return False
-        d = ord(char) - 48  # 优化：避免 int() 转换
+        d = ord(char) - _ASCII_OFFSET
         # 从右数偶数位置翻倍（索引为奇数）
         if i % 2 == 1:
             d *= 2
