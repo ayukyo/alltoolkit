@@ -1,0 +1,9 @@
+[package]
+name = "count_min_sketch"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "Count-Min Sketch probabilistic data structure for frequency estimation"
+license = "MIT"
+keywords = ["count-min", "sketch", "probabilistic", "frequency", "streaming"]
+categories = ["data-structures", "algorithms"]
