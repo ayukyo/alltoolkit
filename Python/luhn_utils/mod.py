@@ -24,6 +24,12 @@ _CARD_TYPE_PATTERNS = [
     ("UnionPay", re.compile(r"^62[0-9]{14,17}$")),
 ]
 
+# 预编译非数字字符正则
+_NON_DIGIT_RE = re.compile(r'\D')
+
+# 预计算 ASCII 偏移（用于 ord() 优化）
+_ASCII_OFFSET = 48
+
 
 def luhn_checksum(number: str) -> int:
     """
@@ -57,7 +63,7 @@ def luhn_checksum(number: str) -> int:
         return 0
     
     # 移除非数字字符
-    digits = re.sub(r'\D', '', number)
+    digits = _NON_DIGIT_RE.sub('', number)
     
     # 边界处理：空字符串快速返回 0
     if not digits:
@@ -131,7 +137,7 @@ def validate(number: str) -> bool:
         return False
     
     # 移除非数字字符
-    digits = re.sub(r'\D', '', number)
+    digits = _NON_DIGIT_RE.sub('', number)
     
     # 边界处理：空字符串快速返回 False
     if not digits:
@@ -194,7 +200,7 @@ def format_card_number(number: str, separator: str = " ") -> str:
         >>> format_card_number("4532015112830366", "-")
         '4532-0151-1283-0366'
     """
-    digits = re.sub(r'\D', '', number)
+    digits = _NON_DIGIT_RE.sub('', number)
     
     # 每 4 位一组
     groups = [digits[i:i+4] for i in range(0, len(digits), 4)]
@@ -217,7 +223,7 @@ def mask_card_number(number: str, show_first: int = 4, show_last: int = 4) -> st
         >>> mask_card_number("4532015112830366")
         '4532********0366'
     """
-    digits = re.sub(r'\D', '', number)
+    digits = _NON_DIGIT_RE.sub('', number)
     
     if len(digits) <= show_first + show_last:
         return digits
@@ -245,7 +251,7 @@ def identify_card_type(number: str) -> Optional[str]:
         >>> identify_card_type("5555555555554444")
         'MasterCard'
     """
-    digits = re.sub(r'\D', '', number)
+    digits = _NON_DIGIT_RE.sub('', number)
     
     # 使用预编译的正则模式（优化：避免重复编译）
     for card_type, pattern in _CARD_TYPE_PATTERNS:
@@ -269,7 +275,7 @@ def validate_card(number: str) -> Tuple[bool, Optional[str], str]:
         >>> validate_card("4532015112830366")
         (True, 'Visa', '4532 0151 1283 0366')
     """
-    digits = re.sub(r'\D', '', number)
+    digits = _NON_DIGIT_RE.sub('', number)
     
     is_valid = validate(digits)
     card_type = identify_card_type(digits) if is_valid else None
@@ -351,7 +357,7 @@ def validate_imei(imei: str) -> bool:
         >>> validate_imei("490154203237518")
         True
     """
-    digits = re.sub(r'\D', '', imei)
+    digits = _NON_DIGIT_RE.sub('', imei)
     
     # IMEI 必须为 15 位
     if len(digits) != 15:
@@ -414,7 +420,7 @@ def extract_luhn_info(number: str) -> Dict:
         >>> info['card_type']
         'Visa'
     """
-    digits = re.sub(r'\D', '', number)
+    digits = _NON_DIGIT_RE.sub('', number)
     
     if not digits:
         return {

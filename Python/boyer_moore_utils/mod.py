@@ -159,7 +159,7 @@ def boyer_moore_search(text: str, pattern: str,
         -1
     """
     if not pattern:
-        return 0 if start <= len(text) else -1
+        return -1
     
     # 处理大小写
     search_text = text if case_sensitive else text.lower()
@@ -234,7 +234,7 @@ def boyer_moore_find_all(text: str, pattern: str,
         [0, 4]
     """
     if not pattern:
-        return list(range(start, len(text) + 1)) if end is None else list(range(start, min(end, len(text) + 1)))
+        return []
     
     positions = []
     search_end = len(text) if end is None else min(end, len(text))

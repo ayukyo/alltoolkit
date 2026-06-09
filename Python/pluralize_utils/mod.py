@@ -51,6 +51,7 @@ IRREGULAR_PLURALS: Dict[str, str] = {
     'brother': 'brothers',  # 可以是 brethren (古语)
     'die': 'dice',
     'penny': 'pence',
+    'fez': 'fezzes',
     
     # -f/-fe 结尾变 -ves
     'leaf': 'leaves',
