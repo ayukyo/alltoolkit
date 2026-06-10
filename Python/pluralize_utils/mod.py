@@ -16,6 +16,10 @@ import re
 from typing import Dict, List, Tuple, Optional, Set
 
 
+# 预编译正则：匹配包含数字结尾的缩写词
+_RE_DIGIT_SUFFIX = re.compile(r'.*\d+$')
+
+
 # 不规则变化单词映射
 IRREGULAR_PLURALS: Dict[str, str] = {
     # 人称代词
@@ -225,7 +229,7 @@ def singular_to_plural(word: str, count: Optional[int] = None) -> str:
     # 处理缩写和数字
     # 缩写：包含数字的词（如 MP3）或已知缩写词（如 PDF, UFO）
     abbreviations = {'pdf', 'ufo', 'nato', 'unesco', 'jpeg', 'mpeg', 'gif', 'html', 'css', 'js', 'api', 'url', 'http', 'https', 'sql', 'cpu', 'gpu', 'ram', 'rom', 'usb', 'wifi', 'bluetooth'}
-    if re.match(r'.*\d+$', word) or word_lower in abbreviations:
+    if _RE_DIGIT_SUFFIX.match(word) or word_lower in abbreviations:
         return word + 's'
     
     # 处理连字符复合词（如 brother-in-law -> brothers-in-law）

@@ -15,7 +15,7 @@ from mod import (
 )
 
 
-class TestOutcomeCollector:
+class _ResultCollector:
     """收集测试结果"""
     def __init__(self):
         self.passed = 0
@@ -43,7 +43,7 @@ class TestOutcomeCollector:
 
 
 def run_tests():
-    results = TestOutcomeCollector()
+    results = _ResultCollector()
     
     # Test 1: Luhn checksum calculation
     try:

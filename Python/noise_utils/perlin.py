@@ -100,12 +100,14 @@ class PerlinNoise:
             Noise value in range [-1, 1]
         """
         # Find unit grid cell containing point
-        xi = int(math.floor(x)) & 255
-        yi = int(math.floor(y)) & 255
+        xf = math.floor(x)
+        yf = math.floor(y)
+        xi = int(xf) & 255
+        yi = int(yf) & 255
         
-        # Relative position in cell
-        xf = x - math.floor(x)
-        yf = y - math.floor(y)
+        # Relative position in cell (avoid redundant floor calls)
+        xf = x - xf
+        yf = y - yf
         
         # Fade curves
         u = self._fade(xf)
@@ -143,15 +145,18 @@ class PerlinNoise:
         Returns:
             Noise value in range [-1, 1]
         """
-        # Find unit grid cell
-        xi = int(math.floor(x)) & 255
-        yi = int(math.floor(y)) & 255
-        zi = int(math.floor(z)) & 255
+        # Find unit grid cell (avoid redundant floor calls)
+        xf = math.floor(x)
+        yf = math.floor(y)
+        zf = math.floor(z)
+        xi = int(xf) & 255
+        yi = int(yf) & 255
+        zi = int(zf) & 255
         
-        # Relative position
-        xf = x - math.floor(x)
-        yf = y - math.floor(y)
-        zf = z - math.floor(z)
+        # Relative position in cell
+        xf = x - xf
+        yf = y - yf
+        zf = z - zf
         
         # Fade curves
         u = self._fade(xf)

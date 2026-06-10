@@ -162,7 +162,7 @@ def boyer_moore_search(text: str, pattern: str,
         - 空 pattern 应返回 -1（而非 0），与字符串方法语义一致
     """
     if not pattern:
-        return -1
+        return 0
     
     # 处理大小写
     search_text = text if case_sensitive else text.lower()
