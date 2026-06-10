@@ -1,0 +1,29 @@
+{
+  "languages": [
+    "Python",
+    "Rust",
+    "Go",
+    "Swift",
+    "Kotlin",
+    "TypeScript",
+    "JavaScript",
+    "Java",
+    "C/C++",
+    "Lua",
+    "C#",
+    "PHP",
+    "Ruby",
+    "R",
+    "SQL",
+    "MATLAB",
+    "Perl",
+    "Delphi",
+    "Fortran",
+    "ArkTS",
+    "VB",
+    "Zig"
+  ],
+  "current_index": 14,
+  "last_language": "TypeScript",
+  "updated_at": "2026-06-10T00:03:39.086032+00:00"
+}
