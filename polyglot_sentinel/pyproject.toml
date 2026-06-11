@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "polyglot-sentinel"
+version = "0.1.0"
+description = "Language ecosystem sentinel — monitors threats, opportunities, and rotations"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+polyglot-sentinel = "polyglot_sentinel.src.sentinel:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
