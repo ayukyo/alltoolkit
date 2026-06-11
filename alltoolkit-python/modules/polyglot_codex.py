@@ -778,3 +778,14 @@ if __name__ == "__main__":
         print(f" file_ext: .{current['file_ext']}")
     else:
         parser.print_help()
+# Alias for compatibility with __init__.py exports
+rotate_and_get_codex = generate_kata
+get_codex_preview = get_current_language
+
+def format_codex_markdown(kata):
+    """Compatibility alias - format as markdown from kata dict."""
+    return format_kata(kata)
+
+def format_codex_console(kata):
+    """Compatibility alias - format as console from kata dict."""
+    return format_kata(kata)
