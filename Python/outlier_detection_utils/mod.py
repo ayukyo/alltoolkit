@@ -50,17 +50,26 @@ def z_score_outliers(data: List[float], threshold: float = 3.0, method: str = "a
     return outliers
 
 
+def _linear_interpolate(sorted_data: List[float], pos: float) -> float:
+    """Linearly interpolate value at fractional position."""
+    idx = int(pos)
+    frac = pos - idx
+    if idx + 1 < len(sorted_data):
+        return sorted_data[idx] + frac * (sorted_data[idx + 1] - sorted_data[idx])
+    return sorted_data[idx]
+
+
 def iqr_outliers(data: List[float], multiplier: float = 1.5) -> List[Tuple[int, float, float, float]]:
-    """Detect outliers using IQR method."""
+    """Detect outliers using IQR method with linear interpolation."""
     if len(data) < 4:
         return []
     sorted_data = sorted(data)
     n = len(sorted_data)
-    # Use median-based quartile indices (Excel-style)
-    q1_idx = (n + 1) // 4
-    q3_idx = (3 * n + 3) // 4
-    q1 = sorted_data[q1_idx]
-    q3 = sorted_data[q3_idx]
+    # Linear interpolation method (Tukey's hinges / percentile-style)
+    q1_pos = 0.25 * (n - 1)
+    q3_pos = 0.75 * (n - 1)
+    q1 = _linear_interpolate(sorted_data, q1_pos)
+    q3 = _linear_interpolate(sorted_data, q3_pos)
     iqr = q3 - q1
     lower_bound = q1 - multiplier * iqr
     upper_bound = q3 + multiplier * iqr

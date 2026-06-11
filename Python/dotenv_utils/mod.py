@@ -97,21 +97,32 @@ def _parse_value(value):
 
 def _expand_escapes(s):
     """Expand escape sequences in a .env value."""
-    escape_map = {"n": "\n", "t": "\t", "r": "\r", "\\": "\\", '"": '"', "'": "'"}
     result = []
     i = 0
     length = len(s)
     while i < length:
         c = s[i]
         if c == "\\" and i + 1 < length:
-            n = escape_map.get(s[i + 1], s[i + 1])
-            result.append(n)
+            next_c = s[i + 1]
+            if next_c == "n":
+                result.append("\n")
+            elif next_c == "t":
+                result.append("\t")
+            elif next_c == "r":
+                result.append("\r")
+            elif next_c == "\\":
+                result.append("\\")
+            elif next_c == '"':
+                result.append('"')
+            elif next_c == "'":
+                result.append("'")
+            else:
+                result.append(next_c)
             i += 2
         else:
             result.append(c)
             i += 1
     return "".join(result)
-
 
 def serialize(env):
     """
