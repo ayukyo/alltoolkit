@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "polyglot_harmony"
+version = "0.1.0"
+description = "Analyzes compatibility and synergy between consecutive languages in rotation"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+polyglot-harmony = "polyglot_harmony.__main__:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
