@@ -1071,8 +1071,21 @@ def compare_vins(vin1: str, vin2: str) -> Dict[str, bool]:
     r2 = REGION_CODES.get(vin2_upper[0], "Unknown")
     result['same_region'] = (r1 == r2)
     
-    # Consecutive 检查（优化：使用直接比较）
-    result['consecutive'] = False
+    # Consecutive 检查（优化 v3）：仅当 VIN 完全相同时才检查连续性
+    # 连续性基于顺序号 (positions 12-17)，只有 17 位 VIN 才能准确比较
+    if len1 == 17 and len2 == 17 and vin1_upper[:11] == vin2_upper[:11]:
+        # 使用顺序号部分进行连续性判断
+        seq1 = vin1_upper[11:17]
+        seq2 = vin2_upper[11:17]
+        # 尝试将顺序号转换为整数比较
+        try:
+            num1 = int(seq1, 36)  # Base36 since VIN uses 0-9 and A-Z (except I, O, Q)
+            num2 = int(seq2, 36)
+            result['consecutive'] = abs(num1 - num2) == 1
+        except ValueError:
+            result['consecutive'] = False
+    else:
+        result['consecutive'] = False
     
     return result
 

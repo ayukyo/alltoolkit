@@ -43,13 +43,6 @@ from .polyglot_ink import (
     format_ink_markdown,
 )
 
-from .polyglot_paradigm_weaver import (
-    rotate_and_weave,
-    get_weave_preview,
-    format_weave_console,
-    format_weave_markdown,
-)
-
 __version__ = "1.1.1"
 __all__ = [
     "measure_cyclomatic_complexity",
@@ -77,8 +70,4 @@ __all__ = [
     "get_ink_preview",
     "format_ink_console",
     "format_ink_markdown",
-    "rotate_and_weave",
-    "get_weave_preview",
-    "format_weave_console",
-    "format_weave_markdown",
 ]
