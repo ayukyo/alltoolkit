@@ -43,7 +43,20 @@ from .polyglot_ink import (
     format_ink_markdown,
 )
 
-__version__ = "1.1.1"
+from .polyglot_snippet_vault import (
+    get_snippet,
+    search_snippets,
+    get_vault_stats,
+    get_supported_categories,
+    format_snippet_console,
+    format_snippet_markdown,
+    SNIPPET_DB,
+    CORE_LANGUAGES,
+    CATEGORY_LABELS,
+    Category,
+)
+
+__version__ = "1.2.0"
 __all__ = [
     "measure_cyclomatic_complexity",
     "measure_cognitive_complexity",
@@ -70,4 +83,14 @@ __all__ = [
     "get_ink_preview",
     "format_ink_console",
     "format_ink_markdown",
+    "get_snippet",
+    "search_snippets",
+    "get_vault_stats",
+    "get_supported_categories",
+    "format_snippet_console",
+    "format_snippet_markdown",
+    "SNIPPET_DB",
+    "CORE_LANGUAGES",
+    "CATEGORY_LABELS",
+    "Category",
 ]
