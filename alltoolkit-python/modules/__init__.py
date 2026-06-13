@@ -56,7 +56,21 @@ from .polyglot_snippet_vault import (
     Category,
 )
 
-__version__ = "1.2.0"
+from .polyglot_quiz import (
+    generate_quiz,
+    check_answer,
+    get_quiz_stats,
+    record_attempt,
+    rotate_and_get_quiz,
+    format_quiz_console,
+    format_quiz_markdown,
+    format_stats_console,
+    QUIZ_DB,
+    LANGUAGE_METADATA,
+    CORE_LANGUAGES as QUIZ_CORE_LANGUAGES,
+)
+
+__version__ = "1.3.0"
 __all__ = [
     "measure_cyclomatic_complexity",
     "measure_cognitive_complexity",
@@ -93,4 +107,14 @@ __all__ = [
     "CORE_LANGUAGES",
     "CATEGORY_LABELS",
     "Category",
+    "generate_quiz",
+    "check_answer",
+    "get_quiz_stats",
+    "record_attempt",
+    "rotate_and_get_quiz",
+    "format_quiz_console",
+    "format_quiz_markdown",
+    "format_stats_console",
+    "QUIZ_DB",
+    "LANGUAGE_METADATA",
 ]
