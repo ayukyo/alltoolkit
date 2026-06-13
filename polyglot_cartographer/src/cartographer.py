@@ -50,8 +50,8 @@ from typing import Any, Dict, List, Optional, Tuple
 TOOL_NAME = "polyglot-cartographer"
 TOOL_VERSION = "1.0.0"
 
-_MODULE_DIR = Path(__file__).parent.parent      # polyglot_cartographer/src/ -> polyglot_cartographer/
-_WORKSPACE_ROOT = _MODULE_DIR.parent          # polyglot_cartographer/ -> workspace/
+_MODULE_DIR = Path(__file__).parent.parent.parent  # polyglot_cartographer/src/ -> polyglot_cartographer/ -> workspace/
+_WORKSPACE_ROOT = _MODULE_DIR.parent             # workspace/ -> /home/admin/.openclaw/
 ROTATION_FILE = str(_WORKSPACE_ROOT / "language_rotation.json")
 
 ROTATION_ORDER: List[str] = [
