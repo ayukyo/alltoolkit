@@ -10,6 +10,7 @@ License: MIT
 """
 
 import math
+import unittest
 
 import sys
 import os
