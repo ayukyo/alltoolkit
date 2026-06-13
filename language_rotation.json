@@ -1,15 +1,6 @@
 {
-  "languages": [
-    "Rust",
-    "Go",
-    "Swift",
-    "Kotlin",
-    "TypeScript",
-    "JavaScript",
-    "Java",
-    "C/C++"
-  ],
-  "current_index": 6,
-  "last_language": "Java",
-  "updated_at": "2026-06-12T17:09:36.458342+00:00"
+  "languages": ["Rust","Go","Swift","Kotlin","TypeScript","JavaScript","Java","C/C++"],
+  "current_index": 1,
+  "last_language": "Go",
+  "updated_at": "2026-06-14T03:00:00+08:00"
 }
