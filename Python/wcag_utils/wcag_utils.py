@@ -11,7 +11,6 @@ Zero external dependencies - uses only Python standard library.
 
 from enum import Enum
 from typing import Tuple, Optional, List, Dict, Any
-import math
 
 
 # WCAG 2.1 Contrast Ratio Requirements

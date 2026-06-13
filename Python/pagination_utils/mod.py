@@ -15,7 +15,6 @@ Pagination Utilities - 分页工具
 
 from typing import Union, List, Tuple, Optional, Callable, Any, Generic, TypeVar, Iterator
 from dataclasses import dataclass, field
-from math import ceil
 from enum import Enum
 import hashlib
 import base64

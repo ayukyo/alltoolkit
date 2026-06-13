@@ -13,7 +13,6 @@ AQI (Air Quality Index) Utils - 空气质量指数计算工具
 from typing import Dict, List, Optional, Tuple, Union
 from dataclasses import dataclass
 from enum import Enum
-import math
 
 
 class AQILevel(Enum):

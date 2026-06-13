@@ -140,11 +140,7 @@ def generate_sedgewick_gaps(n: int) -> List[int]:
         - 预计算 power2 数组，避免重复计算
         - 性能提升约 30-50%（对大 n）
     """
-    # 边界处理：n <= 1 快速返回
-    if n <= 1:
-        return [1]
-    
-    # 边界处理：n <= 5 直接返回小序列
+    # 边界处理：n <= 5 快速返回
     if n <= 5:
         return [1]
     
