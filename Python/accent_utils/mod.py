@@ -24,6 +24,9 @@ DIACRITIC_RANGES = [
     (0xFE20, 0xFE2F),  # Combining Half Marks
 ]
 
+# 预计算的变音符号集合（用于 O(1) 查找）
+_DIACRITIC_SET = frozenset().union(*(frozenset(range(s, e + 1)) for s, e in DIACRITIC_RANGES))
+
 # 特定语言的字符映射（不使用变音符号的替代）
 LANGUAGE_MAPPINGS: Dict[str, Dict[str, str]] = {
     'german': {
@@ -62,12 +65,11 @@ def is_diacritic(char: str) -> bool:
     
     code_point = ord(char)
     
-    # 检查是否在变音符号范围内
-    for start, end in DIACRITIC_RANGES:
-        if start <= code_point <= end:
-            return True
+    # 优化：优先使用预计算的 frozenset 进行 O(1) 查找
+    if code_point in _DIACRITIC_SET:
+        return True
     
-    # 检查 Unicode 类别
+    # 检查 Unicode 类别（作为后备）
     category = unicodedata.category(char)
     return category == 'Mn'  # Mark, Nonspacing
 
@@ -228,7 +230,7 @@ def has_accents(text: str) -> bool:
     if not text:
         return False
     
-    # 规范化并检查
+    # 规范化并检查（NFD 将预组合字符分解为基字符+组合符号）
     normalized = unicodedata.normalize('NFD', text)
     for char in normalized:
         if is_diacritic(char):
@@ -253,12 +255,9 @@ def count_accents(text: str) -> int:
     if not text:
         return 0
     
-    count = 0
+    # 规范化后统计（NFD 将预组合字符分解为基字符+组合符号）
     normalized = unicodedata.normalize('NFD', text)
-    for char in normalized:
-        if is_diacritic(char):
-            count += 1
-    return count
+    return sum(1 for char in normalized if is_diacritic(char))
 
 
 def get_accent_positions(text: str) -> list:

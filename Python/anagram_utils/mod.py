@@ -78,8 +78,17 @@ def is_anagram(text1: str, text2: str, *, strict: bool = False) -> bool:
         >>> is_anagram("Listen", "silent", strict=True)
         False
     """
+    # 优化：快速长度检查，避免不必要的 Counter 计算
     if strict:
+        if len(text1) != len(text2):
+            return False
         return Counter(text1) == Counter(text2)
+    
+    # 规范化后长度不同则一定不是变位词
+    norm1 = normalize_text(text1)
+    norm2 = normalize_text(text2)
+    if len(norm1) != len(norm2):
+        return False
     
     return get_char_count(text1) == get_char_count(text2)
 
@@ -102,13 +111,20 @@ def find_anagrams(word: str, word_list: List[str], *, strict: bool = False) -> L
         ['silent', 'enlist', 'tinsel']
     """
     target_count = get_char_count(word) if not strict else Counter(word)
+    # 优化：预计算目标长度，避免每次循环重新计算
+    word_len = len(word) if strict else len(normalize_text(word))
     result = []
     
     for w in word_list:
+        # 优化：长度预检查，快速过滤不可能的候选词
         if strict:
+            if len(w) != word_len:
+                continue
             if Counter(w) == target_count and w != word:
                 result.append(w)
         else:
+            if len(normalize_text(w)) != word_len:
+                continue
             if get_char_count(w) == target_count and w.lower() != word.lower():
                 result.append(w)
     

@@ -83,8 +83,16 @@ def is_palindrome(
         # Keep only alphanumeric characters
         processed = ''.join(c for c in processed if c.isalnum())
     
-    # Check palindrome
-    return processed == processed[::-1]
+    # Optimized palindrome check: early-exit two-pointer comparison
+    # avoids creating reversed string slice for most non-palindromes
+    left, right = 0, len(processed) - 1
+    while left < right:
+        if processed[left] != processed[right]:
+            return False
+        left += 1
+        right -= 1
+    
+    return True
 
 
 def normalize_for_palindrome(
@@ -550,7 +558,11 @@ def is_palindrome_number(n: int) -> bool:
         temp //= 10
         divisor *= 10
     
-    while n > 0:
+    # Fixed: use `n >= divisor` instead of `n > 0` to correctly handle
+    # numbers ending with zeros (e.g. 1000 should return False, not True)
+    # Added `divisor > 0` guard: divisor shrinks by 100 each iteration and can
+    # reach 0 for long palindromes, causing ZeroDivisionError
+    while n >= divisor and divisor > 0:
         leading = n // divisor
         trailing = n % 10
         

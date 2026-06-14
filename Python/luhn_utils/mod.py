@@ -331,16 +331,12 @@ def generate_test_card(card_type: str) -> str:
     
     # 生成随机数字
     import random
-    random.seed()  # 使用系统时间作为种子
+    random.seed()
     
-    while True:
-        middle = ''.join([str(random.randint(0, 9)) for _ in range(random_length)])
-        number = prefix + middle
-        full_number = generate_with_check_digit(number)
-        
-        # 验证长度
-        if len(full_number) == target_length:
-            return full_number
+    # 优化：直接 join 避免循环创建列表
+    middle = ''.join([str(random.randint(0, 9)) for _ in range(random_length)])
+    number = prefix + middle
+    return generate_with_check_digit(number)
 
 
 def validate_imei(imei: str) -> bool:
