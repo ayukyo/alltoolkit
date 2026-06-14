@@ -45,10 +45,9 @@ from typing import Any, Dict, List, Optional
 
 TOOL_NAME = "polyglot-resonance"
 TOOL_VERSION = "1.0.0"
-ROTATION_FILE = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
-    "language_rotation.json"
-)
+# Use absolute workspace root — works from any CWD
+_WORKSPACE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ROTATION_FILE = os.path.join(_WORKSPACE_ROOT, "language_rotation.json")
 
 ROTATION_ORDER: List[str] = [
     "Rust", "Go", "Swift", "Kotlin",
@@ -204,112 +203,6 @@ WAVE_FUNCTIONS = {
 }
 
 
-def _build_waveform(
-    hz: float,
-    phase: float,
-    wave: str,
-    fundamental_hz: float,
-    width: int = 60,
-    amplitude: int = 10,
-) -> str:
-    """
-    Build a horizontal ASCII waveform string.
-
-    The waveform is a superposition of the fundamental + the language's frequency
-    (creating harmonic overtones). The phase offset shifts the waveform.
-    """
-    fundamental_amp = amplitude * 0.6
-    overtone_amp   = amplitude * 0.3
-    noise_amp      = amplitude * 0.1
-
-    wave_fn = WAVE_FUNCTIONS.get(wave, _sine)
-    lines: List[str] = []
-
-    # One full cycle at the language's frequency
-    # We show multiple cycles across the width
-    cycles = 2  # show 2 full cycles
-    steps = width
-    chars = [" "] * width
-
-    # Track max/min for normalisation
-    vals: List[float] = []
-    for i in range(steps):
-        t = (i / steps) * cycles
-        # Fundamental frequency component
-        f_t = t * fundamental_hz + phase * 0.0
-        # Language frequency component (creates overtones when different)
-        l_t = t * hz + phase
-        # Mix them (beats/interference pattern)
-        f_val = math.sin(2 * math.pi * f_t)
-        l_val = wave_fn(t * (hz / fundamental_hz) + phase)
-        val = fundamental_amp * f_val + overtone_amp * l_val
-        # Add slight noise for realism
-        noise = (hash((i, int(hz))) % 1000) / 1000.0 - 0.5
-        val += noise_amp * noise * 0.3
-        vals.append(val)
-
-    min_v, max_v = min(vals), max(vals)
-    span = max_v - min_v if max_v > min_v else 1.0
-
-    # Centre line index (amplitude from centre)
-    centre = amplitude
-
-    for i in range(steps):
-        t = (i / steps) * cycles
-        f_t = t * fundamental_hz + phase * 0.0
-        l_t = t * hz + phase
-        f_val = math.sin(2 * math.pi * f_t)
-        l_val = wave_fn(t * (hz / fundamental_hz) + phase)
-        val = fundamental_amp * f_val + overtone_amp * l_val
-        noise = (hash((i, int(hz))) % 1000) / 1000.0 - 0.5
-        val += noise_amp * noise * 0.3
-
-        # Map to character row
-        # amplitude maps from centre, so row = centre - val
-        row_float = centre - (val / span) * amplitude
-        row = max(0, min(amplitude * 2, int(round(row_float))))
-
-        for j in range(amplitude * 2 + 1):
-            mark = " "
-            if j == centre:
-                mark = "─"
-            elif j == row:
-                mark = "●"
-            elif j > centre and j == centre + 1 and row > centre:
-                mark = "│"
-            elif j < centre and j == centre - 1 and row < centre:
-                mark = "│"
-            if j == amplitude * 2:
-                mark = " "
-            if mark != " ":
-                chars[i] = mark
-                break
-
-    # Re-do more carefully: just draw the wave line
-    chars = [" "] * width
-    for i in range(steps):
-        t = (i / steps) * cycles
-        f_val = math.sin(2 * math.pi * t * fundamental_hz / fundamental_hz)
-        l_val = wave_fn(t * (hz / fundamental_hz) + phase)
-        val = fundamental_amp * f_val + overtone_amp * l_val
-        row_float = centre - (val / span) * amplitude
-        row = max(0, min(amplitude * 2, int(round(row_float))))
-        chars[i] = "█" if row == centre else ("╿" if row < centre and abs(row - centre) < 3 else ("╽" if row > centre and abs(row - centre) < 3 else " "))
-        # Actually just use simple dot on wave
-    # Better approach: centre-line with wave peaks
-    chars = [" "] * width
-    for i in range(steps):
-        t = (i / steps) * cycles
-        f_val = math.sin(2 * math.pi * t)
-        l_val = wave_fn(t * (hz / fundamental_hz) + phase)
-        val = fundamental_amp * f_val + overtone_amp * l_val
-        row_float = centre - (val / span) * amplitude
-        row = max(0, min(amplitude * 2, int(round(row_float))))
-        chars[i] = "│" if row == centre else ("●" if row != centre else "─")
-
-    return "".join(chars)
-
-
 def _draw_oscilloscope(
     fund_hz: float,
     lang_hz: float,
@@ -320,6 +213,10 @@ def _draw_oscilloscope(
 ) -> List[str]:
     """
     Draw a multi-line oscilloscope display with the waveform centered.
+
+    The centre row is drawn with '─'. The wave peak/trough dots are '●'.
+    Connecting vertical segments ('│') link the wave to the centre line
+    when the wave goes above or below it.
     """
     wave_fn = WAVE_FUNCTIONS.get(wave, _sine)
     cycles = 2
@@ -341,22 +238,10 @@ def _draw_oscilloscope(
                 rows[r][i] = "─"
             elif r == row:
                 rows[r][i] = "●"
-            elif r > row and r == row + 1:
+            elif centre_row < r < row:
                 rows[r][i] = "│"
-            elif r < row and r == row - 1:
+            elif row < r < centre_row:
                 rows[r][i] = "│"
-            else:
-                rows[r][i] = " "
-
-    # Clean up: remove isolated dots that aren't part of wave
-    for r in range(height):
-        for i in range(width):
-            if rows[r][i] == "●":
-                # Check if adjacent to another ● or to centre
-                left  = rows[r][i-1] if i > 0 else " "
-                right = rows[r][i+1] if i < width-1 else " "
-                if left not in ("●", "─", "│") and right not in ("●", "─", "│"):
-                    rows[r][i] = " "
 
     return ["".join(row) for row in rows]
 
@@ -675,21 +560,20 @@ def run_tests() -> None:
 
     # ── Rotation index wraps correctly ───────────────────────────────────────
     try:
-        cfg = load_rotation()
-        langs = cfg["languages"]
-        idx = cfg["current_index"]
-        # Simulate advancing until we wrap
-        for _ in range(len(langs) + 1):
+        cfg_start = load_rotation()
+        langs = cfg_start["languages"]
+        start_idx = cfg_start["current_index"]
+        # Advance exactly len(langs) times — should return to same position
+        cfg = cfg_start
+        for _ in range(len(langs)):
             cfg = load_rotation()
-            idx = cfg["current_index"]
-            lang = cfg["languages"][idx % len(langs)]
-            cfg["current_index"] = (idx + 1) % len(langs)
-            cfg["last_language"] = lang
+            cfg["current_index"] = (cfg["current_index"] + 1) % len(langs)
+            cfg["last_language"] = cfg["languages"][cfg["current_index"]]
             cfg["updated_at"] = datetime.now(timezone.utc).isoformat()
             save_rotation(cfg)
         cfg_final = load_rotation()
         t("Rotation wraps after full cycle",
-          cfg_final["current_index"] == (idx + len(langs) + 1) % len(langs))
+          cfg_final["current_index"] == start_idx)
     except Exception as e:
         t("Rotation wrap test", False, str(e))
 
