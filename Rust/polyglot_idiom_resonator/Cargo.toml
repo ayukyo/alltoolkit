@@ -1,0 +1,16 @@
+[package]
+name = "polyglot_idiom_resonator"
+version = "0.1.0"
+edition = "2021"
+authors = ["AllToolkit"]
+description = "Cross-language idiom resonance analyzer — generates idiomatic code for a concept in all 8 rotation languages, then scores how similarly each language approaches the problem"
+license = "MIT"
+keywords = ["polyglot", "idiom", "resonance", "cross-language", "code-generation"]
+categories = ["utility", "algorithms"]
+repository = "https://github.com/AllToolkit/AllToolkit"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[dev-dependencies]
