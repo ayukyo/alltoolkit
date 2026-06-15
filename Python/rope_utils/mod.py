@@ -669,6 +669,9 @@ class Rope:
                         
                         if candidate == sub:
                             return global_pos
+                    else:
+                        # 超出范围，直接返回 -1（修复：使用 rope_len）
+                        return -1
                     
                     # 继续搜索下一个匹配
                     pos = leaf_text.find(first_char, pos + 1)
