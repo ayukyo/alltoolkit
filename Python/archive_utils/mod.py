@@ -1161,11 +1161,6 @@ if __name__ == '__main__':
     print("Archive Utils Demo")
     print("=" * 60)
     
-    # Show supported formats
-    print("\nSupported formats:")
-    for ext, fmt in utils._supported_formats.items():
-        print(f"  {ext}: {fmt.value}")
-    
     # Demo format detection
     print("\nFormat detection examples:")
     test_files = [
