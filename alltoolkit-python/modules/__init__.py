@@ -70,7 +70,14 @@ from .polyglot_quiz import (
     CORE_LANGUAGES as QUIZ_CORE_LANGUAGES,
 )
 
-__version__ = "1.3.0"
+from .polyglot_cartographer import (
+    generate_map,
+    format_map_markdown,
+    format_map_console,
+    CARTOGRAPHER_DB,
+)
+
+__version__ = "1.4.0"
 __all__ = [
     "measure_cyclomatic_complexity",
     "measure_cognitive_complexity",
@@ -117,4 +124,8 @@ __all__ = [
     "format_stats_console",
     "QUIZ_DB",
     "LANGUAGE_METADATA",
+    "generate_map",
+    "format_map_markdown",
+    "format_map_console",
+    "CARTOGRAPHER_DB",
 ]
