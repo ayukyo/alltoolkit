@@ -77,6 +77,16 @@ from .polyglot_cartographer import (
     CARTOGRAPHER_DB,
 )
 
+from .polyglot_sentinel import (
+    get_sentinel_report,
+    get_sentinel_preview,
+    format_sentinel_console,
+    format_sentinel_markdown,
+    CORE_LANGUAGES,
+    LANGUAGE_EMOJI,
+    SENTINEL_ADVICE,
+)
+
 __version__ = "1.4.0"
 __all__ = [
     "measure_cyclomatic_complexity",
@@ -128,4 +138,11 @@ __all__ = [
     "format_map_markdown",
     "format_map_console",
     "CARTOGRAPHER_DB",
+    "get_sentinel_report",
+    "get_sentinel_preview",
+    "format_sentinel_console",
+    "format_sentinel_markdown",
+    "CORE_LANGUAGES",
+    "LANGUAGE_EMOJI",
+    "SENTINEL_ADVICE",
 ]
