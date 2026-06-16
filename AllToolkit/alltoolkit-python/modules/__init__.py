@@ -43,7 +43,61 @@ from .polyglot_ink import (
     format_ink_markdown,
 )
 
-__version__ = "1.1.1"
+from .polyglot_snippet_vault import (
+    get_snippet,
+    search_snippets,
+    get_vault_stats,
+    get_supported_categories,
+    format_snippet_console,
+    format_snippet_markdown,
+    SNIPPET_DB,
+    CORE_LANGUAGES,
+    CATEGORY_LABELS,
+    Category,
+)
+
+from .polyglot_quiz import (
+    generate_quiz,
+    check_answer,
+    get_quiz_stats,
+    record_attempt,
+    rotate_and_get_quiz,
+    format_quiz_console,
+    format_quiz_markdown,
+    format_stats_console,
+    QUIZ_DB,
+    LANGUAGE_METADATA,
+    CORE_LANGUAGES as QUIZ_CORE_LANGUAGES,
+)
+
+from .polyglot_cartographer import (
+    generate_map,
+    format_map_markdown,
+    format_map_console,
+    CARTOGRAPHER_DB,
+)
+
+from .polyglot_sentinel import (
+    get_sentinel_report,
+    get_sentinel_preview,
+    format_sentinel_console,
+    format_sentinel_markdown,
+    CORE_LANGUAGES,
+    LANGUAGE_EMOJI,
+    SENTINEL_ADVICE,
+)
+
+from .polyglot_pulse import (
+    get_pulse_report,
+    get_pulse_preview,
+    get_language_pulse,
+    format_pulse_console,
+    format_pulse_markdown,
+    CORE_LANGUAGES as PULSE_CORE_LANGUAGES,
+    LANGUAGE_EMOJI as PULSE_LANGUAGE_EMOJI,
+)
+
+__version__ = "1.4.0"
 __all__ = [
     "measure_cyclomatic_complexity",
     "measure_cognitive_complexity",
@@ -70,4 +124,42 @@ __all__ = [
     "get_ink_preview",
     "format_ink_console",
     "format_ink_markdown",
+    "get_snippet",
+    "search_snippets",
+    "get_vault_stats",
+    "get_supported_categories",
+    "format_snippet_console",
+    "format_snippet_markdown",
+    "SNIPPET_DB",
+    "CORE_LANGUAGES",
+    "CATEGORY_LABELS",
+    "Category",
+    "generate_quiz",
+    "check_answer",
+    "get_quiz_stats",
+    "record_attempt",
+    "rotate_and_get_quiz",
+    "format_quiz_console",
+    "format_quiz_markdown",
+    "format_stats_console",
+    "QUIZ_DB",
+    "LANGUAGE_METADATA",
+    "generate_map",
+    "format_map_markdown",
+    "format_map_console",
+    "CARTOGRAPHER_DB",
+    "get_sentinel_report",
+    "get_sentinel_preview",
+    "format_sentinel_console",
+    "format_sentinel_markdown",
+    "CORE_LANGUAGES",
+    "LANGUAGE_EMOJI",
+    "SENTINEL_ADVICE",
+    "get_pulse_report",
+    "get_pulse_preview",
+    "get_language_pulse",
+    "format_pulse_console",
+    "format_pulse_markdown",
+    "PULSE_CORE_LANGUAGES",
+    "PULSE_LANGUAGE_EMOJI",
 ]
