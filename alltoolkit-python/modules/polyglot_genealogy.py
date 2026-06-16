@@ -463,7 +463,7 @@ def build_family_tree(language):
     if quote and quote_author:
         lines.append("  +" + sep + "+")
         q_trunc = quote[:50]
-        lines.append("  |  Quote: "" + q_trunc + """)
+        lines.append("  |  Quote: \"" + q_trunc + "\"")
         lines.append("  |    -- " + quote_author)
 
     # Descendants
