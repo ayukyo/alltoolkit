@@ -324,46 +324,40 @@ def json_unflatten(flat_dict: Dict, separator: str = ".") -> Dict:
     
     for key, value in flat_dict.items():
         parts = key.split(separator)
+        if not parts:
+            continue
+        
         current = result
+        num_parts = len(parts)
         
         for i, part in enumerate(parts[:-1]):
-            # 判断下一个键是否是数字（数组索引）
             next_part = parts[i + 1]
+            next_is_numeric = next_part.isdigit()
             
-            # 创建当前节点
             if part.isdigit():
-                # 当前键是数字索引，但 current 不是数组
-                # 这种情况说明父节点应该是数组，但结构不匹配
-                # 简化处理：跳过这种情况
                 part_int = int(part)
-                if isinstance(current, list):
-                    while len(current) <= part_int:
-                        current.append(None)
-                    if current[part_int] is None:
-                        if next_part.isdigit():
-                            current[part_int] = []
-                        else:
-                            current[part_int] = {}
-                    current = current[part_int]
+                # 优化：确保当前是数组
+                if not isinstance(current, list):
+                    current = []
+                while len(current) <= part_int:
+                    current.append(None)
+                if current[part_int] is None:
+                    current[part_int] = [] if next_is_numeric else {}
+                current = current[part_int]
             else:
                 if part not in current:
-                    if next_part.isdigit():
-                        current[part] = []
-                    else:
-                        current[part] = {}
+                    current[part] = [] if next_is_numeric else {}
                 current = current[part]
         
         # 设置最终值
         last_part = parts[-1]
-        if isinstance(current, list):
-            if last_part.isdigit():
-                last_int = int(last_part)
-                while len(current) <= last_int:
-                    current.append(None)
-                current[last_int] = value
-            else:
-                # 数组中不能用字符串键，跳过
-                pass
+        if last_part.isdigit():
+            last_int = int(last_part)
+            if not isinstance(current, list):
+                current = []
+            while len(current) <= last_int:
+                current.append(None)
+            current[last_int] = value
         else:
             current[last_part] = value
     
@@ -770,18 +764,54 @@ def json_has(data: Dict, path: str) -> bool:
 
 
 def _parse_path(path: str) -> List[str]:
-    """解析路径（支持点分隔和方括号）"""
+    """解析路径（支持点分隔和方括号）- 优化版本"""
     if not path:
         return []
     
-    # 处理方括号语法: items[0] -> items.0
-    path = re.sub(r'\[(\d+)\]', r'.\1', path)
+    # 优化：单次遍历替代多次 re.sub，减少正则表达式开销
+    result = []
+    current = ""
+    i = 0
+    length = len(path)
     
-    # 处理引号语法: items["key"] -> items.key
-    path = re.sub(r'\["([^"]+)"\]', r'.\1', path)
-    path = re.sub(r"\['([^']+)'\]", r'.\1', path)
+    while i < length:
+        char = path[i]
+        
+        if char == '[':
+            # 方括号开始：完成当前键
+            if current:
+                result.append(current)
+                current = ""
+            
+            # 查找匹配的 ]
+            j = i + 1
+            while j < length and path[j] != ']':
+                j += 1
+            
+            # 提取方括号内容
+            bracket_content = path[i+1:j]
+            
+            # 处理引号
+            if bracket_content.startswith('"') and bracket_content.endswith('"'):
+                bracket_content = bracket_content[1:-1]
+            elif bracket_content.startswith("'") and bracket_content.endswith("'"):
+                bracket_content = bracket_content[1:-1]
+            
+            result.append(bracket_content)
+            i = j + 1
+        elif char == '.':
+            if current:
+                result.append(current)
+                current = ""
+            i += 1
+        else:
+            current += char
+            i += 1
     
-    return [k for k in path.split('.') if k]
+    if current:
+        result.append(current)
+    
+    return result
 
 
 # ============================================================================
@@ -1139,6 +1169,20 @@ def json_to_xml(data: Any, root_name: str = "root") -> str:
         >>> json_to_xml({"name": "test", "value": 123})
         '<root><name>test</name><value>123</value></root>'
     """
+    def _xml_escape(s):
+        """内联转义函数，减少重复创建"""
+        if '&' in s:
+            s = s.replace("&", "&amp;")
+        if '<' in s:
+            s = s.replace("<", "&lt;")
+        if '>' in s:
+            s = s.replace(">", "&gt;")
+        if '"' in s:
+            s = s.replace('"', "&quot;")
+        if "'" in s:
+            s = s.replace("'", "&apos;")
+        return s
+    
     def _to_xml(obj, name):
         if obj is None:
             return f"<{name}/>"
@@ -1147,10 +1191,7 @@ def json_to_xml(data: Any, root_name: str = "root") -> str:
         elif isinstance(obj, (int, float)):
             return f"<{name}>{obj}</{name}>"
         elif isinstance(obj, str):
-            # XML 转义
-            escaped = obj.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-            escaped = escaped.replace('"', "&quot;").replace("'", "&apos;")
-            return f"<{name}>{escaped}</{name}>"
+            return f"<{name}>{_xml_escape(obj)}</{name}>"
         elif isinstance(obj, list):
             items = "".join(_to_xml(item, "item") for item in obj)
             return f"<{name}>{items}</{name}>"
