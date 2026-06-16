@@ -1,0 +1,13 @@
+[project]
+name = "polyglot_odyssey"
+version = "0.1.0"
+description = "Track your polyglot programming journey — a travelogue of paradigm shifts across languages"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+polyglot-odyssey = "polyglot_odyssey.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
