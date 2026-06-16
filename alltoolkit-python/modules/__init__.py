@@ -87,6 +87,30 @@ from .polyglot_sentinel import (
     SENTINEL_ADVICE,
 )
 
+from .polyglot_pulse import (
+    get_pulse_report,
+    get_pulse_preview,
+    get_language_pulse,
+    format_pulse_console,
+    format_pulse_markdown,
+    CORE_LANGUAGES as PULSE_CORE_LANGUAGES,
+    LANGUAGE_EMOJI as PULSE_LANGUAGE_EMOJI,
+)
+
+from .polyglot_genealogy import (
+    rotate_and_get_genealogy,
+    get_genealogy_preview,
+    get_language_info,
+    get_ancestor_chain,
+    get_descendants,
+    get_sibling_influence,
+    build_family_tree,
+    format_genealogy_console,
+    format_genealogy_markdown,
+    GENEALOGY_DB,
+    EXTINCT_LANGUAGES,
+)
+
 __version__ = "1.4.0"
 __all__ = [
     "measure_cyclomatic_complexity",
@@ -145,4 +169,22 @@ __all__ = [
     "CORE_LANGUAGES",
     "LANGUAGE_EMOJI",
     "SENTINEL_ADVICE",
+    "get_pulse_report",
+    "get_pulse_preview",
+    "get_language_pulse",
+    "format_pulse_console",
+    "format_pulse_markdown",
+    "PULSE_CORE_LANGUAGES",
+    "PULSE_LANGUAGE_EMOJI",
+    "rotate_and_get_genealogy",
+    "get_genealogy_preview",
+    "get_language_info",
+    "get_ancestor_chain",
+    "get_descendants",
+    "get_sibling_influence",
+    "build_family_tree",
+    "format_genealogy_console",
+    "format_genealogy_markdown",
+    "GENEALOGY_DB",
+    "EXTINCT_LANGUAGES",
 ]
