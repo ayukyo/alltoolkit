@@ -20,7 +20,7 @@ Levenshtein Utils - 编辑距离工具模块
 日期: 2026-05-20
 """
 
-from typing import List, Tuple, Optional, Callable, Dict, Any
+from typing import List, Tuple, Optional, Callable, Dict, Any, Union
 from dataclasses import dataclass
 from enum import Enum
 
@@ -72,7 +72,7 @@ class SimilarityResult:
 
 # ==================== 基础 Levenshtein 距离 ====================
 
-def levenshtein_distance(s1: str, s2: str) -> int:
+def levenshtein_distance(s1: str, s2: str, **kwargs) -> int:
     """
     计算两个字符串的 Levenshtein 编辑距离
     
@@ -81,6 +81,10 @@ def levenshtein_distance(s1: str, s2: str) -> int:
     Args:
         s1: 源字符串
         s2: 目标字符串
+        **kwargs: 可选的自定义成本参数
+            - insert_cost: 插入成本（默认 1）
+            - delete_cost: 删除成本（默认 1）
+            - replace_cost: 替换成本（默认 1）
     
     Returns:
         编辑距离（将 s1 转换为 s2 所需的最少操作数）
@@ -92,7 +96,15 @@ def levenshtein_distance(s1: str, s2: str) -> int:
         3
         >>> levenshtein_distance("hello", "hello")
         0
+        >>> levenshtein_distance("abc", "ab", insert_cost=2, delete_cost=1)
+        1
+        >>> levenshtein_distance("abc", "abd", replace_cost=3)
+        2
     """
+    insert_cost = kwargs.get('insert_cost', 1)
+    delete_cost = kwargs.get('delete_cost', 1)
+    replace_cost = kwargs.get('replace_cost', 1)
+    
     m, n = len(s1), len(s2)
     
     # 空字符串处理
@@ -104,11 +116,11 @@ def levenshtein_distance(s1: str, s2: str) -> int:
     # 创建 DP 表
     dp = [[0] * (n + 1) for _ in range(m + 1)]
     
-    # 初始化边界
+    # 初始化边界（使用自定义成本）
     for i in range(m + 1):
-        dp[i][0] = i
+        dp[i][0] = i * delete_cost
     for j in range(n + 1):
-        dp[0][j] = j
+        dp[0][j] = j * insert_cost
     
     # 填充 DP 表
     for i in range(1, m + 1):
@@ -116,10 +128,10 @@ def levenshtein_distance(s1: str, s2: str) -> int:
             if s1[i - 1] == s2[j - 1]:
                 dp[i][j] = dp[i - 1][j - 1]
             else:
-                dp[i][j] = 1 + min(
-                    dp[i - 1][j],      # 删除
-                    dp[i][j - 1],      # 插入
-                    dp[i - 1][j - 1]   # 替换
+                dp[i][j] = min(
+                    dp[i - 1][j] + delete_cost,     # 删除
+                    dp[i][j - 1] + insert_cost,     # 插入
+                    dp[i - 1][j - 1] + replace_cost  # 替换
                 )
     
     return dp[m][n]
@@ -745,9 +757,10 @@ def fuzzy_search(query: str, text: str,
                 results.append((i, dist, substr))
         
         # 缩短长度
-        for i in range(len(text) - query_len + delta + 1):
-            substr = text[i:i + query_len - delta]
-            if len(substr) > 0:
+        shortened_len = query_len - delta
+        if shortened_len > 0:
+            for i in range(len(text) - shortened_len + 1):
+                substr = text[i:i + shortened_len]
                 dist = levenshtein_distance_threshold(query, substr, max_distance)
                 if dist <= max_distance:
                     results.append((i, dist, substr))
@@ -1004,6 +1017,249 @@ def align_strings(s1: str, s2: str,
             i -= 1
     
     return ''.join(reversed(aligned1)), ''.join(reversed(aligned2))
+
+
+# ==================== 兼容层别名函数（修复测试导入） ====================
+
+def similarity(s1: str, s2: str) -> float:
+    """
+    计算两个字符串的相似度（兼容别名）
+    
+    底层调用 similarity_ratio，保持 API 兼容性。
+    
+    Args:
+        s1: 源字符串
+        s2: 目标字符串
+    
+    Returns:
+        相似度（0-1）
+    
+    Examples:
+        >>> similarity("hello", "hello")
+        1.0
+        >>> similarity("kitten", "sitting")
+        0.571...
+    """
+    return similarity_ratio(s1, s2)
+
+
+def find_closest(query: str, candidates: List[str], 
+                 threshold: float = 0.0,
+                 return_distance: bool = False) -> Union[str, Tuple[str, int], None]:
+    """
+    查找最相似的单个字符串（兼容别名）
+    
+    底层调用 find_nearest。
+    
+    Args:
+        query: 查询字符串
+        candidates: 候选字符串列表
+        threshold: 相似度阈值（仅返回 >= threshold 的结果）
+        return_distance: 如果为 True，返回 (字符串, 距离) 元组
+    
+    Returns:
+        最相似的字符串，或 (字符串, 距离) 元组，或 None
+    
+    Examples:
+        >>> find_closest("appel", ["apple", "banana", "orange"])
+        'apple'
+        >>> find_closest("xyz", ["apple", "banana"], threshold=0.5)
+        None
+    """
+    if not candidates:
+        return None if not return_distance else (None, len(query))
+    
+    best, dist = find_nearest(query, candidates)
+    max_len = max(len(query), len(best)) if best else max(len(query), max(len(c) for c in candidates)) or len(query)
+    sim = 1.0 - (dist / max_len) if max_len > 0 else 1.0
+    
+    if sim < threshold:
+        return None if not return_distance else (None, dist)
+    
+    return (best, dist) if return_distance else best
+
+
+def find_all_closest(query: str, candidates: List[str],
+                     top_n: int = 10,
+                     threshold: float = 0.0) -> List[Tuple[str, float]]:
+    """
+    查找所有相似的字符串（兼容别名）
+    
+    底层调用 find_similar，但返回格式为 (字符串, 相似度)。
+    
+    Args:
+        query: 查询字符串
+        candidates: 候选字符串列表
+        top_n: 返回结果数量限制
+        threshold: 相似度阈值
+    
+    Returns:
+        [(字符串, 相似度), ...] 按相似度降序排列
+    
+    Examples:
+        >>> find_all_closest("appel", ["apple", "application", "applet", "appeal"], top_n=3)
+        [('apple', 0.8), ('appeal', 0.8), ('applet', 0.714...)]
+    """
+    if not candidates:
+        return []
+    
+    results = find_similar(query, candidates, threshold=threshold, limit=top_n)
+    return results
+
+
+def edit_sequence(s1: str, s2: str) -> Tuple[int, List[Tuple[str, str]]]:
+    """
+    获取编辑操作序列（兼容别名）
+    
+    底层调用 levenshtein_operations，但返回格式为 (距离, [(操作名, char_or_pair), ...])。
+    操作元组的第二个元素：
+    - equal: 匹配的字符
+    - replace: 源字符（目标从 s2 相应位置获取）
+    - insert: 插入的字符
+    - delete: 删除的字符
+    - transpose: 第一个交换字符
+    
+    Args:
+        s1: 源字符串
+        s2: 目标字符串
+    
+    Returns:
+        (编辑距离, [(操作类型, 字符), ...])
+    
+    Examples:
+        >>> dist, ops = edit_sequence("kitten", "sitting")
+        >>> dist
+        3
+    """
+    ops = levenshtein_operations(s1, s2)
+    distance = len([op for op in ops if op.operation != EditOperation.MATCH])
+    
+    # Build target index tracking for proper replace handling
+    result = []
+    src_idx = 0
+    tgt_idx = 0
+    for op in ops:
+        if op.operation == EditOperation.MATCH:
+            result.append(('equal', op.source_char))
+            src_idx += 1
+            tgt_idx += 1
+        elif op.operation == EditOperation.REPLACE:
+            # Store source char; target char comes from s2 at tgt_idx
+            tgt_char = s2[tgt_idx] if tgt_idx < len(s2) else ''
+            result.append(('replace', op.source_char, tgt_char))
+            src_idx += 1
+            tgt_idx += 1
+        elif op.operation == EditOperation.INSERT:
+            result.append(('insert', op.target_char))
+            tgt_idx += 1
+        elif op.operation == EditOperation.DELETE:
+            result.append(('delete', op.source_char))
+            src_idx += 1
+        elif op.operation == EditOperation.TRANSPOSE:
+            # Transpose: swap adjacent chars, store as (type, char1, char2)
+            result.append(('transpose', op.source_char, s2[tgt_idx] if tgt_idx < len(s2) else ''))
+            src_idx += 2
+            tgt_idx += 2
+    return distance, result
+
+
+def apply_edits(s1: str, operations: List[Tuple[str, str]]) -> str:
+    """
+    应用编辑操作序列（兼容别名）
+    
+    直接根据操作类型构建目标字符串。
+    
+    Args:
+        s1: 源字符串
+        operations: [(操作类型, ...)] - 支持2元组和3元组格式
+            - ('equal', char): 保持字符
+            - ('insert', char): 插入字符
+            - ('delete', char): 删除字符
+            - ('replace', src_char, tgt_char): 替换字符
+            - ('transpose', c1, c2): 交换相邻字符
+    
+    Returns:
+        转换后的字符串
+    """
+    result_chars = []
+    src_idx = 0
+    
+    for op in operations:
+        op_type = op[0]
+        if op_type == 'equal':
+            if src_idx < len(s1):
+                result_chars.append(s1[src_idx])
+                src_idx += 1
+        elif op_type == 'insert':
+            char = op[1] if len(op) > 1 else ''
+            result_chars.append(char)
+        elif op_type == 'delete':
+            if src_idx < len(s1):
+                src_idx += 1
+        elif op_type == 'replace':
+            # replace tuple: ('replace', src, tgt)
+            tgt_char = op[2] if len(op) > 2 else ''
+            result_chars.append(tgt_char)
+            if src_idx < len(s1):
+                src_idx += 1
+        elif op_type == 'transpose':
+            # transpose tuple: ('transpose', c1, c2)
+            if len(op) > 2:
+                result_chars.append(op[2])  # second char first
+                result_chars.append(op[1])  # first char second
+            if src_idx + 1 < len(s1):
+                src_idx += 2
+    
+    return ''.join(result_chars)
+
+
+def normalized_distance(s1: str, s2: str) -> float:
+    """
+    归一化编辑距离（兼容别名）
+    
+    基于编辑距离计算归一化距离，取值范围 0-1。
+    
+    Args:
+        s1: 源字符串
+        s2: 目标字符串
+    
+    Returns:
+        归一化距离（0-1）
+    
+    Examples:
+        >>> normalized_distance("abc", "abd")
+        0.167
+    """
+    total_len = len(s1) + len(s2)
+    if total_len == 0:
+        return 0.0
+    return levenshtein_distance_optimized(s1, s2) / total_len
+
+
+def ratio(s1: str, s2: str) -> float:
+    """
+    计算相似比率（兼容别名）
+    
+    返回 0-100 的相似度百分比。
+    
+    Args:
+        s1: 源字符串
+        s2: 目标字符串
+    
+    Returns:
+        相似度百分比（0-100）
+    
+    Examples:
+        >>> ratio("abc", "abc")
+        100.0
+        >>> ratio("hello world", "hello")
+        62.5
+    """
+    total_len = len(s1) + len(s2)
+    if total_len == 0:
+        return 100.0
+    dist = levenshtein_distance_optimized(s1, s2)
+    return (1.0 - dist / total_len) * 100
 
 
 if __name__ == "__main__":
