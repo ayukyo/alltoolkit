@@ -1,28 +1,30 @@
 #!/usr/bin/env python3
-"""
-Entry point for polyglot_tempo module.
-"""
+"""CLI entry point for polyglot_tempo module."""
 
 import sys
 import os
-from pathlib import Path
+import json
 
-# Ensure workspace/AllToolkit/ is on the path for imports
+# Ensure AllToolkit/ is on the path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from polyglot_tempo.src.tempo import generate_tempo_map, format_tempo_card, run_tests
+from polyglot_tempo import run_tests, tempo, generate_rhythm_report, format_rhythm_card
 
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--test":
         run_tests()
     elif len(sys.argv) > 1 and sys.argv[1] == "--report":
-        result = generate_tempo_map(rotate=True)
-        print(format_tempo_card(result))
+        result = tempo()
+        print(format_rhythm_card(result))
+    elif len(sys.argv) > 1 and sys.argv[1] == "--json":
+        result = tempo()
+        print(json.dumps(result, indent=2, ensure_ascii=False))
     else:
-        print(f"Polyglot Tempo v1.0.0")
-        print("  🎵  Rhythm Pattern Generator — the tempo and feel of languages.")
+        print("🎵 Polyglot Tempo v1.0.0")
+        print("   Rhythm Pattern Generator — programming languages as musical rhythms.")
         print("")
         print("Usage:")
-        print("  python -m polyglot_tempo --test    # Run all tests")
-        print("  python -m polyglot_tempo --report  # Generate tempo report")
+        print("  python -m polyglot_tempo --test     # Run all tests")
+        print("  python -m polyglot_tempo --report  # Human-readable rhythm card")
+        print("  python -m polyglot_tempo --json     # JSON output")

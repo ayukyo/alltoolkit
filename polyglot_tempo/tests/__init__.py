@@ -1,1 +1,1 @@
-"""Tests for Polyglot Tempo."""
+# polyglot_tempo tests
