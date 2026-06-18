@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
-"""
-🎵 Polyglot Tempo v1.0
-Rhythm Pattern Generator — programming languages as musical rhythms.
-"""
+"""Polyglot Tempo — Rhythm Pattern Generator."""
 
-from .tempo import (
+from polyglot_tempo.src import (
     TOOL_NAME,
     TOOL_VERSION,
     ROTATION_ORDER,
