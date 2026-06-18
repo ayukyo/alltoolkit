@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "polyglot_metamorphosis"
+version = "0.1.0"
+description = "Transform code between languages with AST-based metamorphic translation"
+requires-python = ">=3.10"
+dependencies = ["rich>=13.0.0"]
+
+[project.scripts]
+polyglot-metamorphosis = "polyglot_metamorphosis.src.metamorphosis:cli"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
