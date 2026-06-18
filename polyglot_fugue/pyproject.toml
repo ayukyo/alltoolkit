@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "polyglot_fugue"
+version = "0.1.0"
+description = "Musical syntax fugue — each language's syntax patterns as counterpoint melodies on an ASCII musical score"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+polyglot-fugue = "polyglot_fugue.__main__:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
