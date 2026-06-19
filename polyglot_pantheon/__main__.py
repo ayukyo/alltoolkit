@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from pantheon import pantheon, run_tests, TOOL_NAME, TOOL_VERSION
+from pantheon import pantheon_main as pantheon, run_tests, TOOL_NAME, TOOL_VERSION
 
 
 def main() -> None:

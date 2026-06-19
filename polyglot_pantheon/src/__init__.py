@@ -1,27 +1,22 @@
-"""Polyglot Pantheon — Programming Languages as Gods in a Living Mythology."""
-
-from .pantheon import (
+"""Polyglot Pantheon — Mythology of Programming Languages."""
+from pantheon import (
+    pantheon_main as pantheon,
+    run_tests,
     TOOL_NAME,
     TOOL_VERSION,
     ROTATION_ORDER,
-    LANGUAGE_DEITIES,
-    pantheon,
-    run_tests,
+    PANTHEON,
     load_rotation,
     save_rotation,
-    build_divinity_bar,
-    build_domain_web,
 )
 
 __all__ = [
+    "pantheon",
+    "run_tests",
     "TOOL_NAME",
     "TOOL_VERSION",
     "ROTATION_ORDER",
-    "LANGUAGE_DEITIES",
-    "pantheon",
-    "run_tests",
+    "PANTHEON",
     "load_rotation",
     "save_rotation",
-    "build_divinity_bar",
-    "build_domain_web",
 ]

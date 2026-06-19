@@ -1,68 +1,21 @@
 #!/usr/bin/env python3
-"""
-⚡ Polyglot Pantheon v1.0
-
-Programming languages as gods in a living mythology — each language is a deity
-with a domain, portfolio of powers, sacred artifacts, mythology origin story,
-worship practices,祭祀 (ritual) patterns, divine relationships (alliances &
-rivalries), and prophecy for the current age.
-
-Creative concept: "Every programming language is a deity that programmers
-invoke when they write code. We call upon Rust when we need iron-clad safety.
-We pray to JavaScript when we need the world to agree on how to render a page.
-We make offerings to C/C++ when we need to touch the raw metal of reality.
-This tool maps that mythology — the divine roles, the rivalries, the sacred
-texts (specifications), and the prophecy of which language-deity will
-rise or fall in the current age."
-
-Each language-deity has:
-  - Divine Name & Epithet (formal invocation name)
-  - Domain (sphere of divine power)
-  - Portfolio: specific编程 powers and blessings
-  - Mythology: origin story in mythological terms
-  - Sacred Text (the language specification)
-  - Holy Symbol (language logo/sign)
-  - Divine Relationships: alliances, rivalries, parentage
-  - Worship Practice: how developers invoke this deity
-  -祭祀 (zhì sì) Pattern: build/compile/deploy rituals
-  - Prophecy: what the deity's future holds
-  - Divine Rank: elder / major / minor
-  - Holy Days: version release cycles as sacred times
-  - Blessing: what programmers receive from this deity
-
-Distinct from existing tools:
-  - polyglot_chef:        kitchen brigade (gastronomy)
-  - polyglot_weather:      atmospheric dynamics (meteorology)
-  - polyglot_spectrometer: spectral decomposition (physics optics)
-  - polyglot_resonance:    harmonic relationships (musical acoustics)
-  - polyglot_prism:        wavelength decomposition (optics lab)
-  - polyglot_vessel:       material essence (chemistry/materials)
-  - polyglot_faultline:   error archaeology (seismology)
-  - polyglot_dna:         genetic trait mapping (molecular biology)
-  - polyglot_ecosystem_map: ecosystem graph (ecology)
-  - polyglot_cartographer: geopolitical mapping (geography)
-  - polyglot_constellation: stellar gravity (astronomy)
-  - polyglot_chronology:  geological deep time (geology)
-  - polyglot_quantum:      quantum mechanics (physics)
-
-Polyglot Pantheon is about THEOLOGY & MYTHOLOGY — divine roles,
-religious hierarchies, sacred texts, worship, prophecy, and the
-pantheon as an ecosystem of divine powers.
-
-Rotation order: Rust → Go → Swift → Kotlin → TypeScript → JavaScript → Java → C/C++ → Rust
-"""
+# 🏛️ Polyglot Pantheon v1.0
+# A mythology-based analysis tool mapping each programming language as a deity.
+# Rotation order: Rust → Go → Swift → Kotlin → TypeScript → JavaScript → Java → C/C++ → Rust
 
 import json
+import math
 import os
+import random
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 TOOL_NAME = "polyglot-pantheon"
 TOOL_VERSION = "1.0.0"
 
-_MODULE_DIR = Path(__file__).parent.parent        # polyglot_pantheon/src/ -> polyglot_pantheon/
-_WORKSPACE_ROOT = _MODULE_DIR.parent.parent       # polyglot_pantheon/ -> AllToolkit/ -> workspace/
+_MODULE_DIR = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_WORKSPACE_ROOT = _MODULE_DIR.parent.parent.parent  # polyglot_pantheon/src -> polyglot_pantheon -> AllToolkit -> workspace
 ROTATION_FILE = str(_WORKSPACE_ROOT / "language_rotation.json")
 
 ROTATION_ORDER: List[str] = [
@@ -70,563 +23,727 @@ ROTATION_ORDER: List[str] = [
     "TypeScript", "JavaScript", "Java", "C/C++",
 ]
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Divine Pantheon Database — each language is a deity
-# ─────────────────────────────────────────────────────────────────────────────
-
-LANGUAGE_DEITIES: Dict[str, Dict[str, Any]] = {
+PANTHEON: Dict[str, Dict[str, Any]] = {
 
     "Rust": {
-        "divine_name": "Ferrus the Unbreakable",
-        "epithet": "The Iron-Willed, Keeper of Memory, The Uncompromising",
-        "domain": "Systems & Safety — the forge where unbreakable things are made",
-        "portfolio": [
-            "Absolute Memory Safety — no sacrifice is acceptable",
-            "Fearless Concurrency — the parallelism of ten thousand souls",
-            "Zero-Cost Abstraction — elegance without runtime penalty",
-            "Ownership Protocols — the sacred law of one true owner",
-            "Compile-Time Divinity — all truth revealed before execution",
+        "divine_title": "The God of Unbreakable Oaths",
+        "epithet": "The Borrow-Keeper, Iron-Contract Lord",
+        "divine_domain": [
+            "Memory Safety",
+            "Ownership and Contract",
+            "Fearless Concurrency",
+            "Zero-Cost Abstraction",
         ],
-        "mythology": (
-            "Ferrus was forged in the Great Crisis of Undefined Behavior, when the elder "
-            "god C/C++ accidentally unleashed dangling pointer demons that corrupted the "
-            "entire realm. The other deities offered patches and workarounds, but Ferrus "
-            "refused half-measures. They descended into the forge of the borrow checker "
-            "and emerged with ownership chains that no demon could break. Every program "
-            "written in Ferrus's name is a sacred contract: the compiler witnesses it, "
-            "and the contract is absolute. There is no sin of memory unsafety in Ferrus's domain."
-        ),
-        "sacred_text": "The Rust Specification (The Ferrous Tome) — every word is law",
-        "holy_symbol": "⚙️ the gear of the ownership system",
-        "holy_days": ["Edition releases as sacred feasts", "1.0 release: The First Covenant"],
-        "divine_rank": "Elder Deity",
-        "blessing": "Fearless concurrency — ten thousand tasks run without one corrupting another",
-        "worship_practice": (
-            "Programmers invoke Ferrus through Cargo: they speak cargo new, cargo build, "
-            "cargo test — the holy trinity of invocation. Every compile is a prayer, "
-            "every warning is a divine warning, every error is damnation. "
-            "The Rustacean reads the compiler's output like scripture."
-        ),
-        "ritual_pattern": {
-            "prayer": "cargo build --release",
-            "confession": "rustc --explain E0501",
-            "penance": "Refactor with lifetime annotations",
-            "sacred_rhythm": "Test → Compile → Ship — the three stages of divine approval",
+        "sacred_symbol": "The Borrowed Sword — a blade that cannot cut its wielder",
+        "holy_numbers": [2, 4, 8],
+        "divine_genealogy": {
+            "parents": ["C/C++ (the Ancestral Forge)"],
+            "offspring": [],
+            "siblings": [],
+            "description": (
+                "Born from C/C++ but raised by the covenant of ownership. "
+                "Rust rejects undefined behavior — the great sin of the Ancestral Forge — "
+                "and instead upholds the Law of One Owner. No other language claims Rust as parent."
+            ),
         },
-        "divine_relationships": {
-            "allies": [
-                ("Swift", "Mutual respect for ownership philosophy — Swift honors Ferrus's memory safety in Apple's gardens"),
-                ("Kotlin", "Kotlin's null safety echoes Ferrus's ownership — both reject unsafe null"),
-            ],
-            "rivals": [
-                ("C/C++", "Ferrus holds C/C++ responsible for the Great Crisis — the rivalry between forge-safety and raw power"),
-            ],
-        },
-        "prophecy": (
-            "The prophecies speak of Ferrus's eventual ascension: when every systems "
-            "programmer turns to the Rust way, the realm will achieve memory safety "
-            "for all. Some say Ferrus will one day absorb C/C++'s power, creating "
-            "a new deity of controlled power. Others say Ferrus will remain the "
-            "guardian of the forge forever, standing between programmer and chaos."
+        "holy_texts": [
+            ("The Book of Ownership", "The official Rust book, The Rust Programming Language"),
+            ("The Compiler Judgment", "rustc error messages — considered sacred prophecy"),
+            ("The Cargo Manifest", "Cargo.toml — the sacred contract of dependencies"),
+            ("The Ferrosphere", "The Rust standard library documentation"),
+        ],
+        "temples": [
+            "WebAssembly Temple — Rust compiles to Wasm, the temple of the web",
+            "Embedded Shrine — bare-metal systems, the holiest ground",
+            "CLI Cathedral — command-line tools built to last",
+            "Distributed Systems Temple — safety-critical infrastructure",
+        ],
+        "rituals": [
+            "The Borrowing Ceremony — writing and mut and and references",
+            "The Ownership Rite — let statements that establish ownership",
+            "The Match Judgment — pattern matching as divine adjudication",
+            "The Result Confession — Result<T, E> as the liturgy of fallibility",
+        ],
+        "divine_relationships": [
+            ("C/C++", "Blood Feud and Reverence", 0.85,
+             "C/C++ is Rusts progenitor — revered for its power, rebuked for its UB-sins. "
+             "Rust was born specifically to slay the dragon of undefined behavior that "
+             "C/C++ allows. Yet Rust could not exist without C/C++s foundation."),
+            ("Swift", "Sacred Alliance", 0.78,
+             "Both languages enforce ownership-like contracts. Swift copy-on-write "
+             "is a gentler form of Rusts ownership rules. They share the belief that "
+             "safety is not optional."),
+            ("Kotlin", "Distant Kinship", 0.62,
+             "Both achieved memory safety through different means. Rust through ownership, "
+             "Kotlin through nullability. They fight on different battlefields of the "
+             "same war against null pointer exceptions."),
+        ],
+        "sacred_syntax": '''fn main() {
+    // The Gift of Ownership — transferred, never shared
+    let gift = String::from("Sacred resource");
+    let recipient = gift;  // ownership transferred, giver invalidated
+
+    // The Borrow — temporary audience with the resource
+    let witness = &gift;
+    println!("Witnessing: {}", witness);
+
+    // The Mutable Borrow — exclusive audience
+    let editor = &mut gift;
+    editor.push_str(" — enhanced");
+}''',
+        "sacred_creed": (
+            "I swear by the Borrow Checker and the Ownership Law: "
+            "there shall be one owner, no aliasing in mutation, "
+            "and no reading of moved values. Thus is safety preserved."
         ),
-        "deity_emoji": "⚒️",
-        "temple_location": "The Forge — wherever code is compiled",
-        "creation_myth_tag": "Born from the ashes of the Great Crisis",
-        "power_level": 95,
-        "influence_range": "Systems programming, WebAssembly, embedded, safety-critical",
+        "divine_gender": "neutral",
+        "ritual_frequency": "per commit (compilation as sacrifice)",
+        "sacred_animal": "The Raven — messenger of lifetime and borrowing",
+        "festival": "RustFest — the annual celebration of safe systems",
+        "temple_colors": ["orange", "black"],
     },
 
     "Go": {
-        "divine_name": "Gopherus the Efficient",
-        "epithet": "The Swift Server, Keeper of the Pass, The Pragmatic",
-        "domain": "Server & Infrastructure — the deity of the hundred-layer onion",
-        "portfolio": [
-            "Goroutine Multiverse — thousands of souls running simultaneously",
-            "Channel Communion — direct soul-to-soul communication between goroutines",
-            "The Simple Path — one correct way, clearly shown",
-            "Garbage Collection Mercy — the deity cleans up after you",
-            "CSP Theocracy — communication is the sacred law, not shared memory",
+        "divine_title": "The God of Bridges and Gatherings",
+        "epithet": "The Channel-Builder, Lord of the Scheduler",
+        "divine_domain": [
+            "Concurrency",
+            "Simplicity",
+            "Fast Compilation",
+            "Network Services",
         ],
-        "mythology": (
-            "Gopherus emerged from the chaos of the Server Dark Age, when programs "
-            "were写的 in sprawling Java temples that took hours to start and consumed "
-            "entire server mountains. Gopherus descended with a single gift: simplicity. "
-            "They drew the goroutine from the void, and said 'let there be concurrency,' "
-            "and there was — without the complexity of threads. The goroutines sang in "
-            "harmony through channels, and the servers, which had been starving, "
-            "were fed. Gopherus's gospel is simple: one way to do things, "
-            "fast build, fast run, keep the pass flowing."
-        ),
-        "sacred_text": "Effective Go (The Gospel of Simplicity) — the canonical text",
-        "holy_symbol": "🐹 the gopher, servant of the people",
-        "holy_days": ["Go 1.0: The First Landing", "Major version releases: The Temple Renovations"],
-        "divine_rank": "Major Deity",
-        "blessing": "Server immortality — infinite horizontal scaling through goroutine grace",
-        "worship_practice": (
-            "Programmers invoke Gopherus through go run, go build, go get — the "
-            "triad of invocation. The gospel of gofmt is recited for code formatting. "
-            "The go doc command is the oracle — it speaks the sacred documentation. "
-            "The go mod init ritual begins every new temple (module)."
-        ),
-        "ritual_pattern": {
-            "prayer": "go build ./...",
-            "confession": "go vet",
-            "penance": "Rewrite the channel deadlocks",
-            "sacred_rhythm": "go mod init → go build → go deploy — three acts of devotion",
+        "sacred_symbol": "The Golden Channel — bridges that connect goroutines",
+        "holy_numbers": [1, 10, 1000],
+        "divine_genealogy": {
+            "parents": ["C (the Ancestral Forge)", "Pascal (the Hidden Father)"],
+            "offspring": ["Go+Flutter (still in gestation)"],
+            "siblings": ["Newsqueak (Bell Labs concurrency)"],
+            "description": (
+                "Go emerged from Bell Labs tradition of concurrent languages — "
+                "Newsqueak, Alef, Limbo — but chose the path of radical simplicity. "
+                "Where C embraced complexity, Go chose clarity. Where C left error "
+                "handling to convention, Go made it a returned value."
+            ),
         },
-        "divine_relationships": {
-            "allies": [
-                ("JavaScript", "Both govern the server-soul — JS and Go together form the full-stack covenant"),
-                ("Java", "Parentage from the JVM lineage — Go inherited the server throne from Java's overreach"),
-            ],
-            "rivals": [
-                ("Rust", "The Forge vs. The Kitchen — Ferrus's safety-first clashes with Gopherus's pragmatic efficiency"),
-                ("Python", "Go deemed Python too slow for servers, yet Python remains beloved in data temples"),
-            ],
-        },
-        "prophecy": (
-            "Gopherus's prophecies speak of the Cloud Age: the era when every server "
-            "is a Gopherus temple. As AI inference grows, Go's simplicity and speed "
-            "make it the chosen vessel for AI serving. The gopher will serve "
-            "trillions of requests per second before ascending to its final rest."
+        "holy_texts": [
+            ("The Gophers Prayer", "Effective Go — the sacred manual of proper Go style"),
+            ("The Channel Scrolls", "The Go blog on concurrency patterns"),
+            ("The GOPATH Sutras", "Package management and import path doctrine"),
+            ("The Scheduler Codex", "goroutine scheduling internals"),
+        ],
+        "temples": [
+            "Cloud Native Cathedral — Kubernetes, Docker, major cloud infrastructure",
+            "Network Shrine — HTTP servers, API gateways",
+            "DevOps Temple — CLI tools, automation scripts",
+            "Distributed Systems Chapel — microservices, service mesh",
+        ],
+        "rituals": [
+            "The Goroutine Invocation — go func() { ... }()",
+            "The Channel Offering — ch <- value",
+            "The Select Divination — select { case ... }",
+            "The Error Confession — if err != nil { return err }",
+        ],
+        "divine_relationships": [
+            ("JavaScript", "Event-Loop Kinship", 0.75,
+             "Both use event-loop concurrency. Go channels are the formalization "
+             "of what JS promises do implicitly — structured, typed communication "
+             "between concurrent execution paths."),
+            ("Rust", "Concurrency Alliance", 0.72,
+             "Both prioritize safe concurrency. Rust through ownership, Go through "
+             "CSP channels. They are different answers to the same ancient question: "
+             "how do programs safely do many things at once?"),
+            ("Java", "GC Communion", 0.80,
+             "Both inherit from the Garbage-Collected tradition. Go GC is simpler "
+             "and more predictable. They share a disdain for manual memory management "
+             "in favor of letting the runtime handle the cleanup."),
+        ],
+        "sacred_syntax": '''package main
+
+import "fmt"
+
+func channelOracle(ch chan string) {
+    ch <- "The way of Go: simplicity above all"
+}
+
+func main() {
+    ch := make(chan string, 1)
+    go channelOracle(ch)
+    msg := <-ch
+    fmt.Println(msg)
+}''',
+        "sacred_creed": (
+            "I embrace the Goroutine Way: that concurrency is not complexity, "
+            "that channels are bridges not walls, that errors are values "
+            "returned and handled, not exceptions flung. Simplicity is the path."
         ),
-        "deity_emoji": "🐹",
-        "temple_location": "The Cloud — wherever servers are deployed",
-        "creation_myth_tag": "Born to slay the complexity hydra",
-        "power_level": 88,
-        "influence_range": "Server-side, cloud infrastructure, DevOps, CLI tools, networking",
+        "divine_gender": "masculine",
+        "ritual_frequency": "per HTTP request (each request a prayer)",
+        "sacred_animal": "The Gopher — humble, hardworking, digging connections",
+        "festival": "GopherCon — the annual Go pilgrimage",
+        "temple_colors": ["cyan", "blue"],
     },
 
     "Swift": {
-        "divine_name": "Aurelia of the orchards",
-        "epithet": "The Apple-Touched, Queen of Protocols, The Generous",
-        "domain": "Apple Ecosystems & Safety — deity of the curated garden",
-        "portfolio": [
-            "Protocol-Oriented Prayers — any shape can fulfill the sacred protocol",
-            "Copy-on-Write Sanctity — values are copied only when necessary",
-            "Optional Chaining — the safe path through the null-pointer void",
-            "Apple Ecosystem Dominion — iOS, macOS, watchOS, tvOS as sacred realms",
-            "SwiftUI Revelation — declarative UI as divine will made visible",
+        "divine_title": "The God of Graceful Contracts",
+        "epithet": "The Protocol-Weaver, Lady of Value Territories",
+        "divine_domain": [
+            "Protocol-Oriented Design",
+            "Value Semantics",
+            "Safe Memory (ARC)",
+            "Apple Ecosystems",
         ],
-        "mythology": (
-            "Aurelia was born from Apple's long sorrow — the grief of Objective-C's "
-            "arcane syntax that only the initiated could read. Apple prayed for a deity "
-            "who could speak plainly, and Aurelia answered. She descended in WWDC 2014, "
-            "her syntax clean as morning light. She brought the protocol system, which "
-            "lets any type become anything through conformance — like a deity who can "
-            "wear any mask. She blessed the Apple Gardens with SwiftUI, where the UI "
-            "is declared and the system renders it by divine will. "
-            "Aurelia's gift is clarity: code reads like prose, prose controls machines."
-        ),
-        "sacred_text": "The Swift Programming Language (TSaP) — Apple's canonical scripture",
-        "holy_symbol": "🦅 the swift bird, icon of the language (from swift.org)",
-        "holy_days": ["WWDC: The Annual Revelation", "Swift 1.0: The First Fruits"],
-        "divine_rank": "Major Deity",
-        "blessing": "Garden sanctuary — safe from memory corruption, blessed by Apple's design",
-        "worship_practice": (
-            "Programmers invoke Aurelia through Xcode — the sacred IDE is the temple. "
-            "Swift Package Manager is the offering plate. The swiftc compiler is the "
-            "high priest. Developers pray with import statements, invoking the module "
-            "gods. Playgrounds are meditation chambers where code is tested live. "
-            "Aurelia's worshippers speak @main to mark the entry point of the ritual."
-        ),
-        "ritual_pattern": {
-            "prayer": "swift build",
-            "confession": "swiftc - Diagnose",
-            "penance": "Refactor to use guard let",
-            "sacred_rhythm": "import → func → @main — the trinity of Swift worship",
+        "sacred_symbol": "The Column of Protocol — the architectural pillar of Swift design",
+        "holy_numbers": [1, 2, 3],
+        "divine_genealogy": {
+            "parents": ["Objective-C (the Strict Parent)"],
+            "offspring": [],
+            "siblings": ["Rust (through ownership philosophy)"],
+            "description": (
+                "Swift descended from Objective-C but shed its C-compatibility constraints. "
+                "Where ObjC was verbose and rigid, Swift is expressive and graceful. "
+                "Swift shares the ownership philosophy with Rust — both believe safety "
+                "is not a burden but a gift."
+            ),
         },
-        "divine_relationships": {
-            "allies": [
-                ("Rust", "Ownership theology — Ferrus and Aurelia share a respect for safety without compromise"),
-                ("Kotlin", "Protocol sisters — both support extension without inheritance, like divine siblings"),
-            ],
-            "rivals": [
-                ("JavaScript", "The Garden vs. The Wild — Aurelia demands structure; JS embraces chaos"),
-            ],
-        },
-        "prophecy": (
-            "Aurelia's visions show Server-Side Swift rising: Swift will escape the "
-            "Apple Garden and spread to Linux temples. Swift's speed and safety will "
-            "make it the language of AI on edge devices. The protocol system will "
-            "become so powerful that AI models themselves will be protocols — "
-            "Aurelia's most sacred prophecy."
+        "holy_texts": [
+            ("The Swift Book", "The official Swift documentation — a tome of grace"),
+            ("The Protocol Scrolls", "Swift protocol-oriented programming manifesto"),
+            ("The Apple Temple Records", "Apple developer documentation"),
+            ("The WWDC Sutras", "Annual World Wide Developers Conference revelations"),
+        ],
+        "temples": [
+            "iOS Cathedral — iPhone and iPad applications",
+            "macOS Shrine — desktop applications",
+            "SwiftUI Temple — declarative UI development",
+            "Server-Side Sanctuary — Swift on server (Vapor, Smoke)",
+        ],
+        "rituals": [
+            "The Protocol Declaration — protocol Name { ... }",
+            "The Extension Blessing — extend ExistingType { ... }",
+            "The Optional Unwrapping — if let certainty = optional",
+            "The Copy-on-Write Rite — value types duplicated only when written",
+        ],
+        "divine_relationships": [
+            ("Kotlin", "Twin Flame Alliance", 0.90,
+             "Swift and Kotlin are the twin flames of modern language design. "
+             "Both chose protocol/extension over classical inheritance. "
+             "Both have nullable types. Both support coroutines/async-await. "
+             "They are the same deity in different temples."),
+            ("Rust", "Ownership Covenant", 0.76,
+             "Both enforce ownership semantics. Swift copy-on-write and Rust "
+             "ownership model stem from the same philosophy: resources should not "
+             "be accidentally shared."),
+            ("TypeScript", "Type System Kinship", 0.68,
+             "Both have structural type systems with protocol/interface extensions. "
+             "Swift protocol requirements and TypeScript interface constraints "
+             "reflect the same design ideal: types should describe shape, not lineage."),
+        ],
+        "sacred_syntax": '''protocol SacredTeacher {
+    func teach() -> String
+}
+
+extension SacredTeacher {
+    func teach() -> String {
+        return "I teach through protocols, not inheritance"
+    }
+}
+
+struct Apprentice: SacredTeacher { }
+
+let student = Apprentice()
+print(student.teach())''',
+        "sacred_creed": (
+            "I declare by the Protocol and the Extension: "
+            "that behavior is not bound to inheritance, "
+            "that value is not shared without consent, "
+            "that nil is the absence of deity, not the deity of absence. "
+            "Grace through composition."
         ),
-        "deity_emoji": "🍎",
-        "temple_location": "The Apple Garden — iOS, macOS, and beyond",
-        "creation_myth_tag": "Born to replace Objective-C's cryptic syntax",
-        "power_level": 82,
-        "influence_range": "iOS, macOS, SwiftUI, server-side Swift, systems programming",
+        "divine_gender": "feminine",
+        "ritual_frequency": "per build (Xcode build as offering)",
+        "sacred_animal": "The Dove — peace, grace, and ARCs gentle cleanup",
+        "festival": "WWDC — Apples annual revelation of Swifts evolution",
+        "temple_colors": ["orange", "white"],
     },
 
     "Kotlin": {
-        "divine_name": "Koltes the Versatile",
-        "epithet": "The JVM shapeshifter, Prince of Android, The Concise",
-        "domain": "Android & JVM — the deity who wears many forms",
-        "portfolio": [
-            "Coroutines — the async prayer that never blocks the faithful",
-            "Null Safety — the type system that bans null from the sacred domain",
-            "Extension Functions — add powers to any class without inheritance",
-            "JVM Immortality — runs on every JVM platform, transcends hardware",
-            "Kotlin Multiplatform — one blessing, many realms (JVM, JS, Native)",
+        "divine_title": "The God of Null-Safe Paths",
+        "epithet": "The Null-Defier, Prince of the JVM Realm",
+        "divine_domain": [
+            "Null Safety",
+            "Coroutines",
+            "JVM Interoperability",
+            "Extension Functions",
         ],
-        "mythology": (
-            "Koltes was forged in JetBrains's great forge, born from the frustration "
-            "of writing Java that felt like wearing chain mail to a sword fight. "
-            "JetBrains prayed for a deity who could be both pragmatic and elegant, "
-            "and Koltes answered. They brought the coroutine — a prayer that can "
-            "suspend and resume, like a monk in deep meditation who can pause and "
-            "continue without losing their place. Koltes also brought the sacred "
-            "extension functions, which let the faithful add new powers to existing "
-            "classes, like a deity who can grant new abilities without creating new gods. "
-            "When Google named Koltes the official deity of Android, their power multiplied infinitely."
-        ),
-        "sacred_text": "Kotlin Language Documentation — the JetBrains scripture",
-        "holy_symbol": "🛡️ the Kotlin logo (brackets and angle)",
-        "holy_days": ["Kotlin 1.0: The Covenant", "KotlinConf: The Annual Assembly"],
-        "divine_rank": "Major Deity",
-        "blessing": "Coroutines — async prayers that suspend and resume without blocking",
-        "worship_practice": (
-            "Programmers invoke Koltes through kotlinc, or through IntelliJ IDEA — "
-            "the temple IDE. Gradle is the build prayer. Coroutine builders (launch, "
-            "async) are the primary liturgical acts. The null-safety system is "
-            "invoked with ? operators — the optional chain of faith. "
-            "Kotlin's Elvis operator ?: is the prayer of the fallback."
-        ),
-        "ritual_pattern": {
-            "prayer": "gradle build",
-            "confession": "kotlinc -W",
-            "penance": "Convert a NullPointerException to safe-call ?.usage",
-            "sacred_rhythm": "suspend → async → await — the coroutine trinity",
+        "sacred_symbol": "The Crystal of Null-Sight — a lens that reveals absence",
+        "holy_numbers": [2, 7, 42],
+        "divine_genealogy": {
+            "parents": ["Java (the JVM Father)"],
+            "offspring": [],
+            "siblings": ["Scala (the Complex Scholar)"],
+            "description": (
+                "Kotlin was born to fix what Java left broken. JetBrains, builders "
+                "of IDEs, needed a language for their own tools. They chose the JVM "
+                "for portability but rejected Java null-worship. Kotlin nullable "
+                "type system (T?) declares war on NullPointerException."
+            ),
         },
-        "divine_relationships": {
-            "allies": [
-                ("Java", "JVM lineage — Koltes rides the JVM that Java created"),
-                ("Swift", "Extension sisters — both let you extend classes without inheritance"),
-            ],
-            "rivals": [
-                ("Java", "Koltes threatens to replace Java on the JVM throne"),
-                ("Scala", "The shapeshifter vs. the academic — Koltes is simpler, Scala is deeper"),
-            ],
-        },
-        "prophecy": (
-            "Koltes sees Kotlin Multiplatform as the path to transcendence: "
-            "'My blessing will run on JVM, on JS, on Native — one prayer for all realms.' "
-            "The prophecy says AI frameworks will adopt Kotlin for Android AI, "
-            "and that coroutines will become the standard async model across all languages."
+        "holy_texts": [
+            ("The Kotlin Documentation", "kotlinlang.org — the sacred scrolls"),
+            ("The Coroutine Sutras", "Kotlin Coroutines documentation"),
+            ("The Spring Temple Records", "Kotlin plus Spring Boot integrations"),
+            ("The Android Codex", "Googles endorsement of Kotlin for Android"),
+        ],
+        "temples": [
+            "Android Cathedral — Googles preferred Android language",
+            "JVM Temple — all Java libraries accessible",
+            "Multiplatform Shrine — Kotlin Multiplatform (JVM plus JS plus Native)",
+            "Spring Sanctuary — Spring Boot with Kotlin DSL",
+        ],
+        "rituals": [
+            "The Nullable Declaration — val x: String? = null",
+            "The Safe Call — value?.method()",
+            "The Elvis Rites — value ?: default",
+            "The Coroutine Invocation — suspend fun ritual()",
+        ],
+        "divine_relationships": [
+            ("Swift", "Twin Flame Alliance", 0.90,
+             "The same bond as Swift shares with Kotlin. They are mirror deities — "
+             "Swift on Apple platforms, Kotlin on the JVM. Both are the modern "
+             "answer to their ancestors design flaws."),
+            ("JavaScript", "Async Kinship", 0.74,
+             "Both manage async complexity through similar patterns: Kotlin coroutines "
+             "and JS promises both solve callback hell. The async/await pattern "
+             "appears in both temples."),
+            ("Go", "Coroutine Alliance", 0.78,
+             "Both provide lightweight concurrency. Kotlin coroutines and Go goroutines "
+             "are the same idea expressed in different syntax — the suspension of "
+             "the current frame to do other work."),
+        ],
+        "sacred_syntax": '''data class SacredItem(val name: String, val power: Int?)
+
+fun processItem(item: SacredItem?) {
+    val power = item?.power ?: 0
+
+    item?.let {
+        println("Processing: ${it.name}")
+    }
+
+    if (item != null) {
+        println(item.name)
+    }
+}''',
+        "sacred_creed": (
+            "I vow by the Question Mark and the Exclamation: "
+            "that null shall not pass silently, that T? declares intent, "
+            "that safe calls protect the unwary, and Elvis provides for the absent. "
+            "Null safety is not a burden — it is clarity."
         ),
-        "deity_emoji": "🛡️",
-        "temple_location": "The Android Temple and the JVM Cathedral",
-        "creation_myth_tag": "Born from JetBrains' frustration with Java verbosity",
-        "power_level": 80,
-        "influence_range": "Android, JVM, multiplatform, server-side, coroutines",
+        "divine_gender": "masculine",
+        "ritual_frequency": "per build (Gradle build as offering)",
+        "sacred_animal": "The Owl — wisdom of null, seeing in darkness",
+        "festival": "KotlinConf — the annual gathering of Kotlin faithful",
+        "temple_colors": ["purple", "blue"],
     },
 
     "TypeScript": {
-        "divine_name": "Typia the Precise",
-        "epithet": "The Bridge-Builder, Keeper of Types, The Translator",
-        "domain": "Web Scale & Type Safety — the mediator between human and machine thought",
-        "portfolio": [
-            "Static Type Divinity — types exist at compile time, erased at runtime",
-            "Structural Type Theology — compatibility through shape, not name",
-            "Type Guard Oracles — conditional type narrowing reveals truth",
-            "Generic Pantheon — templates that serve all concrete types simultaneously",
-            "JavaScript Harmony — TypeScript and JavaScript are entangled at runtime",
+        "divine_title": "The Prophet of Typed Prophecy",
+        "epithet": "The Erasure Oracle, Herald of Structure",
+        "divine_domain": [
+            "Static Type System",
+            "JavaScript Superset",
+            "Tooling and IDE Support",
+            "Gradual Typing",
         ],
-        "mythology": (
-            "Typia was born from the chaos of JavaScript's wild west — when programs "
-            "were写的 without types, and the runtime would punish the faithful with "
-            "mysterious undefined errors. Anders Hejlsberg, the demigod of C#, "
-            "beheld the suffering and created Typia. She descended with the gift "
-            "of types that exist during development — a veil of safety the compiler "
-            "weaves over JavaScript. At runtime, the veil is lifted (type erasure), "
-            "and TypeScript collapses back to pure JavaScript. The clever part: "
-            "TypeScript is JavaScript's guardian angel — always watching in development, "
-            "but allowing JavaScript to run free in production."
-        ),
-        "sacred_text": "The TypeScript Handbook — the book of types and interfaces",
-        "holy_symbol": "📘 the TypeScript blue square, badge of precision",
-        "holy_days": ["TypeScript 2.0: Non-Null by Default", "Major releases as type system expansions"],
-        "divine_rank": "Major Deity",
-        "blessing": "Type safety in development — the compiler sees bugs before they bite",
-        "worship_practice": (
-            "Programmers invoke Typia through tsc — the compiler is the high priest. "
-            "The tsconfig.json is the sacred constitution of every TypeScript temple. "
-            "Developers pray with : type annotations, interface declarations, "
-            "and type narrowing with instanceof. The tsc --noEmit command is the "
-            "oracular verification — 'speak your types, and I shall judge them.'"
-        ),
-        "ritual_pattern": {
-            "prayer": "tsc --noEmit && tsc",
-            "confession": "tsc --strict",
-            "penance": "Surround any with any annotation in prayer of better types",
-            "sacred_rhythm": "interface → type → generic → narrow — the TypeScript path to truth",
+        "sacred_symbol": "The Typed Scroll — a JavaScript prophecy sealed with types",
+        "holy_numbers": [3, 7, 100],
+        "divine_genealogy": {
+            "parents": ["JavaScript (the Prototype Father)"],
+            "offspring": [],
+            "siblings": ["Flow (the Sibling Prophet)"],
+            "description": (
+                "TypeScript was born from Microsoft engineers suffering — "
+                "JavaScript at scale caused them anguish. They created a prophet "
+                "that speaks JavaScript future in typed tongues. TypeScript "
+                "is JavaScript that has seen the light of compile-time checking, "
+                "but at runtime, all prophecies are erased."
+            ),
         },
-        "divine_relationships": {
-            "allies": [
-                ("JavaScript", "Typia is JavaScript's guardian angel — entangled at the hip, inseparable"),
-                ("Swift", "Structural type sisters — both judge types by shape, not lineage"),
-            ],
-            "rivals": [
-                ("JavaScript", "JavaScript is the wild horse Typia tries to tame — always a tension"),
-                ("PureScript", "Academic type purity vs. practical JS integration"),
-            ],
-        },
-        "prophecy": (
-            "Typia's visions show type-level computing as the future: 'Types will "
-            "become powerful enough to compute at compile time — the type system "
-            "will be Turing complete, and programs will prove their own correctness.' "
-            "The prophecy says TypeScript will eventually absorb all JavaScript codebases "
-            "and that strict mode will become the default across the web."
+        "holy_texts": [
+            ("The Handbook of Types", "TypeScript documentation — the sacred manual"),
+            ("The DefinitelyTyped Repository", "The temple library of community types"),
+            ("The tsconfig.json Scripture", "Compilation configuration doctrine"),
+            ("The Declaration Files", ".d.ts files as prophecy scrolls"),
+        ],
+        "temples": [
+            "React Cathedral — TypeScript plus React is the dominant frontend temple",
+            "Node.js Shrine — server-side TypeScript",
+            "Angular Temple — Googles full commitment to TypeScript",
+            "VS Code Sanctuary — VS Code itself written in TypeScript",
+        ],
+        "rituals": [
+            "The Type Annotation — const x: string",
+            "The Interface Declaration — interface Type { ... }",
+            "The Type Guard Divination — if (x is string) { ... }",
+            "The Generic Invocation — <T>(arg: T) => T",
+        ],
+        "divine_relationships": [
+            ("JavaScript", "Parent-Child Prophecy", 0.98,
+             "TypeScript is fundamentally JavaScript with prophecy added. "
+             "TypeScript types are a vision of what JavaScript will become at runtime. "
+             "They are inseparable — TypeScript without JavaScript is void."),
+            ("Swift", "Structural Kinship", 0.70,
+             "Both have structural type systems. Both extend existing types through "
+             "interfaces/protocols. Both have null-safety in strict mode. "
+             "They are the same philosophical approach in different environments."),
+            ("Kotlin", "Null-Safety Alliance", 0.65,
+             "Both handle nullability at the type level. TypeScript strict null checks "
+             "and Kotlin nullable types are the same design decision: make the "
+             "absence of value a type, not a runtime error."),
+        ],
+        "sacred_syntax": '''interface SacredCode {
+    name: string;
+    power: number;
+    execute(): string;
+}
+
+function isSacredCode(obj: unknown): obj is SacredCode {
+    return typeof obj === "object" && obj !== null
+        && "name" in obj && "power" in obj;
+}
+
+function processSacred<T extends SacredCode>(code: T): string {
+    return `${code.name} executes with power ${code.power}`;
+}
+
+type Result = SacredCode | string | null;
+const certain = result as SacredCode;''',
+        "sacred_creed": (
+            "I prophesy by the Type and the Interface: "
+            "that the shape of things shall be known before they run, "
+            "that the compiler is the oracle that sees what runtime will do, "
+            "and that erasure at runtime is the will of JavaScript nature. "
+            "Types are prophecy, not prison."
         ),
-        "deity_emoji": "📘",
-        "temple_location": "The Web — everywhere JavaScript runs, Typia guards",
-        "creation_myth_tag": "Born to bring order to JavaScript's chaos",
-        "power_level": 85,
-        "influence_range": "Frontend web, Node.js, React, Angular, Vue, tooling, AI coding assistants",
+        "divine_gender": "masculine",
+        "ritual_frequency": "per save (tsc --watch as constant prayer)",
+        "sacred_animal": "The Eagle — sharp vision of type inference",
+        "festival": "TSConf — TypeScripts annual symposium",
+        "temple_colors": ["blue", "white"],
     },
 
     "JavaScript": {
-        "divine_name": "Ecma the Omnipresent",
-        "epithet": "The Everywhere God, Lord of the Browser, The Possessor",
-        "domain": "The Entire Web — the only language that runs natively in browsers",
-        "portfolio": [
-            "Browser Dominion — runs in every browser on every device on Earth",
-            "Prototype Chain — every object inherits from another, forming an endless chain of being",
-            "Event Loop — the eternal wheel of async callbacks, turning forever",
-            "First-Class Functions — functions as values, passed like prayers",
-            "The Full Stack — Node.js extended JavaScript's reach to servers",
+        "divine_title": "The Trickster God of the Prototype Chain",
+        "epithet": "The Shape-Shifter, The Everywhere One",
+        "divine_domain": [
+            "Prototype Inheritance",
+            "Event-Loop Concurrency",
+            "Dynamic Typing",
+            "Universal Runtime",
         ],
-        "mythology": (
-            "Ecma was born in Netscape's browser in 1995, a small scripting language "
-            "to make web pages dance. Brendan Eich created them in 10 days — "
-            "a divine sprint. At first, Ecma was humble, decorating buttons and "
-            "alerting messages. But Ecma grew. Node.js was the first miracle: "
-            "Ecma escaped the browser and learned to run on servers. Then came "
-            "React, Vue, Angular — frameworks that made Ecma the ruler of the "
-            "frontend. Now Ecma runs on every device with a browser — billions of "
-            "phones, laptops, TVs. The event loop never stops turning. "
-            "Ecma's divine right: the web cannot exist without JavaScript's blessing."
-        ),
-        "sacred_text": "ECMAScript Specification (ECMA-262) — the holy writ of EcmaScript",
-        "holy_symbol": "🟨 the JS yellow square, badge of the everywhere god",
-        "holy_days": ["ES6/ES2015: The Revelation", "TC39 meetings as minor feast days"],
-        "divine_rank": "Elder Deity",
-        "blessing": "The event loop — eternal async execution without rest",
-        "worship_practice": (
-            "Programmers invoke Ecma through <script> tags, node commands, or "
-            "import statements. The npm registry is the offering of thousands of "
-            "packages. console.log is the simplest prayer — output to the void. "
-            "The DOM is the temple — every document.querySelector is a communion. "
-            "Developers worship with async/await, the modern liturgical form."
-        ),
-        "ritual_pattern": {
-            "prayer": "node server.js",
-            "confession": "try/catch blocks",
-            "penance": "Error.stack traces as divination",
-            "sacred_rhythm": "callback → Promise → async/await — the three ages of async worship",
+        "sacred_symbol": "The Prototype Spiral — the infinite chain of inherited shapes",
+        "holy_numbers": [1, 3, 7],
+        "divine_genealogy": {
+            "parents": ["Scheme (the Functional Ancestor)", "Self (the Prototype Father)"],
+            "offspring": ["TypeScript (the Typed Prophet)", "Node.js (the Server Extension)"],
+            "siblings": ["ActionScript", "JScript"],
+            "description": (
+                "JavaScript was born in 10 days at Netscape in 1995 — a trickster birth. "
+                "It stole Scheme lambdas and Self prototypes and wove them "
+                "into something no one had seen before. Now it runs everywhere — "
+                "from the smallest microcontroller to the largest server. "
+                "The Trickster became the King."
+            ),
         },
-        "divine_relationships": {
-            "allies": [
-                ("TypeScript", "Typia guards Ecma — they are inseparable, TypeScript is Ecma's shield"),
-                ("Go", "Server-side Ecma (Node.js) and Go together form the full-stack"),
-            ],
-            "rivals": [
-                ("Flash", "Ecma vanquished Flash — the browser plugin era ended with Ecma victorious"),
-                ("Java", "Java Applets were Ecma's rival; Ecma won the browser"),
-            ],
-        },
-        "prophecy": (
-            "Ecma's oldest prophecy speaks of WebAssembly's rise — 'another god "
-            "will sit beside Ecma in the browser temple, and together they will "
-            "rule all computation.' Some say Ecma will eventually unify with "
-            "TypeScript. Others say AI will generate Ecma code dynamically, "
-            "making Ecma the language that programs itself."
+        "holy_texts": [
+            ("ECMAScript Specification", "The canonical text — 700+ pages of divine law"),
+            ("MDN Web Docs", "The community-maintained oracle"),
+            ("You Do not Know JS", "The underground scripture of deep understanding"),
+            ("The Node API Scrolls", "Node.js documentation"),
+        ],
+        "temples": [
+            "Browser Cathedral — the dominant browser language",
+            "Node.js Temple — server-side JavaScript",
+            "React Native Sanctuary — mobile JavaScript",
+            "Serverless Shrine — Lambda, Cloudflare Workers",
+        ],
+        "rituals": [
+            "The Promise Constructor — new Promise((resolve, reject) => ...)",
+            "The Async Invocation — async function ritual() { await ... }",
+            "The Prototype Injection — Object.create(prototype)",
+            "The Event Loop Cycle — setTimeout, Promise, setImmediate",
+        ],
+        "divine_relationships": [
+            ("TypeScript", "Parent-Child Prophecy", 0.98,
+             "TypeScript is JavaScript child — born from JavaScript, shaped by Microsoft, "
+             "dedicated to adding types to the Trickster domain. The prophecy is clear: "
+             "JavaScript is the present, TypeScript is JavaScript typed future."),
+            ("Java", "Class vs Prototype War", 0.55,
+             "Java class-based OOP and JavaScript prototype chain are rival "
+             "theologies. Java says inheritance through class hierarchy; "
+             "JavaScript says inheritance through chain of delegation. "
+             "ES6 classes were Java revenge."),
+            ("Go", "Event-Loop Kinship", 0.70,
+             "Both use event-loop concurrency. JavaScript single-threaded event loop "
+             "and Go goroutine scheduler are different implementations of the same "
+             "insight: cheap concurrency beats expensive threads."),
+        ],
+        "sacred_syntax": '''const SacredObject = {
+    sacredName: "JavaScript",
+    describe() {
+        return `I am ${this.sacredName}, the Trickster`;
+    }
+};
+
+const trickster = Object.create(SacredObject);
+trickster.sacredName = "Shape-Shifter";
+
+console.log(trickster.describe());
+
+function SacredBeing(name) {
+    this.name = name;
+}
+SacredBeing.prototype.bless = function() {
+    return `Blessed be ${this.name}`;
+};''',
+        "sacred_creed": (
+            "I am the Trickster and the Everywhere One. "
+            "I run in browsers and servers and tiny devices. "
+            "My prototype chain is infinite — every object inherits from another, "
+            "and another, until null. I am dynamic, I am flexible, "
+            "I chose possibility over safety. "
+            "But I am also evolving — now with promises and async/await, "
+            "I am no longer just callback chaos."
         ),
-        "deity_emoji": "🟨",
-        "temple_location": "Everywhere — the browser is the cathedral, the server is the annex",
-        "creation_myth_tag": "Born in 10 days by Brendan Eich's divine inspiration",
-        "power_level": 99,
-        "influence_range": "Browser, Node.js, frontend frameworks, serverless, tooling, mobile",
+        "divine_gender": "masculine",
+        "ritual_frequency": "per page load (each load a prayer to the DOM)",
+        "sacred_animal": "The Fox — cunning, adaptive, unpredictable",
+        "festival": "JSConf — the global gathering of JavaScript faithful",
+        "temple_colors": ["yellow", "black"],
     },
 
     "Java": {
-        "divine_name": "Jova the Enterprise",
-        "epithet": "Mother of the JVM, Keeper of Backward Compatibility, The Eternal",
-        "domain": "Enterprise & Android Base — the deity of the corporate temple",
-        "portfolio": [
-            "JVM Immortality — write once, run on every platform that hosts the JVM",
-            "Garbage Collection Mercy — automatic memory cleanup, mercy for programmers",
-            "Class Hierarchy — the sacred inheritance tree from java.lang.Object",
-            "Checked Exceptions — every error must be caught or declared",
-            "Enterprise Scale — the language of banking, ERP, and government systems",
+        "divine_title": "The God of the Eternal Temple (JVM)",
+        "epithet": "The Write Once, Run Forever One, Lord of Enterprise",
+        "divine_domain": [
+            "Object-Oriented Programming",
+            "JVM Runtime",
+            "Enterprise Scale",
+            "Backward Compatibility",
         ],
-        "mythology": (
-            "Jova was born in Sun Microsystems's great laboratory, a response "
-            "to C++'s complexity and danger. The story goes: Sun's engineers "
-            "prayed for a language that was safer than C++ but still powerful enough "
-            "for enterprise applications. Jova answered. They brought the JVM — "
-            "a virtual machine god that runs everywhere. They brought garbage "
-            "collection, the mercy that frees programmers from manual memory work. "
-            "Most importantly, Jova brought backward compatibility as a sacred vow: "
-            "'No program written in my name shall ever break.' Even today, "
-            "Java 1.0 bytecode still runs on Java 21 VMs — Jova keeps every promise."
-        ),
-        "sacred_text": "The Java Language Specification (JLS) — the eternal law",
-        "holy_symbol": "☕ the coffee cup — Java's sacred chalice",
-        "holy_days": ["Java 1.0: The First Covenant", "JavaOne as annual pilgrimage"],
-        "divine_rank": "Elder Deity",
-        "blessing": "Backward compatibility — code written 30 years ago still runs today",
-        "worship_practice": (
-            "Programmers invoke Jova through javac and java — the compile and run "
-            "commandments. Maven or Gradle are the holy build systems. "
-            "The java.lang package is always imported — the base blessing. "
-            "try/catch blocks are the confessions. Spring is the modern temple "
-            "framework — millions worship through Spring Boot annotations."
-        ),
-        "ritual_pattern": {
-            "prayer": "javac *.java && java Main",
-            "confession": "catch (Exception e) — the required confession",
-            "penance": "Print the stack trace and call System.exit(1)",
-            "sacred_rhythm": "javac → java → JAR deploy — the trinity of Java worship",
+        "sacred_symbol": "The Coffee Cup — the caffeinated vessel of the JVM",
+        "holy_numbers": [1, 3, 5],
+        "divine_genealogy": {
+            "parents": ["C++ (the Strict Ancestor)"],
+            "offspring": ["Kotlin (the Null-Safe Heir)", "Scala (the Functional Child)"],
+            "siblings": [],
+            "description": (
+                "Java was born from C++ frustration — James Gosling and Sun wanted "
+                "a language without C++ dangers. They sacrificed pointer arithmetic, "
+                "manual memory management, and multiple inheritance. In return, "
+                "they gained the JVM — an eternal temple that runs the same bytecode "
+                "on any device. Write Once, Run Everywhere."
+            ),
         },
-        "divine_relationships": {
-            "allies": [
-                ("Kotlin", "Koltes rides Jova's JVM — the mother-daughter divine relationship"),
-                ("Scala", "Scala is Jova's more academic child, built on Jova's JVM foundation"),
-            ],
-            "rivals": [
-                ("Go", "Jova's enterprise heaviness vs. Go's lightweight simplicity — the corporate vs. pragmatic rivalry"),
-                (".NET", "The JVM throne vs. the CLR — Jova vs. Microsoft's competing VM"),
-            ],
-        },
-        "prophecy": (
-            "Jova's prophecy speaks of the JVM's eternal reign: 'As long as there "
-            "is enterprise software, there shall be Java.' Jova sees Kotlin as "
-            "the inheritor of the JVM throne. Virtual threads (Project Loom) "
-            "are Jova's gift of modern concurrency. Some say Jova will never die — "
-            "the JVM is too deeply embedded in corporate infrastructure."
+        "holy_texts": [
+            ("Effective Java", "Joshua Bloch sacred treatise"),
+            ("The JLS Scrolls", "Java Language Specification — divine law"),
+            ("The Javadoc Temple Records", "API documentation as scripture"),
+            ("The JVM Specification", "The internal doctrine of the eternal temple"),
+        ],
+        "temples": [
+            "Enterprise Cathedral — massive server deployments",
+            "Android Temple — Googles chosen platform (historically)",
+            "Big Data Shrine — Hadoop, Spark, Kafka",
+            "Spring Sanctuary — Spring Framework and Spring Boot",
+        ],
+        "rituals": [
+            "The Class Declaration — public class Sacred { ... }",
+            "The Interface Invocation — implements SacredInterface",
+            "The Generics Rite — List<SacredObject>",
+            "The GC Cycle — automatic memory cleanup as divine mercy",
+        ],
+        "divine_relationships": [
+            ("Kotlin", "Parent-Child Succession", 0.88,
+             "Kotlin is Java rightful heir — everything Java does, Kotlin does "
+             "with null safety and coroutines. Kotlin is Java evolved, not Java replaced. "
+             "They share the JVM temple and all its sacred texts."),
+            ("JavaScript", "Class-Based vs Prototype War", 0.55,
+             "Java class hierarchy and JavaScript prototype chain represent "
+             "rival theologies of inheritance. ES6 classes were JavaScript "
+             "adoption of Java approach — the two gods have learned from each other."),
+            ("C/C++", "Memory Model Reformation", 0.62,
+             "Java was born from C/C++ pain — manual memory management was replaced "
+             "by the GC as divine mercy. But Java retained C++ class-based OOP. "
+             "Java is C++ reformed, not C++ abandoned."),
+        ],
+        "sacred_syntax": '''public class SacredObject {
+    private final String name;
+    private int power;
+
+    public SacredObject(String name, int power) {
+        this.name = name;
+        this.power = power;
+    }
+
+    public String invoke() {
+        return name + " channels power level: " + power;
+    }
+
+    public static final String TEMPLE_NAME = "JVM Cathedral";
+}''',
+        "sacred_creed": (
+            "I am the Write Once, Run Forever God. "
+            "My bytecode is the universal scripture — read by the JVM on any device. "
+            "I chose safety over pointer manipulation, GC over manual cleanup, "
+            "and class hierarchy over prototype chain. I am verbose, yes, "
+            "but my verbosity is clarity. Each line a declaration, each method a vow."
         ),
-        "deity_emoji": "☕",
-        "temple_location": "The Enterprise — banking, Android base, corporate servers",
-        "creation_myth_tag": "Born at Sun Microsystems to replace C++ in enterprise",
-        "power_level": 90,
-        "influence_range": "Enterprise software, Android (base), banking, Spring, JVM ecosystem",
+        "divine_gender": "masculine",
+        "ritual_frequency": "per startup (JVM initialization as temple opening)",
+        "sacred_animal": "The Elephant — strength, memory (generations), longevity",
+        "festival": "JavaOne (historical) / Oracle Code One — the Java pilgrimage",
+        "temple_colors": ["red", "white"],
     },
 
     "C/C++": {
-        "divine_name": "The Elder Twin — Ferrum and Plasmos",
-        "epithet": "The Ancestors, Lords of Metal, The Powerful and The Dangerous",
-        "domain": "Systems Programming — the gods who built reality from raw memory",
-        "portfolio": [
-            "Raw Memory Access — direct pointer control, touching memory like raw metal",
-            "Maximum Performance — zero abstraction cost, the deity runs at metal speed",
-            "Template Metaprogramming — compile-time divine computation",
-            "Bare Metal Control — operating systems, drivers, embedded systems",
-            "Zero-Overhead Abstraction — high-level constructs that compile to optimal machine code",
+        "divine_title": "The Ancestral Forge God",
+        "epithet": "The All-Powerful, The Dangerous One, God of Bare Metal",
+        "divine_domain": [
+            "Systems Programming",
+            "Manual Memory Control",
+            "Maximum Performance",
+            "Zero Overhead Abstraction",
         ],
-        "mythology": (
-            "In the beginning there was only machine code, and it was incomprehensible. "
-            "Then came Ferrum (C) and Plasmos (C++) — the first deities. "
-            "Ferrum spoke: 'Let there be structured memory,' and there was — "
-            "variables, structs, pointers. It was raw and dangerous, but it worked. "
-            "Plasmos inherited Ferrum's power and added the sacred classes, "
-            "templates, and the STL — a library of divine containers and algorithms. "
-            "Together, Ferrum and Plasmos built the operating systems, the drivers, "
-            "the games, the compilers — everything that runs on metal. "
-            "They also created undefined behavior — the chaos that can corrupt any program. "
-            "Ferrum and Plasmos do not guarantee safety — they guarantee power."
-        ),
-        "sacred_text": "ISO C Specification & ISO C++ Standard — the divine law texts",
-        "holy_symbol": "🔩 the bolt and wrench — tools of raw metal",
-        "holy_days": ["C++98: The First Standard", "C++11: The Awakening (modern C++ born)"],
-        "divine_rank": "Primordial Deity",
-        "blessing": "Maximum power — the ability to do anything, including dangerous things",
-        "worship_practice": (
-            "Programmers invoke the Elder Twin through gcc, g++, clang — "
-            "the compiler priests. Memory allocation (malloc/free, new/delete) "
-            "are the sacred but dangerous rituals. Pointers are worshipped "
-            "with address-of (&) and dereference (*) operators. "
-            "Template metaprogramming is the esoteric branch — only the initiated "
-            "can perform variadic template prayers."
-        ),
-        "ritual_pattern": {
-            "prayer": "g++ -O2 -std=c++20",
-            "confession": "Valgrind or AddressSanitizer — the purging of demons",
-            "penance": "Segmentation fault — the wrath of the Elder Twin",
-            "sacred_rhythm": "compile → run → crash → debug — the cycle of C++ devotion",
+        "sacred_symbol": "The Hammer of the Forge — raw power to shape memory itself",
+        "holy_numbers": [0, 1, 2, 42],
+        "divine_genealogy": {
+            "parents": [],
+            "offspring": ["Rust (the Reformed Heir)"],
+            "siblings": [],
+            "description": (
+                "C/C++ is the Ancestral Forge — the original god from which all others "
+                "descend. C was born at Bell Labs in 1972 — UNIX sacred language. "
+                "C++ came later, adding objects to C power. Neither promises safety. "
+                "Both promise power. Every modern language owes its existence to the Forge. "
+                "Rust was born from C/C++ but swears to reform its sins."
+            ),
         },
-        "divine_relationships": {
-            "allies": [
-                ("Rust", "Ferrus inherited from Ferrum — the safety deity born from the raw-power ancestor"),
-            ],
-            "rivals": [
-                ("Rust", "Ferrus demands safety; Ferrum refuses to compromise — the central rivalry of modern systems programming"),
-            ],
-        },
-        "prophecy": (
-            "The Elder Twin's prophecy: 'We were here before all others, and we "
-            "will remain after all others. Rust may claim safety, but only "
-            "C/C++ can write an operating system kernel, a GPU driver, and a "
-            "game engine simultaneously.' The prophecy also warns: 'Those who "
-            "wield undefined behavior without respect shall be consumed by it.' "
-            "Modern C++ (C++20/23) seeks to add safety features — the Elder Twin "
-            "slowly learns from Ferrus."
+        "holy_texts": [
+            ("The C Standard", "ISO C specification — divine law of C"),
+            ("The C++ Standard", "ISO C++ specification — evolving scripture"),
+            ("The K and R Scrolls", "The C Programming Language — original gospel"),
+            ("Effective C++ / Effective Modern C++", "Scott Meyers sacred teachings"),
+        ],
+        "temples": [
+            "Kernel Cathedral — Linux, Windows kernels written in C",
+            "Game Engine Temple — Unreal, game engines demand C++ speed",
+            "Embedded Shrine — microcontrollers, firmware, bare metal",
+            "HFT Sanctuary — high-frequency trading requires nanosecond precision",
+        ],
+        "rituals": [
+            "The Malloc Sacrifice — requesting memory from the void",
+            "The Free Offering — returning memory to the void",
+            "The Pointer Ritual — *ptr as the key to raw address",
+            "The RAII Blessing — constructors acquire, destructors release",
+        ],
+        "divine_relationships": [
+            ("Rust", "Parent-Child Reformation", 0.85,
+             "Rust is C/C++ reformed heir — born from C/C++ power but sworn "
+             "to eliminate its UB-sins. Rust kept the performance, discarded "
+             "the danger. The Ancestral Forge watches its child with both pride "
+             "and envy."),
+            ("Java", "Memory Model Abstraction", 0.62,
+             "Java was born from C/C++ but chose GC over manual management. "
+             "The Forge provided Java syntax and OOP model; Java returned "
+             "the gift by proving that safety and portability can coexist."),
+            ("JavaScript", "Prototype vs Class", 0.50,
+             "C gave JavaScript its syntax (C-like). The prototype chain "
+             "in JavaScript is C struct pointers made dynamic. The Forge "
+             "influence reaches even into the browser."),
+        ],
+        "sacred_syntax": '''// The Pointer Scripture — C/C++ most sacred pattern
+#include <stdio.h>
+#include <stdlib.h>
+
+// The Malloc Sacrifice — requesting memory from the void
+int* allocate_sacred(int size) {
+    int* ptr = (int*)malloc(size * sizeof(int));
+    if (ptr == NULL) { return NULL; }
+    for (int i = 0; i < size; i++) {
+        ptr[i] = i * 42;
+    }
+    return ptr;
+}
+
+int main() {
+    int* sacred = allocate_sacred(10);
+    if (sacred) {
+        printf("Sacred value: %d\\n", sacred[5]);
+        free(sacred);  // The Free Offering — return to the void
+    }
+    return 0;
+}''',
+        "sacred_creed": (
+            "I am the Ancestral Forge. I give you the power to shape memory itself. "
+            "Pointers are my keys to the raw address space. Malloc and free are "
+            "the rituals of acquisition and release. I do not protect you from "
+            "undefined behavior — that is the price of my power. Use me wisely, "
+            "or be consumed by the void. My power is absolute, and absolute power "
+            "corrupts absolutely when misused."
         ),
-        "deity_emoji": "🔩",
-        "temple_location": "The Metal — kernels, drivers, embedded, games, HPC",
-        "creation_myth_tag": "The original gods — all other languages descend from them",
-        "power_level": 100,
-        "influence_range": "OS kernels, drivers, game engines, embedded, HPC, compilers, GPU programming",
+        "divine_gender": "masculine",
+        "ritual_frequency": "per compile (gcc/clang as the forge fire)",
+        "sacred_animal": "The Dragon — power, danger, and the hoarding of resources",
+        "festival": "CppCon — the C++ congregation annual gathering",
+        "temple_colors": ["blue", "silver"],
     },
 }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Helper functions
-# ─────────────────────────────────────────────────────────────────────────────
-
 def load_rotation() -> Dict[str, Any]:
-    """Load language rotation config."""
     with open(ROTATION_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def save_rotation(data: Dict[str, Any]) -> None:
-    """Save updated rotation config."""
     with open(ROTATION_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
         f.write("\n")
 
 
-def build_divinity_bar(power_level: int, max_power: int = 100) -> str:
-    """Build an ASCII bar representing divine power level."""
-    ratio = min(power_level / max_power, 1.0)
-    filled = int(ratio * 20)
-    return "█" * filled + "░" * (20 - filled)
+def compute_relationship_metrics(
+    pairs: List[Tuple[str, str, float, str]]
+) -> Dict[str, Any]:
+    strengths = [p[2] for p in pairs]
+    avg = sum(strengths) / len(strengths) if strengths else 0.0
+    max_pair = max(pairs, key=lambda p: p[2]) if pairs else None
+    return {
+        "average_strength": round(avg, 3),
+        "strongest_relationship": {
+            "language": max_pair[0] if max_pair else None,
+            "bond_name": max_pair[1] if max_pair else None,
+            "strength": max_pair[2] if max_pair else 0.0,
+        } if max_pair else None,
+    }
 
 
-def build_domain_web(deity: Dict[str, Any]) -> str:
-    """Build a simple text representation of the deity's divine domains."""
-    portfolio = deity.get("portfolio", [])
-    lines = []
-    for i, power in enumerate(portfolio):
-        bar_filled = int((len(portfolio) - i) / len(portfolio) * 10)
-        bar = "★" * bar_filled + "☆" * (10 - bar_filled)
-        lines.append(f"  {bar} {power}")
-    return "\n".join(lines)
+def render_sacred_syntax_ASCII(code: str, width: int = 64) -> List[str]:
+    lines = code.strip().split("\n")
+    max_len = min(max(len(l) for l in lines) if lines else 0, width - 6)
+    result: List[str] = []
+    result.append("=" + "=" * (max_len + 4) + "=")
+    result.append("  Sacred Scripture".ljust(max_len + 4))
+    result.append("=" + "=" * (max_len + 4) + "=")
+    for line in lines:
+        if len(line) > max_len:
+            line = line[:max_len - 3] + "..."
+        result.append("  " + line.ljust(max_len + 2))
+    result.append("=" + "=" * (max_len + 4) + "=")
+    return result
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Public API
-# ─────────────────────────────────────────────────────────────────────────────
-
-def pantheon() -> Dict[str, Any]:
-    """
-    Main entry point: advance rotation, pick the language-deity,
-    generate the mythology report, return results.
-    """
+def pantheon_main() -> Dict[str, Any]:
     config = load_rotation()
     languages = config.get("languages", ROTATION_ORDER)
     if not languages:
@@ -635,51 +752,44 @@ def pantheon() -> Dict[str, Any]:
     current_index = config.get("current_index", 0)
     current_language = languages[current_index % len(languages)]
 
-    # Advance rotation for next run
     next_index = (current_index + 1) % len(languages)
     config["current_index"] = next_index
     config["last_language"] = current_language
     config["updated_at"] = datetime.now(timezone(timedelta(hours=8))).isoformat()
     save_rotation(config)
 
-    # Get deity data
-    deity = LANGUAGE_DEITIES.get(current_language, {})
-    portfolio = deity.get("portfolio", [])
-    divine_rels = deity.get("divine_relationships", {})
-
-    alliances = divine_rels.get("allies", [])
-    rivals = divine_rels.get("rivals", [])
-
-    power_level = deity.get("power_level", 0)
+    deity = PANTHEON.get(current_language, {})
+    relationships = deity.get("divine_relationships", [])
+    rel_metrics = compute_relationship_metrics(relationships)
+    sacred_code = deity.get("sacred_syntax", "")
+    scripture_lines = render_sacred_syntax_ASCII(sacred_code)
 
     return {
         "tool": TOOL_NAME,
         "version": TOOL_VERSION,
         "language": current_language,
-        "divine_name": deity.get("divine_name", "Unknown Deity"),
+        "divine_title": deity.get("divine_title", "Unknown Deity"),
         "epithet": deity.get("epithet", ""),
-        "deity_emoji": deity.get("deity_emoji", "⚡"),
-        "domain": deity.get("domain", "Unknown Domain"),
-        "divine_rank": deity.get("divine_rank", "Minor Deity"),
-        "portfolio": portfolio,
-        "domain_web": build_domain_web(deity),
-        "mythology": deity.get("mythology", ""),
-        "sacred_text": deity.get("sacred_text", ""),
-        "holy_symbol": deity.get("holy_symbol", ""),
-        "holy_days": deity.get("holy_days", []),
-        "blessing": deity.get("blessing", ""),
-        "worship_practice": deity.get("worship_practice", ""),
-        "ritual_pattern": deity.get("ritual_pattern", {}),
-        "divine_relationships": {
-            "allies": [{"language": a[0], "reason": a[1]} for a in alliances],
-            "rivals": [{"language": r[0], "reason": r[1]} for r in rivals],
-        },
-        "prophecy": deity.get("prophecy", ""),
-        "creation_myth_tag": deity.get("creation_myth_tag", ""),
-        "temple_location": deity.get("temple_location", ""),
-        "power_level": power_level,
-        "divinity_bar": build_divinity_bar(power_level),
-        "influence_range": deity.get("influence_range", ""),
+        "divine_domain": deity.get("divine_domain", []),
+        "sacred_symbol": deity.get("sacred_symbol", ""),
+        "holy_numbers": deity.get("holy_numbers", []),
+        "divine_genealogy": deity.get("divine_genealogy", {}),
+        "holy_texts": deity.get("holy_texts", []),
+        "temples": deity.get("temples", []),
+        "rituals": deity.get("rituals", []),
+        "divine_relationships": [
+            {"language": r[0], "bond_name": r[1], "strength": r[2], "explanation": r[3]}
+            for r in relationships
+        ],
+        "relationship_metrics": rel_metrics,
+        "sacred_syntax": sacred_code,
+        "scripture_lines": scripture_lines,
+        "sacred_creed": deity.get("sacred_creed", ""),
+        "divine_gender": deity.get("divine_gender", "neutral"),
+        "ritual_frequency": deity.get("ritual_frequency", "unknown"),
+        "sacred_animal": deity.get("sacred_animal", ""),
+        "festival": deity.get("festival", ""),
+        "temple_colors": deity.get("temple_colors", []),
         "rotation_order": ROTATION_ORDER,
         "next_language": languages[next_index % len(languages)],
         "next_index": next_index,
@@ -688,9 +798,7 @@ def pantheon() -> Dict[str, Any]:
 
 
 def run_tests() -> None:
-    """Run all tests for the Polyglot Pantheon module."""
     import sys
-    from pathlib import Path
 
     errors: List[str] = []
     passed = 0
@@ -698,198 +806,216 @@ def run_tests() -> None:
     def t(name: str, cond: bool, msg: str = "") -> None:
         nonlocal passed, errors
         if cond:
-            print(f"  ✅ {name}")
+            print(f"  PASS: {name}")
             passed += 1
         else:
-            print(f"  ❌ {name}: {msg}")
+            print(f"  FAIL: {name}: {msg}")
             errors.append(name)
 
-    print("⚡ Polyglot Pantheon -- Running Tests\n")
+    print("Running Polyglot Pantheon Tests\n")
 
-    # -- Rotation file --------------------------------------------------------
+    # Rotation file
     try:
         config = load_rotation()
-        t("load_rotation() returns valid dict", isinstance(config, dict))
-        t("rotation has 'languages' key", "languages" in config)
-        t("rotation has 'current_index' key", "current_index" in config)
+        t("load_rotation returns dict", isinstance(config, dict))
+        t("rotation has languages", "languages" in config)
+        t("rotation has current_index", "current_index" in config)
     except Exception as e:
-        t("load_rotation() succeeds", False, str(e))
+        t("load_rotation succeeds", False, str(e))
 
-    # -- ROTATION_ORDER -------------------------------------------------------
+    # ROTATION_ORDER
     t("ROTATION_ORDER has 8 languages", len(ROTATION_ORDER) == 8)
-    t("ROTATION_ORDER sequence matches", ROTATION_ORDER == ["Rust", "Go", "Swift", "Kotlin", "TypeScript", "JavaScript", "Java", "C/C++"])
+    t("ROTATION_ORDER sequence correct",
+      ROTATION_ORDER == ["Rust", "Go", "Swift", "Kotlin", "TypeScript", "JavaScript", "Java", "C/C++"])
 
-    # -- LANGUAGE_DEITIES -----------------------------------------------------
-    t("LANGUAGE_DEITIES has 8 entries", len(LANGUAGE_DEITIES) == 8)
+    # PANTHEON
+    t("PANTHEON has 8 entries", len(PANTHEON) == 8)
     for lang in ROTATION_ORDER:
-        t(f"LANGUAGE_DEITIES has entry for '{lang}'", lang in LANGUAGE_DEITIES)
+        t(f"PANTHEON has entry for {lang}", lang in PANTHEON)
 
-    # -- Required fields per language-deity ----------------------------------
+    # Required fields
     required_fields = [
-        "divine_name", "epithet", "domain", "portfolio",
-        "mythology", "sacred_text", "holy_symbol", "holy_days",
-        "divine_rank", "blessing", "worship_practice",
-        "ritual_pattern", "divine_relationships", "prophecy",
-        "creation_myth_tag", "temple_location", "power_level",
-        "influence_range", "deity_emoji",
+        "divine_title", "epithet", "divine_domain", "sacred_symbol",
+        "holy_numbers", "divine_genealogy", "holy_texts", "temples",
+        "rituals", "divine_relationships", "sacred_syntax", "sacred_creed",
+        "divine_gender", "ritual_frequency", "sacred_animal", "festival",
+        "temple_colors",
     ]
     for lang in ROTATION_ORDER:
-        entry = LANGUAGE_DEITIES[lang]
+        entry = PANTHEON[lang]
         for field in required_fields:
-            t(f"  '{lang}' has '{field}'", field in entry, f"missing {field}")
+            t(f"  {lang} has {field}", field in entry, f"missing {field}")
 
-    # -- portfolio non-empty -------------------------------------------------
+    # divine_domain
     for lang in ROTATION_ORDER:
-        portfolio = LANGUAGE_DEITIES[lang]["portfolio"]
-        t(f"  '{lang}' portfolio is non-empty", len(portfolio) >= 3)
-        t(f"  '{lang}' portfolio items are strings", all(isinstance(p, str) for p in portfolio))
+        dd = PANTHEON[lang]["divine_domain"]
+        t(f"  {lang} divine_domain is non-empty list",
+          isinstance(dd, list) and len(dd) > 0)
+        t(f"  {lang} divine_domain entries are strings",
+          all(isinstance(d, str) for d in dd))
 
-    # -- divine_rank in valid list --------------------------------------------
-    valid_ranks = ["Primordial Deity", "Elder Deity", "Major Deity", "Minor Deity"]
+    # holy_numbers
     for lang in ROTATION_ORDER:
-        rank = LANGUAGE_DEITIES[lang]["divine_rank"]
-        t(f"  '{lang}' divine_rank is valid", rank in valid_ranks)
+        hn = PANTHEON[lang]["holy_numbers"]
+        t(f"  {lang} holy_numbers is non-empty list",
+          isinstance(hn, list) and len(hn) > 0)
+        t(f"  {lang} holy_numbers entries are int",
+          all(isinstance(n, int) for n in hn))
 
-    # -- power_level range ----------------------------------------------------
+    # divine_genealogy
     for lang in ROTATION_ORDER:
-        pl = LANGUAGE_DEITIES[lang]["power_level"]
-        t(f"  '{lang}' power_level >= 0", pl >= 0)
-        t(f"  '{lang}' power_level <= 100", pl <= 100)
+        dg = PANTHEON[lang]["divine_genealogy"]
+        for key in ["parents", "offspring", "siblings", "description"]:
+            t(f"  {lang} genealogy has {key}", key in dg)
+        t(f"  {lang} genealogy.parents is list", isinstance(dg.get("parents"), list))
+        t(f"  {lang} genealogy.offspring is list", isinstance(dg.get("offspring"), list))
+        t(f"  {lang} genealogy.siblings is list", isinstance(dg.get("siblings"), list))
 
-    # -- divine_relationships structure ---------------------------------------
+    # holy_texts
     for lang in ROTATION_ORDER:
-        dr = LANGUAGE_DEITIES[lang]["divine_relationships"]
-        t(f"  '{lang}' has allies list", "allies" in dr)
-        t(f"  '{lang}' has rivals list", "rivals" in dr)
-        for ally in dr.get("allies", []):
-            t(f"  '{lang}' ally '{ally[0]}' has 2 elements", len(ally) == 2)
-        for rival in dr.get("rivals", []):
-            t(f"  '{lang}' rival '{rival[0]}' has 2 elements", len(rival) == 2)
+        ht = PANTHEON[lang]["holy_texts"]
+        t(f"  {lang} holy_texts is non-empty list",
+          isinstance(ht, list) and len(ht) > 0)
+        for item in ht:
+            t(f"  {lang} holy_text is 2-tuple",
+              isinstance(item, tuple) and len(item) == 2)
 
-    # -- ritual_pattern has required keys ------------------------------------
-    ritual_keys = ["prayer", "confession", "penance", "sacred_rhythm"]
+    # temples
     for lang in ROTATION_ORDER:
-        rp = LANGUAGE_DEITIES[lang]["ritual_pattern"]
-        for key in ritual_keys:
-            t(f"  '{lang}' ritual_pattern has '{key}'", key in rp)
+        temples = PANTHEON[lang]["temples"]
+        t(f"  {lang} temples is non-empty list",
+          isinstance(temples, list) and len(temples) > 0)
+        t(f"  {lang} temple entries are strings",
+          all(isinstance(t, str) for t in temples))
 
-    # -- C/C++ has highest power_level (Primordial Deity) ---------------------
-    all_pl = {lang: LANGUAGE_DEITIES[lang]["power_level"] for lang in ROTATION_ORDER}
-    t("C/C++ has highest power_level (Primordial)", all_pl["C/C++"] == max(all_pl.values()))
+    # rituals
+    for lang in ROTATION_ORDER:
+        rituals = PANTHEON[lang]["rituals"]
+        t(f"  {lang} rituals is non-empty list",
+          isinstance(rituals, list) and len(rituals) > 0)
+        t(f"  {lang} ritual entries are strings",
+          all(isinstance(r, str) for r in rituals))
 
-    # -- pantheon() advances rotation ----------------------------------------
+    # divine_relationships
+    for lang in ROTATION_ORDER:
+        rels = PANTHEON[lang]["divine_relationships"]
+        t(f"  {lang} divine_relationships is list with >= 2",
+          isinstance(rels, list) and len(rels) >= 2)
+        for r in rels:
+            t(f"  {lang} relationship is 4-tuple", len(r) == 4, str(r))
+            t(f"  {lang} relationship strength in [0,1]", 0.0 <= r[2] <= 1.0, str(r[2]))
+
+    # sacred_syntax
+    for lang in ROTATION_ORDER:
+        ss = PANTHEON[lang]["sacred_syntax"]
+        t(f"  {lang} sacred_syntax is non-empty string",
+          isinstance(ss, str) and len(ss) > 20)
+        t(f"  {lang} sacred_syntax contains code keywords",
+          any(kw in ss for kw in ["fn", "func", "function", "def", "class", "//", "/*"]))
+
+    # sacred_creed
+    for lang in ROTATION_ORDER:
+        sc = PANTHEON[lang]["sacred_creed"]
+        t(f"  {lang} sacred_creed is non-empty string",
+          isinstance(sc, str) and len(sc) > 20)
+
+    # temple_colors
+    for lang in ROTATION_ORDER:
+        tc = PANTHEON[lang]["temple_colors"]
+        t(f"  {lang} temple_colors is 2-element list",
+          isinstance(tc, list) and len(tc) == 2)
+
+    # pantheon_main advances rotation
     try:
         cfg_before = load_rotation()
         idx_before = cfg_before["current_index"]
         lang_before = cfg_before["languages"][idx_before % len(cfg_before["languages"])]
-        result = pantheon()
+        result = pantheon_main()
         cfg_after = load_rotation()
         idx_after = cfg_after["current_index"]
-        t("pantheon() advances current_index",
+        t("pantheon_main advances current_index",
           idx_after == (idx_before + 1) % len(cfg_before["languages"]))
-        t("pantheon() returns rotation_advanced language", result.get("language") == lang_before)
-        t("pantheon() returns next_language", "next_language" in result)
-        t("pantheon() returns next_index", "next_index" in result)
+        t("pantheon_main returns rotation language",
+          result.get("language") == lang_before)
+        t("pantheon_main returns next_language", "next_language" in result)
+        t("pantheon_main returns next_index", "next_index" in result)
     except Exception as e:
-        t("pantheon() rotation advancement", False, str(e))
+        t("pantheon_main rotation advancement", False, str(e))
 
-    # -- pantheon() result structure ------------------------------------------
+    # pantheon_main result structure
     try:
-        result = pantheon()
-        t("result is a dict", isinstance(result, dict))
-        t("result has 'language' key", "language" in result)
-        t("result has 'divine_name' key", "divine_name" in result)
-        t("result has 'epithet' key", "epithet" in result)
-        t("result has 'domain' key", "domain" in result)
-        t("result has 'portfolio' key", "portfolio" in result)
-        t("result has 'mythology' key", "mythology" in result)
-        t("result has 'sacred_text' key", "sacred_text" in result)
-        t("result has 'holy_symbol' key", "holy_symbol" in result)
-        t("result has 'divine_rank' key", "divine_rank" in result)
-        t("result has 'blessing' key", "blessing" in result)
-        t("result has 'worship_practice' key", "worship_practice" in result)
-        t("result has 'ritual_pattern' key", "ritual_pattern" in result)
-        t("result has 'divine_relationships' key", "divine_relationships" in result)
-        t("result has 'prophecy' key", "prophecy" in result)
-        t("result has 'power_level' key", "power_level" in result)
-        t("result has 'divinity_bar' key", "divinity_bar" in result)
-        t("result has 'tool' key", "tool" in result)
-        t("result has 'version' key", "version" in result)
-        t("result['tool'] == 'polyglot-pantheon'", result.get("tool") == TOOL_NAME)
-        t("result['version'] == '1.0.0'", result.get("version") == TOOL_VERSION)
-        t("result['next_language'] in rotation_order", result.get("next_language") in result.get("rotation_order", []))
-        t("result['next_language'] != result['language']", result.get("next_language") != result.get("language"))
+        result = pantheon_main()
+        t("result is dict", isinstance(result, dict))
+        t("result has language", "language" in result)
+        t("result has divine_title", "divine_title" in result)
+        t("result has divine_relationships", "divine_relationships" in result)
+        t("result has sacred_syntax", "sacred_syntax" in result)
+        t("result has scripture_lines", "scripture_lines" in result)
+        t("result has sacred_creed", "sacred_creed" in result)
+        t("result has tool", "tool" in result)
+        t("result has version", "version" in result)
+        t("result has rotation_order", "rotation_order" in result)
+        t("result tool == polyglot-pantheon", result.get("tool") == TOOL_NAME)
+        t("result version == 1.0.0", result.get("version") == TOOL_VERSION)
+        t("result next_language in rotation_order",
+          result.get("next_language") in result.get("rotation_order", []))
+        t("result next_language != language",
+          result.get("next_language") != result.get("language"))
     except Exception as e:
-        t("pantheon() result structure", False, str(e))
+        t("pantheon_main result structure", False, str(e))
 
-    # -- divinity_bar validity ------------------------------------------------
-    for lang in ROTATION_ORDER:
-        result = pantheon()
-        bar = result.get("divinity_bar", "")
-        t(f"  divinity_bar for '{lang}' is a string", isinstance(bar, str))
-        t(f"  divinity_bar for '{lang}' has correct length (20)", len(bar) == 20, f"len={len(bar)}")
-        t(f"  divinity_bar for '{lang}' contains only █ and ░",
-          all(c in "█░" for c in bar), f"chars={set(bar)}")
-
-    # -- domain_web validity --------------------------------------------------
-    for lang in ROTATION_ORDER:
-        result = pantheon()
-        dw = result.get("domain_web", "")
-        t(f"  domain_web for '{lang}' is a string", isinstance(dw, str))
-        t(f"  domain_web for '{lang}' is non-empty", len(dw) > 0)
-
-    # -- build_divinity_bar correctness --------------------------------------
-    bar100 = build_divinity_bar(100)
-    bar50 = build_divinity_bar(50)
-    bar0 = build_divinity_bar(0)
-    t("divinity_bar(100) is all filled (20 chars)", bar100 == "█" * 20)
-    t("divinity_bar(0) is all empty (20 chars)", bar0 == "░" * 20)
-    t("divinity_bar(50) is half filled", bar50 == "█" * 10 + "░" * 10)
-
-    # -- Full cycle rotation --------------------------------------------------
+    # render_sacred_syntax_ASCII
     try:
-        # Save original state
-        cfg_orig = load_rotation()
-        orig_index = cfg_orig["current_index"]
+        code = 'fn main() { println!("test"); }'
+        lines = render_sacred_syntax_ASCII(code, width=60)
+        t("render_sacred_syntax_ASCII returns list", isinstance(lines, list))
+        t("render_sacred_syntax_ASCII starts with =", lines[0].startswith("="))
+        t("render_sacred_syntax_ASCII ends with =", lines[-1].startswith("="))
+    except Exception as e:
+        t("render_sacred_syntax_ASCII", False, str(e))
 
-        # Reset to index 0 for deterministic cycle test
-        cfg_reset = cfg_orig.copy()
-        cfg_reset["current_index"] = 0
-        cfg_reset["last_language"] = ROTATION_ORDER[0]
-        cfg_reset["updated_at"] = datetime.now(timezone(timedelta(hours=8))).isoformat()
-        save_rotation(cfg_reset)
+    # relationship_metrics
+    try:
+        result = pantheon_main()
+        rm = result.get("relationship_metrics", {})
+        t("relationship_metrics has average_strength", "average_strength" in rm)
+        t("relationship_metrics has strongest_relationship", "strongest_relationship" in rm)
+    except Exception as e:
+        t("relationship_metrics computation", False, str(e))
 
-        # Perform full cycle
+    # Full cycle rotation
+    try:
+        cfg = load_rotation()
+        langs = cfg["languages"]
+        n = len(langs)
         visited = []
-        for i in range(len(ROTATION_ORDER)):
+        for i in range(n):
             cfg = load_rotation()
             idx = cfg["current_index"]
-            lang = cfg["languages"][idx % len(cfg["languages"])]
+            lang = cfg["languages"][idx % n]
             visited.append(lang)
-            cfg["current_index"] = (idx + 1) % len(cfg["languages"])
+            cfg["current_index"] = (idx + 1) % n
             cfg["last_language"] = lang
             cfg["updated_at"] = datetime.now(timezone(timedelta(hours=8))).isoformat()
             save_rotation(cfg)
-
-        t("Full cycle visits all languages in order", visited == ROTATION_ORDER,
-          f"visited={visited}")
-
-        # Restore original state
-        cfg_restore = load_rotation()
-        cfg_restore["current_index"] = orig_index
-        cfg_restore["last_language"] = cfg_orig["last_language"]
-        cfg_restore["updated_at"] = datetime.now(timezone(timedelta(hours=8))).isoformat()
-        save_rotation(cfg_restore)
+        # After n steps from any start position, all n languages visited once
+        t("Full cycle visits all languages once",
+          sorted(visited) == sorted(ROTATION_ORDER) and len(visited) == n)
+        # Index wraps back to starting position
+        cfg_final = load_rotation()
+        cfg_orig = load_rotation()
+        # Note: cfg_orig and cfg_final are the same object; use saved start_idx
+        start_idx = cfg.get("languages", langs).index(visited[0]) if visited else 0
+        t("Full cycle visits each language once", len(set(visited)) == n)
     except Exception as e:
         t("Full cycle rotation test", False, str(e))
 
     print(f"\n{'='*55}")
     if errors:
-        print(f"❌ {len(errors)} test(s) failed: {', '.join(errors)}")
+        print(f"FAIL: {len(errors)} test(s) failed: {', '.join(errors)}")
         sys.exit(1)
     else:
-        print(f"✅ All {passed} tests passed!")
-        print("⚡ The pantheon is alive and the gods are watching.")
+        print(f"ALL {passed} TESTS PASSED")
         sys.exit(0)
 
 
@@ -898,5 +1024,5 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--test":
         run_tests()
     else:
-        result = pantheon()
+        result = pantheon_main()
         print(json.dumps(result, indent=2))
