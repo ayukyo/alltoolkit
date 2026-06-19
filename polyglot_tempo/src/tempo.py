@@ -40,7 +40,7 @@ import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 TOOL_NAME = "polyglot-tempo"
 TOOL_VERSION = "1.0.0"
@@ -410,7 +410,7 @@ RHYTHM_DATA: Dict[str, Dict[str, Any]] = {
         "common_rhythms": [
             {"name": "Pointer Arithmetic", "pattern": "*p → *(p+n) → *(p+n+m) (address walking)", "bpm_factor": 1.5},
             {"name": "Template Metaprogramming", "pattern": "⟨T⟩⟨U⟩⟨V⟩ (compile-time computation)", "bpm_factor": 1.2},
-            {"name": "RAII Pattern", "pattern": "[acquire] → ░░░ → [dispose] (resource tied to lifetime)", "bpm_factor": 1.0},
+            {"name": "RAII Pattern", "pattern": [0, 0, 0, 'dispose'] + 'acquire' + [0, 0, 0, 'dispose'], "bpm_factor": 1.0},
             {"name": "Move Semantics", "pattern": "▓ → ∅ (ownership transfer, not copy)", "bpm_factor": 0.9},
         ],
         "transition_from": {
@@ -451,7 +451,7 @@ def get_current_language() -> str:
     return config["languages"][idx]
 
 
-def advance_rotation() -> Tuple[str, int]:
+def advance_rotation() -> tuple[str, int]:
     """Advance rotation and return (language, new_index)."""
     config = load_rotation()
     idx = config["current_index"]

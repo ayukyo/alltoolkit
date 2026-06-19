@@ -97,18 +97,7 @@ from .polyglot_pulse import (
     LANGUAGE_EMOJI as PULSE_LANGUAGE_EMOJI,
 )
 
-from .polyglot_anchor import (
-    get_anchor,
-    get_anchor_preview,
-    format_anchor_console,
-    format_anchor_markdown,
-    rotate_and_get_anchor,
-    ANCHOR_DB,
-    CORE_LANGUAGES as ANCHOR_CORE_LANGUAGES,
-    LANGUAGE_EMOJI as ANCHOR_LANGUAGE_EMOJI,
-)
-
-__version__ = "1.5.0"
+__version__ = "1.4.0"
 __all__ = [
     "measure_cyclomatic_complexity",
     "measure_cognitive_complexity",
@@ -173,12 +162,4 @@ __all__ = [
     "format_pulse_markdown",
     "PULSE_CORE_LANGUAGES",
     "PULSE_LANGUAGE_EMOJI",
-    "get_anchor",
-    "get_anchor_preview",
-    "format_anchor_console",
-    "format_anchor_markdown",
-    "rotate_and_get_anchor",
-    "ANCHOR_DB",
-    "ANCHOR_CORE_LANGUAGES",
-    "ANCHOR_LANGUAGE_EMOJI",
 ]

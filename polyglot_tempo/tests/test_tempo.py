@@ -395,10 +395,7 @@ class TestGenerateRhythmReport:
         """generate_rhythm_report returns same result as tempo(rotate=False)."""
         r1 = tempo(rotate=False)
         r2 = generate_rhythm_report(rotate=False)
-        # Compare without timestamp (microsecond differences cause flakiness)
-        r1_ts = r1.pop("timestamp")
-        r2_ts = r2.pop("timestamp")
-        assert r1 == r2, f"Result differs (timestamps: {r1_ts} vs {r2_ts})"
+        assert r1 == r2
 
 
 # ─────────────────────────────────────────────────────────────────────────────
