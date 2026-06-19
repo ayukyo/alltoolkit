@@ -168,6 +168,10 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ### 最近新增测试
 
+- **polyglot_anomaly**: 33 个测试用例，覆盖模块元数据、ANOMALY_DATA 结构、轮转函数、当前语言获取、语言推进、异常检测（严重级别分解/悖论/矛盾列表）、报告格式化等 🦀
+- **polyglot_pulse**: 36 个测试用例，覆盖模块元数据、语言指标、脉冲评分计算、生命体征、健康条件评估、诊断生成、脉冲测量、轮转状态更新等 💓
+- **polyglot_dna**: 48 个测试用例，覆盖模块元数据、核苷酸常量、DNA 结构、基因注释、DNA 序列生成、双螺旋比较、兼容性评分、轮转入口等 🧬
+- **polyglot_bridges**: 34 个测试用例，覆盖模块元数据、通用问题库、语义桥构建、翻译缺口发现、难度评级、桥路径生成、轮转入口等 🌉
 - **Python cycling_utils**: 48 个测试用例，覆盖速度/距离/时间计算、功率估算（平路/爬坡/风阻）、卡路里燃烧、齿轮比计算、踏频分析、爬坡指标（VAM/难度评分）、训练指标（NP/TSS/IF/训练区间）等 🚴
 - **Python diffie_hellman_utils**: 31 个测试用例，覆盖密钥生成、密钥交换、共享密钥验证、密钥派生（HKDF）、公钥导入导出、敏感数据清除、ECDH简化实现等 🔐
 - **Python gantt_chart_utils**: 37 个测试用例，覆盖任务管理、里程碑、甘特图渲染（ASCII/紧凑/表格/时间线）、统计（完成率/进度）、关键路径、数据导出等 📊
@@ -258,6 +262,10 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 | 模块 | 语言 | 测试数 | 覆盖率 |
 |------|------|--------|--------|
+| polyglot_anomaly | Python | 33 | ✅ 100% |
+| polyglot_pulse | Python | 36 | ✅ 100% |
+| polyglot_dna | Python | 48 | ✅ 100% |
+| polyglot_bridges | Python | 34 | ✅ 100% |
 | cycling_utils | Python | 48 | ✅ 100% |
 | diffie_hellman_utils | Python | 31 | ✅ 100% |
 | gantt_chart_utils | Python | 37 | ✅ 100% |
@@ -349,7 +357,7 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ---
 
-**最后更新**: 2026-05-27
+**最后更新**: 2026-06-20
 
 ### 测试框架修复 (2026-05-27)
 
