@@ -1,30 +1,38 @@
 #!/usr/bin/env python3
-"""CLI entry point for polyglot_tempo module."""
+"""
+Polyglot Tempo CLI entry point.
+Usage: python -m polyglot_tempo [--test|--analyze [language]]
+"""
 
 import sys
-import os
-import json
+from polyglot_tempo.src.tempo import (
+    analyze_tempo,
+    format_tempo_report,
+    load_rotation,
+    run_tests,
+)
 
-# Ensure AllToolkit/ is on the path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from polyglot_tempo import run_tests, tempo, generate_rhythm_report, format_rhythm_card
+def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "--test":
+        run_tests()
+    elif len(sys.argv) > 1 and sys.argv[1] == "--analyze":
+        language = sys.argv[2] if len(sys.argv) > 2 else None
+        if language:
+            analysis = analyze_tempo(language)
+            print(format_tempo_report(analysis))
+        else:
+            config = load_rotation()
+            current = config["languages"][config["current_index"]]
+            analysis = analyze_tempo(current)
+            print(format_tempo_report(analysis))
+    else:
+        print("🎵 Polyglot Tempo v1.0.0")
+        print("Usage:")
+        print("  python -m polyglot_tempo --test           # Run test suite")
+        print("  python -m polyglot_tempo --analyze        # Analyze current language")
+        print("  python -m polyglot_tempo --analyze Rust   # Analyze specific language")
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "--test":
-        run_tests()
-    elif len(sys.argv) > 1 and sys.argv[1] == "--report":
-        result = tempo()
-        print(format_rhythm_card(result))
-    elif len(sys.argv) > 1 and sys.argv[1] == "--json":
-        result = tempo()
-        print(json.dumps(result, indent=2, ensure_ascii=False))
-    else:
-        print("🎵 Polyglot Tempo v1.0.0")
-        print("   Rhythm Pattern Generator — programming languages as musical rhythms.")
-        print("")
-        print("Usage:")
-        print("  python -m polyglot_tempo --test     # Run all tests")
-        print("  python -m polyglot_tempo --report  # Human-readable rhythm card")
-        print("  python -m polyglot_tempo --json     # JSON output")
+    main()

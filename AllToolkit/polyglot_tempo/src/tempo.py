@@ -1,862 +1,509 @@
 #!/usr/bin/env python3
 """
 🎵 Polyglot Tempo v1.0
-Rhythm Pattern Generator — maps programming languages as musical rhythms.
-
-Creative concept: "Every language has a rhythm. Rust clicks with precision —
-each borrow check a metronome tick. Go flows like jazz swing — loose yet
-disciplined. JavaScript improvises like free jazz — prototype chains are
-spontaneous solos. This tool maps the tempo, time signature, and rhythmic
-personality of each language as a musical performance."
-
-Each language is characterized by:
-  - BPM (beats per minute): perceived compilation/execution speed
-  - Time Signature: how the language structures complexity
-  - Genre: musical genre that matches the language's personality
-  - Rhythm Pattern: ASCII drum-grid showing the language's characteristic beat
-  - Signature Groove: the distinctive rhythmic feel
-  - Syncopation Level: how much the language disrupts the beat
-  - Common Rhythms: typical code patterns as rhythmic figures
-  - Tempo Transition: how it feels to move from the previous language
-
-Distinct from existing tools:
-  - polyglot_harmony:       pairwise interval compatibility (musical intervals)
-  - polyglot_resonance:     harmonic frequency shifts (oscilloscope overtones)
-  - polyglot_chronology:    geological deep-time epochs (macro-scale history)
-  - polyglot_quantum:       quantum mechanics (wave functions, entanglement)
-  - polyglot_archetype_canvas: mythic archetypes (god-like personalities)
-  - polyglot_epic_saga:     epic narrative storytelling (hero's journey)
-  - polyglot_vessel:        material essence (pressure/density/buoyancy)
-  - polyglot_cartographer: geospatial mapping (latitude/longitude coordinates)
-  - language_compass:       learning journey milestones (future path)
-
-Tempo is about RHYTHM and GROOVE — the feel of a language in your fingers
-when you code, expressed as musical rhythm.
-
-Rotation order: Rust → Go → Swift → Kotlin → TypeScript → JavaScript → Java → C/C++ → Rust
+Language Rhythm Engine — musical tempo profiles for programming languages.
 """
 
 import json
 import os
+import random
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Tuple
 
 TOOL_NAME = "polyglot-tempo"
 TOOL_VERSION = "1.0.0"
 
-_MODULE_DIR = Path(__file__).parent.parent
-_WORKSPACE_ROOT = _MODULE_DIR.parent
-ROTATION_FILE = str(_WORKSPACE_ROOT / "language_rotation.json")
+# Resolve rotation file from module location
+_MODULE_DIR = Path(__file__).parent          # src/
+_POLYGLOT_DIR = _MODULE_DIR.parent           # polyglot_tempo/
+_WORKSPACE_ROOT = _POLYGLOT_DIR.parent       # AllToolkit/
+_ROTATION_FILE = str(_WORKSPACE_ROOT / "language_rotation.json")
 
-ROTATION_ORDER: List[str] = [
-    "Rust", "Go", "Swift", "Kotlin",
-    "TypeScript", "JavaScript", "Java", "C/C++",
-]
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Rhythm Database — each language as a musical rhythm/beat profile
-# ─────────────────────────────────────────────────────────────────────────────
-
-RHYTHM_DATA: Dict[str, Dict[str, Any]] = {
-
+# ── Language tempo signatures ─────────────────────────────────────────────────
+# Each language has a BPM range, time signature, and rhythm character.
+LANGUAGE_RHYTHMS: Dict[str, Dict[str, Any]] = {
     "Rust": {
-        "bpm": 120,
+        "bpm_range": (110, 130),
         "time_signature": "4/4",
-        "genre": "Electronic Precision (Techno/Drum Machine)",
-        "genre_emoji": "🎛️",
-        "tempo_label": "Moderato — deliberate and exact",
-        "description": (
-            "Rust coding feels like a drum machine: each keystroke triggers a precise, "
-            "predictable event. The borrow checker is the metronome — unforgiving, "
-            "but once you lock into its groove, you feel invincible. It's tight "
-            "4-on-the-floor techno: no swing, no blur, just precise quantization."
-        ),
-        "signature_groove": "Clockwork Click",
-        "groove_description": (
-            "Every operation lands exactly on the grid. No ghost notes, no swing — "
-            "just pure quantized precision. The closest comparison: a Roland TR-808 "
-            "kick on every beat with hi-hats at 16th notes, every hit perfectly timed."
-        ),
-        "syncopation_level": 1,  # 1-10, where 10 is highly syncopated
-        "drum_pattern": [
-            ("Kick",    "█   │   │   │   │   │   │   │   │"),
-            ("Snare",   "│   │   │ ░ │   │   │   │ ░ │   │"),
-            ("Hi-Hat",  "┄┄┄│┄┄│┄┄│┄┄│┄┄│┄┄│┄┄│┄┄│"),
-            ("Shaker",  "┄┄┄│▒▒│┄┄│▒▒│┄┄┄│▒▒│┄┄│▒▒│"),
-        ],
-        "common_rhythms": [
-            {"name": "Ownership Transfer", "pattern": "█ → █ (ownership moves, not copied)", "bpm_factor": 1.0},
-            {"name": "Match Expression", "pattern": "░ │ ░ │ (binary decision on beat)", "bpm_factor": 1.0},
-            {"name": "Result Propagation", "pattern": "▓?▓?▓? (early return on error)", "bpm_factor": 1.2},
-            {"name": "Iterator Chain", "pattern": "┄┄┄┄ (fluid, continuous stream)", "bpm_factor": 0.9},
-        ],
-        "transition_from": {
-            "C/C++": "C's raw freedom now has a metronome — the borrow checker adds structure without killing the groove. It feels like adding a drum machine to a rock band.",
-            "Go": "Go's goroutine jazz feels chaotic compared to Rust's quantized precision. The shift is from swing to straight.",
-            "default": "Every language feels looser after Rust's strict grid.",
-        },
-        "rhythm_quote": "In Rust, the rhythm is not in the code — it's in the compiler's clock. You learn to code on the beat or you don't code at all.",
-        "beat_strength": 10,  # How strong/emphasis the downbeat is
-        "ghost_note_frequency": 1,  # How often ghost notes appear (1=never, 10=very often)
-        "swing_percentage": 0,  # 0 = straight, 50 = shuffle
-        "polyrhythm_depth": 1,  # How many layers of independent rhythms
+        "character": "precise metronome",
+        "feel": "measured, deliberate, unapologetically strict",
+        "signature_note": "quarter",
+        "syncopation": 0.15,
+        "groove_factor": 0.3,
+        "rhythm_tags": ["steady", "disciplined", "architectural", "formal"],
+        "composer_equivalent": "Bach — mathematical precision with emotional depth",
+        "mood_keywords": ["controlled", "intense", "structured"],
     },
-
     "Go": {
-        "bpm": 130,
+        "bpm_range": (120, 140),
         "time_signature": "4/4",
-        "genre": "Jazz Fusion (Groove-Oriented)",
-        "genre_emoji": "🎷",
-        "tempo_label": "Vivace — lively and loose",
-        "description": (
-            "Go coding feels like playing in a jazz combo: the goroutines are "
-            "improvisational solos, the channels are call-and-response between "
-            "musicians, and the GC is the bassist laying down a steady groove. "
-            "There's intentional imperfection — `go fmt` is the gentle nudge "
-            "to stay in pocket, not a rigid metronome."
-        ),
-        "signature_groove": "Jazz Pocket",
-        "groove_description": (
-            "Go code feels like being in the pocket — that magical jazz state where "
-            "everyone is slightly behind the beat, creating a deep, laid-back groove. "
-            "Goroutines swing, channels breathe. The GC pause is like a fermata: "
-            "a moment of held time before continuing."
-        ),
-        "syncopation_level": 6,
-        "drum_pattern": [
-            ("Kick",    "█   │   │ ░ │   │█   │   │ ░ │   │"),
-            ("Snare",   "│   │   │ █ │   ││   │   │ █ │   │"),
-            ("Hi-Hat",  "┄┄┄│┄┄│░░░│┄┄│┄┄┄│┄┄│░░░│┄┄│"),
-            ("Shaker",  "░░░│░░░│░░░│░░░│░░░│░░░│░░░│░░░│"),
-        ],
-        "common_rhythms": [
-            {"name": "Goroutine Spawn", "pattern": "◐ + ◌ (async fire and forget)", "bpm_factor": 1.3},
-            {"name": "Channel Send/Recv", "pattern": "← → (bidirectional call-response)", "bpm_factor": 1.0},
-            {"name": "defer Cleanup", "pattern": "└ ┐ (postponed, guaranteed)", "bpm_factor": 0.95},
-            {"name": "Error Return", "pattern": "_, _ = f() (ignore and continue)", "bpm_factor": 1.1},
-        ],
-        "transition_from": {
-            "Rust": "Rust's rigid grid now has breathing room. Goroutines swing where Rust forced straight 16ths.",
-            "Java": "Java's orchestra feels heavy. Go's jazz combo is leaner, each musician (goroutine) essential.",
-            "default": "Go brings groove where others only have beats.",
-        },
-        "rhythm_quote": "Go's rhythm is not in the code structure — it's in the collaboration. Channels are conversations, goroutines are solos, and the GC keeps the bass line going.",
-        "beat_strength": 7,
-        "ghost_note_frequency": 5,
-        "swing_percentage": 15,
-        "polyrhythm_depth": 3,
+        "character": "drum machine",
+        "feel": "steady, utilitarian, no wasted beats",
+        "signature_note": "eighth",
+        "syncopation": 0.25,
+        "groove_factor": 0.5,
+        "rhythm_tags": ["steady", "pragmatic", "goroutine-pulse", "minimalist"],
+        "composer_equivalent": "Philip Glass — repetitive patterns with subtle evolution",
+        "mood_keywords": ["consistent", "efficient", "relaxed confidence"],
     },
-
     "Swift": {
-        "bpm": 126,
+        "bpm_range": (100, 125),
         "time_signature": "4/4",
-        "genre": "Chamber Pop (Elegant & Refined)",
-        "genre_emoji": "🎻",
-        "tempo_label": "Andante — graceful and measured",
-        "description": (
-            "Swift coding feels like playing in a string quartet: every gesture "
-            "is deliberate, every optional nil a rest in the music, every protocol "
-            "extension a new voice joining the ensemble. ARC (Automatic Reference "
-            "Counting) is like a conductor tracking every musician's breath — "
-            "precise but invisible to the audience."
-        ),
-        "signature_groove": "Elegant Legato",
-        "groove_description": (
-            "Swift code flows in long, connected phrases — legato lines where "
-            "types flow into each other. Optional unwrapping is a breath before "
-            "continuing the melody. The Swift compiler is like a patient conductor: "
-            "it lets you play, only stepping in when you're truly lost."
-        ),
-        "syncopation_level": 4,
-        "drum_pattern": [
-            ("Kick",    "█   │   │   │   │ ░ │   │   │   │"),
-            ("Snare",   "│   │ ░ │   │   ││   │ ░ │   │   │"),
-            ("Cello",   "▓▓▓▓│▓▓▓▓│▓▓▓▓│▓▓▓▓│▓▓▓▓│▓▓▓▓│▓▓▓▓│▓▓▓▓│"),
-            ("Violin",  "~~~~│~~~~│~~~~│~~~~│~~~~│~~~~│~~~~│~~~~│"),
-        ],
-        "common_rhythms": [
-            {"name": "Optional Unwrap", "pattern": "▓ ? ▓ (safe nil check, continue or halt)", "bpm_factor": 1.0},
-            {"name": "Protocol Extension", "pattern": "▓ + ▓ (adding behavior to existing types)", "bpm_factor": 0.9},
-            {"name": "Async/Await", "pattern": "▓ → ▓ (sequential but non-blocking)", "bpm_factor": 1.1},
-            {"name": "Result Builder", "pattern": "▓▓▓▓ (composing nested structures declaratively)", "bpm_factor": 0.85},
-        ],
-        "transition_from": {
-            "Kotlin": "Kotlin's pragmatic tempo shifts to Swift's refined chamber aesthetic. Extensions feel like adding instruments to an existing ensemble.",
-            "Rust": "Rust's rigid techno softens into Swift's legato elegance — safety without the machine click.",
-            "default": "Swift brings graceful phrasing where others play in figures.",
-        },
-        "rhythm_quote": "Swift's rhythm is a chamber piece — intimate, refined, every voice purposeful. The protocol is the score; the compiler is the conductor.",
-        "beat_strength": 6,
-        "ghost_note_frequency": 4,
-        "swing_percentage": 5,
-        "polyrhythm_depth": 2,
+        "character": "legato melody",
+        "feel": "smooth, expressive, elegant phrasing",
+        "signature_note": "dotted quarter",
+        "syncopation": 0.35,
+        "groove_factor": 0.65,
+        "rhythm_tags": ["smooth", "expressive", "elegant", "flowing"],
+        "composer_equivalent": "Debussy — impressionistic, flowing, beautiful",
+        "mood_keywords": ["graceful", "refined", "aesthetic"],
     },
-
     "Kotlin": {
-        "bpm": 132,
+        "bpm_range": (105, 130),
         "time_signature": "4/4",
-        "genre": "Electronic House (Infectious & Practical)",
-        "genre_emoji": "🪩",
-        "tempo_label": "Allegro — fast, bright, and upbeat",
-        "description": (
-            "Kotlin coding feels like a DJ set at a dance club: the coroutines "
-            "are layered tracks mixing seamlessly, the extension functions are "
-            "remixes of existing tracks, and the null safety is the crowd control "
-            "keeping the dance floor safe. It's designed to keep the energy up — "
-            "pragmatic EDM that knows its audience wants to move."
-        ),
-        "signature_groove": "Club Four-On-The-Floor",
-        "groove_description": (
-            "Kotlin code is pure 4/4 house: kick on every beat, energy never drops. "
-            "The bass line (JVM) is deep and reliable. Extension functions add "
-            "layers without changing the track. Coroutines mix in new rhythmic "
-            "patterns without stopping the main groove. The dance floor (thread) "
-            "is always moving."
-        ),
-        "syncopation_level": 5,
-        "drum_pattern": [
-            ("Kick",    "█   │   │   │   │█   │   │   │   │"),
-            ("Clap",    "│ ░ │ ░ │ ░ │ │ ░ │ ░ │ ░ │ │"),
-            ("Hi-Hat",  "┄┄┄│┄┄│┄┄│┄▒│┄┄┄│┄┄│┄▒│┄▒│"),
-            ("Bass",    "▓▓▓▓│▓▓▓▓│▓▓▓▓│▓▓▓▓│▓▓▓▓│▓▓▓▓│▓▓▓▓│▓▓▓▓│"),
-        ],
-        "common_rhythms": [
-            {"name": "Extension Function", "pattern": "▓ + ○ = ▓ (adding methods to closed classes)", "bpm_factor": 1.0},
-            {"name": "Coroutine Flow", "pattern": "▓ → ▓ → ▓ (stream of data, non-blocking)", "bpm_factor": 1.15},
-            {"name": "Smart Cast", "pattern": "▓ ▓ ▓ (type narrows automatically within blocks)", "bpm_factor": 0.9},
-            {"name": "Scope Function", "pattern": "let │ also │ apply │ run (four flavors)", "bpm_factor": 1.05},
-        ],
-        "transition_from": {
-            "Swift": "Swift's chamber elegance becomes a club banger. Extensions are DJ remixes.",
-            "Java": "Java's orchestral formality simplifies into Kotlin's club energy — same bass, better party.",
-            "default": "Kotlin turns Java's enterprise jazz into a dance club.",
-        },
-        "rhythm_quote": "Kotlin's rhythm is a club night: the bass (JVM) never stops, extensions remix the playlist, and everyone dances in null safety.",
-        "beat_strength": 8,
-        "ghost_note_frequency": 3,
-        "swing_percentage": 0,
-        "polyrhythm_depth": 3,
+        "character": "chamber ensemble",
+        "feel": "harmonious layers, cooperative voices, clean counterpoint",
+        "signature_note": "quarter",
+        "syncopation": 0.3,
+        "groove_factor": 0.55,
+        "rhythm_tags": ["harmonious", "layered", "pragmatic", "modern"],
+        "composer_equivalent": "Mendelssohn — polished, balanced, melodic wit",
+        "mood_keywords": ["balanced", "cooperative", "polished"],
     },
-
     "TypeScript": {
-        "bpm": 138,
+        "bpm_range": (115, 140),
         "time_signature": "4/4",
-        "genre": "Synthwave (Retro-Futuristic Digital)",
-        "genre_emoji": "🌆",
-        "tempo_label": "Presto — rapid and fluid",
-        "description": (
-            "TypeScript coding feels like driving a neon-lit highway at night: "
-            "the types are lane markings keeping you from crashing, the IDE is "
-            "the dashboard display, and JavaScript underneath is the engine you "
-            "never see but always feel. It's synthesizer-driven coding: the "
-            "analog warmth of JS with digital type safety painted over it."
-        ),
-        "signature_groove": "Retrowave Pulse",
-        "groove_description": (
-            "TypeScript code pulses with a retrofuturist beat: arpeggiated "
-            "type hierarchies building like synthesizer pads, the compiler "
-            "checking types like a drum machine laying down a steady kick. "
-            "undefined is silence; null is a rest. The type system is the "
-            "lead synth — complex, layered, sometimes overwhelming."
-        ),
-        "syncopation_level": 5,
-        "drum_pattern": [
-            ("Kick",    "█   │   │   │ ░ │█   │   │   │ ░ │"),
-            ("Synth",   "░░░░│░░░░│▓▓▓▓│░░░░│░░░░│░░░░│▓▓▓▓│░░░░│"),
-            ("Arp",     "◐ ◑ │ ◐ ◑ │ ◐ ◑ │ ◐ ◑ │"),
-            ("Bass",    "▓▓▓▓│▓▓░░│▓▓▓▓│▓▓░░│▓▓▓▓│▓▓░░│▓▓▓▓│▓▓░░│"),
-        ],
-        "common_rhythms": [
-            {"name": "Generic Constraint", "pattern": "<T extends ▓> (bounded polymorphism)", "bpm_factor": 1.0},
-            {"name": "Union Type Match", "pattern": "▓ | ▓ | ▓ (exhaustive case handling)", "bpm_factor": 1.1},
-            {"name": "Optional Chaining", "pattern": "▓?.▓?.▓ (safe deep property access)", "bpm_factor": 0.95},
-            {"name": "Utility Types", "pattern": "Partial│Pick│Omit (type transformations)", "bpm_factor": 0.9},
-        ],
-        "transition_from": {
-            "JavaScript": "JS's free jazz gets lane markings and a dashboard. The engine is the same, the ride is safer.",
-            "Kotlin": "Kotlin's club energy shifts to synthwave — same BPM, different aesthetic.",
-            "default": "TypeScript paints neon over JavaScript's analog warmth.",
-        },
-        "rhythm_quote": "TypeScript's rhythm is a retrofuture highway: types are lane markings, generics are overpasses, and the compiler is the speedometer keeping you safe.",
-        "beat_strength": 7,
-        "ghost_note_frequency": 4,
-        "swing_percentage": 0,
-        "polyrhythm_depth": 2,
+        "character": "synth pop beat",
+        "feel": "bright, rhythmic, modern energy with type-safe structure",
+        "signature_note": "eighth",
+        "syncopation": 0.45,
+        "groove_factor": 0.7,
+        "rhythm_tags": ["bright", "rhythmic", "modern", "typed"],
+        "composer_equivalent": "Daft Punk — electronic precision with dance energy",
+        "mood_keywords": ["energetic", "structured", "forward-looking"],
     },
-
     "JavaScript": {
-        "bpm": 144,
+        "bpm_range": (120, 155),
         "time_signature": "4/4",
-        "genre": "Free Jazz / Experimental Electronic",
-        "genre_emoji": "🎹",
-        "tempo_label": "Molto Vivace — wild and improvisational",
-        "description": (
-            "JavaScript coding feels like a late-night free jazz session: "
-            "everything is in flux, prototypes are spontaneous compositions, "
-            "callbacks are circular breathing, and the event loop is the drummer "
-            "who never stops. It is the most alive, most unpredictable, most "
-            "exhilarating language to work with — if you can handle the chaos."
-        ),
-        "signature_groove": "Free Improvisation",
-        "groove_description": (
-            "JavaScript code has no fixed grid — it breathes, expands, contracts. "
-            "Prototype chains link objects in real-time like musicians calling "
-            "to each other across the stage. Closures capture the session's "
-            "memory like a recording. The event loop is relentless — a polyrhythmic "
-            "percussion layer that never stops, even when you're not playing."
-        ),
-        "syncopation_level": 9,
-        "drum_pattern": [
-            ("Kick",    "█   │ ░ │ ▓ │   │█ ░ │ ░ │ ▓ │ ░ │"),
-            ("Snare",   "░ │ █ │ ░ │ ▓ │ ░ │ █ │ ░ │ ▓ │"),
-            ("Keys",    "◐ ◑ ◐ │◑ ◐ ◑ │◐ ◑ ◐ │◑ ◐ ◑ │"),
-            ("Loop",    "░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│"),
-        ],
-        "common_rhythms": [
-            {"name": "Callback Hell", "pattern": "f(g(h(i()))) (nesting like counterpoint)", "bpm_factor": 1.4},
-            {"name": "Prototype Chain", "pattern": ".__proto__ → .__proto__ → Object", "bpm_factor": 1.0},
-            {"name": "Closure Capture", "pattern": "[▓] → (▓) → [▓] (captured state)", "bpm_factor": 1.1},
-            {"name": "Event Loop", "pattern": "▓ ▓ ▓ ▓ ▓ (never stops, always callbacks)", "bpm_factor": 1.5},
-        ],
-        "transition_from": {
-            "TypeScript": "The safety net dissolves. Free jazz replaces the synthesizer — more dangerous, more alive.",
-            "Python": "Python's zen simplicity explodes into JavaScript's free-form expression.",
-            "default": "JavaScript removes the grid — are you ready to improvise?",
-        },
-        "rhythm_quote": "JavaScript's rhythm is a free jazz session — no sheet music, no rules, just the event loop as an endless polyrhythmic groove. The best musicians play without a net.",
-        "beat_strength": 5,
-        "ghost_note_frequency": 9,
-        "swing_percentage": 25,
-        "polyrhythm_depth": 5,
+        "character": "syncopated jazz",
+        "feel": "improvisational, loose, creative, sometimes chaotic",
+        "signature_note": "sixteenth",
+        "syncopation": 0.65,
+        "groove_factor": 0.85,
+        "rhythm_tags": ["syncopated", "improvisational", "dynamic", "free-form"],
+        "composer_equivalent": "Herbie Hancock — technically grounded, wildly creative",
+        "mood_keywords": ["free", "expressive", "versatile", "rule-bending"],
     },
-
     "Java": {
-        "bpm": 108,
+        "bpm_range": (90, 115),
         "time_signature": "4/4",
-        "genre": "Symphonic Jazz (Large Ensemble, Structured)",
-        "genre_emoji": "🎼",
-        "tempo_label": "Moderato con moto — moderate but with forward motion",
-        "description": (
-            "Java coding feels like conducting a jazz symphony: every instrument "
-            "(thread) has a part, the conductor (JVM) keeps everyone in sync, "
-            "and the music is composed well in advance (compiled). The orchestra "
-            "is large, the music is complex, and everything has its place. "
-            "Virtual threads (Java 21) add more musicians without more sheet music."
-        ),
-        "signature_groove": "Symphonic Structure",
-        "groove_description": (
-            "Java code is structured jazz: the composition is set, the musicians "
-            "are numerous, the conductor (JVM) is experienced. Every section plays "
-            "its part in lockstep when needed, improvises when allowed. The "
-            "type system is the musical score — verbose but unambiguous. "
-            "Checked exceptions are sheet music markings: this section may "
-            "require a solo adjustment."
-        ),
-        "syncopation_level": 3,
-        "drum_pattern": [
-            ("Kick",    "█   │   │   │   │█   │   │   │   │"),
-            ("Snare",   "│   │ █ │   │   ││   │ █ │   │   │"),
-            ("Cymbals", "─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─"),
-            ("Toms",    "▓▓  │  ▓▓│  ▓▓│  ▓▓│▓▓  │  ▓▓│  ▓▓│  ▓▓│"),
-        ],
-        "common_rhythms": [
-            {"name": "Thread Pool", "pattern": "[▓▓▓▓] → executor → [▓▓▓▓] (concurrent workers)", "bpm_factor": 1.0},
-            {"name": "Stream Pipeline", "pattern": "▓ │ ▓ │ ▓ │ ▓ (chained transformation)", "bpm_factor": 0.95},
-            {"name": "Virtual Thread", "pattern": "[▓][▓][▓][▓] (lightweight, millions possible)", "bpm_factor": 1.3},
-            {"name": "Lambda Expression", "pattern": "(▓) → ▓ (concise behavior passed as argument)", "bpm_factor": 1.0},
-        ],
-        "transition_from": {
-            "JavaScript": "Free jazz becomes a symphony. Every musician has a seat, a part, and a conductor.",
-            "Kotlin": "Kotlin's club energy formalizes into Java's concert hall — same jazz DNA, more formal venue.",
-            "default": "Java brings symphonic structure — larger ensemble, longer composition.",
-        },
-        "rhythm_quote": "Java's rhythm is a symphonic jazz ensemble: the JVM is the conductor, threads are musicians, and the composition (bytecode) plays on every stage.",
-        "beat_strength": 8,
-        "ghost_note_frequency": 2,
-        "swing_percentage": 10,
-        "polyrhythm_depth": 4,
+        "character": "symphonic march",
+        "feel": "grand, structured, ceremonial, heavyweight procession",
+        "signature_note": "half",
+        "syncopation": 0.2,
+        "groove_factor": 0.4,
+        "rhythm_tags": ["grand", "structured", "ceremonial", "enterprise"],
+        "composer_equivalent": "Beethoven (late period) — monumental, formal, authoritative",
+        "mood_keywords": ["authoritative", "ceremonial", "grand"],
     },
-
     "C/C++": {
-        "bpm": 160,
-        "time_signature": "5/4 & 7/8 (odd meters)",
-        "genre": "Progressive Metal / Math Rock",
-        "genre_emoji": "🎸",
-        "tempo_label": "Prestissimo — extremely fast and complex",
-        "description": (
-            "C/C++ coding feels like playing progressive metal: you have "
-            "absolute control over every parameter, the time signatures "
-            "change without warning (pointer arithmetic), and the consequences "
-            "of a mistake are severe (segfault = faceplant). Templates are "
-            "sweeping guitar arpeggios; RAII is the drummer hitting every "
-            "accent perfectly. It's the most technically demanding genre."
-        ),
-        "signature_groove": "Polyrhythmic Assault",
-        "groove_description": (
-            "C/C++ code shifts time signatures constantly: 4/4 for simple loops, "
-            "then sudden 7/8 for template metaprogramming, 5/4 for class hierarchies. "
-            "Pointers are silence — rests between notes that hold meaning. "
-            "The preprocessor is a DJ remixing the track at compile time. "
-            "Memory management is performing the music while tuning the instrument."
-        ),
-        "syncopation_level": 8,
-        "drum_pattern": [
-            ("Kick",    "█   │   │ █ │   │█   │   │   │ █ │"),
-            ("Snare",   "│   │ █ │   │ █ ││   │ █ │   │ █ │"),
-            ("Guitar",  "▓▓▓▓▓│▓▓▓▓▓│▓▓▓▓▓│▓▓▓▓▓│▓▓▓▓▓│▓▓▓▓▓│"),
-            ("Poly",    "3 vs 2 vs 4 ││ 5 vs 3 vs 7 ││"),
-        ],
-        "common_rhythms": [
-            {"name": "Pointer Arithmetic", "pattern": "*p → *(p+n) → *(p+n+m) (address walking)", "bpm_factor": 1.5},
-            {"name": "Template Metaprogramming", "pattern": "⟨T⟩⟨U⟩⟨V⟩ (compile-time computation)", "bpm_factor": 1.2},
-            {"name": "RAII Pattern", "pattern": [0, 0, 0, 'dispose'] + 'acquire' + [0, 0, 0, 'dispose'], "bpm_factor": 1.0},
-            {"name": "Move Semantics", "pattern": "▓ → ∅ (ownership transfer, not copy)", "bpm_factor": 0.9},
-        ],
-        "transition_from": {
-            "Java": "Java's symphonic structure fragments into progressive metal — same complexity, rawer power.",
-            "Rust": "Rust's drum machine gains guitar distortion and odd time signatures.",
-            "default": "C/C++ takes back the control rod — you're the conductor now.",
-        },
-        "rhythm_quote": "C/C++'s rhythm is progressive metal: every time signature is allowed, every sound is possible, and the audience doesn't forgive a missed note.",
-        "beat_strength": 9,
-        "ghost_note_frequency": 8,
-        "swing_percentage": 0,
-        "polyrhythm_depth": 5,
+        "bpm_range": (60, 90),
+        "time_signature": "4/4",
+        "character": "slow heartbeat",
+        "feel": "deep, powerful, low-frequency pulse — each beat carries weight",
+        "signature_note": "whole",
+        "syncopation": 0.1,
+        "groove_factor": 0.2,
+        "rhythm_tags": ["deep", "powerful", "low-frequency", "weighty"],
+        "composer_equivalent": "Philip Glass (slow movements) — minimalist weight",
+        "mood_keywords": ["powerful", "deliberate", "ancient", "heavy"],
     },
 }
 
+LANGUAGE_NOTE_VALUES: Dict[str, str] = {
+    lang: data["signature_note"] for lang, data in LANGUAGE_RHYTHMS.items()
+}
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Helpers
-# ─────────────────────────────────────────────────────────────────────────────
+GENRE_DESCRIPTIONS: Dict[str, str] = {
+    "precise metronome": "A language that enforces discipline through its type system and ownership model. Every beat is accounted for.",
+    "drum machine": "A language built for reliability and speed. Think of a drum machine laying down a perfect groove every time.",
+    "legato melody": "A language designed for expressiveness and elegance. Like a long, connected melodic line with no breaks.",
+    "chamber ensemble": "A language that harmonizes multiple paradigms. Different parts work together like a string quartet.",
+    "synth pop beat": "A modern, electronic feel — structured beneath but danceable on the surface. Type safety meets rapid iteration.",
+    "syncopated jazz": "Free-form and expressive. The rules are more like guidelines. Expect surprises and creative solutions.",
+    "symphonic march": "Grand and ceremonial. Built for large ensembles. Everything has a place and a formal role.",
+    "slow heartbeat": "Deep, powerful, and foundational. Low frequency means each beat resonates long after it's struck.",
+}
 
-def load_rotation() -> Dict[str, Any]:
-    """Load language rotation config."""
-    with open(ROTATION_FILE, "r", encoding="utf-8") as f:
+TEMPO_TIER_LABELS: Dict[str, str] = {
+    "prestissimo": "⚡ Prestissimo — Blazing fast (>150 BPM)",
+    "presto": "🎹 Presto — Fast and fluid (135-150 BPM)",
+    "allegro": "🎸 Allegro — Quick and lively (110-134 BPM)",
+    "andante": "🚶 Andante — Walking pace (85-109 BPM)",
+    "adagio": "🌊 Adagio — Slow and expressive (<85 BPM)",
+}
+
+
+def _resolve_rotation_path() -> str:
+    """Resolve the rotation file path, checking multiple locations."""
+    paths_to_try = [
+        _ROTATION_FILE,
+        os.path.join(os.path.dirname(__file__), "..", "..", "language_rotation.json"),
+    ]
+    for p in paths_to_try:
+        if os.path.exists(p):
+            return p
+    # Fallback: use workspace root
+    return _ROTATION_FILE
+
+
+def load_rotation() -> dict:
+    """Load language rotation config from language_rotation.json."""
+    path = _resolve_rotation_path()
+    with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
-def save_rotation(data: Dict[str, Any]) -> None:
-    """Save updated rotation config."""
-    with open(ROTATION_FILE, "w", encoding="utf-8") as f:
+def save_rotation(data: dict) -> None:
+    """Save updated rotation config to language_rotation.json."""
+    path = _resolve_rotation_path()
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
         f.write("\n")
 
 
-def get_current_language() -> str:
-    """Get current language from rotation without advancing."""
+def compute_next_language(language: str) -> str:
+    """Advance rotation and return the next language."""
     config = load_rotation()
-    idx = config["current_index"] % len(config["languages"])
-    return config["languages"][idx]
-
-
-def advance_rotation() -> tuple[str, int]:
-    """Advance rotation and return (language, new_index)."""
-    config = load_rotation()
-    idx = config["current_index"]
-    lang = config["languages"][idx]
-    new_idx = (idx + 1) % len(config["languages"])
-    config["current_index"] = new_idx
-    config["last_language"] = lang
+    languages = config["languages"]
+    if language not in languages:
+        raise ValueError(f"Language '{language}' not in rotation list")
+    current_idx = languages.index(language)
+    next_idx = (current_idx + 1) % len(languages)
+    next_language = languages[next_idx]
+    # Update rotation state
+    config["current_index"] = next_idx
+    config["last_language"] = language
     config["updated_at"] = datetime.now(timezone.utc).isoformat()
     save_rotation(config)
-    return lang, new_idx
+    return next_language
 
 
-def get_previous_language() -> Optional[str]:
-    """Get the previous language from the rotation."""
-    config = load_rotation()
-    return config.get("last_language")
+def get_tempo_tier(bpm: int) -> str:
+    """Classify a BPM into a tempo tier (standard music terminology)."""
+    if bpm > 150:
+        return "prestissimo"
+    elif bpm >= 135:
+        return "presto"
+    elif bpm >= 110:
+        return "allegro"
+    elif bpm >= 85:
+        return "andante"
+    else:
+        return "adagio"
 
 
-def build_drum_grid(drum_rows: List[tuple]) -> str:
-    """Build a visual ASCII drum grid from drum pattern rows."""
-    lines = []
-    # Header with beat numbers
-    beats = "│".join(str(i + 1).rjust(3) for i in range(8))
-    lines.append("     " + beats)
-    lines.append("     " + "─" * 41)
-
-    for instrument, pattern in drum_rows:
-        # The pattern already has beat separators
-        lines.append(f"  {instrument:<8} {pattern}")
-
-    return "\n".join(lines)
-
-
-def build_syncopation_bar(level: int) -> str:
-    """Build a syncopation visualization bar."""
-    filled = "█" * level
-    empty = "░" * (10 - level)
-    return f"[{filled}{empty}] {level}/10"
-
-
-def compute_transition_feel(from_lang: str, to_lang: str) -> Dict[str, str]:
-    """Describe what the transition between two languages feels like rhythmically."""
-    to_data = RHYTHM_DATA.get(to_lang, {})
-    transitions = to_data.get("transition_from", {})
-    feel = transitions.get(from_lang, transitions.get("default", ""))
+def get_tempo_profile(language: str) -> Dict[str, Any]:
+    """Get the musical tempo profile for a language."""
+    if language not in LANGUAGE_RHYTHMS:
+        raise ValueError(f"Language '{language}' not recognized. "
+                         f"Available: {list(LANGUAGE_RHYTHMS.keys())}")
+    data = LANGUAGE_RHYTHMS[language]
+    # Deterministic BPM based on language name
+    rng = random.Random(hash(language))
+    bpm_low, bpm_high = data["bpm_range"]
+    bpm = rng.randint(bpm_low, bpm_high)
+    tier = get_tempo_tier(bpm)
+    tier_label = TEMPO_TIER_LABELS[tier]
     return {
-        "from": from_lang,
-        "to": to_lang,
-        "feel": feel,
+        "bpm": bpm,
+        "bpm_range": data["bpm_range"],
+        "time_signature": data["time_signature"],
+        "tempo_tier": tier,
+        "tempo_tier_label": tier_label,
+        "character": data["character"],
+        "feel": data["feel"],
+        "signature_note": data["signature_note"],
+        "syncopation": data["syncopation"],
+        "groove_factor": data["groove_factor"],
+        "rhythm_tags": data["rhythm_tags"],
+        "composer_equivalent": data["composer_equivalent"],
+        "mood_keywords": data["mood_keywords"],
+        "genre_description": GENRE_DESCRIPTIONS[data["character"]],
     }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Main Tempo Function
-# ─────────────────────────────────────────────────────────────────────────────
-
-def tempo(rotate: bool = True) -> Dict[str, Any]:
+def generate_beat_pattern(language: str, bars: int = 4) -> List[str]:
+    """Generate an ASCII drum/beat pattern for the language.
+    
+    Each bar has 4 beats (time signature 4/4). The pattern uses:
+      - ● = strong beat (downbeat)
+      - ○ = weak beat (upbeat)
+      - ◑ = syncopated/off-beat
+      - ░ = rest/rests between phrases
     """
-    Generate a rhythm profile for the current rotation language.
-    Reads language_rotation.json, selects the current language,
-    and generates a full musical rhythm analysis.
+    if language not in LANGUAGE_RHYTHMS:
+        raise ValueError(f"Language '{language}' not recognized")
+    data = LANGUAGE_RHYTHMS[language]
+    syncopation = data["syncopation"]
+    groove = data["groove_factor"]
+    rng = random.Random(hash(language + str(bars)))
 
-    Args:
-        rotate: If True, advance the rotation index after selecting.
+    beats_map = {
+        "quarter": 4,
+        "eighth": 8,
+        "dotted quarter": 6,
+        "half": 2,
+        "whole": 1,
+        "sixteenth": 16,
+    }
+    subdivision = beats_map.get(data["signature_note"], 4)
 
-    Returns:
-        A dictionary containing the full rhythm profile.
-    """
+    pattern_lines = []
+    for bar in range(bars):
+        bar_beats = []
+        for beat in range(4):
+            r = rng.random()
+            # Determine what to play on this beat
+            if beat == 0:  # Always strong downbeat
+                bar_beats.append("●")
+            elif r < syncopation * 0.5:
+                bar_beats.append("◑")
+            elif r < groove:
+                bar_beats.append("○")
+            else:
+                bar_beats.append("░")
+        pattern_lines.append("  ".join(bar_beats))
+
+    return pattern_lines
+
+
+def get_language_genre(language: str) -> str:
+    """Get a short genre tag for the language's musical character."""
+    if language not in LANGUAGE_RHYTHMS:
+        raise ValueError(f"Language '{language}' not recognized")
+    return LANGUAGE_RHYTHMS[language]["character"]
+
+
+def analyze_tempo(language: str) -> Dict[str, Any]:
+    """Main entry point — full tempo analysis for a language."""
     config = load_rotation()
     languages = config["languages"]
 
-    if rotate:
-        current_lang, new_idx = advance_rotation()
-    else:
-        idx = config["current_index"]
-        current_lang = languages[idx]
-        new_idx = idx
+    if language not in languages:
+        raise ValueError(f"Language '{language}' not in rotation list. "
+                         f"Available: {languages}")
 
-    prev_lang = get_previous_language()
-    data = RHYTHM_DATA.get(current_lang)
+    profile = get_tempo_profile(language)
+    beat_pattern = generate_beat_pattern(language, bars=4)
+    genre = get_language_genre(language)
+    next_language = compute_next_language(language)
 
-    if not data:
-        raise ValueError(f"No rhythm data for language: {current_lang}")
+    # Find rotation position
+    current_idx = languages.index(language)
 
-    # Build drum grid visualization
-    drum_grid = build_drum_grid(data["drum_pattern"])
-
-    # Build rhythm patterns display
-    rhythm_patterns = []
-    for rhythm in data["common_rhythms"]:
-        rhythm_patterns.append({
-            "name": rhythm["name"],
-            "pattern": rhythm["pattern"],
-            "bpm_factor": rhythm["bpm_factor"],
-            "effective_bpm": round(data["bpm"] * rhythm["bpm_factor"]),
-        })
-
-    # Compute transition
-    transition = None
-    if prev_lang:
-        transition = compute_transition_feel(prev_lang, current_lang)
-
-    # Get next language
-    next_lang = languages[(new_idx) % len(languages)]
-
-    # Build polyrhythm visualization
-    polyrhythm_vis = " × ".join(str(i + 1) for i in range(data["polyrhythm_depth"]))
-
-    # Build swing/syncopation summary
-    swing_label = (
-        "Straight (0%)" if data["swing_percentage"] == 0 else
-        f"Shuffle ({data['swing_percentage']}%)" if data["swing_percentage"] < 50 else
-        f"Swung ({data['swing_percentage']}%)"
-    )
-
-    result = {
+    return {
         "tool": TOOL_NAME,
         "version": TOOL_VERSION,
-        "selected_language": current_lang,
-        "previous_language": prev_lang,
-        "next_language": next_lang,
-        "rotation": languages,
-        "rhythm_profile": {
-            "bpm": data["bpm"],
-            "tempo_label": data["tempo_label"],
-            "time_signature": data["time_signature"],
-            "genre": data["genre"],
-            "genre_emoji": data["genre_emoji"],
-            "description": data["description"],
-            "signature_groove": data["signature_groove"],
-            "groove_description": data["groove_description"],
-        },
-        "drum_grid": drum_grid,
-        "syncopation": {
-            "level": data["syncopation_level"],
-            "bar": build_syncopation_bar(data["syncopation_level"]),
-            "label": (
-                "Rigid grid — every hit on the beat" if data["syncopation_level"] <= 2 else
-                "Slight groove — occasional ghost notes" if data["syncopation_level"] <= 5 else
-                "Heavy syncopation — off-beat emphasis throughout" if data["syncopation_level"] <= 8 else
-                "Maximum syncopation — chaos groove"
-            ),
-        },
-        "swing": {
-            "percentage": data["swing_percentage"],
-            "label": swing_label,
-        },
-        "beat_characteristics": {
-            "beat_strength": data["beat_strength"],
-            "ghost_note_frequency": data["ghost_note_frequency"],
-            "polyrhythm_depth": data["polyrhythm_depth"],
-            "polyrhythm_vis": polyrhythm_vis,
-        },
-        "common_rhythms": rhythm_patterns,
-        "rhythm_quote": data["rhythm_quote"],
-        "transition": transition,
+        "language": language,
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        "tempo_profile": profile,
+        "beat_pattern": beat_pattern,
+        "genre": genre,
+        "next_language": next_language,
+        "rotation_position": current_idx,
+        "rotation_size": len(languages),
     }
 
-    return result
 
-
-def generate_rhythm_report(rotate: bool = True) -> Dict[str, Any]:
-    """Alias for tempo() for API consistency."""
-    return tempo(rotate=rotate)
-
-
-def format_rhythm_card(result: Dict[str, Any]) -> str:
-    """Format the rhythm result as a human-readable card."""
-    rp = result["rhythm_profile"]
-    sync = result["syncopation"]
-    sw = result["swing"]
-    bc = result["beat_characteristics"]
+def format_tempo_report(analysis: Dict[str, Any]) -> str:
+    """Format the tempo analysis as a human-readable report."""
+    lang = analysis["language"]
+    profile = analysis["tempo_profile"]
+    beats = analysis["beat_pattern"]
 
     lines = [
-        "═" * 60,
-        f"  🎵 {result['selected_language']} — Rhythm Profile",
-        "═" * 60,
-        f"  BPM: {rp['bpm']} {rp['genre_emoji']} {rp['tempo_label']}",
-        f"  Time Signature: {rp['time_signature']}   Genre: {rp['genre']}",
-        f"  Signature Groove: {rp['signature_groove']}",
-        "─" * 60,
-        f"  {rp['description'][:80]}",
-        f"  {rp['description'][80:160]}" if len(rp['description']) > 80 else "",
-        "─" * 60,
-        "  🥁 DRUM GRID (8 beats)",
-        "  " + result["drum_grid"].replace("\n", "\n  "),
-        "─" * 60,
-        f"  Syncopation: {sync['bar']} — {sync['label']}",
-        f"  Swing: {sw['label']}   Polyrhythm: {bc['polyrhythm_vis']}",
-        f"  Beat Strength: {bc['beat_strength']}/10   Ghost Notes: {bc['ghost_note_frequency']}/10",
-        "─" * 60,
-        "  🎶 COMMON RHYTHMS",
+        f"🎵 Polyglot Tempo — {lang}",
+        "=" * 45,
+        f"BPM: {profile['bpm']} ({profile['bpm_range'][0]}-{profile['bpm_range'][1]})",
+        f"Time: {profile['time_signature']} | Tier: {profile['tempo_tier_label']}",
+        f"Character: {profile['character']}",
+        f"Feel: {profile['feel']}",
+        f"Signature Note: {profile['signature_note']}",
+        f"Syncopation: {profile['syncopation']} | Groove: {profile['groove_factor']}",
+        f"Composer: {profile['composer_equivalent']}",
+        f"Mood: {', '.join(profile['mood_keywords'])}",
+        "",
+        f"Beat Pattern (4 bars):",
     ]
-
-    for i, rhythm in enumerate(result["common_rhythms"], 1):
-        lines.append(f"    {i}. {rhythm['name']}: {rhythm['pattern']} "
-                     f"(×{rhythm['bpm_factor']} → ~{rhythm['effective_bpm']} BPM)")
+    for bar in beats:
+        lines.append(f"  | {bar} |")
 
     lines += [
-        "─" * 60,
-        f"  💬 \"{result['rhythm_quote']}\"",
+        "",
+        f"Next in rotation → {analysis['next_language']}",
+        f"Position: {analysis['rotation_position'] + 1}/{analysis['rotation_size']}",
     ]
+    return "\n".join(lines)
 
-    if result.get("transition"):
-        t = result["transition"]
-        lines += [
-            "─" * 60,
-            f"  🔄 TRANSITION: {t['from']} → {t['to']}",
-            f"     {t['feel']}",
-        ]
-
-    lines += [
-        "─" * 60,
-        f"  Next in rotation: {result['next_language']}",
-        f"  Rotation: {' → '.join(result['rotation'])} → {result['rotation'][0]}",
-        "═" * 60,
-    ]
-
-    return "\n".join(line for line in lines if line)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Tests
-# ─────────────────────────────────────────────────────────────────────────────
 
 def run_tests() -> None:
-    """Run tests to validate the Polyglot Tempo module."""
-    tests_passed = 0
-    tests_failed = 0
+    """Run the test suite."""
+    import unittest
+    from pathlib import Path
 
-    def assert_eq(a: Any, b: Any, msg: str = "") -> None:
-        nonlocal tests_passed, tests_failed
-        if a == b:
-            tests_passed += 1
-            print(f"  ✅ PASS: {msg}")
-        else:
-            tests_failed += 1
-            print(f"  ❌ FAIL: {msg} — expected {b!r}, got {a!r}")
-
-    def assert_in(a: str, b: str, msg: str = "") -> None:
-        nonlocal tests_passed, tests_failed
-        if a in b:
-            tests_passed += 1
-            print(f"  ✅ PASS: {msg}")
-        else:
-            tests_failed += 1
-            print(f"  ❌ FAIL: {msg} — '{a}' not in '{b}'")
-
-    def assert_true(a: Any, msg: str = "") -> None:
-        nonlocal tests_passed, tests_failed
-        if a:
-            tests_passed += 1
-            print(f"  ✅ PASS: {msg}")
-        else:
-            tests_failed += 1
-            print(f"  ❌ FAIL: {msg}")
-
-    def assert_keys(d: Dict, keys: List[str], msg: str = "") -> None:
-        nonlocal tests_passed, tests_failed
-        missing = [k for k in keys if k not in d]
-        if not missing:
-            tests_passed += 1
-            print(f"  ✅ PASS: {msg}")
-        else:
-            tests_failed += 1
-            print(f"  ❌ FAIL: {msg} — missing keys: {missing}")
-
-    print("🎵 Testing Polyglot Tempo...")
-
-    print("  Loading rotation config...")
-    config = load_rotation()
-    assert_eq(8, len(config["languages"]), "8 languages in rotation")
-    assert_true(0 <= config["current_index"] < 8, "current_index in valid range")
-    assert_eq("Rust", config["languages"][0], "Rust is first language")
-
-    print("  Testing tempo() function...")
-    result = tempo(rotate=False)
-
-    required_keys = [
-        "tool", "version", "selected_language", "previous_language",
-        "next_language", "rotation", "rhythm_profile", "drum_grid",
-        "syncopation", "swing", "beat_characteristics", "common_rhythms",
-        "rhythm_quote", "transition", "timestamp"
-    ]
-    assert_keys(result, required_keys, "All required keys present in result")
-
-    assert_eq(TOOL_NAME, result["tool"], "Correct tool name")
-    assert_eq(TOOL_VERSION, result["version"], "Correct version")
-
-    print("  Verifying rhythm_profile structure...")
-    rp = result["rhythm_profile"]
-    rp_keys = ["bpm", "tempo_label", "time_signature", "genre", "genre_emoji",
-               "description", "signature_groove", "groove_description"]
-    assert_keys(rp, rp_keys, "rhythm_profile has all required fields")
-    assert_true(60 <= rp["bpm"] <= 200, "BPM in reasonable musical range (60-200)")
-    assert_true("/" in rp["time_signature"], "Time signature contains '/'")
-
-    print("  Verifying drum_grid is non-empty and multi-line...")
-    assert_true(len(result["drum_grid"]) > 50, "drum_grid is substantial")
-    assert_true(result["drum_grid"].count("\n") >= 3, "drum_grid has multiple rows")
-
-    print("  Verifying syncopation structure...")
-    sync = result["syncopation"]
-    assert_true(1 <= sync["level"] <= 10, "syncopation level is 1-10")
-    assert_true("[" in sync["bar"] and "]" in sync["bar"], "syncopation bar is formatted")
-    assert_true(len(sync["label"]) > 10, "syncopation label is meaningful")
-
-    print("  Verifying swing structure...")
-    sw = result["swing"]
-    assert_true(0 <= sw["percentage"] <= 100, "swing percentage 0-100")
-    assert_true(len(sw["label"]) > 0, "swing label is non-empty")
-
-    print("  Verifying beat_characteristics...")
-    bc = result["beat_characteristics"]
-    assert_true(1 <= bc["beat_strength"] <= 10, "beat_strength 1-10")
-    assert_true(1 <= bc["ghost_note_frequency"] <= 10, "ghost_note_frequency 1-10")
-    assert_true(1 <= bc["polyrhythm_depth"] <= 5, "polyrhythm_depth 1-5")
-    assert_true("×" in bc["polyrhythm_vis"], "polyrhythm_vis shows multiplication")
-
-    print("  Verifying common_rhythms...")
-    rhythms = result["common_rhythms"]
-    assert_true(len(rhythms) >= 3, f"common_rhythms has {len(rhythms)} entries (>= 3)")
-    for rhythm in rhythms:
-        assert_true("name" in rhythm, "rhythm has name")
-        assert_true("pattern" in rhythm, "rhythm has pattern")
-        assert_true("bpm_factor" in rhythm, "rhythm has bpm_factor")
-        assert_true("effective_bpm" in rhythm, "rhythm has effective_bpm")
-        assert_true(0.5 <= rhythm["bpm_factor"] <= 2.0, "bpm_factor is reasonable")
-
-    print("  Verifying all languages have rhythm data...")
-    for lang in config["languages"]:
-        data = RHYTHM_DATA.get(lang)
-        assert_true(data is not None, f"Rhythm data exists for {lang}")
-        assert_true("bpm" in data, f"{lang} has bpm")
-        assert_true("genre" in data, f"{lang} has genre")
-        assert_true("drum_pattern" in data, f"{lang} has drum_pattern")
-        assert_true(len(data["drum_pattern"]) >= 3, f"{lang} drum_pattern has >= 3 rows")
-        assert_true("common_rhythms" in data, f"{lang} has common_rhythms")
-        assert_true(len(data["common_rhythms"]) >= 3, f"{lang} has >= 3 common rhythms")
-        assert_true("rhythm_quote" in data, f"{lang} has rhythm_quote")
-
-    print("  Verifying rotation advances correctly...")
-    initial_config = load_rotation()
-    initial_idx = initial_config["current_index"]
-
-    result1 = tempo(rotate=True)
-    config_after = load_rotation()
-    expected_idx = (initial_idx + 1) % len(config["languages"])
-    assert_eq(expected_idx, config_after["current_index"], "Rotation advanced by 1")
-    assert_eq(initial_config["languages"][initial_idx], config_after["last_language"],
-              "last_language updated correctly")
-
-    print("  Verifying tempo with rotation=False does NOT advance...")
-    idx_before = load_rotation()["current_index"]
-    result_norotate = tempo(rotate=False)
-    idx_after = load_rotation()["current_index"]
-    assert_eq(idx_before, idx_after, "Index unchanged when rotate=False")
-
-    print("  Verifying get_current_language()...")
-    lang = get_current_language()
-    assert_true(lang in config["languages"], f"get_current_language returns valid language: {lang}")
-
-    print("  Verifying compute_transition_feel()...")
-    trans = compute_transition_feel("Rust", "Go")
-    assert_true("from" in trans and "to" in trans and "feel" in trans,
-                "transition has from/to/feel")
-    assert_eq("Rust", trans["from"], "transition from Rust")
-    assert_eq("Go", trans["to"], "transition to Go")
-    assert_true(len(trans["feel"]) > 20, "transition feel is meaningful")
-
-    print("  Testing transition between all language pairs...")
-    for lang in config["languages"]:
-        for prev_lang in config["languages"]:
-            if lang != prev_lang:
-                t = compute_transition_feel(prev_lang, lang)
-                assert_eq(lang, t["to"], f"transition to {lang} from {prev_lang} is valid")
-
-    print("  Verifying format_rhythm_card()...")
-    card = format_rhythm_card(result)
-    assert_true("DRUM GRID" in card, "Card contains DRUM GRID section")
-    assert_true("COMMON RHYTHMS" in card, "Card contains COMMON RHYTHMS section")
-    assert_true("Syncopation" in card, "Card contains Syncopation")
-    assert_true("Transition" in card or "Next in rotation" in card,
-                "Card contains transition or rotation info")
-
-    print("  Testing BPM range across languages...")
-    bpm_values = [RHYTHM_DATA[lang]["bpm"] for lang in config["languages"]]
-    assert_true(min(bpm_values) >= 100, f"Fastest language BPM: {min(bpm_values)} (Rust should be ~120)")
-    assert_true(max(bpm_values) <= 165, f"Slowest language BPM: {max(bpm_values)} (C/C++ should be ~160)")
-
-    print("  Testing time signatures...")
-    for lang in config["languages"]:
-        ts = RHYTHM_DATA[lang]["time_signature"]
-        assert_true("/" in ts, f"{lang} has valid time signature: {ts}")
-
-    print("  Testing genre emojis...")
-    for lang in config["languages"]:
-        emoji = RHYTHM_DATA[lang]["genre_emoji"]
-        assert_true(len(emoji) > 0, f"{lang} has genre emoji: {emoji}")
-
-    print(f"\n{'=' * 55}")
-    print(f"Tests: {tests_passed} passed, {tests_failed} failed")
-    if tests_failed == 0:
-        print("🎵 All Tempo tests passed! The rhythm is undeniable.")
+    test_file = Path(__file__).parent.parent / "tests" / "test_tempo.py"
+    if test_file.exists():
+        # Discover and run tests
+        loader = unittest.TestLoader()
+        suite = loader.discover(str(test_file.parent), pattern="test_tempo.py")
+        runner = unittest.TextTestRunner(verbosity=2)
+        result = runner.run(suite)
+        if not result.wasSuccessful():
+            raise SystemExit(1)
     else:
-        print(f"💥 {tests_failed} test(s) failed.")
-        raise SystemExit(1)
+        print("No test file found. Running inline tests...")
+
+        # ── Inline tests ──────────────────────────────────────────
+        tests_passed = 0
+        tests_failed = 0
+
+        def assert_eq(a, b, msg=""):
+            nonlocal tests_passed, tests_failed
+            if a == b:
+                tests_passed += 1
+                print(f"  ✅ PASS: {msg}")
+            else:
+                tests_failed += 1
+                print(f"  ❌ FAIL: {msg} — expected {b!r}, got {a!r}")
+
+        def assert_true(cond, msg=""):
+            nonlocal tests_passed, tests_failed
+            if cond:
+                tests_passed += 1
+                print(f"  ✅ PASS: {msg}")
+            else:
+                tests_failed += 1
+                print(f"  ❌ FAIL: {msg}")
+
+        def assert_in(needle, haystack, msg=""):
+            nonlocal tests_passed, tests_failed
+            if needle in haystack:
+                tests_passed += 1
+                print(f"  ✅ PASS: {msg}")
+            else:
+                tests_failed += 1
+                print(f"  ❌ FAIL: {msg}")
+
+        print("=" * 50)
+        print("🎵 Polyglot Tempo — Test Suite")
+        print("=" * 50)
+
+        print("\n[1] Module constants...")
+        assert_eq(TOOL_NAME, "polyglot-tempo", "tool name correct")
+        assert_eq(TOOL_VERSION, "1.0.0", "version correct")
+
+        print("\n[2] LANGUAGE_RHYTHMS completeness...")
+        ROTATION_ORDER = ["Rust", "Go", "Swift", "Kotlin",
+                          "TypeScript", "JavaScript", "Java", "C/C++"]
+        for lang in ROTATION_ORDER:
+            assert_true(lang in LANGUAGE_RHYTHMS, f"{lang} in LANGUAGE_RHYTHMS")
+            assert_true("bpm_range" in LANGUAGE_RHYTHMS[lang], f"{lang} has bpm_range")
+
+        print("\n[3] Tempo profile generation...")
+        for lang in ROTATION_ORDER:
+            profile = get_tempo_profile(lang)
+            assert_true("bpm" in profile, f"{lang} has bpm")
+            assert_true(60 <= profile["bpm"] <= 160, f"{lang} BPM in valid range")
+            assert_true("tempo_tier" in profile, f"{lang} has tempo_tier")
+            assert_true("genre_description" in profile, f"{lang} has genre_description")
+            assert_true("composer_equivalent" in profile, f"{lang} has composer_equivalent")
+
+        print("\n[4] Beat pattern generation...")
+        for lang in ROTATION_ORDER:
+            pattern = generate_beat_pattern(lang, bars=4)
+            assert_eq(len(pattern), 4, f"{lang} generates 4 bars")
+            for bar in pattern:
+                beats = bar.split("  ")
+                assert_eq(len(beats), 4, f"{lang} bar has 4 beats")
+
+        print("\n[5] Tempo tier classification...")
+        assert_eq(get_tempo_tier(155), "prestissimo", "155 BPM is prestissimo")
+        assert_eq(get_tempo_tier(130), "allegro", "130 BPM is allegro")
+        assert_eq(get_tempo_tier(105), "andante", "105 BPM is andante")
+        assert_eq(get_tempo_tier(75), "adagio", "75 BPM is adagio")
+
+        print("\n[6] analyze_tempo returns correct structure...")
+        analysis = analyze_tempo("Rust")
+        assert_true("language" in analysis, "language key present")
+        assert_true("tempo_profile" in analysis, "tempo_profile key present")
+        assert_true("beat_pattern" in analysis, "beat_pattern key present")
+        assert_true("next_language" in analysis, "next_language key present")
+        assert_eq(analysis["language"], "Rust", "language is Rust")
+        assert_eq(analysis["next_language"], "Go", "next language after Rust is Go")
+
+        print("\n[7] Rotation state update...")
+        config_before = load_rotation()
+        idx_before = config_before["current_index"]
+        lang_before = config_before["languages"][idx_before]
+        analyze_tempo(lang_before)
+        config_after = load_rotation()
+        expected = (idx_before + 1) % len(config_before["languages"])
+        assert_eq(config_after["current_index"], expected, "index advanced correctly")
+
+        print("\n[8] Invalid language raises ValueError...")
+        try:
+            get_tempo_profile("Python")
+            tests_failed += 1
+            print("  ❌ FAIL: No error for invalid language")
+        except ValueError as e:
+            assert_in("Python", str(e), "Python in error message")
+            tests_passed += 1
+            print("  ✅ PASS: ValueError raised for invalid language")
+
+        print("\n[9] Genre descriptions cover all characters...")
+        characters_seen = set(LANGUAGE_RHYTHMS[lang]["character"] for lang in ROTATION_ORDER)
+        for char in characters_seen:
+            assert_true(char in GENRE_DESCRIPTIONS, f"'{char}' has genre description")
+
+        print("\n[10] All languages produce valid reports...")
+        for lang in ROTATION_ORDER:
+            r = analyze_tempo(lang)
+            assert_true("tempo_profile" in r, f"{lang} has tempo_profile")
+            assert_true("beat_pattern" in r, f"{lang} has beat_pattern")
+            assert_true("rotation_position" in r, f"{lang} has rotation_position")
+            assert_true("rotation_size" in r, f"{lang} has rotation_size")
+
+        print("\n" + "=" * 50)
+        print(f"Results: {tests_passed} passed, {tests_failed} failed")
+        print("=" * 50)
+
+        if tests_failed == 0:
+            print("🎉 All tests passed! Polyglot Tempo is in perfect rhythm.")
+        else:
+            print(f"💥 {tests_failed} test(s) failed.")
+            raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "--test":
+        run_tests()
+    elif len(sys.argv) > 1 and sys.argv[1] == "--analyze":
+        language = sys.argv[2] if len(sys.argv) > 2 else None
+        if language:
+            analysis = analyze_tempo(language)
+            print(format_tempo_report(analysis))
+        else:
+            config = load_rotation()
+            current = config["languages"][config["current_index"]]
+            analysis = analyze_tempo(current)
+            print(format_tempo_report(analysis))
+    else:
+        print(f"🎵 Polyglot Tempo v{TOOL_VERSION}")
+        print("Usage:")
+        print("  python -m polyglot_tempo --test          # Run test suite")
+        print("  python -m polyglot_tempo --analyze       # Analyze current language")
+        print("  python -m polyglot_tempo --analyze Rust  # Analyze specific language")
