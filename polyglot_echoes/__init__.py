@@ -1,30 +1,26 @@
-#!/usr/bin/env python3
-"""
-📢 Polyglot Echoes v1.0
-
-Echoes: iconic quotes, battle cries, and community mantras.
-"""
-
-from .src.echoes import (
-    echoes,
-    generate_echo_report,
-    format_echo_report,
-    get_current_language,
-    advance_rotation,
-    pick_echo,
-    run_tests,
+"""Polyglot Echoes — Language Temporal Reverberation System."""
+from .echoes import (
     TOOL_NAME,
     TOOL_VERSION,
+    ROTATION_ORDER,
+    ECHO_SYSTEMS,
+    echoes,
+    run_tests,
+    load_rotation,
+    save_rotation,
+    compute_reverb_time,
+    build_echo_waveform,
 )
 
 __all__ = [
-    "echoes",
-    "generate_echo_report",
-    "format_echo_report",
-    "get_current_language",
-    "advance_rotation",
-    "pick_echo",
-    "run_tests",
     "TOOL_NAME",
     "TOOL_VERSION",
+    "ROTATION_ORDER",
+    "ECHO_SYSTEMS",
+    "echoes",
+    "run_tests",
+    "load_rotation",
+    "save_rotation",
+    "compute_reverb_time",
+    "build_echo_waveform",
 ]
