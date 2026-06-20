@@ -168,6 +168,10 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 ### 最近新增测试
 
+- **polyglot_chronicle**: 44 个测试用例，覆盖模块元数据、HISTORY_EVENTS/DAILY_CHALLENGES/QUOTES/COMMUNITY_MOODS 数据结构、rotation 加载/保存、on_this_day 查找（当天/历史回退）、deterministic challenge 选择、quote/mood 选取、chronicle 完整输出（emoji/age/日期/quote/mood）、轮转推进、所有 8 种语言覆盖、JSON 序列化等 📜
+- **polyglot_cipher**: 70 个测试用例，覆盖模块元数据、8 种语言 cipher 算法（Rust ROT-XOR/Go 滑动窗口/Swift Unicode 移位/Kotlin null-safe Caesar/TypeScript Atbash/JavaScript Vigenère/Java Classloader/C++ Pointer XOR）、rotation IO、_wrap/_section/_cipher_card 辅助函数、cipher() 完整流程、轮转推进、参数化覆盖（所有 8 种语言）等 🔐
+- **polyglot_code_printer**: 44 个测试用例，覆盖模块元数据、CODE_PRINTS 数据结构（emoji/vibe/philosophy/signature_idiom/hello_world/box 边框）、rotation IO、get_current_language/advance_rotation/get_next_language、generate_code_print 完整输出、_build_print_lines/_wrap、format_printable 渲染、未知语言回退、参数化覆盖（所有 8 种语言）等 🖨️
+- **polyglot_digest**: 36 个测试用例，覆盖模块元数据、CONCEPT_BANK 结构（6 个编程概念 × 8 种语言）、get_concept/select_concept/build_parallel_snippet、rotation IO、digest() 完整输出（concept/snippets/rotation）、concepts 覆盖（hello_world/fibonacci/http_get/singleton/error_handling/generic_stack）、JSON 序列化等 🌮
 - **polyglot_anomaly**: 33 个测试用例，覆盖模块元数据、ANOMALY_DATA 结构、轮转函数、当前语言获取、语言推进、异常检测（严重级别分解/悖论/矛盾列表）、报告格式化等 🦀
 - **polyglot_pulse**: 36 个测试用例，覆盖模块元数据、语言指标、脉冲评分计算、生命体征、健康条件评估、诊断生成、脉冲测量、轮转状态更新等 💓
 - **polyglot_dna**: 48 个测试用例，覆盖模块元数据、核苷酸常量、DNA 结构、基因注释、DNA 序列生成、双螺旋比较、兼容性评分、轮转入口等 🧬
@@ -262,6 +266,10 @@ perl Perl/csv_utils/csv_utils_test.pl
 
 | 模块 | 语言 | 测试数 | 覆盖率 |
 |------|------|--------|--------|
+| polyglot_chronicle | Python | 44 | ✅ 100% |
+| polyglot_cipher | Python | 70 | ✅ 100% |
+| polyglot_code_printer | Python | 44 | ✅ 100% |
+| polyglot_digest | Python | 36 | ✅ 100% |
 | polyglot_anomaly | Python | 33 | ✅ 100% |
 | polyglot_pulse | Python | 36 | ✅ 100% |
 | polyglot_dna | Python | 48 | ✅ 100% |

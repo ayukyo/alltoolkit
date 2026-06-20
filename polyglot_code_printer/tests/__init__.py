@@ -1,0 +1,3 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Tests package for polyglot_code_printer."""
