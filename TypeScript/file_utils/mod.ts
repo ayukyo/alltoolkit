@@ -190,6 +190,12 @@ export function ensureDir(dirpath: string, mode: number = 0o755): FileResult<voi
   }
 }
 
+/**
+ * 2026-06-21 优化: ensureDir 的语义化别名（更明确的"确保目录存在"语义）
+ * 与 ensureDir 完全等价；同时保留 ensureDir 以维持向后兼容。
+ */
+export const ensureDirectory = ensureDir;
+
 function matchPattern(filename: string, pattern: string): boolean {
   const regex = new RegExp('^' + pattern.replace(/\./g, '\\.').replace(/\*/g, '.*').replace(/\?/g, '.') + '$');
   return regex.test(filename);
@@ -313,6 +319,27 @@ export function getFileHash(filepath: string, algorithm: 'md5' | 'sha1' | 'sha25
     const data = fs.readFileSync(filepath);
     hash.update(data);
     return { success: true, data: hash.digest('hex') };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
+ * 2026-06-21 优化: getFileHash 的语义化别名
+ */
+export const calculateHash = getFileHash;
+
+/**
+ * 2026-06-21 优化: 删除目录（支持递归）
+ */
+export function deleteDirectory(dirpath: string, missingOk: boolean = true): FileResult<void> {
+  try {
+    if (!fs.existsSync(dirpath)) {
+      if (missingOk) return { success: true };
+      return { success: false, error: `Directory not found: ${dirpath}` };
+    }
+    fs.rmSync(dirpath, { recursive: true, force: missingOk });
+    return { success: true };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : String(err) };
   }

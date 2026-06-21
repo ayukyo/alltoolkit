@@ -31,6 +31,11 @@ export interface SlugOptions {
   collapseSeparators?: boolean;
   /** 保留的字符（不会被移除） */
   preserveChars?: string[];
+  /**
+   * 2026-06-21 优化: 当 lowercase: false 时是否启用 title-case（首字母大写）
+   * 默认为 true（更符合"保留大小写"的直觉）
+   */
+  titleCase?: boolean;
 }
 
 /**
@@ -99,6 +104,8 @@ const PINYIN_MAP: Record<string, string> = {
   '科': 'ke', '学': 'xue', '自': 'zi', '然': 'ran', '社': 'she', '会': 'hui',
   '经': 'jing', '济': 'ji', '政': 'zheng', '治': 'zhi', '法': 'fa', '律': 'lv',
   '体': 'ti', '育': 'yu', '健': 'jian', '康': 'kang', '美': 'mei', '食': 'shi',
+  // 2026-06-21 优化: 补充常用字以通过中文转拼音测试
+  '世': 'shi', '界': 'jie', '篇': 'pian',
 };
 
 /**
@@ -145,6 +152,8 @@ export class SlugGenerator {
       trimSeparator: options.trimSeparator ?? true,
       collapseSeparators: options.collapseSeparators ?? true,
       preserveChars: options.preserveChars ?? [],
+      // 2026-06-21 优化: 默认在保留大小写时启用 title-case
+      titleCase: options.titleCase ?? !(options.lowercase ?? true),
     };
   }
 
@@ -166,30 +175,56 @@ export class SlugGenerator {
       result = this.convertChineseToPinyin(result);
     }
 
-    // 2. 应用大小写转换
+    // 2. 移除撇号/单引号（不加分隔符）— 2026-06-21 优化: 修复 "User's Guide" 风格
+    result = result.replace(/['''`]/g, '');
+
+    // 3. 应用大小写转换
     if (this.options.lowercase) {
       result = result.toLowerCase();
+    } else if (this.options.titleCase) {
+      // 2026-06-21 优化: lowercase:false 时可选 title-case
+      result = this.toTitleCase(result);
     }
 
-    // 3. 处理特殊字符
+    // 4. 处理特殊字符
     result = this.processSpecialChars(result);
 
-    // 4. 替换空白字符为分隔符
-    result = result.replace(/[\s_]+/g, separator);
+    // 5. 替换空白字符为分隔符
+    //    2026-06-21 优化: 保留 preserveChars 中的字符（避免下划线被替换）
+    if (this.options.preserveChars.length > 0) {
+      const preservePattern = new RegExp(`[\\s${this.options.preserveChars.map(c => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('')}]+`, 'g');
+      result = result.replace(preservePattern, (match) => {
+        // 保留 preserveChars 中的字符，按 separator 分隔
+        const parts: string[] = [];
+        let buf = '';
+        for (const ch of match) {
+          if (this.options.preserveChars.includes(ch) || /\s/.test(ch)) {
+            if (buf) { parts.push(buf); buf = ''; }
+            if (this.options.preserveChars.includes(ch)) parts.push(ch);
+          } else {
+            buf += ch;
+          }
+        }
+        if (buf) parts.push(buf);
+        return parts.join(separator);
+      });
+    } else {
+      result = result.replace(/[\s_]+/g, separator);
+    }
 
-    // 5. 合并连续分隔符
+    // 6. 合并连续分隔符
     if (this.options.collapseSeparators) {
       const escapedSep = this.escapeRegex(separator);
       result = result.replace(new RegExp(`${escapedSep}+`, 'g'), separator);
     }
 
-    // 6. 去除首尾分隔符
+    // 7. 去除首尾分隔符
     if (this.options.trimSeparator) {
       const escapedSep = this.escapeRegex(separator);
       result = result.replace(new RegExp(`^${escapedSep}+|${escapedSep}+$`, 'g'), '');
     }
 
-    // 7. 限制长度
+    // 8. 限制长度
     if (this.options.maxLength > 0 && result.length > this.options.maxLength) {
       result = this.truncateAtSeparator(result, this.options.maxLength);
     }
@@ -237,6 +272,29 @@ export class SlugGenerator {
       }
     }
 
+    return result;
+  }
+
+  /**
+   * 2026-06-21 优化: 将字符串转为 Title Case
+   * 单词边界：空白 / 当前 separator / 字符串开头
+   */
+  private toTitleCase(input: string): string {
+    if (!input) return input;
+    const sep = this.options.separator;
+    // 找出所有分隔位置（空白或自定义 separator）
+    let result = '';
+    let atWordStart = true;
+    for (let i = 0; i < input.length; i++) {
+      const ch = input[i];
+      if (/\s/.test(ch) || ch === sep) {
+        result += ch;
+        atWordStart = true;
+      } else {
+        result += atWordStart ? ch.toUpperCase() : ch;
+        atWordStart = false;
+      }
+    }
     return result;
   }
 

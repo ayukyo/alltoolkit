@@ -191,7 +191,8 @@ test('parse() extracts timestamp for v1', () => {
 
 test('getVersion() returns correct version', () => {
   assertEqual(getVersion('550e8400-e29b-41d4-a716-446655440000'), 4, 'Should be version 4');
-  assertEqual(getVersion('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'), 1, 'Should be version 1');
+  // 2026-06-21 优化: 修复测试 fixture - group 3 必须以 '1' 开头才表示 v1
+  assertEqual(getVersion('a0eebc99-9c0b-11ef-8b6d-6bb9bd380a11'), 1, 'Should be version 1');
   assertEqual(getVersion('invalid'), -1, 'Invalid UUID returns -1');
 });
 

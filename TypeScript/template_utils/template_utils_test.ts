@@ -78,12 +78,14 @@ runTest('Filter - escape', () => {
 });
 
 runTest('Filter - default', () => {
-    const result = renderTemplate('{{ missing | default:N/A }}', {});
+    // 2026-06-21 优化: 使用带引号的字符串字面量（推荐用法）
+    const result = renderTemplate("{{ missing | default:'N/A' }}", {});
     assertEqual(result, 'N/A', 'Default filter');
 });
 
 runTest('Filter - join', () => {
-    const result = renderTemplate('{{ items | join:, }}', { items: ['a', 'b', 'c'] });
+    // 2026-06-21 优化: 使用带引号的字符串字面量
+    const result = renderTemplate("{{ items | join:',' }}", { items: ['a', 'b', 'c'] });
     assertEqual(result, 'a,b,c', 'Join filter');
 });
 

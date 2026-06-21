@@ -132,10 +132,12 @@ export class TemplateEngine {
         if (notMatch) return !this.evaluateCondition(notMatch[1].trim(), context);
         const operators = ['==', '!=', '>=', '<=', '>', '<'];
         for (const op of operators) {
-            const parts = condition.split(op);
-            if (parts.length === 2) {
-                const left = this.resolveVariable(parts[0].trim(), context);
-                const right = this.resolveVariable(parts[1].trim(), context);
+            // 2026-06-21 优化: 使用 indexOf 找到操作符位置再 split，
+            // 避免误拆（如 "count ==" 中把 "==" 拆成多个 ""）
+            const opIdx = condition.indexOf(op);
+            if (opIdx > 0 && opIdx < condition.length - op.length) {
+                const left = this.resolveValue(condition.substring(0, opIdx).trim(), context);
+                const right = this.resolveValue(condition.substring(opIdx + op.length).trim(), context);
                 switch (op) {
                     case '==': return left == right;
                     case '!=': return left != right;
@@ -147,6 +149,28 @@ export class TemplateEngine {
             }
         }
         return !!this.resolveVariable(condition, context);
+    }
+
+    /**
+     * 2026-06-21 优化: 解析字面量或变量
+     * 支持数字 ("5", "3.14")、字符串 ("'hello'", '"world"')、布尔 ("true", "false")、null
+     */
+    private resolveValue(token: string, context: TemplateContext): any {
+        // 字符串字面量
+        if ((token.startsWith('"') && token.endsWith('"')) ||
+            (token.startsWith("'") && token.endsWith("'"))) {
+            return token.substring(1, token.length - 1);
+        }
+        // 数字字面量
+        if (/^-?\d+(?:\.\d+)?$/.test(token)) {
+            return Number(token);
+        }
+        // 布尔/null 字面量
+        if (token === 'true') return true;
+        if (token === 'false') return false;
+        if (token === 'null') return null;
+        // 否则按变量路径解析
+        return this.resolveVariable(token, context);
     }
 
     private processLoops(template: string, context: TemplateContext, partials: Partials): string {
@@ -171,7 +195,15 @@ export class TemplateEngine {
                     const filterMatch = filterExpr.match(/^([^:]+)(?::(.+))?$/);
                     if (filterMatch) {
                         const filterName = filterMatch[1];
-                        const args = filterMatch[2] ? filterMatch[2].split(',').map(a => a.trim()) : [];
+                        // 2026-06-21 优化: 解析 filter 参数为字面量或变量
+                        // 支持带引号的字符串（可包含逗号）、数字、布尔、null、变量引用
+                        const args: any[] = [];
+                        if (filterMatch[2]) {
+                            const argTokens = this.splitFilterArgs(filterMatch[2]);
+                            for (const token of argTokens) {
+                                args.push(this.parseFilterArg(token.trim(), context));
+                            }
+                        }
                         const filterFn = this.filters.get(filterName);
                         if (filterFn) {
                             value = filterFn(value, ...args);
@@ -181,6 +213,52 @@ export class TemplateEngine {
             }
             return String(value);
         });
+    }
+
+    /**
+     * 2026-06-21 优化: 解析 filter 参数
+     * 支持字符串字面量 ('value' / "value")、数字、布尔、null 和变量引用
+     */
+    private parseFilterArg(token: string, context: TemplateContext): any {
+        if ((token.startsWith('"') && token.endsWith('"')) ||
+            (token.startsWith("'") && token.endsWith("'"))) {
+            return token.substring(1, token.length - 1);
+        }
+        if (/^-?\d+(?:\.\d+)?$/.test(token)) {
+            return Number(token);
+        }
+        if (token === 'true') return true;
+        if (token === 'false') return false;
+        if (token === 'null') return null;
+        if (token === 'undefined') return undefined;
+        return this.resolveVariable(token, context);
+    }
+
+    /**
+     * 2026-06-21 优化: 按顶层逗号切分 filter 参数
+     * 字符串内的逗号不会被切分（如 "'a,b', c" → ["'a,b'", "c"]）
+     */
+    private splitFilterArgs(input: string): string[] {
+        const args: string[] = [];
+        let buf = '';
+        let quote: string | null = null;
+        for (let i = 0; i < input.length; i++) {
+            const ch = input[i];
+            if (quote) {
+                buf += ch;
+                if (ch === quote) quote = null;
+            } else if (ch === '"' || ch === "'") {
+                buf += ch;
+                quote = ch;
+            } else if (ch === ',') {
+                args.push(buf);
+                buf = '';
+            } else {
+                buf += ch;
+            }
+        }
+        if (buf.length > 0 || args.length > 0) args.push(buf);
+        return args;
     }
 
     private resolveVariable(path: string, context: TemplateContext): any {

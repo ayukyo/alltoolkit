@@ -231,7 +231,19 @@ export function parse(uuid: string): UuidObject | null {
   const bytes = hexToBytes(clean);
   
   const version = (bytes[6] >> 4) & 0x0f;
-  const variant = (bytes[8] >> 6) & 0x03;
+  // 2026-06-21 优化: variant 字段采用 0-索引 (0=NCS, 1=RFC 4122, 2=Microsoft, 3=Reserved)
+  // 与 npm `uuid` 等主流库保持一致
+  const variantByte = bytes[8];
+  let variant: number;
+  if ((variantByte & 0x80) === 0) {
+    variant = 0; // 0xxxxxxx - NCS backward compatibility
+  } else if ((variantByte & 0xc0) === 0x80) {
+    variant = 1; // 10xxxxxx - RFC 4122
+  } else if ((variantByte & 0xe0) === 0xc0) {
+    variant = 2; // 110xxxxx - Microsoft
+  } else {
+    variant = 3; // 111xxxxx - Reserved
+  }
   
   const result: UuidObject = {
     version,

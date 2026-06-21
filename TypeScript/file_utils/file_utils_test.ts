@@ -235,6 +235,15 @@ function testEnsureDirectory(tempDir: string): void {
 function testListFiles(tempDir: string): void {
   console.log('\nTesting listFiles...');
   
+  // 2026-06-21 优化: 清理之前的测试文件，避免污染本次测试
+  if (fs.existsSync(tempDir)) {
+    for (const entry of fs.readdirSync(tempDir)) {
+      try {
+        fs.rmSync(path.join(tempDir, entry), { recursive: true, force: true });
+      } catch {}
+    }
+  }
+  
   // Create test files
   fs.writeFileSync(path.join(tempDir, 'file1.txt'), '1');
   fs.writeFileSync(path.join(tempDir, 'file2.js'), '2');
@@ -250,11 +259,12 @@ function testListFiles(tempDir: string): void {
   }
   
   // Test with pattern
+  // 2026-06-21 优化: listFiles 返回 FileInfo[]，使用 .name 字段
   const result2 = listFiles(tempDir, { pattern: '*.txt' });
   if (!result2.success || !result2.data) {
     console.error('  FAIL: listFiles with pattern');
   } else {
-    const txtFiles = result2.data.filter(f => f.endsWith('.txt'));
+    const txtFiles = result2.data.filter(f => f.name.endsWith('.txt'));
     if (txtFiles.length === 2) {
       console.log('  PASS: listFiles with pattern filter');
     } else {
